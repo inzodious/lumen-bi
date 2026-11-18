@@ -187,3 +187,34 @@ describe('code visual: templates', () => {
     expect(html).toContain('wbi-codevisual')
   })
 })
+
+describe('code visual: sanitising and CSS checks', () => {
+  it('removes scripts, handlers, javascript: and remote URLs, meta refresh, frames and forms (string pass, no DOM)', async () => {
+    const { sanitizeTemplateHtml } = await import('./sanitize')
+    const out = sanitizeTemplateHtml(
+      `<p onclick="x()">a</p><script>alert(1)</script><img src="http://evil/x.png" onerror="y()"><a href="javascript:alert(1)">l</a>` +
+        `<meta http-equiv="refresh" content="0;url=http://evil"><base href="http://evil/"><iframe src="http://evil"></iframe><form action="http://evil"></form>` +
+        `<img src="data:image/png;base64,AAAA"><svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg><div data-select style="--a:1">ok</div>`
+    )
+    expect(out).not.toMatch(/<script|onclick|onerror|javascript:|http:\/\/evil|<meta|<base|<iframe|<form/i)
+    expect(out).toContain('src="data:image/png;base64,AAAA"')
+    expect(out).toContain('viewBox="0 0 10 10"')
+    expect(out).toContain('cx="5"')
+    expect(out).toContain('<div data-select style="--a:1">ok</div>')
+  })
+
+  it('reports CSS syntax errors with positions and warns about remote resources', async () => {
+    const { checkCss } = await import('@core/codevisual/csscheck')
+    expect(checkCss('.a { color: red; }\n.b { color: blue;')).toEqual([{ severity: 'error', message: '{ is never closed', line: 2, column: 4 }])
+    expect(checkCss('.a { content: "x }')[0]).toMatchObject({ severity: 'error', message: 'Unclosed string', line: 1, column: 15 })
+    expect(checkCss('/* x')[0].message).toBe('Unclosed comment /*')
+    expect(checkCss('}')[0].message).toBe('Unexpected }')
+    const w = checkCss("@import url('https://x/y.css');\n.a { background: url( http://x/bg.png ) }\n.b { background: url(data:image/png;base64,AA) }")
+    expect(w.map((i) => [i.severity, i.line])).toEqual([
+      ['warning', 1],
+      ['warning', 2]
+    ])
+    // position: fixed is allowed: the frame clips everything to the visual's box (see the isolation e2e)
+    expect(checkCss('.cover { position: fixed; inset: 0; z-index: 99999; }')).toEqual([])
+  })
+})

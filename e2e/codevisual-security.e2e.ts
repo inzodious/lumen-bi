@@ -155,6 +155,13 @@ describe('code visual isolation', () => {
     // the template visual: no script ran, nothing loaded, and its fixed "cover" stays inside its own box
     const html = page.frameLocator('.wbi-page [data-visual="hostilehtml00000000b"] iframe')
     await expect.poll(() => html.locator('#ok').count()).toBe(1)
+    // the template output was sanitised before it reached the frame (DOMPurify in the app)
+    const dom = await html.locator('#lumen-root').evaluate((root) => ({
+      tags: Array.from(root.querySelectorAll('script, meta, iframe, object, embed, base, form')).map((e) => e.tagName),
+      handlers: Array.from(root.querySelectorAll('*')).flatMap((e) => Array.from(e.attributes).filter((a) => /^on/i.test(a.name)).map((a) => a.name)),
+      remote: Array.from(root.querySelectorAll('[src], [href]')).map((e) => e.getAttribute('src') ?? e.getAttribute('href') ?? '').filter((u) => /^(https?:|\/\/)/i.test(u))
+    }))
+    expect(dom).toEqual({ tags: [], handlers: [], remote: [] })
     const box = (await page.locator('.wbi-page [data-visual="hostilehtml00000000b"]').boundingBox())!
     const outside = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName ?? '', [box.x - 30, box.y + box.height / 2])
     expect(outside).not.toBe('IFRAME')

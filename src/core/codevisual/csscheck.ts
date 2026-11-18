@@ -70,7 +70,7 @@ export function checkCss(css: string): CssIssue[] {
   }
   for (const s of stack) issues.push({ severity: 'error', message: '{ is never closed', ...s })
   // remote resources (blocked in the frame)
-  const re = /@import\b|url\(\s*["']?\s*(?:https?:|\/\/|ftp:|file:)/gi
+  const re = /@import\b[^;\n]*|url\(\s*["']?\s*(?:https?:|\/\/|ftp:|file:)/gi
   let m: RegExpExecArray | null
   while ((m = re.exec(css))) {
     const before = css.slice(0, m.index)

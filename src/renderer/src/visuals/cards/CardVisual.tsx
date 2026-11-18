@@ -63,6 +63,32 @@ const JUSTIFY = { top: 'flex-start', middle: 'center', bottom: 'flex-end' } as c
 const HJUSTIFY = { left: 'flex-start', center: 'center', right: 'flex-end' } as const
 const OBJECT_FIT: Record<ImageFit, CSSProperties['objectFit']> = { fit: 'contain', fill: 'cover', stretch: 'fill', center: 'none' }
 const OBJECT_Y = { top: 'top', middle: 'center', bottom: 'bottom' } as const
+
+/**
+ * Flex style of a callout image's area (CalloutArea).
+ *
+ * Above / below the text the image takes its share (`imageAreaSize`% of the height, or the fixed size) only while the
+ * label and value still fit: it shrinks first (large flex-shrink, no minimum) and the text keeps its content height.
+ * Before, the image kept its full share and the label + value column (centred) overflowed both ways, so the card cut
+ * the label off at the top as soon as a callout image was switched on (calloutTextFlex adds `safe` alignment for text
+ * that does not fit even without the image: it then overflows at the bottom). Beside the text (left / right) the
+ * image keeps its share and the text ellipsizes, as before. Approximation: how Power BI shares the height when image
+ * and text do not both fit is not documented; keeping the label and value readable is the safe side.
+ */
+export function calloutImageFlex(image: Pick<CalloutImageModel, 'position' | 'size' | 'areaSize'>): CSSProperties {
+  const basis = image.size !== undefined ? `${image.size}px` : `${image.areaSize}%`
+  const vertical = image.position === 'top' || image.position === 'bottom'
+  return { flex: `0 ${vertical ? 1000 : 0} ${basis}`, minWidth: 0, minHeight: 0, overflow: 'hidden' }
+}
+
+/**
+ * The label + value column. Beside / under a callout image (see calloutImageFlex) it uses `safe` alignment, so text
+ * that does not fit overflows at the bottom instead of losing the label at the top. Without an image it keeps plain
+ * alignment: a block a few px taller than the area stays centred like Power BI draws it (e2e/cards.e2e.ts rhythm).
+ */
+export function calloutTextFlex(alignment: keyof typeof JUSTIFY, withImage: boolean): CSSProperties {
+  return { flex: '1 1 auto', minWidth: 0, minHeight: 0, justifyContent: withImage ? `safe ${JUSTIFY[alignment]}` : JUSTIFY[alignment] }
+}
 const NAV_H = 22
 
 export function CardVisualView({ visual, width, height, ctx }: VisualProps) {
@@ -500,7 +526,7 @@ function CalloutArea({ c, image, layout }: { c: CalloutModel; image?: CalloutIma
   ) : null
   const gap = c.labelGap ? <div style={{ height: c.labelGap, flex: 'none' }} /> : null
   const text = (
-    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: JUSTIFY[layout.alignment], textAlign: c.value.align, minWidth: 0, minHeight: 0, flex: '1 1 auto' }}>
+    <div className="wbi-card-callout-text" style={{ display: 'flex', flexDirection: 'column', textAlign: c.value.align, ...calloutTextFlex(layout.alignment, !!image) }}>
       {c.label.position === 'above' && label}
       {c.label.position === 'above' && label && gap}
       {c.value.show && (
@@ -521,18 +547,17 @@ function CalloutArea({ c, image, layout }: { c: CalloutModel; image?: CalloutIma
   let body: ReactNode = text
   if (image) {
     const horizontal = image.position === 'left' || image.position === 'right'
-    const size = image.size !== undefined ? `0 0 ${image.size}px` : `0 0 ${image.areaSize}%`
+    // above / below: the gap gives way with the image (a margin would not shrink and would push the text out)
+    const imgGap = !horizontal && image.gap > 0 ? <div className="wbi-card-image-gap" style={{ flex: `0 1000 ${image.gap}px`, minHeight: 0 }} /> : null
     const imgBox = (
       <div
         className="wbi-card-image"
         style={{
-          flex: size,
+          ...calloutImageFlex(image),
           display: 'flex',
           alignItems: horizontal ? JUSTIFY[image.verticalAlignment] : 'stretch',
           justifyContent: horizontal ? 'stretch' : HJUSTIFY[image.horizontalAlignment],
-          minWidth: 0,
-          minHeight: 0,
-          [horizontal ? (image.position === 'left' ? 'marginRight' : 'marginLeft') : image.position === 'top' ? 'marginBottom' : 'marginTop']: image.gap
+          ...(horizontal ? { [image.position === 'left' ? 'marginRight' : 'marginLeft']: image.gap } : {})
         }}
       >
         <div style={{ width: horizontal ? '100%' : image.size ?? '100%', height: horizontal ? image.size ?? '100%' : '100%', maxHeight: '100%', maxWidth: '100%' }}>
@@ -544,7 +569,9 @@ function CalloutArea({ c, image, layout }: { c: CalloutModel; image?: CalloutIma
     body = (
       <div style={{ display: 'flex', flexDirection: horizontal ? 'row' : 'column', flex: '1 1 auto', minWidth: 0, minHeight: 0 }}>
         {(image.position === 'left' || image.position === 'top') && imgBox}
+        {image.position === 'top' && imgGap}
         {text}
+        {image.position === 'bottom' && imgGap}
         {(image.position === 'right' || image.position === 'bottom') && imgBox}
       </div>
     )

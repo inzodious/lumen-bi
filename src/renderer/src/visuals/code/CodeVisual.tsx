@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { identityKey } from '@core/report/sq'
-import { readCodeSource, readDrillText, writeDrillText } from '@core/codevisual/model'
+import { readCodeSource, readDrillText } from '@core/codevisual/model'
 import { evaluateTemplate, TemplateError } from '@core/codevisual/template'
 import { rootVars, rowStats, rowVars, styleText } from '@core/codevisual/cssvars'
 import { checkCss } from '@core/codevisual/csscheck'
@@ -69,33 +69,20 @@ export function rowAttrs(row: CodeRow, data: CodeData): Record<string, string> {
   return a
 }
 
-/** Saved drill state ↔ runtime drill state (undo, reopen, bookmarks and the header icons all stay in step). */
-function useDrillPersistence(visualJson: any, ctx: VisualHostContext): void {
+/**
+ * The saved drill state (lumenCode.drill) drives the runtime drill state whenever they differ after a document change:
+ * the first render, undo / redo, a reopened file. Drill changes made on the page are saved by report/runtime.ts setDrill.
+ */
+function useSavedDrill(visualJson: any, ctx: VisualHostContext): void {
   const docText = readDrillText(visualJson)
-  const runtimeText = serializeDrill(ctx.drill) ?? ''
-  const synced = useRef<string | null>(null)
   const ctxRef = useRef(ctx)
   ctxRef.current = ctx
   useEffect(() => {
     const c = ctxRef.current
-    if (synced.current === null) {
-      if (!runtimeText && docText) {
-        synced.current = docText
-        const d = parseDrill(docText)
-        if (d) c.setDrill({ ...EMPTY_DRILL, ...d, drillMode: c.drill.drillMode })
-        return
-      }
-      synced.current = docText
-    }
-    if (runtimeText !== synced.current) {
-      synced.current = runtimeText
-      if (runtimeText !== docText) c.updateVisual((j) => writeDrillText(j, runtimeText || undefined), runtimeText.length > docText.length ? 'Drill down' : 'Drill up')
-    } else if (docText !== synced.current) {
-      synced.current = docText
-      const d = parseDrill(docText)
-      c.setDrill(d ? { ...EMPTY_DRILL, ...d, drillMode: c.drill.drillMode } : { ...EMPTY_DRILL, drillMode: c.drill.drillMode })
-    }
-  }, [docText, runtimeText])
+    if ((serializeDrill(c.drill) ?? '') === docText) return
+    const d = parseDrill(docText)
+    c.setDrill(d ? { ...EMPTY_DRILL, ...d, drillMode: c.drill.drillMode } : { ...EMPTY_DRILL, drillMode: c.drill.drillMode })
+  }, [docText, visualJson])
 }
 
 /** What the editor shows next to the preview (Data tab, problems). */
@@ -108,13 +95,13 @@ export interface CodeVisualStatus {
   rowStyles?: string[]
 }
 
-export function CodeVisual({ visual, width, height, ctx, onStatus }: VisualProps & { onStatus?(s: CodeVisualStatus): void }) {
+export function CodeVisual({ visual, pageName, width, height, ctx, onStatus }: VisualProps & { onStatus?(s: CodeVisualStatus): void }) {
   const json = visual.json
   const fmt = useMemo(() => readCodeFormat(json, ctx.theme), [json, ctx.theme])
   const src = useMemo(() => readCodeSource(json), [json])
   const selKey = ctx.selection.map(identityKey).join('|')
   const q = useVisualQuery(json, ctx, () => queryCodeData(json, ctx, fmt), selKey)
-  useDrillPersistence(json, ctx)
+  useSavedDrill(json, ctx)
   const theme = useMemo(() => themeInfo(ctx.theme), [ctx.theme])
 
   // JSX: transpiled lazily (the Sucrase chunk loads on first use)
@@ -173,12 +160,12 @@ export function CodeVisual({ visual, width, height, ctx, onStatus }: VisualProps
   const hostRef = useRef<CodeFrameHost | null>(null)
   const [rendered, setRendered] = useState(false)
   const seq = useRef(0)
-  const live = useRef({ ctx, q: data as CodeQuery | undefined })
-  live.current = { ctx, q: data }
+  const live = useRef({ ctx, q: data as CodeQuery | undefined, name: visual.name })
+  live.current = { ctx, q: data, name: visual.name }
   const title = String(json?.visual?.visualContainerObjects?.title?.[0]?.properties?.text?.expr?.Literal?.Value ?? '').replace(/^'|'$/g, '') || 'Code visual'
 
   const onMessage = useCallback((m: FrameMessage) => {
-    const { ctx: c, q: cq } = live.current
+    const { ctx: c, q: cq, name } = live.current
     const rect = hostRef.current?.iframe.getBoundingClientRect()
     const scale = rect && hostRef.current!.iframe.offsetWidth ? rect.width / hostRef.current!.iframe.offsetWidth : 1
     const toClient = (x: number, y: number) => ({ x: (rect?.left ?? 0) + x * scale, y: (rect?.top ?? 0) + y * scale })
@@ -223,7 +210,8 @@ export function CodeVisual({ visual, width, height, ctx, onStatus }: VisualProps
         const id = m.key ? idOf(m.key) : undefined
         c.showTooltip(null)
         const row = m.key ? cq?.data.rows.find((r) => r.key === m.key) : undefined
-        c.showContextMenu({ x: p.x, y: p.y, ...(id && id.fields.length ? { identity: id, target: 'dataPoint' as const, value: row?.label } : { target: 'empty' as const }) })
+        const entries = c.mode === 'edit' ? [{ label: 'Edit code', onClick: () => codeVisualActions().openEditor(name) }] : undefined
+        c.showContextMenu({ x: p.x, y: p.y, ...(id && id.fields.length ? { identity: id, target: 'dataPoint' as const, value: row?.label } : { target: 'empty' as const }), ...(entries ? { entries } : {}) })
         return
       }
       case 'drill': {
@@ -329,6 +317,7 @@ export function CodeVisual({ visual, width, height, ctx, onStatus }: VisualProps
   const moveFrame = useRef(0)
   const editing = ctx.mode === 'edit'
 
+  const noCode = !src.html.trim() && !src.jsx.trim()
   return (
     <div className="wbi-codevisual" style={{ width, height }} data-code-state={error ? 'error' : rendered ? 'rendered' : 'loading'} data-code-mode={src.jsx ? 'jsx' : 'html'}>
       <div ref={boxRef} className="wbi-codevisual__box" style={{ visibility: error ? 'hidden' : undefined }} />
@@ -354,6 +343,21 @@ export function CodeVisual({ visual, width, height, ctx, onStatus }: VisualProps
           }}
           onWheel={(e) => forward('wheel', e, { dx: e.deltaX, dy: e.deltaY })}
         />
+      )}
+      {noCode && !error && (
+        <div className="wbi-codevisual__empty">
+          <div className="wbi-codevisual__empty-title">This code visual has no code yet</div>
+          {editing && height > 70 ? (
+            <div className="wbi-codevisual__error-actions">
+              <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => codeVisualActions().chooseTemplate(pageName, visual.name)}>
+                Choose a template
+              </button>
+              <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => codeVisualActions().openEditor(visual.name, pageName)}>
+                Edit code
+              </button>
+            </div>
+          ) : null}
+        </div>
       )}
       {error && <CodeErrorState error={error} height={height} onRetry={() => (setFrameError(null), setRendered(false), setRunKey((k) => k + 1))} onEdit={editing ? () => codeVisualActions().openEditor(visual.name) : undefined} />}
       {!error && data?.data.truncated && height > 60 && <div className="wbi-codevisual__notice">Showing the first {data.data.rowLimit.toLocaleString('en-US')} rows</div>}

@@ -160,7 +160,7 @@ describe('code visual documentation', () => {
     }, v)
     await settle(page)
     await page.mouse.move(700, 880)
-    await shot(page, 'create-reports/code-visual-wells.png', { clip: { x: 48, y: 160, width: 1392, height: 600 } })
+    await shot(page, 'create-reports/code-visual-wells.png', { clip: { x: 48, y: 160, width: 1392, height: 740 } })
     await lumenEval(page, (l) => l.useApp.getState().setZoom(null))
     // a native card next to it
     await deselectAll(page)
@@ -177,7 +177,7 @@ describe('code visual documentation', () => {
       s.mutateReport('place', (r: any) => {
         const vs = r.pages.find((p: any) => p.name === s.activePage).visuals
         vs.find((q: any) => q.name === a.v).json.position = { ...vs.find((q: any) => q.name === a.v).json.position, x: 16, y: 16, width: 380, height: 260 }
-        vs.find((q: any) => q.name === a.card).json.position = { ...vs.find((q: any) => q.name === a.card).json.position, x: 412, y: 16, width: 210, height: 110 }
+        vs.find((q: any) => q.name === a.card).json.position = { ...vs.find((q: any) => q.name === a.card).json.position, x: 412, y: 16, width: 210, height: 140 }
       })
     }, { v, card })
     await settle(page)

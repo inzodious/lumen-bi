@@ -47,10 +47,11 @@
 .wbi-cve__table { border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
 .wbi-cve__table th { text-align: left; font-weight: 600; color: #605E5C; padding: 4px 8px; border-bottom: 1px solid #E1DFDD; white-space: nowrap; }
 .wbi-cve__table td { padding: 3px 8px; border-bottom: 1px solid #F3F2F1; white-space: nowrap; }
-.wbi-cve__table input:not([type]), .wbi-cve__table input[type="text"], .wbi-cve__table input[type="number"], .wbi-cve__table select { font: inherit; padding: 3px 6px; border: 1px solid #C8C6C4; border-radius: 2px; min-width: 0; width: 120px; }
+.wbi-cve__table input:not([type]), .wbi-cve__table input[type="text"], .wbi-cve__table input[type="number"], .wbi-cve__table select { font: inherit; padding: 3px 6px; border: 1px solid #C8C6C4; border-radius: 2px; min-width: 0; width: 104px; }
+.wbi-cve__params .wbi-cve__table td, .wbi-cve__params .wbi-cve__table th { padding-left: 4px; padding-right: 4px; }
 .wbi-cve__colorcell { display: inline-flex; gap: 4px; align-items: center; }
 .wbi-cve__colorcell input[type="color"] { width: 28px; height: 24px; padding: 0; border: 1px solid #C8C6C4; }
-.wbi-cve__colorcell input:not([type]) { width: 84px; }
+.wbi-cve__colorcell input:not([type]) { width: 72px; }
 .wbi-cve__scroll { max-height: 260px; overflow: auto; }
 .wbi-cve__hl { color: #8A8886; }
 .wbi-cve__vars td:last-child code { background: transparent; }

@@ -1,6 +1,6 @@
 /**
  * Code visual: the data the author's code receives (structured-clonable: it crosses the frame boundary by
- * postMessage). Built by renderer/src/visuals/code/data.ts from the visual's query, consumed by the template evaluator
+ * postMessage). Built by renderer/src/visuals/code/codeModel.ts from the visual's query, consumed by the template evaluator
  * (template.ts, in the host) and the frame runtime (renderer/codeframe, for JSX).
  */
 

@@ -3,7 +3,7 @@
  *
  * In memory (and in `.wbi` bundles' JSON before externalisation) everything is in `visual.objects`:
  *   lumenCode[0].properties:   version (1L), html, css, jsx (text literals), params (JSON text: ParamDef[]),
- *                              drill (JSON text: the saved drill state, see drillState.ts)
+ *                              drill (JSON text: the saved drill state, see drill.ts)
  *   lumenParams[0].properties: one property per parameter (its value; colours as `solid.color` like any colour)
  *   lumenCodeFormat[0].properties: overflow ('hidden' | 'visible' | 'auto'), rowLimit, rowTooltips
  * On disk (PBIP / PBIR folders) html, css and jsx are written as files beside visual.json (storage.ts).

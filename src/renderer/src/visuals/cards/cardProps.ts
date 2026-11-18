@@ -145,6 +145,34 @@ export class CardProps {
   }
 }
 
+export interface CardTextDefaults {
+  value: { family: string; size: number }
+  label: { family: string; size: number }
+  refTitle: { family: string; size: number }
+  refValue: { family: string; size: number }
+}
+
+/**
+ * Default fonts of the card texts from the theme's text classes (Learn "Create custom report themes" >
+ * "Set formatted text defaults": cards and KPIs use `callout`; card category labels the "large and
+ * light" label class; see the cardVisualModel header for the evidence).
+ * `largeLightLabel` / `semiboldLabel` are derived classes: Power BI computes them from `label`
+ * (+2pt / semibold face) unless the theme spells them out.
+ */
+export function cardTextDefaults(theme: ResolvedTheme): CardTextDefaults {
+  const tc = theme.textClasses ?? {}
+  const callout = tc.callout ?? {}
+  const label = tc.label ?? {}
+  const labelFace = label.fontFace ?? 'Segoe UI'
+  const labelSize = label.fontSize ?? 10
+  return {
+    value: { family: callout.fontFace ?? 'DIN', size: callout.fontSize ?? 45 },
+    label: { family: tc.largeLightLabel?.fontFace ?? labelFace, size: tc.largeLightLabel?.fontSize ?? labelSize + 2 },
+    refTitle: { family: labelFace, size: labelSize },
+    refValue: { family: tc.semiboldLabel?.fontFace ?? 'Segoe UI Semibold', size: tc.semiboldLabel?.fontSize ?? labelSize }
+  }
+}
+
 /** PBI font size property value → points (accepts '14', 14, '14pt'). */
 export function toPt(v: Scalar | undefined, fallback: number): number {
   if (typeof v === 'number' && Number.isFinite(v)) return v

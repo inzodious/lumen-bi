@@ -8,7 +8,7 @@ import type { ProjectDocument } from '../../project'
 import type { FileSystem } from '../../io/fs'
 import type { ReportDocument } from '../../report/types'
 import { createEngine } from '../../engine/engine'
-import { generateSyntheticData, mineValueDomains, mineModel, domainKey } from '../synthetic'
+import { generateSyntheticData, mineValueDomains, mineModel, domainKey, PLACEHOLDER_IMAGES } from '../synthetic'
 import { calculatedTableLiterals, isCalculatedTable } from '../synthetic-mine'
 import { isEnterDataPartition } from '../synthetic-enterdata'
 import { literalTableOf, parseDaxExpr, tokenizeDax } from '../synthetic-dax'
@@ -490,6 +490,20 @@ describe('generateSyntheticData — star schema', () => {
     const pct = values(T('fact_sales'), 'discount_pct') as number[]
     expect(pct.every((x) => x >= 0 && x <= 1)).toBe(true)
     expect(new Set(values(T('dim_customer'), 'is_active'))).toEqual(new Set([0, 1]))
+  })
+
+  it('fills image-URL columns with renderable placeholder pictures', () => {
+    const badges = table('dim_badge', [col('badge_name', 'string'), col('badge_image', 'string', { dataCategory: 'ImageUrl' }), col('badge_link', 'string')])
+    const model: SemanticModel = { name: 'M', culture: 'en-US', tables: [badges], relationships: [], expressions: [], roles: [] }
+    const p: ProjectDocument = { model, data: emptyDataStore(), diagnostics: [] } as unknown as ProjectDocument
+    generateSyntheticData(p, { seed: 3 })
+    const t = p.data.tables.get('dim_badge')!
+    const pictures = t.columns.find((c) => c.name === 'badge_image')!.values
+    expect(pictures.length).toBeGreaterThan(0)
+    for (const v of pictures) expect(String(v)).toMatch(/^data:image\/svg\+xml;utf8,%3Csvg/)
+    expect(PLACEHOLDER_IMAGES).toContain(pictures[0])
+    // other text columns are untouched by the image rule
+    expect(String(t.columns.find((c) => c.name === 'badge_name')!.values[0])).not.toMatch(/^data:/)
   })
 
   it('is deterministic per seed', () => {

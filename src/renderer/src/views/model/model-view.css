@@ -35,16 +35,76 @@
 .wbi-mv-field__hid { flex: none; color: #a19f9d; font-size: 14px; }
 
 /* relationship lines */
+.wbi-mv__handles { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .wbi-mv-edge { pointer-events: auto; cursor: pointer; }
-.wbi-mv-edge__hit { stroke: transparent; stroke-width: 12; fill: none; }
-.wbi-mv-edge__line { stroke: #8a8886; stroke-width: 1.5; fill: none; }
+.wbi-mv-edge__hit { stroke: transparent; stroke-width: 14; fill: none; pointer-events: stroke; stroke-linecap: round; stroke-linejoin: round; }
+.wbi-mv-edge__line { stroke: var(--wbi-border-strong, #8a8886); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .wbi-mv-edge.is-inactive .wbi-mv-edge__line { stroke-dasharray: 6 4; }
-.wbi-mv-edge.is-active .wbi-mv-edge__line { stroke: #252423; stroke-width: 2.5; }
-.wbi-mv-edge__card { font-size: 13px; font-weight: 600; fill: #605e5c; text-anchor: middle; dominant-baseline: central; font-family: 'Segoe UI', 'Open Sans', sans-serif; }
-.wbi-mv-edge.is-active .wbi-mv-edge__card { fill: #252423; }
-.wbi-mv-edge__dir path { fill: #8a8886; }
-.wbi-mv-edge.is-active .wbi-mv-edge__dir path { fill: #252423; }
-.wbi-mv-link { stroke: #252423; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.wbi-mv-edge.is-active .wbi-mv-edge__line { stroke: var(--wbi-fg, #252423); stroke-width: 2.5; }
+.wbi-mv-edge__card { font-size: 13px; font-weight: 600; fill: #605e5c; text-anchor: middle; dominant-baseline: central; font-family: 'Segoe UI', 'Open Sans', sans-serif; pointer-events: none; paint-order: stroke; stroke: #f0f0f0; stroke-width: 3px; stroke-linejoin: round; }
+.wbi-mv-edge.is-active .wbi-mv-edge__card { fill: var(--wbi-fg, #252423); }
+.wbi-mv-edge__dir { pointer-events: none; }
+.wbi-mv-edge__dir path { fill: var(--wbi-border-strong, #8a8886); }
+.wbi-mv-edge.is-active .wbi-mv-edge__dir path { fill: var(--wbi-fg, #252423); }
+.wbi-mv-link { stroke: var(--wbi-fg, #252423); stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; pointer-events: none; }
+.wbi-mv__canvas.is-drag-waypoint, .wbi-mv__canvas.is-drag-waypoint .wbi-mv-edge { cursor: grabbing; }
+.wbi-mv__canvas.is-drag-bend .wbi-mv-edge { cursor: grabbing; }
+
+/* pinch points (waypoints) and draggable line ends */
+.wbi-mv-wp, .wbi-mv-end { pointer-events: auto; }
+.wbi-mv-wp { cursor: grab; }
+.wbi-mv-wp__hit, .wbi-mv-end__hit { fill: transparent; }
+.wbi-mv-wp__dot { fill: var(--wbi-bg, #fff); stroke: var(--wbi-border-strong, #8a8886); }
+.wbi-mv-wp.is-active .wbi-mv-wp__dot { stroke: var(--wbi-fg, #252423); }
+.wbi-mv-wp:hover .wbi-mv-wp__dot { fill: var(--wbi-brand, #f2c811); stroke: var(--wbi-fg, #252423); }
+.wbi-mv-wp.is-selected .wbi-mv-wp__dot { fill: var(--wbi-fg, #252423); stroke: var(--wbi-fg, #252423); }
+.wbi-mv-end { cursor: move; }
+.wbi-mv-end__dot { fill: var(--wbi-bg, #fff); stroke: var(--wbi-fg, #252423); }
+.wbi-mv-end.is-manual .wbi-mv-end__dot { fill: var(--wbi-fg, #252423); }
+.wbi-mv-end:hover .wbi-mv-end__dot { fill: var(--wbi-brand, #f2c811); }
+.wbi-mv-guide { stroke: var(--wbi-accent, #117865); stroke-dasharray: 4 3; pointer-events: none; }
+.wbi-mv-marquee { fill: rgba(17, 120, 101, .08); stroke: var(--wbi-accent, #117865); stroke-dasharray: 4 3; pointer-events: none; }
+
+/* table groups ("containers") */
+.wbi-mv-group { position: absolute; box-sizing: border-box; background: var(--g-fill); border: 1px solid var(--g-border); border-radius: 10px; cursor: move; }
+.wbi-mv-group.is-selected { border-color: var(--wbi-fg, #252423); box-shadow: 0 0 0 1px var(--wbi-fg, #252423); }
+.wbi-mv-group.is-join { border-style: dashed; border-color: var(--wbi-accent, #117865); box-shadow: 0 0 0 2px rgba(17, 120, 101, .25); }
+.wbi-mv-group.is-leave { border-style: dashed; }
+.wbi-mv-group__head { display: flex; align-items: center; gap: 4px; height: 34px; padding: 0 6px 0 6px; color: var(--g-text); min-width: 0; }
+.wbi-mv-group.is-collapsed { box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08); }
+.wbi-mv-group.is-collapsed.is-selected { box-shadow: 0 0 0 1px var(--wbi-fg, #252423); }
+.wbi-mv-group.is-collapsed .wbi-mv-group__head { height: 100%; }
+.wbi-mv-group__label { flex: 0 1 auto; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 24px; padding: 2px 4px; border-radius: 2px; cursor: text; }
+.wbi-mv-group__label:hover { background: rgba(255,255,255,.55); }
+.wbi-mv-group__count { flex: none; font-size: 12px; opacity: .8; white-space: nowrap; }
+.wbi-mv-group__hint { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-style: italic; white-space: nowrap; padding: 2px 4px; }
+.wbi-mv-group__spacer { flex: 1 1 0; min-width: 0; }
+.wbi-mv-group__input { flex: 1; min-width: 60px; height: 24px; font: inherit; font-size: 13px; font-weight: 600; color: var(--wbi-fg, #252423); border: 1px solid var(--wbi-border-input, #8a8886); border-radius: 2px; padding: 0 4px; background: var(--wbi-bg, #fff); outline: none; }
+.wbi-mv-group__input:focus { border-color: var(--wbi-fg, #252423); }
+.wbi-mv-group__btn { flex: none; width: 22px; height: 22px; border: 0; background: transparent; border-radius: 2px; display: grid; place-items: center; color: inherit; padding: 0; font-size: 14px; }
+.wbi-mv-group__btn:hover { background: rgba(255,255,255,.6); }
+.wbi-mv-group__more { visibility: hidden; }
+.wbi-mv-group:hover .wbi-mv-group__more, .wbi-mv-group.is-selected .wbi-mv-group__more { visibility: visible; }
+.wbi-mv-group__handle { position: absolute; width: 9px; height: 9px; box-sizing: border-box; background: var(--wbi-bg, #fff); border: 1px solid var(--wbi-fg, #252423); border-radius: 1px; }
+.wbi-mv-group__handle.is-nw { left: -5px; top: -5px; cursor: nwse-resize; }
+.wbi-mv-group__handle.is-n { left: calc(50% - 4px); top: -5px; cursor: ns-resize; }
+.wbi-mv-group__handle.is-ne { right: -5px; top: -5px; cursor: nesw-resize; }
+.wbi-mv-group__handle.is-e { right: -5px; top: calc(50% - 4px); cursor: ew-resize; }
+.wbi-mv-group__handle.is-se { right: -5px; bottom: -5px; cursor: nwse-resize; }
+.wbi-mv-group__handle.is-s { left: calc(50% - 4px); bottom: -5px; cursor: ns-resize; }
+.wbi-mv-group__handle.is-sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
+.wbi-mv-group__handle.is-w { left: -5px; top: calc(50% - 4px); cursor: ew-resize; }
+.wbi-mv-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid transparent; box-sizing: border-box; }
+
+/* diagram toolbar */
+.wbi-mv__toolbar { position: absolute; left: 12px; top: 10px; display: flex; align-items: center; gap: 2px; background: var(--wbi-bg, #fff); border: 1px solid var(--wbi-border, #e1dfdd); border-radius: var(--wbi-radius, 4px); padding: 3px; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08); }
+.wbi-mv__tool { width: 28px; height: 28px; border: 0; background: transparent; display: grid; place-items: center; color: var(--wbi-fg, #252423); border-radius: 2px; padding: 0; font-size: 18px; }
+.wbi-mv__tool:hover:not(:disabled) { background: var(--wbi-hover, #f3f2f1); }
+.wbi-mv__tool.is-on { background: var(--wbi-checked, #e1dfdd); }
+.wbi-mv__tool:disabled { color: var(--wbi-fg-disabled, #a19f9d); }
+.wbi-mv__toolsep { width: 1px; height: 18px; background: var(--wbi-border, #e1dfdd); margin: 0 3px; }
+.wbi-mv__canvas.is-select { cursor: crosshair; }
+.wbi-mv__canvas.is-drag-pan { cursor: grabbing; }
 
 /* overlays */
 .wbi-mv__zoom { position: absolute; right: 12px; bottom: 10px; display: flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #e1dfdd; border-radius: 4px; padding: 2px 6px; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08); }
@@ -53,6 +113,7 @@
 .wbi-mv__zoom input[type=range] { width: 100px; accent-color: #252423; }
 .wbi-mv__zoompct { min-width: 38px; text-align: right; font-size: 12px; color: #252423; }
 .wbi-mv__minimap { position: absolute; left: 12px; bottom: 10px; background: rgba(255,255,255,.92); border: 1px solid #e1dfdd; border-radius: 4px; cursor: pointer; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08); }
+.wbi-mv__mmgroup { fill: #dedcda; stroke: #bfbdba; stroke-width: .5; }
 .wbi-mv__mmcard { fill: #c8c6c4; }
 .wbi-mv__mmview { fill: rgba(242,200,17,.12); stroke: #252423; stroke-width: 1; }
 

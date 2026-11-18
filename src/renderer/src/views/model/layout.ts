@@ -46,7 +46,11 @@ export interface DiagramLayout {
 }
 
 export function readLayout(model: SemanticModel): DiagramLayout | null {
-  const raw = model.sidecarFiles?.[LAYOUT_FILE]
+  return parseLayout(model.sidecarFiles?.[LAYOUT_FILE])
+}
+
+/** Parse `diagramLayout.json` text (null when missing or not a diagram layout). */
+export function parseLayout(raw: string | undefined | null): DiagramLayout | null {
   if (!raw) return null
   try {
     const json = JSON.parse(raw) as Partial<DiagramLayout>

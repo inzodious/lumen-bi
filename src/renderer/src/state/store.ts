@@ -17,6 +17,7 @@ import type { ReportDocument } from '@core/report/types'
 import type { SemanticModel } from '@core/model/types'
 import { resolveTheme, type ResolvedTheme } from '@core/report/theme'
 import { createEngine } from '@core/engine/engine'
+import { withReconciledSidecars } from '@core/io/diagramSidecar'
 
 export type AppView = 'report' | 'data' | 'model' | 'dax' | 'powerquery'
 
@@ -115,6 +116,13 @@ export interface AppState {
    * moved in Model view). Does not rebuild the engine; marks the project dirty. `null` removes the file.
    */
   patchModelSidecar(path: string, content: string | null): void
+  /**
+   * UNDOABLE edit of the model's sidecar files (Model view: card positions in `diagramLayout.json`, line routing
+   * and table groups in Lumen's `diagramLayout.lumen.json`). The mutator edits a copy of the path → text map
+   * (delete a key to remove the file); several files changed together are one undo step. Layout-only: the
+   * engine is not rebuilt, here or when the step is undone/redone. Marks the project dirty.
+   */
+  mutateModelSidecars(label: string, mutator: (files: Record<string, string>) => void): void
   /** After a successful save: clear `dirty` and (Save As) update the project source/name. */
   markSaved(source?: ProjectDocument['source'], name?: string): void
   undo(): void
@@ -128,6 +136,15 @@ export interface AppState {
  * can hold it by reference.
  */
 const immer = new Immer({ autoFreeze: false })
+
+/** True when two model objects differ at most in their sidecar files (layout-only edits never need a new engine). */
+function sameModelSemantics(a: SemanticModel, b: SemanticModel): boolean {
+  if (a === b) return true
+  const ra = a as unknown as Record<string, unknown>
+  const rb = b as unknown as Record<string, unknown>
+  for (const k of new Set([...Object.keys(ra), ...Object.keys(rb)])) if (k !== 'sidecarFiles' && ra[k] !== rb[k]) return false
+  return true
+}
 const produceReport = (report: ReportDocument, mutator: (r: ReportDocument) => void): ReportDocument =>
   immer.produce(report, (draft: ReportDocument) => {
     mutator(draft)
@@ -216,10 +233,12 @@ export const useApp = create<AppState>()((set, get) => ({
     // source formatting by identity (WeakMap), so untouched tables/measures must stay the same objects
     // for byte-identical saves. produce() never mutates the previous model, so undo can hold it by reference.
     const snapshot: Snapshot = { label, report: project.report, model: project.model }
-    const model = immer.produce(project.model, (draft: SemanticModel) => {
+    const produced = immer.produce(project.model, (draft: SemanticModel) => {
       mutator(draft)
     })
-    if (model === project.model) return
+    if (produced === project.model) return
+    // Lumen's diagram sidecar follows table renames and drops deleted tables/relationships in the same undo step
+    const model = withReconciledSidecars(project.model, produced)
     const next = { ...project, model, dirty: true }
     set({ project: next, ...buildEngine(next), undoStack: [...get().undoStack.slice(-99), snapshot], redoStack: [], revision: get().revision + 1 })
   },
@@ -247,6 +266,17 @@ export const useApp = create<AppState>()((set, get) => ({
     else sidecarFiles[path] = content
     set({ project: { ...project, model: { ...project.model, sidecarFiles }, dirty: true } })
   },
+  mutateModelSidecars(label, mutator) {
+    const { project } = get()
+    if (!project) return
+    const before = project.model.sidecarFiles ?? {}
+    const sidecarFiles = { ...before }
+    mutator(sidecarFiles)
+    const keys = new Set([...Object.keys(before), ...Object.keys(sidecarFiles)])
+    if ([...keys].every((k) => before[k] === sidecarFiles[k])) return
+    const snapshot: Snapshot = { label, report: project.report, model: project.model }
+    set({ project: { ...project, model: { ...project.model, sidecarFiles }, dirty: true }, undoStack: [...get().undoStack.slice(-99), snapshot], redoStack: [] })
+  },
   setViewAsRoles(roles) {
     const next = roles?.length ? roles : null
     get().engine?.setViewAsRoles?.(next)
@@ -269,7 +299,7 @@ export const useApp = create<AppState>()((set, get) => ({
     if (!project || !snap) return
     const redo: Snapshot = { label: snap.label, report: project.report, model: project.model }
     const next = { ...project, report: snap.report, model: snap.model, dirty: true }
-    const modelChanged = snap.model !== project.model
+    const modelChanged = !sameModelSemantics(snap.model, project.model)
     set({
       project: next,
       ...(modelChanged ? buildEngine(next) : {}),
@@ -286,7 +316,7 @@ export const useApp = create<AppState>()((set, get) => ({
     if (!project || !snap) return
     const undo: Snapshot = { label: snap.label, report: project.report, model: project.model }
     const next = { ...project, report: snap.report, model: snap.model, dirty: true }
-    const modelChanged = snap.model !== project.model
+    const modelChanged = !sameModelSemantics(snap.model, project.model)
     set({
       project: next,
       ...(modelChanged ? buildEngine(next) : {}),

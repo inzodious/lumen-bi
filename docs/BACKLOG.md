@@ -15,13 +15,26 @@ Items the user has raised for after the initial build. "Discuss" = agree the des
   selections, hierarchy in dropdown, date presets), plus whatever else the user lists.
 - General improvements list (to be collected with the user).
 
-## Planned: Model view (diagram) improvements
-- **Editable relationship lines** — curved (Bézier) routing as an option, drag a line to reshape it, add/remove
-  **pinch points** (waypoints) by clicking/double-clicking the line, snap waypoints to the grid; persist the routing
-  per layout (Lumen-namespaced data next to `diagramLayout.json`, so Power BI ignores it and untouched models stay
-  byte-identical).
-- **Table groups ("containers")** — select several table cards and group them into a labeled, highlighted gray
-  container (rename, recolor, collapse/expand, move as one, nest tables in/out by dragging); also persisted per layout.
+## Done: Model view (diagram) improvements
+Built in `src/renderer/src/views/model/` (geometry in `routing.ts`, `snapping.ts`, `groups.ts`, `diagramOps.ts`), stored per
+layout in `diagramLayout.lumen.json` (see ARCHITECTURE ▸ "Model diagram sidecar"); journeys in `e2e/model.e2e.ts`.
+- **Editable relationship lines** — curved (spline), orthogonal and straight styles (layout default in the diagram toolbar,
+  per-line override in the line's menu, "make … my default" as a per-user preference); drag a line to bend it (pinch
+  point), drag / double-click / Delete pinch points, drag a line's ends around their cards, "Reset line", snapping to the
+  10 px grid and to alignment with other pinch points / card centres (Alt = off), live preview when a relationship is
+  dragged from column to column.
+- **Table groups ("containers")** — Ctrl/Shift-click or marquee (Shift+drag, or the Select tool), then Group (toolbar,
+  menu, Ctrl+G) / Ungroup (Ctrl+Shift+G, Delete): labelled tinted container behind lines and cards; rename by
+  double-click, 7 muted colours, move as one, auto-fit, resize handles, drag tables in/out, collapse to a chip that keeps
+  its relationship lines; included in fit-to-screen, the mini-map and "Export diagram as image" (PNG/SVG).
+
+Follow-ups worth considering:
+- Obstacle-aware automatic routing (lines still pass behind cards that lie between their two tables).
+- Nested groups; a group shared by several layouts; renaming layout tabs (the sidecar is keyed by layout name).
+- Lines to a collapsed group attach to the middle of the chip's side (several lines can end in the same point), and
+  their own pinch points are ignored while collapsed.
+- Arrow-key nudging of pinch points / containers; multi-select of pinch points.
+- Card collapse state (the chevron on a table card) is still per-session, as before.
 
 ## Discuss: real data connectors (end state)
 Goal: reports refresh from real sources, not only files and mock data. Connectors run in the Electron **main process**

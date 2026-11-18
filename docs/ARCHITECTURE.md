@@ -49,7 +49,7 @@ you view, edit, model, query and export them with a Power BI Desktop look and fe
 | `src/shared/host.ts` | `window.wbi` bridge (fs, dialogs, app, window, connectors, exporter) |
 | `src/renderer/src/visuals/contract.ts` | `VisualDefinition`, `VisualProps`, `VisualHostContext` (filters, selection, drill, tooltips, actions) |
 | `src/renderer/src/visuals/common/query.ts` | visual field wells → `engine.summarize` |
-| `src/renderer/src/state/store.ts` | zustand document store: project, engine, view, page, selection, undo/redo |
+| `src/renderer/src/state/store.ts` | zustand document store: project, engine, view, page, selection, undo/redo (`mutateReport`, `mutateModel`, `mutateModelSidecars`) |
 
 Changing a contract: additive changes are fine (new optional fields/methods). Breaking changes must
 be coordinated — note them prominently in your final report.
@@ -101,6 +101,59 @@ Most real models import from Fabric SQL endpoints. Order of preference when open
 | Mobile-only formatting | `report/mobile/format.ts`, Format pane in mobile layout | edits `mobile.json` objects (object-level override seeded from desktop); "Reset to desktop formatting" |
 | Page visuals for summaries | `report/host.ts` (`usePageVisualFilters`, `pageVisualInfos`) | `ReportInfo.pageVisuals` with each visual's effective filters, only for page-summary visuals (narrative) |
 | Bookmark highlights | `report/bookmarks.ts` | `DecomposedSelectors` (compressed HighlightState.selection) decoded/encoded per the bookmark schema; raw value kept on save |
+| Model diagram: editable lines + table groups | `views/model/*` (`routing.ts`, `snapping.ts`, `groups.ts`, `diagramOps.ts`, `EdgeLayer.tsx`, `GroupBox.tsx`), `core/io/diagramSidecar.ts` | Lumen-only diagram data in `diagramLayout.lumen.json`; edits go through `mutateModelSidecars` (undoable, no engine rebuild); see "Model diagram sidecar" below |
+
+## Model diagram sidecar (`diagramLayout.lumen.json`)
+
+Power BI's `diagramLayout.json` (card positions/sizes per layout tab) is read and written as-is. Everything Lumen adds to
+the Model view lives in a **separate file beside it** in the `*.SemanticModel` folder — `diagramLayout.lumen.json` — which
+travels in `SemanticModel.sidecarFiles` like every other unmodelled file, so it is saved in PBIP folders and inside `.wbi`
+bundles and restored on open. Power BI Desktop does not read it. It is written only once a diagram was customised and is
+**removed again when nothing custom is left** (`serializeLumenLayout` returns null; `saveProject` deletes a stale file), so
+an untouched model round-trips byte-identically and a project without the file behaves as before.
+
+```jsonc
+{
+  "$lumen": "diagramLayout",
+  "version": 1,
+  "diagrams": [                                   // one entry per layout tab, matched to diagramLayout.json by name
+    {
+      "name": "All tables",
+      "lineStyle": "curved",                      // layout default: curved | orthogonal | straight (omitted = default)
+      "routes": {
+        "<relationship name>": {
+          "style": "orthogonal",                  // per-relationship override
+          "waypoints": [{ "x": 320, "y": 180 }],  // pinch points, diagram coordinates, from-table → to-table
+          "from": { "side": "right", "t": 0.5 },  // manual attachment on the from / to card: side + position along it
+          "to": { "side": "left", "t": 0.25 }     //   (0 = top/left … 1 = bottom/right); omitted = automatic
+        }
+      },
+      "groups": [
+        { "id": "g1", "name": "Dimensions", "color": "blue",          // gray (default, omitted) blue teal green amber rose purple
+          "tables": [{ "name": "Date", "lineageTag": "…" }],
+          "collapsed": true,                                           // omitted = expanded
+          "bounds": { "x": 0, "y": 0, "width": 600, "height": 400 } }  // only after a manual resize; never smaller than the members
+      ]
+    }
+  ]
+}
+```
+
+* **Code**: `src/core/io/diagramSidecar.ts` (pure TS) — parse / `migrateLumenLayout` (version 0 = pre-release shape with
+  diagrams keyed by name; a higher version is read best-effort and its number kept) / serialize, unknown properties
+  preserved at every level.
+* **Stale references**: read-time `resolveLumenDiagram` ignores routes of missing relationships and matches group members
+  by table name, then lineage tag (a rename made outside Lumen is followed); `pruneLumenDiagram` drops them on the next
+  write. In-app edits are followed immediately: `mutateModel` runs `withReconciledSidecars(prev, next)`, which renames
+  group members / re-keys routes and removes entries of deleted tables and relationships **in the same undo step**.
+* **Undo**: Model view edits (card moves, routing, groups, layout tabs) use `useApp.mutateModelSidecars(label, files => …)`:
+  one snapshot per edit, several sidecar files changed together, no engine rebuild (undo/redo of a layout-only step
+  recognises that only `sidecarFiles` differ).
+* **When cards move**: line ends follow their cards (automatic ends re-pick the facing side); pinch points stay where the
+  user put them, unless both tables of the relationship move together (multi-selection or group drag), then they travel
+  along. Lines to a collapsed group's chip are routed automatically; their stored routing returns on expand.
+* **Per-user preferences** (not in the file): `views/model/diagramPrefs.ts` (localStorage) — preferred default line style
+  for layouts that store none, pointer mode, snapping.
 
 ## Dev workflow
 

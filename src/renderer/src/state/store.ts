@@ -5,6 +5,9 @@
  * RULES
  *  - Mutate the report only through `mutateReport` and the model only through `mutateModel`;
  *    both are undoable and keep `dirty` + the engine in sync.
+ *  - A mutator that throws changes nothing (immer discards the draft) and is reported once, here: an error toast
+ *    naming the action (`reportMutationError`). Callers continue as after a no-op edit (menus close, etc.).
+ *  - Mutators receive immer drafts (Proxies): deep-copy state with `cloneDeep` (@core/clone), never `structuredClone`.
  *  - Runtime interaction state (slicer selections, cross-filter, drill, bookmarks applied) lives
  *    in ./interaction.ts, not here.
  *  - Extend by adding fields/actions here; keep them documented.
@@ -18,6 +21,7 @@ import type { SemanticModel } from '@core/model/types'
 import { resolveTheme, type ResolvedTheme } from '@core/report/theme'
 import { createEngine } from '@core/engine/engine'
 import { withReconciledSidecars } from '@core/io/diagramSidecar'
+import { toast } from '../app/ui/Notify'
 
 export type AppView = 'report' | 'data' | 'model' | 'dax' | 'powerquery'
 
@@ -103,7 +107,7 @@ export interface AppState {
    * NON-undoable report edit for runtime state that PBI persists into the document (slicer selections,
    * bookmark application). Marks the project dirty; uses structural sharing like mutateReport.
    */
-  patchReport(mutator: (report: ReportDocument) => void): void
+  patchReport(mutator: (report: ReportDocument) => void, label?: string): void
   setEditMode(on: boolean): void
   setPageView(mode: PageViewMode | null): void
   setZoom(zoom: number | null): void
@@ -150,6 +154,30 @@ const produceReport = (report: ReportDocument, mutator: (r: ReportDocument) => v
     mutator(draft)
   })
 
+/**
+ * The single place a failed edit is surfaced: logged with its stack and shown as the app's error toast with the
+ * action's name. The document is unchanged (the mutation is discarded before anything is stored).
+ */
+export function reportMutationError(label: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(`[Lumen] "${label}" failed; the document was not changed.`, error)
+  try {
+    toast({ kind: 'error', title: `Couldn't complete "${label}"`, message: `Nothing was changed. ${message}` })
+  } catch {
+    /* no toast host (tests, early startup): the console entry stands */
+  }
+}
+
+/** Run the computing half of an edit; on an exception report it and return undefined (callers then store nothing). */
+function guarded<T>(label: string, fn: () => T): T | undefined {
+  try {
+    return fn()
+  } catch (e) {
+    reportMutationError(label, e)
+    return undefined
+  }
+}
+
 /** Report content that depends on the theme and must follow a theme change in the same undo step. */
 export type ThemeFollower = (draft: ReportDocument, theme: ResolvedTheme) => void
 const themeFollowers: ThemeFollower[] = []
@@ -172,6 +200,13 @@ function buildEngine(project: ProjectDocument | null): { engine: QueryEngine | n
   } catch (e) {
     return { engine: null, engineError: e instanceof Error ? e.message : String(e) }
   }
+}
+
+/** The active page after undo / redo replaced the report: kept when it still exists, else the first page in order. */
+function pageAfterHistory(report: ReportDocument | undefined, current: string | null): Partial<Pick<AppState, 'activePage' | 'selectedVisuals'>> {
+  if (!report || (current && report.pages.some((p) => p.name === current))) return {}
+  const activePage = report.pagesMeta.pageOrder.find((n) => report.pages.some((p) => p.name === n)) ?? report.pages[0]?.name ?? null
+  return { activePage, selectedVisuals: [] }
 }
 
 function themeOf(project: ProjectDocument | null): ResolvedTheme {
@@ -223,14 +258,19 @@ export const useApp = create<AppState>()((set, get) => ({
     if (!project?.report) return
     const now = Date.now()
     const snapshot: Snapshot = { label, report: project.report, model: project.model, coalesce: opts?.coalesce, at: now }
-    let report = produceReport(project.report, mutator)
-    if (report === project.report) return
-    let next = { ...project, report, dirty: true }
-    const theme = report.theme === project.report.theme ? get().theme : themeOf(next)
-    if (theme !== get().theme && themeFollowers.length) {
-      report = produceReport(report, (d) => themeFollowers.forEach((f) => f(d, theme)))
-      next = { ...project, report, dirty: true }
-    }
+    const done = guarded(label, () => {
+      let report = produceReport(project.report!, mutator)
+      if (report === project.report) return null
+      let next = { ...project, report, dirty: true }
+      const theme = report.theme === project.report!.theme ? get().theme : themeOf(next)
+      if (theme !== get().theme && themeFollowers.length) {
+        report = produceReport(report, (d) => themeFollowers.forEach((f) => f(d, theme)))
+        next = { ...project, report, dirty: true }
+      }
+      return { next, theme }
+    })
+    if (!done) return
+    const { next, theme } = done
     const stack = get().undoStack
     const top = stack[stack.length - 1]
     if (opts?.coalesce && top?.coalesce === opts.coalesce && top.at !== undefined && now - top.at < COALESCE_MS && !get().redoStack.length) {
@@ -248,21 +288,24 @@ export const useApp = create<AppState>()((set, get) => ({
     // source formatting by identity (WeakMap), so untouched tables/measures must stay the same objects
     // for byte-identical saves. produce() never mutates the previous model, so undo can hold it by reference.
     const snapshot: Snapshot = { label, report: project.report, model: project.model }
-    const produced = immer.produce(project.model, (draft: SemanticModel) => {
-      mutator(draft)
+    const model = guarded(label, () => {
+      const produced = immer.produce(project.model, (draft: SemanticModel) => {
+        mutator(draft)
+      })
+      if (produced === project.model) return undefined
+      // Lumen's diagram sidecar follows table renames and drops deleted tables/relationships in the same undo step
+      return withReconciledSidecars(project.model, produced)
     })
-    if (produced === project.model) return
-    // Lumen's diagram sidecar follows table renames and drops deleted tables/relationships in the same undo step
-    const model = withReconciledSidecars(project.model, produced)
+    if (!model) return
     const next = { ...project, model, dirty: true }
     set({ project: next, ...buildEngine(next), undoStack: [...get().undoStack.slice(-99), snapshot], redoStack: [], revision: get().revision + 1 })
   },
 
-  patchReport(mutator) {
+  patchReport(mutator, label = 'Update the report') {
     const { project } = get()
     if (!project?.report) return
-    const report = produceReport(project.report, mutator)
-    if (report === project.report) return
+    const report = guarded(label, () => produceReport(project.report!, mutator))
+    if (!report || report === project.report) return
     set({ project: { ...project, report, dirty: true } })
   },
 
@@ -286,7 +329,7 @@ export const useApp = create<AppState>()((set, get) => ({
     if (!project) return
     const before = project.model.sidecarFiles ?? {}
     const sidecarFiles = { ...before }
-    mutator(sidecarFiles)
+    if (guarded(label, () => (mutator(sidecarFiles), true)) === undefined) return
     const keys = new Set([...Object.keys(before), ...Object.keys(sidecarFiles)])
     if ([...keys].every((k) => before[k] === sidecarFiles[k])) return
     const snapshot: Snapshot = { label, report: project.report, model: project.model }
@@ -319,6 +362,7 @@ export const useApp = create<AppState>()((set, get) => ({
       project: next,
       ...(modelChanged ? buildEngine(next) : {}),
       theme: themeOf(next),
+      ...pageAfterHistory(next.report, get().activePage),
       undoStack: undoStack.slice(0, -1),
       redoStack: [...redoStack, redo],
       revision: get().revision + 1
@@ -336,6 +380,7 @@ export const useApp = create<AppState>()((set, get) => ({
       project: next,
       ...(modelChanged ? buildEngine(next) : {}),
       theme: themeOf(next),
+      ...pageAfterHistory(next.report, get().activePage),
       redoStack: redoStack.slice(0, -1),
       undoStack: [...undoStack, undo],
       revision: get().revision + 1

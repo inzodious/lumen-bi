@@ -85,14 +85,6 @@ show the drill buttons in their header; see [Drill down and drill through](drill
 
 ## Considerations and limitations
 
-- **Known issue: some field additions are ignored.** In this version, adding a field to a chart that already has both a
-  category and a value can be silently ignored:
-  - bar and column charts: a **Legend** (or any other field) added after the axis and the value;
-  - line, area and combo charts: a value added after the **X-axis** field.
-
-  Order your steps so the last field completes the chart: for bar and column charts add the axis and the legend first
-  and the value last; for line, area and combo charts add the values first and the **X-axis** field last. The tutorial
-  [Design a dashboard page](tutorial-design-a-dashboard-page.md) follows this order.
 - **Known issue: hierarchy levels are added in alphabetical order.** The Data pane lists a hierarchy's levels A to Z,
   and dragging the whole hierarchy adds them in that order (*Category, Product, Subcategory* instead of *Category,
   Subcategory, Product*). Drag the levels one by one in the order you want instead.

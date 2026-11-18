@@ -50,7 +50,6 @@ Columns and line points are selectable: selecting one cross-filters or cross-hig
 
 ## Differences from Power BI Desktop
 
-- In this version, adding a measure after the **X-axis** already has a field is ignored (the measure does not appear in the well). Add the column and line measures and the column legend first, and the **X-axis** field last.
 - Line data labels: every **Position** value except **Below** draws the label above the point.
 
 ## Related content

@@ -53,7 +53,7 @@ onReportThemeChange((draft, theme) => {
     const { project, theme: now } = useApp.getState()
     if (!project?.report || !hasIconBindings(project.report)) return
     // patchReport: no undo entry (the theme change already has one); immer keeps the report when nothing changed
-    useApp.getState().patchReport((r) => void rebakeIcons(r, renderWith(now)))
+    useApp.getState().patchReport((r) => void rebakeIcons(r, renderWith(now)), 'Update icons')
   })
 })
 
@@ -77,5 +77,5 @@ export async function rebakeIconsBeforeSave(): Promise<void> {
   await loadIconSets(iconSetsInReport(report)).catch(() => undefined)
   const { theme } = useApp.getState()
   // immer returns the same report (no dirty flag, no new object) when every icon is already current
-  useApp.getState().patchReport((r) => void rebakeIcons(r, renderWith(theme)))
+  useApp.getState().patchReport((r) => void rebakeIcons(r, renderWith(theme)), 'Update icons')
 }

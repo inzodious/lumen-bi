@@ -18,6 +18,7 @@ import { useApp } from '../state/store'
 import { currentThemeJson, applyThemeJson, type ThemeJson } from '../app/themes'
 import { Button, ColorPicker, Dropdown, Modal, NumberField, Pivot, TextField, Toggle, Slider } from '../app/ui'
 import { cx } from '../app/ui/cx'
+import { cloneDeep } from '@core/clone'
 
 export const THEME_FONTS = [
   'Arial',
@@ -89,7 +90,7 @@ export function resolvedStyle(theme: ResolvedTheme, visual: string, object: stri
  * empty textClasses, and removes unset top-level keys. Pure (unit-tested).
  */
 export function buildCustomTheme(draft: ThemeJson): ThemeJson {
-  const out = structuredClone(draft) as ThemeJson
+  const out = cloneDeep(draft) as ThemeJson
   out.name = (out.name ?? '').trim() || 'Custom theme'
   for (const k of Object.keys(out)) if (out[k] === undefined || out[k] === null) delete out[k]
   if (out.visualStyles) {
@@ -137,7 +138,7 @@ export function CustomizeThemeDialog({ onClose }: { onClose(): void }) {
 
   const edit = (fn: (t: ThemeJson) => void) =>
     setDraft((d) => {
-      const n = structuredClone(d)
+      const n = cloneDeep(d)
       fn(n)
       return n
     })

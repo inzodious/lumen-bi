@@ -31,6 +31,7 @@ import {
 } from './filterModel'
 import { distinctValues, fieldMeta, scalarKey, type FieldMeta } from './fieldValues'
 import { mutateCards, type FilterScope } from './scope'
+import { cloneDeep } from '@core/clone'
 
 interface Props {
   card: FilterCard
@@ -60,7 +61,7 @@ export function FilterCardView({ card, implicit, scope, editMode, query }: Props
     mutateCards(scope, label, (cards) => {
       let c = cards.find((x) => x.name === card.name)
       if (!c && implicit) {
-        c = { ...structuredClone(card), name: newObjectName() }
+        c = { ...cloneDeep(card), name: newObjectName() }
         cards.push(c)
       }
       if (c) fn(c)

@@ -9,6 +9,7 @@
  */
 import type { SemanticModel, TableDef } from '@core/model/types'
 import { arrange, suggestArrangement, tableInfo, type ArrangeInput } from './arrange'
+import { cloneDeep } from '@core/clone'
 
 export const LAYOUT_FILE = 'diagramLayout.json'
 export const DEFAULT_CARD_WIDTH = 234
@@ -147,7 +148,7 @@ export function resolveNodes(model: SemanticModel, layout: DiagramLayout | null,
  * (created — as "All tables" with ordinal 0 — when the layout or diagram doesn't exist yet).
  */
 export function updateLayoutNodes(layout: DiagramLayout | null, diagramName: string, nodes: DiagramNode[]): DiagramLayout {
-  const base: DiagramLayout = layout ? structuredClone(layout) : { version: '1.1.0', diagrams: [], selectedDiagram: diagramName, defaultDiagram: diagramName }
+  const base: DiagramLayout = layout ? cloneDeep(layout) : { version: '1.1.0', diagrams: [], selectedDiagram: diagramName, defaultDiagram: diagramName }
   let d = base.diagrams.find((x) => x.name === diagramName)
   if (!d) {
     d = {

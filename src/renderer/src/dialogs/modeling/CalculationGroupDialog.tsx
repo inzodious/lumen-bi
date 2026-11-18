@@ -9,6 +9,7 @@ import { schemaFromModel } from '../../editors/dax/schema'
 import { nameError, renameColumn, renameTable, uniqueName } from './logic/modelOps'
 import { renameReportReferences } from './fieldEdits'
 import './modeling.css'
+import { cloneDeep } from '@core/clone'
 
 export function CalculationGroupDialog({ onClose, table }: { onClose(): void; table: string }) {
   const model = useApp((s) => s.project?.model)
@@ -18,7 +19,7 @@ export function CalculationGroupDialog({ onClose, table }: { onClose(): void; ta
   const nameCol = t?.columns.find((c) => c.dataType === 'string' && !c.isHidden) ?? t?.columns[0]
   const [colName, setColName] = useState(nameCol?.name ?? 'Name')
   const [precedence, setPrecedence] = useState<number>(cg?.precedence ?? 0)
-  const [items, setItems] = useState<CalculationItemDef[]>(() => structuredClone(cg?.items ?? []).sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0)))
+  const [items, setItems] = useState<CalculationItemDef[]>(() => cloneDeep(cg?.items ?? []).sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0)))
   const [idx, setIdx] = useState(0)
   const [noSel, setNoSel] = useState(cg?.noSelectionExpression ?? '')
   const schema = useMemo(() => schemaFromModel(model), [model])

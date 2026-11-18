@@ -17,6 +17,17 @@ size and background, and how to make a page a tooltip or drill-through page.
 
 The new page takes the size and page view of the page you were on.
 
+## Duplicate a page
+
+1. Right-click the page tab and select **Duplicate page**, or open the page and select **Insert > New page >
+   Duplicate page**.
+2. Lumen adds a copy named *Duplicate of* followed by the page name right after the original and opens it. A second
+   copy of the same page is numbered: *Duplicate of Overview (1)*.
+
+The copy has the same visuals, groups, page settings, page filters, visual interactions and mobile layout as the
+original. Its visuals are independent copies: editing them doesn't change the original page. Press **Ctrl+Z** to remove
+the copy.
+
 ## Move between pages
 
 - Select a page tab.
@@ -96,9 +107,6 @@ The steps for readers are in [Drill down and drill through](drill-down-and-drill
 
 ## Considerations and limitations
 
-- **Duplicate page** (in the page tab menu and under **Insert > New page**) doesn't work in this version: the command
-  does nothing and the menu stays open. To copy a page, select all its visuals (**Ctrl+A**), copy them (**Ctrl+C**),
-  add a page and paste (**Ctrl+V**).
 - A new page is inserted after the current page, not at the end of the tabs.
 - Deleting a page does not ask for confirmation; use **Ctrl+Z** to undo.
 - Images chosen for **Canvas background** or **Wallpaper** are stored in the report as registered resources, as Power

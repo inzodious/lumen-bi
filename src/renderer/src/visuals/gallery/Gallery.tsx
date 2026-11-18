@@ -18,6 +18,7 @@ import type { DataPointIdentity, SQFilter } from '@core/report/sq'
 import { buildSampleModel } from './sampleData'
 import { createMockEngine } from './mockEngine'
 import { galleryEntries, type GalleryEntry } from './registry'
+import { cloneDeep } from '@core/clone'
 
 // Pull in every family's gallery fixtures (visuals/<family>/gallery.ts).
 import.meta.glob('../*/gallery.ts', { eager: true })
@@ -138,7 +139,7 @@ function GalleryCard({ entry, engine: sharedEngine, theme, onTooltip }: { entry:
       report: entry.report ?? { pages: [], activePage: '', bookmarks: [], resolveImage: () => undefined },
       updateVisual: (m) =>
         setJson((j: any) => {
-          const c = structuredClone(j)
+          const c = cloneDeep(j)
           m(c)
           return c
         })

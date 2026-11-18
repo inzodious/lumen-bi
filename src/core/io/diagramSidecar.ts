@@ -41,6 +41,7 @@
  * Pure TypeScript: no DOM, no Node APIs.
  */
 import type { RelationshipDef, SemanticModel } from '../model/types'
+import { cloneDeep } from '../clone'
 
 export const LUMEN_LAYOUT_FILE = 'diagramLayout.lumen.json'
 export const LUMEN_LAYOUT_VERSION = 1
@@ -326,7 +327,7 @@ export function serializeLumenLayout(layout: LumenLayout | null): string | null 
 
 /** A copy of `layout` with diagram `name` edited by `edit` (the entry is created when missing). */
 export function updateLumenDiagram(layout: LumenLayout | null, name: string, edit: (d: LumenDiagram) => void): LumenLayout {
-  const next: LumenLayout = layout ? structuredClone(layout) : { version: LUMEN_LAYOUT_VERSION, diagrams: [] }
+  const next: LumenLayout = layout ? cloneDeep(layout) : { version: LUMEN_LAYOUT_VERSION, diagrams: [] }
   let d = next.diagrams.find((x) => x.name === name)
   if (!d) {
     d = { name }

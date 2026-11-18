@@ -48,7 +48,11 @@ export function installE2EHooks(): void {
     }
     orig(...args)
   }
-  window.addEventListener('error', (e) => errors.push(`[uncaught] ${e.message}`))
+  // a thrown DOMException (e.g. DataCloneError) reports only "Uncaught" as the event message: keep the error's own name / text
+  window.addEventListener('error', (e) => {
+    const err = e.error as { name?: string; message?: string; stack?: string } | undefined
+    errors.push(`[uncaught] ${e.message}${err && typeof err === 'object' ? ` ${err.name ?? ''}: ${err.message ?? ''}\n${err.stack ?? ''}` : ''}`.slice(0, 2000))
+  })
   window.addEventListener('unhandledrejection', (e) => errors.push(`[unhandledrejection] ${String((e as PromiseRejectionEvent).reason)}`))
   window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, exportReportWithResult, isBusy, setVisualIcon, errors }
 }

@@ -11,6 +11,7 @@ import { readTmdlFiles } from '../tmdl/read'
 import { writeTmdlFiles } from '../tmdl/write'
 import { readTmsl, writeTmsl } from '../tmdl/tmsl'
 import type { Diagnostic } from './pbix/container'
+import { cloneDeep } from '../clone'
 
 /** Sidecar files that are per-user state and are not carried along. */
 function isUserState(rel: string): boolean {
@@ -117,7 +118,7 @@ export function semanticModelFiles(model: SemanticModel, displayName: string, op
 
 /** Files of a `*.Report` folder with its dataset reference pointing at `modelRelPath` (when given). */
 export function reportFiles(report: ReportDocument, displayName: string, modelRelPath?: string): OutFileMap {
-  const pbir: any = report.pbir ? structuredClone(report.pbir) : { $schema: SCHEMA.definitionProperties, version: PBIR_DEFINITION_VERSION, datasetReference: {} }
+  const pbir: any = report.pbir ? cloneDeep(report.pbir) : { $schema: SCHEMA.definitionProperties, version: PBIR_DEFINITION_VERSION, datasetReference: {} }
   if (Number.parseFloat(String(pbir.version ?? '0')) < 4) pbir.version = PBIR_DEFINITION_VERSION
   if (modelRelPath) pbir.datasetReference = { byPath: { path: modelRelPath } }
   const files = pbirToFiles({ ...report, pbir })
@@ -128,7 +129,7 @@ export function reportFiles(report: ReportDocument, displayName: string, modelRe
 export function pbipJson(existing: unknown, reportFolder: string | undefined): string {
   const obj: any =
     existing && typeof existing === 'object'
-      ? structuredClone(existing)
+      ? cloneDeep(existing)
       : { $schema: SCHEMA.pbip, version: '1.0', artifacts: [], settings: { enableAutoRecovery: true } }
   obj.artifacts = reportFolder ? [{ report: { path: reportFolder } }] : []
   return JSON.stringify(obj, null, 2)

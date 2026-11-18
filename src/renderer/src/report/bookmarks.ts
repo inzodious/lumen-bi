@@ -30,6 +30,7 @@ import { fieldKey, identitiesToFilter, literalValue, type DataPointIdentity, typ
 import { encodeLiteral } from '@core/report/literal'
 import type { DrillState } from '../visuals/contract'
 import { filterCards, isGroup, isSlicerType, newObjectName, savedSlicerFilter, visualFields, visualTypeOf, writeSlicerFilter, type FilterCard } from './pbir'
+import { cloneDeep } from '@core/clone'
 
 const BOOKMARK_SCHEMA = 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmark/1.4.0/schema.json'
 
@@ -64,11 +65,11 @@ export function identitiesToHighlight(visualJson: any, ids: DataPointIdentity[])
     const dataMap: Record<string, any[]> = {}
     for (const f of id.fields) {
       const ref = queryRefFor(visualJson, f.expr)
-      ;(dataMap[ref] ??= []).push({ scopeId: { Comparison: { ComparisonKind: 0, Left: structuredClone(f.expr), Right: { Literal: { Value: encodeLiteral(f.value) } } } } })
+      ;(dataMap[ref] ??= []).push({ scopeId: { Comparison: { ComparisonKind: 0, Left: cloneDeep(f.expr), Right: { Literal: { Value: encodeLiteral(f.value) } } } } })
     }
     return { dataMap }
   })
-  const exprs = ids[0].fields.map((f) => structuredClone(f.expr))
+  const exprs = ids[0].fields.map((f) => cloneDeep(f.expr))
   return { selection, filterExpressionMetadata: { expressions: exprs } }
 }
 
@@ -237,8 +238,8 @@ export interface CaptureOptions {
 
 function cardToBookmarkFilter(c: FilterCard): any {
   const { field, ...rest } = c
-  const out: any = { ...structuredClone(rest) }
-  if (field) out.expression = structuredClone(field)
+  const out: any = { ...cloneDeep(rest) }
+  if (field) out.expression = cloneDeep(field)
   return out
 }
 
@@ -257,7 +258,7 @@ function drillToProjection(visualJson: any, drill: DrillState): Record<string, a
   }
   for (const role of ['Category', 'Rows', 'Axis', 'Columns', 'Series']) {
     const list = roles.get(role)
-    if (list && list.length > drill.level) return { [role]: [structuredClone(list[drill.level])] }
+    if (list && list.length > drill.level) return { [role]: [cloneDeep(list[drill.level])] }
   }
   return undefined
 }
@@ -302,10 +303,10 @@ export function captureBookmark(report: ReportDocument, rt: RuntimeSnapshot, opt
         if (vf || drillCards.length) entry.filters = { byExpr: [...(vf?.byExpr ?? []), ...drillCards] }
         if (isSlicerType(type)) {
           const sf = rt.slicerFilter(page.name, v.name)
-          sv.objects = { merge: { general: [{ properties: sf ? { filter: { filter: structuredClone(sf) } } : {} }] } }
+          sv.objects = { merge: { general: [{ properties: sf ? { filter: { filter: cloneDeep(sf) } } : {} }] } }
         }
         const sort: any[] = v.json?.visual?.query?.sortDefinition?.sort ?? []
-        if (sort.length) sv.orderBy = sort.map((s) => ({ Direction: s.direction === 'Descending' ? 2 : 1, Expression: structuredClone(s.field) }))
+        if (sort.length) sv.orderBy = sort.map((s) => ({ Direction: s.direction === 'Descending' ? 2 : 1, Expression: cloneDeep(s.field) }))
         const ap = drillToProjection(v.json, drill)
         if (ap) sv.activeProjections = ap
       }
@@ -371,8 +372,8 @@ export interface BookmarkApplyPlan {
 
 function bookmarkFilterToCard(f: any): FilterCard {
   const { expression, ...rest } = f
-  const out: FilterCard = { ...structuredClone(rest) }
-  if (expression && !out.field) out.field = structuredClone(expression)
+  const out: FilterCard = { ...cloneDeep(rest) }
+  if (expression && !out.field) out.field = cloneDeep(expression)
   return out
 }
 

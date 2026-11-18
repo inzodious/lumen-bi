@@ -18,6 +18,7 @@ import { draggingField, endFieldDrag, fieldToSQ, isFieldDrag, readFieldDrag, typ
 import { CATALOG, catalogEntry, ICONS } from './catalog'
 import { AGG_MENU, addProjection, applyDateSlicerDefault, getShowAll, getShowValueAs, isValueProjection, moveProjection, nativeName, removeProjection, renameProjection, roleProjections, setAggregation, setShowAll, setShowValueAs, type ProjectionJson } from './wells'
 import { propagateSlicerFields } from '../syncslicers/sync'
+import { cloneDeep } from '@core/clone'
 
 const PROJ_MIME = 'application/x-lumen-projection'
 
@@ -289,14 +290,14 @@ export function addDrillthroughField(pageJson: any, expr: SQExpr): boolean {
   const cardName = newObjectName()
   pageJson.filterConfig ??= {}
   pageJson.filterConfig.filters ??= []
-  pageJson.filterConfig.filters.push({ name: cardName, field: structuredClone(expr), type: 'Categorical', howCreated: 'Drillthrough' })
+  pageJson.filterConfig.filters.push({ name: cardName, field: cloneDeep(expr), type: 'Categorical', howCreated: 'Drillthrough' })
   const pb = (pageJson.pageBinding ??= { name: newObjectName(), type: 'Drillthrough', referenceScope: 'Default' })
   if (pb.type !== 'Drillthrough') {
     pb.type = 'Drillthrough'
     pb.referenceScope ??= 'Default'
   }
   pb.parameters ??= []
-  pb.parameters.push({ name: newObjectName(), boundFilter: cardName, fieldExpr: structuredClone(expr) })
+  pb.parameters.push({ name: newObjectName(), boundFilter: cardName, fieldExpr: cloneDeep(expr) })
   return true
 }
 

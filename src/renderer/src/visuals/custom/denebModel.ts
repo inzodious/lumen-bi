@@ -10,6 +10,7 @@
 import { decodeLiteral } from '@core/report/literal'
 import type { ResolvedTheme } from '@core/report/theme'
 import { shadeColor } from '@core/report/theme'
+import { cloneDeep } from '@core/clone'
 
 export type DenebProvider = 'vegaLite' | 'vega'
 
@@ -118,7 +119,7 @@ export function buildDenebDataset(columns: DenebColumn[], rows: unknown[][], for
 
 /** Inject the dataset into the spec under the name `dataset` (Vega-Lite `datasets`, Vega `data[]`). */
 export function attachDataset(spec: Record<string, any>, provider: DenebProvider, values: Record<string, unknown>[]): Record<string, any> {
-  const s = structuredClone(spec)
+  const s = cloneDeep(spec)
   if (provider === 'vegaLite') {
     s.datasets = { ...(s.datasets ?? {}), dataset: values }
     if (!s.data && !s.layer && !s.hconcat && !s.vconcat && !s.concat && !s.repeat && !s.facet) s.data = { name: 'dataset' }

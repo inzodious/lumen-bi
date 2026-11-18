@@ -27,6 +27,7 @@ import { ICONS } from '../icons'
 import { DECOMP_DEFAULTS } from './formatCards'
 import { computeTree, splitCandidates, type TreeColumnData, type TreeData, type TreeNodeData } from './decomp/query'
 import { addLevel, barFraction, removeLevel, revertAi, selectPathNode, setLocked, writeDecompState, type AiMethod, type AiMode, type BarScaling, type DecompState } from './decomp/state'
+import { cloneDeep } from '@core/clone'
 
 const BAR_H = 10
 const COL_GAP = 50
@@ -307,7 +308,7 @@ export function DecompositionTree({ visual, width, height, ctx }: VisualProps) {
       let next = addLevel(tree.state, menu.atLevel, menu.node, level, tree.resolved)
       if (level.ai) {
         // store the field the AI split picks right now (Power BI writes it into queryRefs)
-        const probe = structuredClone(json)
+        const probe = cloneDeep(json)
         const ids = new Map(tree.explain.map((f) => [f.proj.queryRef, f.identityExpr]))
         writeDecompState(probe, next, (r) => ids.get(r))
         try {

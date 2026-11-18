@@ -12,6 +12,7 @@ import { useApp } from '../../state/store'
 import { registerResource } from '../commands'
 import { toast } from '../ui/Notify'
 import { BUILTIN_THEME_JSON, type ThemeJson } from './builtin'
+import { cloneDeep } from '@core/clone'
 
 export type { ThemeJson } from './builtin'
 
@@ -96,7 +97,7 @@ export function applyTheme(theme: BuiltinTheme | null): void {
     toast({ kind: 'warning', message: 'Open or create a report before applying a theme.' })
     return
   }
-  const json = theme?.json ? (structuredClone(theme.json) as ThemeJson) : null
+  const json = theme?.json ? (cloneDeep(theme.json) as ThemeJson) : null
   app.mutateReport('Change theme', (r) => setReportTheme(r, json))
 }
 
@@ -131,7 +132,7 @@ export async function importThemeFile(): Promise<void> {
 export function currentThemeJson(): ThemeJson {
   const { project, theme } = useApp.getState()
   const custom = project?.report?.theme.custom
-  if (custom) return structuredClone(custom)
+  if (custom) return cloneDeep(custom)
   return {
     name: theme.name,
     dataColors: theme.dataColors,

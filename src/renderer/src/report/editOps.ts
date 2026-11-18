@@ -6,6 +6,7 @@
 import type { PageDocument, ReportDocument, VisualDocument } from '@core/report/types'
 import { alignRects, distributeRects, distributeWithGap, boundsOf, matchSize, resizeBy, tidy, tidyUp, type AlignMode, type AlignTo, type DistributeAxis } from './geometry'
 import { absoluteRect, descendantsOf, findPage, groupOrigin, isGroup, newObjectName, orderedPages, parentOf, positionOf, type Rect } from './pbir'
+import { cloneDeep } from '@core/clone'
 
 const VISUAL_SCHEMA = 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.4.0/schema.json'
 const PAGE_SCHEMA = 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.0.0/schema.json'
@@ -51,17 +52,17 @@ export function duplicatePage(report: ReportDocument, pageName: string): string 
   const src = findPage(report, pageName)
   if (!src) return undefined
   const name = newObjectName()
-  const json = structuredClone(src.json)
+  const json = cloneDeep(src.json)
   json.name = name
   json.displayName = uniquePageDisplayName(report, `Duplicate of ${src.json?.displayName ?? pageName}`)
   const rename = new Map<string, string>()
   for (const v of src.visuals) rename.set(v.name, newObjectName())
   const visuals: VisualDocument[] = src.visuals.map((v) => {
-    const j = structuredClone(v.json)
+    const j = cloneDeep(v.json)
     const nn = rename.get(v.name)!
     j.name = nn
     if (j.parentGroupName && rename.has(j.parentGroupName)) j.parentGroupName = rename.get(j.parentGroupName)
-    return { name: nn, json: j, ...(v.mobile ? { mobile: structuredClone(v.mobile) } : {}) }
+    return { name: nn, json: j, ...(v.mobile ? { mobile: cloneDeep(v.mobile) } : {}) }
   })
   if (Array.isArray(json.visualInteractions)) {
     json.visualInteractions = json.visualInteractions
@@ -349,19 +350,19 @@ export function copyVisuals(page: PageDocument, names: string[]): VisualClipboar
   for (const n of top) {
     const v = pageVisual(n)
     if (!v) continue
-    const json = structuredClone(v.json)
+    const json = cloneDeep(v.json)
     // detach from its parent group: store absolute position
     if (json.parentGroupName) {
       const r = absoluteRect(page, v)
       json.position = { ...json.position, x: r.x, y: r.y }
       delete json.parentGroupName
     }
-    out.push({ name: n, json, ...(v.mobile ? { mobile: structuredClone(v.mobile) } : {}) })
+    out.push({ name: n, json, ...(v.mobile ? { mobile: cloneDeep(v.mobile) } : {}) })
     seen.add(n)
     for (const d of descendantsOf(page, n)) {
       if (seen.has(d.name)) continue
       seen.add(d.name)
-      out.push({ name: d.name, json: structuredClone(d.json) })
+      out.push({ name: d.name, json: cloneDeep(d.json) })
     }
   }
   return { kind: 'wbi-visuals', sourcePage: page.name, visuals: out }
@@ -378,7 +379,7 @@ export function pasteVisuals(page: PageDocument, clip: VisualClipboard, opts: { 
   let z = maxZ(page) + 1000
   const top: string[] = []
   for (const v of clip.visuals) {
-    const json = structuredClone(v.json)
+    const json = cloneDeep(v.json)
     const nn = rename.get(v.name)!
     json.name = nn
     if (json.parentGroupName) {

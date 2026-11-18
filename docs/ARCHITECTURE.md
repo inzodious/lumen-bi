@@ -76,6 +76,11 @@ be coordinated — note them prominently in your final report.
   built on the renderers' exported constants. `effectiveDefaults.test.tsx` renders every gallery fixture with an empty
   format definition while recording the fallbacks and fails when a control shows anything else. A reader that resolves a
   default outside `getProp` (e.g. `optStr(...) ?? x`) is invisible to both — pass the default as the fallback instead.
+* **Edits run on immer drafts**: every `mutateReport` / `mutateModel` / `patchReport` / `mutateModelSidecars` mutator
+  receives Proxies. Deep-copy state only with `cloneDeep` (`src/core/clone.ts`), never `structuredClone` or a JSON
+  round-trip (`clone.test.ts` greps `src/` for them). A mutator that throws changes nothing and is reported once by the
+  store (`reportMutationError`: error toast naming the action); callers don't catch. `report/__tests__/draftAudit.test.ts`
+  runs every exported edit operation on a draft and fails on a new export until it is exercised or classified.
 * **Saving**: PBIR JSON round-trips (edits are immer copy-on-write recipes over the JSON as read, `autoFreeze` off; untouched files are written back unchanged). TMDL is regenerated from `SemanticModel`
   (with preserved `extra`/annotations). PBIX can't be written (proprietary DataModel); "Save" of a PBIX
   offers Save As PBIP or `.wbi` (Lumen bundle = PBIP + cached data).

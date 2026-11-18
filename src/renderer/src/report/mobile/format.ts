@@ -16,6 +16,7 @@ import type { ResolvedTheme } from '@core/report/theme'
 import { findPage, findVisual } from '../pbir'
 import { mobileVisualJson } from './layout'
 import type { BagTarget } from '../../panes/visualizations/PropEditor'
+import { cloneDeep } from '@core/clone'
 
 type MobileKey = 'objects' | 'visualContainerObjects'
 
@@ -43,8 +44,8 @@ export function seedMobileObject(v: VisualDocument, container: boolean, object: 
   const bag = mobileBag(v, container, true)
   if (!bag || bag[object]) return
   const desk = desktopBag(v, container)?.[object]
-  // JSON copy, not structuredClone: inside an edit `desk` is an immer draft (a Proxy), which can't be cloned structurally
-  bag[object] = desk ? JSON.parse(JSON.stringify(desk)) : []
+  // inside an edit `desk` is an immer draft (a Proxy): cloneDeep unwraps it (structuredClone would throw)
+  bag[object] = desk ? cloneDeep(desk) : []
 }
 
 /** Objects of a visual that have a mobile override. */

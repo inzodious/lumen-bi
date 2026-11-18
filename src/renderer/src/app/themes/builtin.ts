@@ -24,6 +24,7 @@
  */
 
 import { BUILTIN_THEMES as CORE_BUILTIN_THEMES } from '@core/report/themes/builtin'
+import { cloneDeep } from '@core/clone'
 
 export interface ThemeJson {
   name: string
@@ -62,7 +63,7 @@ const NOT_IN_GALLERY = new Set(['Concourse'])
 export const BUILTIN_THEME_JSON: Array<{ name: string; json: ThemeJson | null; preview: string[]; previewBackground?: string; previewForeground?: string }> = [
   { name: 'Default', json: null, preview: DEFAULT_PALETTE },
   ...CORE_BUILTIN_THEMES.filter((t) => !NOT_IN_GALLERY.has(t.name)).map((t) => {
-    const json = structuredClone(t) as ThemeJson
+    const json = cloneDeep(t) as ThemeJson
     return { name: json.name, json, preview: json.dataColors.slice(0, 8), previewBackground: json.background, previewForeground: json.foreground }
   })
 ]

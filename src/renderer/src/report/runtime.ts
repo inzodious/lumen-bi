@@ -92,7 +92,7 @@ export function flushSlicers(): void {
       const v = findVisual(findPage(draft, e.page), e.visual)
       if (v) writeSlicerFilter(v.json, e.filter ?? undefined)
     }
-  })
+  }, 'Slicer selection')
 }
 
 /** Set a slicer selection (debounced commit so typing in a slicer doesn't re-query every keystroke). */
@@ -257,7 +257,7 @@ export function applyBookmark(name: string): void {
   const bm = r?.bookmarks.find((b) => b.name === name || b.json?.displayName === name)
   if (!r || !bm) return
   const plan = planBookmarkApply(r, bm)
-  app.patchReport(plan.mutate)
+  app.patchReport(plan.mutate, 'Apply bookmark')
   const it = useInteraction.getState()
   for (const s of plan.slicers) it.setSlicer(s.page, s.visual, s.filter)
   for (const d of plan.drill) it.setDrill(d.page, d.visual, d.state)

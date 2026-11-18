@@ -6,6 +6,7 @@
  */
 import { columnExpr, defaultQueryRef, fieldInfo, fieldKey, SQ_AGG, type SQExpr } from '@core/report/sq'
 import type { SemanticModel } from '@core/model/types'
+import { cloneDeep } from '@core/clone'
 
 export interface ProjectionJson {
   field: SQExpr
@@ -104,7 +105,7 @@ function dropSortsOn(visualJson: any, key: string): void {
 }
 
 function replaceSortField(visualJson: any, oldKey: string, expr: SQExpr): void {
-  for (const s of visualJson?.visual?.query?.sortDefinition?.sort ?? []) if (fieldKey(s.field) === oldKey) s.field = structuredClone(expr)
+  for (const s of visualJson?.visual?.query?.sortDefinition?.sort ?? []) if (fieldKey(s.field) === oldKey) s.field = cloneDeep(expr)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -154,7 +155,7 @@ export function applyDefaultSort(visualJson: any): void {
     return
   }
   v.query ??= {}
-  v.query.sortDefinition = { sort: [{ field: structuredClone(target.field), direction: target.direction }], isDefaultSort: true }
+  v.query.sortDefinition = { sort: [{ field: cloneDeep(target.field), direction: target.direction }], isDefaultSort: true }
 }
 
 /**
@@ -173,7 +174,7 @@ export function addProjection(visualJson: any, role: string, expr: SQExpr, opts:
     if (opts.max === 1) b.projections.splice(0, 1) // single-field wells replace (PBI behavior)
     else return false
   }
-  const p = makeProjection(structuredClone(expr), opts.active ? { active: true } : {})
+  const p = makeProjection(cloneDeep(expr), opts.active ? { active: true } : {})
   const at = opts.index === undefined ? b.projections.length : Math.max(0, Math.min(b.projections.length, opts.index))
   b.projections.splice(at, 0, p)
   applyDefaultSort(visualJson)
@@ -236,7 +237,7 @@ export function setAggregation(visualJson: any, role: string, index: number, fn:
   if (f.kind !== 'column' && f.kind !== 'aggregation') return
   if (!f.table || !f.property) return
   const col = f.kind === 'aggregation' ? base.Aggregation.Expression : base
-  const next = fn === null ? structuredClone(col) : { Aggregation: { Expression: structuredClone(col ?? columnExpr(f.table, f.property)), Function: fn } }
+  const next = fn === null ? cloneDeep(col) : { Aggregation: { Expression: cloneDeep(col ?? columnExpr(f.table, f.property)), Function: fn } }
   const oldKey = fieldKey(p.field)
   const field = pctInner && fn !== null ? percentOfGrandTotal(next) : next
   const renamed = p.displayName
@@ -273,7 +274,7 @@ export function setShowAll(visualJson: any, role: string, on: boolean): void {
 // ---------------------------------------------------------------------------------------------
 
 export function percentOfGrandTotal(expr: SQExpr): SQExpr {
-  return { Arithmetic: { Left: structuredClone(expr), Right: { ScopedEval: { Expression: structuredClone(expr), Scope: [] } }, Operator: 3 } }
+  return { Arithmetic: { Left: cloneDeep(expr), Right: { ScopedEval: { Expression: cloneDeep(expr), Scope: [] } }, Operator: 3 } }
 }
 
 /** The inner value when `expr` is a "% of grand total" wrapper, else undefined. */

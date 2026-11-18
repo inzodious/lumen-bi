@@ -97,7 +97,7 @@ The card now shows the icon to the left of *Total Sales* and *$6M*. More about i
 ## Step 6: add a combo chart
 
 1. Select an empty area of the canvas, then select **Line and clustered column chart** on **Build visual**.
-2. Drag the fields from the **Data** pane to the wells, in this order:
+2. Drag the fields from the **Data** pane to the wells:
    1. **Total Sales** to **Column y-axis**;
    2. **Margin %** to **Line y-axis**;
    3. **Date > Year Month** to **X-axis**.
@@ -108,10 +108,6 @@ The card now shows the icon to the left of *Total Sales* and *$6M*. More about i
 
 The chart shows monthly sales as columns on the left axis and the margin as a line on the right axis, titled *Total
 Sales and Margin % by Year Month*. The months are sorted from January 2023 on.
-
-> [!NOTE]
-> Add the X-axis field last. In this version a value added to a line, area or combo chart that already has its X-axis
-> is ignored; see [The Data pane and field wells](the-data-pane-and-field-wells.md#considerations-and-limitations).
 
 ## Step 7: add a matrix
 

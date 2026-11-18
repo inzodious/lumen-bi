@@ -10,10 +10,11 @@ import { DaxEditor } from '../../editors/dax/DaxEditor'
 import { schemaFromModel } from '../../editors/dax/schema'
 import { uniqueName } from './logic/modelOps'
 import './modeling.css'
+import { cloneDeep } from '@core/clone'
 
 export function ManageRolesDialog({ onClose }: { onClose(): void }) {
   const model = useApp((s) => s.project?.model)
-  const [roles, setRoles] = useState<RoleDef[]>(() => structuredClone(model?.roles ?? []))
+  const [roles, setRoles] = useState<RoleDef[]>(() => cloneDeep(model?.roles ?? []))
   const [roleIdx, setRoleIdx] = useState(0)
   const [table, setTable] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, ExpressionDiagnostic[]>>({})
@@ -45,7 +46,7 @@ export function ManageRolesDialog({ onClose }: { onClose(): void }) {
   }
   const duplicate = () => {
     if (!role) return
-    setRoles([...roles, { ...structuredClone(role), name: uniqueName(`${role.name} copy`, roles.map((r) => r.name)) }])
+    setRoles([...roles, { ...cloneDeep(role), name: uniqueName(`${role.name} copy`, roles.map((r) => r.name)) }])
     setRoleIdx(roles.length)
   }
   const remove = () => {

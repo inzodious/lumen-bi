@@ -9,6 +9,7 @@
  */
 
 import { DEFAULT_BASE_THEME } from '../theme'
+import { cloneDeep } from '../../clone'
 
 export interface BuiltinThemeJson {
   name: string
@@ -82,7 +83,7 @@ export function builtinTheme(name: string | undefined | null): BuiltinThemeJson 
   const key = name.replace(/\.json$/i, '').trim().toLowerCase()
   const target = (ALIASES[key] ?? ALIASES[key.replace(/[\s_-]+/g, '')] ?? key).toLowerCase()
   const hit = BUILTIN_THEMES.find((t) => t.name.toLowerCase() === target || t.name.toLowerCase().replace(/\s+/g, '') === target.replace(/[\s_-]+/g, ''))
-  return hit ? structuredClone(hit) : undefined
+  return hit ? cloneDeep(hit) : undefined
 }
 
 /**
@@ -91,7 +92,7 @@ export function builtinTheme(name: string | undefined | null): BuiltinThemeJson 
  * visual styles come from the current base theme (legacy layouts store most formatting explicitly on the visuals).
  */
 export function legacyDefaultBaseTheme(): any {
-  const base = structuredClone(DEFAULT_BASE_THEME)
+  const base = cloneDeep(DEFAULT_BASE_THEME)
   // Pre-2019 visuals had axis titles off by default; the current base theme turns them on for every chart via
   // visualStyles['*']['*'].categoryAxis/valueAxis.showAxisTitle. Legacy layouts that want titles save them explicitly.
   const all = base.visualStyles?.['*']?.['*']

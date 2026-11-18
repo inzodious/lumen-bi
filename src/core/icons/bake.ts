@@ -39,6 +39,7 @@ import { bytesToBase64, findResource } from '../pbir/resources'
 import { fingerprint } from './hash'
 import { parseIconRef, serializeIconRef, usesThemeColors } from './ref'
 import { REMOVED_ICON_SET_IDS, type IconRef, type IconSetId } from './types'
+import { cloneDeep } from '../clone'
 
 export const ICON_ANNOTATION = 'Lumen_Icon'
 /** Item names of baked icon resources start with this (only those are ever deleted by Lumen). */
@@ -322,7 +323,7 @@ function writeDataUri(visualJson: any, slot: IconSlot, uri: string, restore?: Re
     for (const p of new Set<string>([...CARD_SOURCE_PROPS, slot.property])) {
       const raw = read(p)
       // a plain copy (the entry is an immer draft and the bound value is about to be removed from it)
-      restore[p] = raw === undefined ? null : JSON.parse(JSON.stringify(raw))
+      restore[p] = raw === undefined ? null : cloneDeep(raw)
     }
   }
   writeEntryProp(bag, object, slot.property, strLit(uri), selector)

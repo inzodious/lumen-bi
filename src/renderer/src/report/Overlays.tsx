@@ -2,7 +2,7 @@
  * Screen-space overlays of the report view: data-point tooltip (default PBI-style, or a report-page
  * tooltip rendered live with the hovered point's filters) and the visual context menu.
  */
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRightRegular } from '@fluentui/react-icons'
 import type { DataPointIdentity, SQExpr } from '@core/report/sq'
 import { fieldKey, identitiesToFilter } from '@core/report/sq'
@@ -108,6 +108,17 @@ export interface MenuItem {
 
 export function Menu({ items, x, y, onClose }: { items: MenuItem[]; x: number; y: number; onClose(): void }) {
   const { ref, pos } = useClampedPosition(x - 14, y - 14, [items])
+  // Escape closes the menu and nothing else (like the app's popover menus): capture phase, not propagated to the
+  // canvas shortcuts. Covers every menu built on this component (visual context menu, page-tab menu).
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      onClose()
+    }
+    window.addEventListener('keydown', key, true)
+    return () => window.removeEventListener('keydown', key, true)
+  }, [onClose])
   return (
     <div ref={ref} className="wbi-menu" role="menu" style={{ left: pos.left, top: pos.top }} onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
       {items.map((it, i) => (

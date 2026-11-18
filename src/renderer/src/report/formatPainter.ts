@@ -14,6 +14,7 @@ import { create } from 'zustand'
 import { useApp } from '../state/store'
 import { findPage, findVisual, isGroup, visualTypeOf } from './pbir'
 import type { PageDocument } from '@core/report/types'
+import { cloneDeep } from '@core/clone'
 
 export interface CopiedFormat {
   visualType: string
@@ -33,7 +34,8 @@ const CONTENT_PROPS: Record<string, string[]> = {
   visualLink: ['type', 'bookmark', 'navigationSection', 'drillthroughSection', 'webUrl', 'tooltip', 'show']
 }
 
-const clone = <T>(v: T): T => (v === undefined ? v : structuredClone(v))
+/** Copies format entries; inside a mutation the target's entries are immer drafts (cloneDeep unwraps them). */
+const clone = cloneDeep
 
 export function copyFormat(visualJson: any): CopiedFormat | null {
   const v = visualJson?.visual ?? visualJson?.visualGroup

@@ -68,7 +68,6 @@ The **Analytics** tab ("Add further analyses to your visual") adds a constant li
 ## Differences from Power BI Desktop
 
 - The Visualizations pane gallery shows **Stacked bar chart** twice. The first tile inserts an unsupported type and the canvas shows "This visual type isn't supported yet"; the second tile, near the end of the gallery, inserts the real stacked bar chart (`barChart`).
-- In this version, adding a third field to a chart that already has a category and a value (for example a **Legend** after the X-axis and the Y-axis) can be ignored: the field does not appear in the well. Add the fields in this order instead: category, legend, then the value last. If a field does not stick, remove the value and add it again last.
 - Text measurement uses a Segoe UI-like approximation, so label truncation and axis spacing can differ by a few pixels from Power BI Desktop.
 
 ## Related content

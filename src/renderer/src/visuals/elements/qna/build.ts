@@ -13,6 +13,7 @@ import { aggregationExpr, columnExpr, fieldKey, literalExpr, measureExpr, normal
 import type { QueryEngine } from '@core/engine/api'
 import { VISUAL_LABELS, valueLabel, type CompareOp, type QnaInterpretation, type QValue } from './parse'
 import type { QnaField } from './schema'
+import { cloneDeep } from '@core/clone'
 
 const AGG_REF: Record<number, string> = {
   [SQ_AGG.Sum]: 'Sum',
@@ -216,11 +217,11 @@ export function previewFilters(spec: QnaVisualSpec, q: QnaInterpretation, engine
 export function applyQnaResult(visualJson: any, spec: QnaVisualSpec): void {
   visualJson.visual ??= {}
   visualJson.visual.visualType = spec.visualType
-  visualJson.visual.query = JSON.parse(JSON.stringify(spec.json.visual.query))
+  visualJson.visual.query = cloneDeep(spec.json.visual.query)
   delete visualJson.visual.objects
   visualJson.visual.drillFilterOtherVisuals = true
   if (spec.cards.length) {
     visualJson.filterConfig ??= {}
-    visualJson.filterConfig.filters = [...(visualJson.filterConfig.filters ?? []), ...JSON.parse(JSON.stringify(spec.cards))]
+    visualJson.filterConfig.filters = [...(visualJson.filterConfig.filters ?? []), ...cloneDeep(spec.cards)]
   }
 }

@@ -3,14 +3,8 @@
 > **Applies to:** Creators
 
 Synced slicers share one selection across several pages: pick a year on one page and the slicers in the same sync
-group on the other pages follow. This article describes the **Sync slicers** pane, what works today, and a defect
-that currently stops you from syncing a slicer to a new page from the pane.
-
-> [!IMPORTANT]
-> In this version, ticking **Sync** or **Visible** for *another* page, or selecting **Add and sync with all pages**,
-> fails without a message and changes nothing (an internal error occurs while Lumen copies the slicer). Sync groups
-> that a report already contains, for example one built in Power BI Desktop, work: selections propagate and the pane
-> shows and edits the group. The workaround below lets you build a group in Lumen.
+group on the other pages follow. This article describes the **Sync slicers** pane: syncing a slicer to other pages,
+editing a group, and grouping slicers that are already on several pages.
 
 ![The Sync slicers pane for the Year slicer of the Overview page: a grid of pages (Overview, Products, Customers & Regions) with Sync and Visible check boxes, the link Add and sync with all pages, and Advanced options with the group name Year and two check boxes.](../images/create-reports/sync-slicers-pane.png)
 
@@ -36,6 +30,24 @@ page (the **Visible** check box is cleared). The hidden copy still filters its p
 
 With no slicer selected the pane shows *Select a slicer to see sync options.*
 
+## Sync a slicer to other pages
+
+1. Select the slicer and open the **Sync slicers** pane.
+2. For each page that should follow the slicer, select a check box in its row:
+   - **Visible**: Lumen copies the slicer to that page, at the same position (moved inside the page when the page is
+     smaller), and syncs it. **Sync** is selected with it.
+   - **Sync** only: Lumen adds a hidden copy. The page is filtered by the slicer's selection but doesn't show it.
+3. To do this for every page at once, select **Add and sync with all pages**. Every page except tooltip pages gets a
+   visible copy.
+
+The first time, Lumen creates the group, named after the slicer's field (for example **Category**); the name is in
+**Advanced options**. A selection made in any synced copy now applies to all of them. For example, make the sample's
+**Category** slicer on **Products** visible on **Overview**, select **Bikes** in the copy on **Overview**, and both pages
+show bikes only; the **Products** slicer shows **Bikes** selected.
+
+To undo a step, press **Ctrl+Z**. Clearing **Visible** hides the copy on that page but keeps it synced. Clearing **Sync**
+removes a hidden copy; a visible slicer stays on its page and leaves the group.
+
 ## Rename a group or change what it syncs
 
 1. Select a slicer that belongs to a group.
@@ -46,10 +58,10 @@ With no slicer selected the pane shows *Select a slicer to see sync options.*
 
 ![The Sync slicers pane for a Year slicer that belongs to a sync group: Sync and Visible are ticked for all three pages.](../images/create-reports/sync-slicers-group.png)
 
-## Workaround: build a group from existing slicers
+## Group slicers that are already on other pages
 
-Because the pane cannot copy a slicer to another page yet, put a slicer on each page yourself and give them the same
-group name:
+When each page already has its own slicer on the same column, give them the same group name instead of adding
+copies:
 
 1. On each page that should be synced, add a slicer on the same column (or copy the slicer with **Ctrl+C** and paste
    it on the other page with **Ctrl+V**).
@@ -66,15 +78,13 @@ matrix.
 
 ## Considerations and limitations
 
-- Syncing to another page from the pane fails (see the note at the top). Clearing **Sync** for another page that
-  already holds a visible member works: that slicer leaves the group.
-- When a page already has a slicer on the same column that is not in the group, Lumen does not offer to reuse it (it
-  would add a second, hidden copy once the defect is fixed). Use the workaround to add it to the group.
+- When a page already has a slicer on the same column that is not in the group, Lumen does not reuse it: selecting
+  **Sync** or **Visible** for that page adds a copy next to it. To use the existing slicer instead, give it the group's
+  name (see [Group slicers that are already on other pages](#group-slicers-that-are-already-on-other-pages)).
 - Range slicers (date or numeric) in the same group share their selected range.
 
 ## Differences from Power BI Desktop
 
-- Power BI Desktop copies the slicer to the pages you tick; Lumen currently cannot (defect above).
 - The PBIR shape Lumen writes for groups and hidden copies is designed to match what Power BI Desktop writes; opening
   the result in Power BI Desktop has not been verified.
 

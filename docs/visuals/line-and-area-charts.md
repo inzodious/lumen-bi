@@ -62,7 +62,6 @@ The **Analytics** tab ("Add further analyses to your visual") offers constant li
 - **Forecast** uses exponential smoothing with Lumen's own initialisation. Power BI does not publish its algorithm, so forecast values and confidence bands can differ from Power BI Desktop's.
 - **Find anomalies** uses a robust statistical method, not Power BI's Azure model, and needs at least 12 points. The visual says the detection is approximate.
 - On lines, **Data labels > Position** draws every value except **Below** above the point (Power BI's **Auto** placement is not documented). A label that would overlap one already drawn is dropped.
-- In this version, adding a measure to the **Y-axis** or **Secondary y-axis** after the **X-axis** already has a field is ignored (the measure does not appear in the well). Add the measures first and the **X-axis** field last. If the axis is already set, remove it, add the measures, then add the axis again.
 
 ## Related content
 

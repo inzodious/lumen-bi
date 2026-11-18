@@ -7,6 +7,7 @@
 import type { PageDocument, ReportDocument, VisualDocument } from '@core/report/types'
 import { fieldInfo } from '@core/report/sq'
 import { findPage, findVisual, newObjectName, orderedPages, pageType, positionOf, syncGroupOf, visualFields } from '../../report/pbir'
+import { cloneDeep } from '@core/clone'
 
 export interface SyncRow {
   page: string
@@ -75,7 +76,7 @@ function ensureGroup(report: ReportDocument, src: VisualDocument): { groupName: 
 }
 
 function copyTo(page: PageDocument, src: VisualDocument, group: { groupName: string; fieldChanges: boolean; filterChanges: boolean }, hidden: boolean): string {
-  const json = structuredClone(src.json)
+  const json = cloneDeep(src.json)
   const name = newObjectName()
   json.name = name
   delete json.parentGroupName
@@ -175,7 +176,7 @@ export function propagateSlicerFields(report: ReportDocument, pageName: string, 
       const g = syncGroupOf(v.json)
       if (!g || g.groupName !== sg.groupName || !g.fieldChanges || !v.json.visual) continue
       if (JSON.stringify(v.json.visual.query?.queryState ?? {}) === key) continue
-      v.json.visual.query = structuredClone(query ?? {})
+      v.json.visual.query = cloneDeep(query ?? {})
       const general = v.json.visual.objects?.general
       if (Array.isArray(general)) for (const e of general) if (e?.properties?.filter) delete e.properties.filter
       updated.push(v.name)

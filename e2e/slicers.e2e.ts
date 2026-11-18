@@ -95,4 +95,44 @@ describe('slicers', () => {
     expect([await inputs(b).nth(0).inputValue(), await inputs(b).nth(1).inputValue()]).toEqual(boundsB)
     void visualText
   })
+
+  it('Sync slicers: a slicer made visible on another page appears there and filters that page', async () => {
+    const { page } = lumen()
+    const errors = await lumenEval(page, (l) => l.errors.length)
+    await goToPage(page, 'Products')
+    const slicer = page.locator('.wbi-page [data-type="slicer"]').filter({ hasText: /^Category/ })
+    const source = (await slicer.getAttribute('data-visual'))!
+    // select the slicer (click its header area, not an item) and open the Sync slicers pane
+    const box = (await slicer.boundingBox())!
+    await page.mouse.click(box.x + box.width - 6, box.y + 4)
+    await expect.poll(() => lumenEval(page, (l) => l.useApp.getState().selectedVisuals)).toEqual([source])
+    const switcher = page.getByRole('toolbar', { name: 'Panes' })
+    if ((await switcher.getByRole('button', { name: 'Sync slicers' }).getAttribute('aria-pressed')) !== 'true') await switcher.getByRole('button', { name: 'Sync slicers' }).click()
+    const visible = page.locator('.wbi-sync [role="checkbox"][title="Visible on Overview"]')
+    await visible.click()
+    await expect.poll(() => visible.getAttribute('aria-checked')).toBe('true')
+    await expect.poll(() => page.locator('.wbi-sync [role="checkbox"][title="Sync on Overview"]').getAttribute('aria-checked')).toBe('true')
+    // the copy is on Overview (same sync group as the source) and filters it
+    const copyName = await lumenEval(page, (l, src) => {
+      const pages = l.useApp.getState().project!.report!.pages
+      const group = pages.flatMap((p) => p.visuals).find((v) => v.name === src)!.json.visual.syncGroup.groupName
+      return pages.find((p) => p.json?.displayName === 'Overview')!.visuals.find((v) => v.json.visual?.syncGroup?.groupName === group)?.name ?? null
+    }, source)
+    expect(copyName).toBeTruthy()
+    await goToPage(page, 'Overview')
+    const copy = page.locator(`.wbi-page [data-visual="${copyName}"]`)
+    await expect.poll(() => copy.count()).toBe(1)
+    expect(await copy.innerText()).toMatch(/^Category/)
+    const before = await pageTexts(page)
+    await copy.getByRole('option', { name: 'Bikes', exact: true }).click()
+    await expect.poll(async () => { const now = await pageTexts(page); return Object.keys(before).filter((k) => before[k] !== now[k]).length }).toBeGreaterThanOrEqual(2)
+    await settle(page)
+    // synced: the Products slicer shows the same selection
+    await goToPage(page, 'Products')
+    await expect.poll(() => slicer.getByRole('option', { name: 'Bikes', exact: true }).getAttribute('aria-selected')).toBe('true')
+    await slicer.hover()
+    await slicer.locator('button[title="Clear selections"]').click()
+    await settle(page)
+    expect(await lumenEval(page, (l, n) => l.errors.slice(n).filter((e) => !/Warning:/.test(e)), errors)).toEqual([])
+  })
 })

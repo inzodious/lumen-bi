@@ -44,8 +44,9 @@ const FILES: Record<string, string> = {
 const FONT = /^\/fonts\/[a-z-]+\.woff2$/
 
 /** Call before `app.whenReady()`. */
+/** `corsEnabled`: the frame's fonts load in CORS mode from its opaque origin (the CSP still allows no fetch / XHR). */
 export function registerCodeFrameScheme(): void {
-  protocol.registerSchemesAsPrivileged([{ scheme: CODE_FRAME_SCHEME, privileges: { standard: true, secure: true } }])
+  protocol.registerSchemesAsPrivileged([{ scheme: CODE_FRAME_SCHEME, privileges: { standard: true, secure: true, corsEnabled: true } }])
 }
 
 /** Call after `app.whenReady()`. `rendererDir` is the built renderer folder (holds `codeframe/`). */

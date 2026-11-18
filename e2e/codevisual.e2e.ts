@@ -150,6 +150,7 @@ describe('code visual', () => {
     expect(await frame.locator('.bl__by').innerText()).toBe('by Category')
     // the report's Segoe UI stand-in is the font inside the frame
     expect(await frameStyle(frame, '.bl__label', 'font-family')).toMatch(/Segoe UI/)
+    expect(await frame.locator('#lumen-root').evaluate(async () => (await document.fonts.ready, document.fonts.check('12px "Segoe UI"') && document.fonts.check('600 12px "Segoe UI"')))).toBe(true)
     // rows carry the CSS variables of their values
     expect(Number(await frameStyle(frame, '.bl__row', '--pct-of-max'))).toBe(1)
   })

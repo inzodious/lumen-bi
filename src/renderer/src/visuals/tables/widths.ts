@@ -1,17 +1,36 @@
 /**
- * Column auto-sizing (PBI "Auto-size width" / "Column adjustment"): widths from measured header
- * and value text, explicit per-column widths (columnWidth selector), default width for the
- * fixed-width mode, and grow-to-fit distribution of spare space.
+ * Column sizing of the table and matrix visuals (Power BI: Format ▸ Visual ▸ Layout ▸ Column width).
+ *
+ * Auto-size behavior (`columnHeaders.columnAdjustment`):
+ *  - Fit to content: every column is as wide as its header and values need (first 50 rows);
+ *  - Grow to fit: as Fit to content, then the leftover horizontal space of the visual is shared by the
+ *    columns (Learn: "distributed evenly to each column");
+ *  - Fixed width: every column uses the Default width (`columnHeaders.defaultColumnWidth`).
+ * A custom width (a `columnWidth` object entry, written by dragging a header edge, by "Set column width" or
+ * from the Custom widths inputs) overrides the behavior for that column in every mode.
+ *
+ * Approximations (Microsoft does not publish them): Grow to fit leaves columns with a custom width alone and
+ * shares the leftover between the other columns; the Fixed width default is 120 px when no Default width is
+ * set; a legacy "Auto-size width: off" visual keeps the content width for a column without a stored width.
  */
 import { measureText, type FontSpec } from '../common/textStyle'
 
 export const CELL_PAD_X = 6
+/** narrowest width a column can be dragged to */
+export const MIN_COLUMN_WIDTH = 16
+/** Fixed width without a Default width (approximation, see the file comment) */
+export const DEFAULT_FIXED_WIDTH = 120
+
+export type SizeBehavior = 'fitToContent' | 'growToFit' | 'fixedWidth'
 
 export interface WidthInput {
   header: string
   headerFont: FontSpec
   texts: string[]
   valueFont: FontSpec
+  /** texts drawn with another font (bold totals / subtotals) */
+  extraTexts?: Array<{ text: string; font: FontSpec }>
+  /** custom width (columnWidth entry) */
   explicit?: number
   /** extra px (sort caret, expand buttons + indentation, icons) */
   extra?: number
@@ -20,11 +39,16 @@ export interface WidthInput {
 }
 
 export interface WidthOptions {
-  autoSize: boolean
+  behavior: SizeBehavior
+  /**
+   * Legacy "Auto-size width: off" (no `columnAdjustment` in the file): PBI stored a width for every column when
+   * the option was switched off; a column without one keeps its content width instead of the default width.
+   */
+  legacyManual?: boolean
   defaultWidth?: number
   wrapHeader: boolean
+  /** width of the visual's viewport (without the vertical scrollbar) */
   available: number
-  adjustment: 'growToFit' | 'fixedWidth' | 'fitToContent' | 'auto'
   /** cap for auto widths */
   max?: number
 }
@@ -45,29 +69,33 @@ export function maxTextWidth(texts: string[], font: FontSpec, sample = 400): num
   return best
 }
 
-export function computeWidths(cols: WidthInput[], opts: WidthOptions): number[] {
+/** Width a column needs to show its header and values (what "Fit to content" and a double-click on the header edge use). */
+export function contentWidth(c: WidthInput, opts: Pick<WidthOptions, 'wrapHeader' | 'available' | 'max'>): number {
   const max = opts.max ?? Math.max(320, opts.available * 0.6)
+  let valueW = maxTextWidth(c.texts, c.valueFont)
+  for (const x of c.extraTexts ?? []) if (x.text) valueW = Math.max(valueW, measureText(x.text, x.font))
+  const headerFull = measureText(c.header, c.headerFont)
+  const longestWord = Math.max(0, ...c.header.split(/\s+/).map((w) => measureText(w, c.headerFont)))
+  const headerW = opts.wrapHeader ? Math.max(longestWord, Math.min(headerFull, Math.max(valueW, 90))) : headerFull
+  return Math.ceil(Math.min(max, Math.max(valueW, headerW, c.minWidth ?? 0) + 2 * CELL_PAD_X + (c.extra ?? 0)) + 1)
+}
+
+export function computeWidths(cols: WidthInput[], opts: WidthOptions): number[] {
   const widths = cols.map((c) => {
-    if (c.explicit !== undefined) return c.explicit
-    // "Fixed width" column adjustment uses the default width. With "Auto-size width" off and no saved
-    // width PBI keeps the width the column got when it was added, i.e. its content width — measure it.
-    if (opts.adjustment === 'fixedWidth' || (!opts.autoSize && opts.defaultWidth !== undefined)) return opts.defaultWidth ?? 120
-    // fitToContent / growToFit / auto: measured content (PBI samples the first 50 rows; callers pass those)
-    const valueW = maxTextWidth(c.texts, c.valueFont)
-    const headerFull = measureText(c.header, c.headerFont)
-    const longestWord = Math.max(0, ...c.header.split(/\s+/).map((w) => measureText(w, c.headerFont)))
-    const headerW = opts.wrapHeader ? Math.max(longestWord, Math.min(headerFull, Math.max(valueW, 90))) : headerFull
-    return Math.ceil(Math.min(max, Math.max(valueW, headerW, c.minWidth ?? 0) + 2 * CELL_PAD_X + (c.extra ?? 0)) + 1)
+    if (c.explicit !== undefined) return Math.max(0, c.explicit)
+    if (opts.behavior === 'fixedWidth' && !(opts.legacyManual && opts.defaultWidth === undefined)) return Math.max(MIN_COLUMN_WIDTH, opts.defaultWidth ?? DEFAULT_FIXED_WIDTH)
+    // PBI samples the first 50 rows; callers pass those
+    return contentWidth(c, opts)
   })
-  if (opts.adjustment === 'growToFit' || opts.adjustment === 'auto') {
-    const total = widths.reduce((a, b) => a + b, 0)
-    if (opts.adjustment === 'growToFit' && total < opts.available && total > 0) {
-      // Learn: "Any leftover horizontal space is distributed evenly to each column."
-      const auto = widths.map((_, i) => i).filter((i) => cols[i].explicit === undefined)
-      if (!auto.length) return widths
-      const extra = Math.floor((opts.available - total) / auto.length)
-      return widths.map((w, i) => (cols[i].explicit !== undefined ? w : w + extra))
-    }
-  }
-  return widths
+  if (opts.behavior !== 'growToFit') return widths
+  const total = widths.reduce((a, b) => a + b, 0)
+  const auto = widths.map((_, i) => i).filter((i) => cols[i].explicit === undefined)
+  if (!auto.length || total <= 0 || total >= opts.available) return widths
+  const extra = Math.floor((opts.available - total) / auto.length)
+  return widths.map((w, i) => (cols[i].explicit !== undefined ? w : w + extra))
+}
+
+/** Horizontal cell padding for a column width: a column narrower than its padding (width 0 hides it) has none. */
+export function cellPadX(width: number): number {
+  return width <= 2 * CELL_PAD_X ? 0 : CELL_PAD_X
 }

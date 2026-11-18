@@ -1,8 +1,15 @@
 /**
  * "Copy value" / "Copy selection" for tables and matrices (Ctrl+C on a focused visual).
- * Power BI copies formatted cell text; multi-cell selections paste as tab-separated rows with the
- * column headers on top (Excel-friendly).
+ * Multi-cell selections paste as formatted text, tab-separated rows with the column headers on top
+ * (Excel-friendly). Copy ▸ Copy value copies the cell's data value: Learn — "Power BI copies only the data value
+ * in the cell. It doesn't copy any formatting applied to the cell value."
  */
+import type { Scalar } from '@core/model/data'
+
+/** Text of Copy ▸ Copy value for a cell: numbers unformatted (full precision), everything else as displayed. */
+export function copyValueText(cell: { value: Scalar; text: string }): string {
+  return typeof cell.value === 'number' && Number.isFinite(cell.value) ? String(cell.value) : cell.text
+}
 
 /** Escape one TSV field (quotes when the text contains tabs, newlines or quotes). */
 export function tsvField(s: string): string {

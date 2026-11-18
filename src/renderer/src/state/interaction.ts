@@ -31,6 +31,8 @@ export interface FocusState {
   visual: string
   /** 'focus' = focus mode; 'table' = show as a table */
   mode: 'focus' | 'table'
+  /** "Show data point as a table": restrict the visual and its data to this data point */
+  point?: DataPointIdentity
 }
 
 export interface TooltipState {

@@ -13,17 +13,20 @@
  */
 import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { identityKey } from '@core/report/sq'
-import type { VisualProps } from '../contract'
+import type { Scalar } from '@core/model/data'
+import type { ContextMenuEntry, VisualProps } from '../contract'
 import { fontStyle, measureText, ptToPx, type FontSpec } from '../common/textStyle'
+import { applyExpansion, isExpanded, setAllExpanded, setLevelExpanded, setNodeExpanded, type ExpansionEdit, type ExpansionLevel, type ExpansionState } from '../common/expansion'
+import { promptDialog } from '../../app/ui'
 import { CellContent, Grid, LinkIcon, ResizeHandle, SortCaret } from './Grid'
 import { buildMatrixView, formatLabel, matrixIdentity } from './matrixView'
-import { toggleExpansion } from './matrixQuery'
 import { applySort } from './tableModel'
-import { outlineBorders, scopeMatches, type TotalStyle } from './tableFormat'
-import { computeWidths, CELL_PAD_X, maxTextWidth } from './widths'
-import { setColumnWidth, Message, AUTOSIZE_SAMPLE_ROWS } from './TableVisual'
+import { outlineBorders, scopedWidth, type TotalStyle } from './tableFormat'
+import { cellPadX, computeWidths, contentWidth, CELL_PAD_X, maxTextWidth, type WidthInput } from './widths'
+import { clearScopedWidths, resetColumnWidth, scopeSelector, setColumnWidth, totalSelector, visualObjects, type WidthTarget } from './columnWidths'
+import { Message, AUTOSIZE_SAMPLE_ROWS, validWidth } from './TableVisual'
 import type { ColHeaderCell, RowItem } from './matrixModel'
-import { copyToClipboard, isCopyKey, toTsv } from './copy'
+import { copyToClipboard, copyValueText, isCopyKey, toTsv } from './copy'
 import { SPARKLINE_DEFAULT_WIDTH } from './sparklineModel'
 import { isUrl } from './cellModel'
 import { COLUMN_GROUP_LIMIT, LOAD_MORE_COLUMNS_PX, LOAD_MORE_THRESHOLD, ROW_WINDOW } from './windowQuery'
@@ -61,12 +64,19 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
   const colButtonPx = Math.max(8, Math.round(f.header.buttons.size))
   const showButtons = f.rowHeaders.showButtons && rowLevels > 1
   const showColButtons = f.header.buttons.show && (data?.colFields.length ?? 0) > 1
-  const frozen = !f.rowHeaders.unfrozen
+  // Layout ▸ Freeze ▸ Row headers; the context menu's Freeze / Unfreeze row headers changes it for this session only (PBI)
+  const [frozenView, setFrozenView] = useState<{ saved: boolean; frozen: boolean } | undefined>()
+  const savedFrozen = !f.rowHeaders.unfrozen
+  const frozen = frozenView && frozenView.saved === savedFrozen ? frozenView.frozen : savedFrozen
 
-  const widths = useMemo(() => {
+  // Layout ▸ Column width: `available` is the viewport without the vertical scrollbar (reported by the grid)
+  const [viewport, setViewport] = useState<number | undefined>()
+  const available = viewport !== undefined ? Math.min(width, viewport) : width
+  const widthInputs = useMemo((): WidthInput[] => {
     if (!data) return []
     const maxLevel = Math.max(0, ...layout.items.map((i) => i.level))
     const sample = layout.items.slice(0, AUTOSIZE_SAMPLE_ROWS)
+    const totalFont = (it: RowItem) => (it.totalKind === 'grand' ? f.rowTotal.font : f.subTotals.style.font)
     const headerInputs = Array.from({ length: rowHeaderCols }, (_, ci) => {
       const texts = sample.flatMap((it, i) => (stepped || itemColumn(it, rowLevels) === ci ? [view.rowLabels[i]] : []))
       const name = stepped ? data.rowFields.map((r) => r.label)[0] ?? '' : data.rowFields[ci]?.label ?? ''
@@ -75,38 +85,69 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
         headerFont: f.header.font,
         texts,
         valueFont: { ...f.rowHeaders.font, bold: true },
-        explicit: f.cornerWidth ?? (stepped ? steppedHeaderWidth(data.rowFields.map((r) => r.proj.queryRef), f.widthByRef) : f.widthByRef.get(data.rowFields[ci]?.proj.queryRef ?? '')),
+        explicit: rowHeaderWidth(ci),
         extra: (stepped ? maxLevel * f.rowHeaders.indentation : 0) + (showButtons ? buttonPx + 6 : 0)
       }
     })
     const leafInputs = layout.leaves.map((leaf, li) => {
       const v = data.values[leaf.valueIndex] ?? data.values[0]
-      const scoped = f.widthByScope.find((w) =>
-        scopeMatches(
-          w.scope,
-          leaf.path.map((value, i) => ({ expr: data.colFields[i].proj.expr, value }))
-        )
-      )
       const spark = data.spec.valuesOnRow ? data.values.some((x) => x.sparkline) : !!v?.sparkline
+      const rows = spark && !data.spec.valuesOnRow ? [] : cells.slice(0, AUTOSIZE_SAMPLE_ROWS)
       return {
         header: leafHeaderText(li),
         headerFont: { ...f.header.font, bold: f.header.font.bold || leaf.isTotal },
-        texts: spark && !data.spec.valuesOnRow ? [] : cells.slice(0, AUTOSIZE_SAMPLE_ROWS).map((r) => r[li].text),
+        texts: rows.filter((_, r) => !layout.items[r].isTotal).map((r) => r[li].text),
         valueFont: { ...f.values.font, bold: f.values.font.bold || leaf.isTotal },
-        explicit: scoped?.width ?? (v ? f.widthByRef.get(v.proj.queryRef) : undefined),
+        // subtotal / grand-total rows are drawn with their own (bold) font
+        extraTexts: rows.flatMap((r, ri) => (layout.items[ri].isTotal && r[li].text ? [{ text: r[li].text, font: totalFont(layout.items[ri]) }] : [])),
+        explicit: leafWidth(li),
         extra: (v?.cf?.icon ? valuePx + 4 : 0) + (showColButtons && leaf.collapsed ? colButtonPx + 6 : 0),
         minWidth: spark ? SPARKLINE_DEFAULT_WIDTH : undefined
       }
     })
-    return computeWidths([...headerInputs, ...leafInputs], {
-      autoSize: f.header.autoSize,
-      defaultWidth: f.header.defaultWidth,
-      wrapHeader: f.header.wordWrap,
-      available: width,
-      adjustment: f.header.columnAdjustment
-    })
+    return [...headerInputs, ...leafInputs]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, width])
+  }, [view])
+  const widthOptions = { behavior: f.sizing.behavior, legacyManual: f.sizing.legacyManual, defaultWidth: f.sizing.defaultWidth, wrapHeader: f.header.wordWrap, available }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const widths = useMemo(() => computeWidths(widthInputs, widthOptions), [widthInputs, available])
+
+  /** selector a row-header column's custom width is stored under: its row field (stepped layout: the outermost visible one) */
+  function rowHeaderTarget(ci: number): WidthTarget {
+    const ref = (stepped ? data?.rowFields[0] : data?.rowFields[ci])?.proj.queryRef
+    // no row field (values on rows): Power BI's corner column
+    return ref ? { metadata: ref } : { id: 'cornerColumn' }
+  }
+  function rowHeaderWidth(ci: number): number | undefined {
+    if (!data) return undefined
+    const ref = (stepped ? data.rowFields[0] : data.rowFields[ci])?.proj.queryRef
+    if (!ref) return f.cornerWidth
+    if (!stepped) return f.widthByRef.get(ref)
+    return steppedHeaderWidth(data.rowFields.map((r) => r.proj.queryRef), f.widthByRef) ?? f.cornerWidth
+  }
+  function leafRef(li: number): string | undefined {
+    return (data?.values[layout.leaves[li].valueIndex] ?? data?.values[0])?.proj.queryRef
+  }
+  /** column level a total column totals (its own group's children; the grand total: the first level) */
+  function totalLevel(li: number) {
+    const leaf = layout.leaves[li]
+    return leaf.isTotal && !leaf.collapsed ? data.colFields[Math.min(leaf.path.length, data.colFields.length - 1)] : undefined
+  }
+  /** "More granular": the selector of one column header (its level's value) or one total column, as Power BI writes it */
+  function leafTarget(li: number): WidthTarget | undefined {
+    const leaf = layout.leaves[li]
+    const multi = data.values.length > 1 && leaf.valueIndex >= 0 ? { metadata: leafRef(li) } : {}
+    const total = totalLevel(li)
+    if (total) return { data: totalSelector(total.proj.expr), ...multi }
+    const k = leaf.path.length
+    return k && data.colFields[k - 1] ? { data: scopeSelector(data.colFields[k - 1].proj.expr, leaf.path[k - 1]), ...multi } : undefined
+  }
+  /** custom width of a leaf column: its own column header / total column first, then the uniform width of its value */
+  function leafWidth(li: number): number | undefined {
+    const ref = leafRef(li)
+    const path = layout.leaves[li].path.map((value, i) => ({ expr: data.colFields[i].proj.expr, value }))
+    return scopedWidth(f.widthByScope, { ref, path, totalOf: totalLevel(li)?.proj.expr }) ?? (ref ? f.widthByRef.get(ref) : undefined)
+  }
 
   if (view.error) return <Message text={`Couldn't load the data for this visual. ${view.error}`} />
   if (!data || (!data.values.length && !rowLevels && !data.colFields.length)) return <Message text="Add data fields to Rows, Columns or Values to build a matrix." muted />
@@ -130,6 +171,120 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
   const outline = (o: Parameters<typeof outlineBorders>[0]) => outlineBorders(o, f.grid.outlineColor, f.grid.outlineWeight)
   const selected = new Set(ctx.selection.map(identityKey))
   const colButtonColor = f.header.buttons.color ?? f.header.font.color
+
+  // ---------------- column widths ----------------
+  const editable = ctx.mode === 'edit'
+  const granular = f.sizing.granular && data.colFields.length > 0
+  const fitWidth = (ci: number) => contentWidth(widthInputs[ci], widthOptions)
+  /** custom width of a row-header column (stored under its row field, like Power BI) */
+  const resizeRowHeader = (ci: number, w: number) =>
+    ctx.updateVisual((j) => {
+      const bag = visualObjects(j)
+      const target = rowHeaderTarget(ci)
+      setColumnWidth(bag, target, w)
+      // a width stored under the corner column is replaced by the row field's
+      if (stepped && target.metadata) resetColumnWidth(bag, { id: 'cornerColumn' })
+    })
+  /** custom width of a value column: uniform for the value, or for one column header / total column with "More granular" */
+  const resizeLeaf = (li: number, w: number) => {
+    const ref = leafRef(li)
+    const target = granular ? leafTarget(li) : undefined
+    if (!ref && !target) return
+    ctx.updateVisual((j) => {
+      const bag = visualObjects(j)
+      if (target) return setColumnWidth(bag, target, w)
+      setColumnWidth(bag, ref!, w)
+      clearScopedWidths(bag, ref)
+    })
+  }
+  const askWidth = (label: string, current: number, apply: (w: number) => void) =>
+    void promptDialog({ title: 'Set column width', label: `Width of "${label}" (pixels)`, value: String(Math.round(current)), validate: validWidth }).then((v) => {
+      if (v !== null) apply(Number(v))
+    })
+  const rowHeaderWidthEntries = (ci: number): ContextMenuEntry[] => {
+    if (!editable) return []
+    return [
+      { label: 'Set column width', onClick: () => askWidth((stepped ? data.rowFields[0]?.label : data.rowFields[ci]?.label) || 'Row headers', widths[ci], (w) => resizeRowHeader(ci, w)) },
+      {
+        label: 'Reset column width',
+        disabled: rowHeaderWidth(ci) === undefined,
+        onClick: () =>
+          ctx.updateVisual((j) => {
+            const bag = visualObjects(j)
+            resetColumnWidth(bag, rowHeaderTarget(ci))
+            if (!stepped) return
+            // stepped layout: older files keep the width under another row level or the corner column
+            for (const r of data.rowFields) resetColumnWidth(bag, r.proj.queryRef)
+            resetColumnWidth(bag, { id: 'cornerColumn' })
+          })
+      }
+    ]
+  }
+  const leafWidthEntries = (li: number): ContextMenuEntry[] => {
+    const ref = leafRef(li)
+    if (!editable || !ref) return []
+    return [
+      { label: 'Set column width', onClick: () => askWidth(view.leafLabels[li], widths[rowHeaderCols + li], (w) => resizeLeaf(li, w)) },
+      {
+        label: 'Reset column width',
+        disabled: leafWidth(li) === undefined,
+        onClick: () =>
+          ctx.updateVisual((j) => {
+            const bag = visualObjects(j)
+            // this column header's own width; without "More granular" also the uniform width of the value
+            const own = leafTarget(li)
+            if (own) {
+              resetColumnWidth(bag, own)
+              resetColumnWidth(bag, { data: own.data })
+            }
+            if (!granular) resetColumnWidth(bag, ref)
+          })
+      }
+    ]
+  }
+
+  // ---------------- expand / collapse (PBIR expansionStates, see ../common/expansion) ----------------
+  const rowState: ExpansionState = { levelExpanded: data.spec.rowLevelExpanded ?? [], toggled: data.spec.toggled }
+  const colState: ExpansionState = { levelExpanded: data.spec.colLevelExpanded ?? [], toggled: data.spec.colToggled ?? new Set() }
+  const levelsOf = (fields: typeof data.rowFields): ExpansionLevel[] => fields.map((x) => ({ queryRef: x.proj.queryRef, expr: x.proj.expr }))
+  const editExpansion = (role: 'Rows' | 'Columns', command: (e: ExpansionEdit) => void) => {
+    ctx.updateVisual((j) => applyExpansion(j, role, levelsOf(role === 'Rows' ? data.rowFields : data.colFields), role === 'Rows' ? rowState : colState, command))
+    // the saved state now includes what "Expand all down one level" forced at run time
+    if (role === 'Rows' && ctx.drill.expandedLevel !== undefined) ctx.setDrill({ ...ctx.drill, expandedLevel: undefined })
+    if (role === 'Columns' && ctx.drill.columnExpandedLevel !== undefined) ctx.setDrill({ ...ctx.drill, columnExpandedLevel: undefined })
+  }
+  /** Power BI's Expand ▸ / Collapse ▸ (Selection · Entire level · All) for a row or column header */
+  const expansionEntries = (role: 'Rows' | 'Columns', path: Scalar[]): ContextMenuEntry[] => {
+    const state = role === 'Rows' ? rowState : colState
+    const levels = state.levelExpanded.length
+    if (levels < 2 || !path.length) return []
+    const level = path.length - 1
+    const canExpand = level < levels - 1
+    const open = canExpand && isExpanded(state, path)
+    const sub = (expanded: boolean): ContextMenuEntry[] => [
+      { label: 'Selection', disabled: !canExpand || open === expanded, onClick: () => editExpansion(role, (e) => setNodeExpanded(e, path, expanded)) },
+      { label: 'Entire level', disabled: !canExpand, onClick: () => editExpansion(role, (e) => setLevelExpanded(e, level, expanded)) },
+      { label: 'All', onClick: () => editExpansion(role, (e) => setAllExpanded(e, expanded)) }
+    ]
+    return [
+      { label: 'Expand', items: sub(true) },
+      { label: 'Collapse', items: sub(false) }
+    ]
+  }
+  const freezeEntries = (): ContextMenuEntry[] =>
+    rowHeaderCols ? [{ label: frozen ? 'Unfreeze row headers' : 'Freeze row headers', onClick: () => setFrozenView({ saved: savedFrozen, frozen: !frozen }) }] : []
+  /** entries of a matrix menu: the clicked header's own, then the transient freeze switch */
+  const withFreeze = (own: ContextMenuEntry[]): ContextMenuEntry[] => {
+    const fz = freezeEntries()
+    return own.length && fz.length ? [...own, { separator: true }, ...fz] : [...own, ...fz]
+  }
+  /** selected rows as TSV with headers (Copy ▸ Copy selection, Ctrl+C); undefined without a selection */
+  const selectionText = (): string | undefined => {
+    const rowIdx = layout.items.map((it, i) => ({ it, i })).filter(({ it }) => it.kind === 'node' && selected.has(identityKey(matrixIdentity(data, it.path))))
+    if (!rowIdx.length) return undefined
+    const headers = ['', ...layout.leaves.map((_, li) => view.leafLabels[li])]
+    return toTsv(headers, rowIdx.map(({ i }) => [view.rowLabels[i], ...cells[i].map((c) => c.text)]))
+  }
 
   // ---------------- header ----------------
   const headerLine = Math.ceil(ptToPx(f.header.font.size) * 1.36)
@@ -197,24 +352,30 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
             justifyContent: f.header.titleAlignment === 'center' ? 'center' : f.header.titleAlignment === 'right' ? 'flex-end' : 'flex-start',
             cursor: field ? 'pointer' : undefined
           }}
+          data-col={rowHeaderTarget(ci).metadata ?? 'cornerColumn'}
+          role="columnheader"
           onClick={() => field && toggleSort(field.proj.expr, false)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            ctx.showContextMenu({ x: e.clientX, y: e.clientY, target: 'header', value: label, selectionText, entries: withFreeze(rowHeaderWidthEntries(ci)) })
+          }}
         >
           <span style={headerTextStyle(f.header.wordWrap)}>{label}</span>
           {dir ? <SortCaret dir={dir} color={f.header.font.color} /> : null}
-          {ctx.mode === 'edit' ? <ResizeHandle width={colWidths[ci]} onPreview={(w) => setPreview(w === undefined ? undefined : { col: ci, width: w })} onResize={(w) => ctx.updateVisual((j) => setCorner(j, w))} /> : null}
+          {editable ? (
+            <ResizeHandle
+              width={colWidths[ci]}
+              label={label}
+              onPreview={(w) => setPreview(w === undefined ? undefined : { col: ci, width: w })}
+              onResize={(w) => resizeRowHeader(ci, w)}
+              onAutoFit={() => resizeRowHeader(ci, fitWidth(ci))}
+            />
+          ) : null}
         </div>
       )
     }
   }
-  const onToggleColumn = (cell: ColHeaderCell) =>
-    ctx.updateVisual((j) =>
-      toggleExpansion(
-        j,
-        cell.path,
-        data.colFields.map((c) => c.proj.queryRef),
-        'Columns'
-      )
-    )
+  const onToggleColumn = (cell: ColHeaderCell) => editExpansion('Columns', (e) => setNodeExpanded(e, cell.path, !cell.expanded))
   const onColumnHeaderClick = (e: React.MouseEvent, cell: ColHeaderCell) => {
     if (cell.kind !== 'group') return
     const drill = ctx.drill
@@ -259,7 +420,15 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
             cursor: isValue || (cell.kind === 'group' && data.values.length === 1) ? 'pointer' : undefined,
             borderBottom: r < headerRowCount - 1 && f.grid.horizontal ? `1px solid ${f.grid.horizontalColor}` : undefined
           }}
+          data-col={cell.colSpan === 1 ? leafRef(cell.start) : undefined}
+          role="columnheader"
           onClick={(e) => (v ? toggleSort(v.proj.expr, true) : onColumnHeaderClick(e, cell))}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            const entries = [...(cell.kind === 'group' ? expansionEntries('Columns', cell.path) : []), ...(cell.colSpan === 1 ? leafWidthEntries(cell.start) : [])]
+            const id = cell.kind === 'group' && cell.path.length ? matrixIdentity(data, [], cell.path) : undefined
+            ctx.showContextMenu({ x: e.clientX, y: e.clientY, identity: id, target: cell.kind === 'total' ? 'total' : 'header', value: text, selectionText, entries: withFreeze(entries) })
+          }}
           title={text}
         >
           {showColButtons && cell.kind === 'group' && cell.canExpand ? (
@@ -277,14 +446,13 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
           {dir && align === 'right' ? <SortCaret dir={dir} color={f.header.font.color} /> : null}
           <span style={headerTextStyle(f.header.wordWrap, align)}>{text}</span>
           {dir && align !== 'right' ? <SortCaret dir={dir} color={f.header.font.color} /> : null}
-          {ctx.mode === 'edit' && cell.colSpan === 1 && (v || leafCell) ? (
+          {editable && cell.colSpan === 1 && cell.start + cell.colSpan <= layout.leaves.length && leafRef(cell.start) && r + cell.rowSpan === headerRowCount ? (
             <ResizeHandle
               width={w}
+              label={text}
               onPreview={(nw) => setPreview(nw === undefined ? undefined : { col: ci, width: nw })}
-              onResize={(nw) => {
-                const ref = (v ?? data.values[0])?.proj.queryRef
-                if (ref) ctx.updateVisual((j) => setColumnWidth(j, ref, nw))
-              }}
+              onResize={(nw) => resizeLeaf(cell.start, nw)}
+              onAutoFit={() => resizeLeaf(cell.start, fitWidth(ci))}
             />
           ) : null}
         </div>
@@ -306,7 +474,7 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
       top: y,
       width: w,
       height: h,
-      padding: `${pad}px ${CELL_PAD_X}px`,
+      padding: `${pad}px ${cellPadX(w)}px`,
       display: 'flex',
       alignItems: 'flex-end',
       overflow: 'hidden',
@@ -344,14 +512,7 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
     return base
   }
 
-  const onToggle = (it: RowItem) =>
-    ctx.updateVisual((j) =>
-      toggleExpansion(
-        j,
-        it.path,
-        data.rowFields.map((r) => r.proj.queryRef)
-      )
-    )
+  const onToggle = (it: RowItem) => editExpansion('Rows', (e) => setNodeExpanded(e, it.path, !it.node?.expanded))
   const onRowHeaderClick = (e: React.MouseEvent, it: RowItem) => {
     if (it.kind !== 'node' || !it.node) return
     const id = matrixIdentity(data, it.path)
@@ -371,15 +532,12 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
   }
 
   const copySelection = () => {
-    const rowIdx = layout.items.map((it, i) => ({ it, i })).filter(({ it }) => it.kind === 'node' && selected.has(identityKey(matrixIdentity(data, it.path))))
-    if (rowIdx.length) {
-      const headers = ['', ...layout.leaves.map((_, li) => view.leafLabels[li])]
-      void copyToClipboard(toTsv(headers, rowIdx.map(({ i }) => [view.rowLabels[i], ...cells[i].map((c) => c.text)])))
-    } else if (lastCell.current) {
+    let text = selectionText()
+    if (text === undefined && lastCell.current) {
       const { row, col } = lastCell.current
-      const text = col < 0 ? view.rowLabels[row] : cells[row]?.[col]?.text
-      if (text !== undefined) void copyToClipboard(text)
+      text = col < 0 ? view.rowLabels[row] : cells[row]?.[col]?.text
     }
+    if (text !== undefined) void copyToClipboard(text)
   }
 
   const blankRowStyle = (): CSSProperties => {
@@ -440,7 +598,17 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
           onClick={(e) => onRowHeaderClick(e, it)}
           onContextMenu={(e) => {
             e.preventDefault()
-            ctx.showContextMenu({ x: e.clientX, y: e.clientY, identity: it.kind === 'node' ? matrixIdentity(data, it.path) : undefined })
+            e.stopPropagation()
+            const node = it.kind === 'node'
+            ctx.showContextMenu({
+              x: e.clientX,
+              y: e.clientY,
+              identity: node ? matrixIdentity(data, it.path) : undefined,
+              target: node ? 'header' : it.isTotal ? 'total' : 'empty',
+              value: label,
+              selectionText,
+              entries: withFreeze(node ? expansionEntries('Rows', it.path) : [])
+            })
           }}
         >
           {isLabelCol && showButtons ? (
@@ -507,7 +675,7 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
                 position: 'relative',
                 flex: `0 0 ${colWidths[ci]}px`,
                 width: colWidths[ci],
-                padding: `${pad}px ${CELL_PAD_X}px`,
+                padding: `${pad}px ${cellPadX(colWidths[ci])}px`,
                 display: 'flex',
                 alignItems: cell.spark ? 'center' : undefined,
                 overflow: 'hidden',
@@ -519,6 +687,12 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
               }}
               onMouseDown={() => (lastCell.current = { row: i, col: li })}
               onClick={(e) => it.kind === 'node' && selectId(e, matrixIdentity(data, it.path, leaf.path))}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                const id = it.kind === 'node' || it.kind === 'value' ? matrixIdentity(data, it.path, leaf.path) : undefined
+                ctx.showContextMenu({ x: e.clientX, y: e.clientY, identity: id?.fields.length ? id : undefined, target: it.isTotal || leaf.isTotal ? 'total' : 'dataPoint', value: copyValueText(cell), selectionText, entries: withFreeze([]) })
+              }}
               onMouseMove={(e) =>
                 cell.text
                   ? ctx.showTooltip({
@@ -572,12 +746,14 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
         estimateRowHeight={rowH}
         measure={f.values.wordWrap || f.rowHeaders.wordWrap}
         background={f.values.backPrimary}
+        bodyStyle={outline(f.values.outline)}
         header={header}
         renderRow={renderRow}
         onNearEnd={data?.hasMore ? loadMore : undefined}
         nearEndThreshold={LOAD_MORE_THRESHOLD}
         onNearRightEnd={data?.columnsCapped ? loadMoreColumns : undefined}
         nearRightThresholdPx={LOAD_MORE_COLUMNS_PX}
+        onViewportWidth={setViewport}
       />
     </div>
   )
@@ -594,16 +770,6 @@ function headerTextStyle(wrap: boolean, align: 'left' | 'center' | 'right' = 'le
   return wrap
     ? { whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: align, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }
     : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
-}
-
-function setCorner(visualJson: any, width: number): void {
-  const v = visualJson.visual
-  v.objects ??= {}
-  const list: any[] = (v.objects.columnWidth ??= [])
-  const entry = list.find((e) => e.selector?.id === 'cornerColumn')
-  const value = { expr: { Literal: { Value: `${width}D` } } }
-  if (entry) entry.properties = { ...entry.properties, value }
-  else list.push({ properties: { value }, selector: { id: 'cornerColumn' } })
 }
 
 /**

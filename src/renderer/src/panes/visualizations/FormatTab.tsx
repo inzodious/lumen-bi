@@ -24,6 +24,7 @@ import { FormatCardView, PropRow, TextInput, matchesSearch, type BagTarget } fro
 import { roleProjections, isValueProjection, nativeName } from './wells'
 import { CfDialogHost } from './cf/CfDialog'
 import { CellElementsCard } from './cf/FxControls'
+import { LevelSubtotalsCard, TableLayoutCard } from '../../visuals/tables/LayoutCard'
 
 export function visualTarget(pageName: string, visual: VisualDocument, container: boolean, theme: ResolvedTheme): BagTarget {
   const pc = makePropContext(visual.json, theme)
@@ -127,9 +128,11 @@ function VisualFormat({ page, visual, theme, mobile = false }: { page: PageDocum
         {effectiveTab === 'visual' ? (
           visualCards.length ? (
             <>
+              {(type === 'tableEx' || type === 'pivotTable') && <TableLayoutCard visual={visual} target={vt} search={search} />}
               {visualCards.map((c) => (
                 <FormatCardView key={c.object + c.displayName} card={c} target={c.container ? ct : vt} search={search} series={series} />
               ))}
+              {type === 'pivotTable' && <LevelSubtotalsCard visual={visual} target={vt} search={search} />}
               {!mobile && (type === 'tableEx' || type === 'pivotTable') && <CellElementsCard page={page} visual={visual} search={search} />}
             </>
           ) : (

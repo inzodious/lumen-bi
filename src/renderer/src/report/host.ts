@@ -47,7 +47,28 @@ function activeIndexes(visualJson: any, role: string): number[] {
 }
 
 function activeSignature(visualJson: any): string {
-  return JSON.stringify([...ROW_ROLES, 'Columns'].map((r) => activeIndexes(visualJson, r)))
+  // + the per-level collapse flags of the saved expansion state, which bound the seeded expand level
+  const collapsed = (visualJson?.visual?.expansionStates ?? []).map((s: any) => [s?.roles, (s?.levels ?? []).map((l: any) => [l?.queryRefs, l?.isCollapsed === true])])
+  return JSON.stringify([[...ROW_ROLES, 'Columns'].map((r) => activeIndexes(visualJson, r)), collapsed])
+}
+
+/**
+ * Last level shown expanded by default for a role with several active projections. Power BI also marks a level
+ * active when only single nodes above it are expanded (+/- icons); `expansionStates.levels[].isCollapsed` then says
+ * that the level above is collapsed by default, so the uniform expansion stops there.
+ */
+function expandedThrough(visualJson: any, role: string, active: number[]): number {
+  const last = active[active.length - 1]
+  const st = (visualJson?.visual?.expansionStates ?? []).find((s: any) => (s?.roles ?? []).includes(role))
+  const levels: any[] = st?.levels ?? []
+  if (!levels.some((l) => l?.isCollapsed === true)) return last
+  const ps: any[] = visualJson?.visual?.query?.queryState?.[role]?.projections ?? []
+  let lvl = active[0]
+  for (; lvl < last; lvl++) {
+    const l = levels.find((x) => (x?.queryRefs ?? []).includes(ps[lvl]?.queryRef))
+    if (l ? l.isCollapsed === true : false) break
+  }
+  return lvl
 }
 
 /**
@@ -59,11 +80,17 @@ export function seedDrillState(visualJson: any): DrillState {
   let out: DrillState | undefined
   const rowRole = ROW_ROLES.find((r) => (visualJson?.visual?.query?.queryState?.[r]?.projections?.length ?? 0) > 1)
   const rows = rowRole ? activeIndexes(visualJson, rowRole) : []
-  if (rows.length > 1) out = { level: rows[0], path: [], expandedLevel: rows[rows.length - 1] }
-  else if (rows.length === 1 && rows[0] > 0) out = { level: rows[0], path: [] }
+  if (rows.length > 1) {
+    const through = expandedThrough(visualJson, rowRole!, rows)
+    if (through > rows[0]) out = { level: rows[0], path: [], expandedLevel: through }
+    else if (rows[0] > 0) out = { level: rows[0], path: [] }
+  } else if (rows.length === 1 && rows[0] > 0) out = { level: rows[0], path: [] }
   const cols = activeIndexes(visualJson, 'Columns')
-  if (cols.length > 1) out = { ...(out ?? { level: 0, path: [] }), columnLevel: cols[0], columnExpandedLevel: cols[cols.length - 1] }
-  else if (cols.length === 1 && cols[0] > 0) out = { ...(out ?? { level: 0, path: [] }), columnLevel: cols[0] }
+  if (cols.length > 1) {
+    const through = expandedThrough(visualJson, 'Columns', cols)
+    if (through > cols[0]) out = { ...(out ?? { level: 0, path: [] }), columnLevel: cols[0], columnExpandedLevel: through }
+    else if (cols[0] > 0) out = { ...(out ?? { level: 0, path: [] }), columnLevel: cols[0] }
+  } else if (cols.length === 1 && cols[0] > 0) out = { ...(out ?? { level: 0, path: [] }), columnLevel: cols[0] }
   if (out && out.level === 0 && out.expandedLevel === 0) delete out.expandedLevel
   return out ?? EMPTY_DRILL
 }

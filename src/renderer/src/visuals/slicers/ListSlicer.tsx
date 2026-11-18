@@ -15,8 +15,9 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { Scalar } from '@core/model/data'
 import { setObjectProp } from '@core/report/props'
 import type { SQExpr, SQFilter } from '@core/report/sq'
-import type { VisualHostContext } from '../contract'
+import type { ContextMenuEntry, VisualHostContext } from '../contract'
 import { fontStyle, measureText, ptToPx, type FontSpec } from '../common/textStyle'
+import { applyExpansion, isExpanded, readExpansion, setAllExpanded, setLevelExpanded, setNodeExpanded, type ExpansionEdit } from '../common/expansion'
 import {
   buildHierTree,
   compressSelection,
@@ -41,7 +42,7 @@ import { clickItem, clickSelectAll, hasSelection, isEmptySelection, itemSelected
 import { findMeasure, matchPasted, moveFocus, orderItems, summaryText } from './listOptions'
 import { parsePastedValues } from './buttonSlicerModel'
 import { SearchBox, SlicerHeader, SlicerMessage } from './SlicerChrome'
-import { formatItem, itemKey, keyFieldFor, loadHierTuples, loadItemStats, loadListItems, BLANK_LABEL, type ListItem } from './slicerData'
+import { formatItem, itemKey, keyFieldFor, loadHierTuples, loadItemStats, loadListItems, slicerProjections, BLANK_LABEL, type ListItem } from './slicerData'
 import { outlineCss, type SlicerFormat } from './slicerFormat'
 
 export interface ListSlicerProps {
@@ -56,6 +57,8 @@ export interface ListSlicerProps {
   dropdown: boolean
   /** field data type (date presets apply to dateTime fields) */
   dataType?: string
+  /** slicer-level context menu entries (Search, Clear selections), appended to an item's own entries */
+  menuEntries?(): ContextMenuEntry[]
 }
 
 export interface RowModel {
@@ -72,6 +75,8 @@ export interface RowModel {
   onToggle?(): void
   /** deselect only this item (chips) */
   onRemove?(): void
+  /** hierarchy items: Power BI's Expand ▸ / Collapse ▸ (Selection · Entire level · All) */
+  menu?(): ContextMenuEntry[]
 }
 
 /** Persist a list update (inverted flag in objects.data, filter through the host). */
@@ -86,7 +91,31 @@ export function useListRows(p: ListSlicerProps, search: string) {
   const { ctx, fmt, fields, filter } = p
   const ext = fmt.ext
   const hierarchical = fields.length > 1
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  // Hierarchy expansion is saved with the visual like in Power BI (`expansionStates`, role Values): levels are
+  // collapsed by default, +/- and the context menu's Expand ▸ / Collapse ▸ edit it (undoable).
+  const levels = useMemo(
+    () => (hierarchical ? slicerProjections(p.visualJson).slice(0, fields.length).map((x) => ({ queryRef: x.queryRef, expr: x.expr })) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hierarchical, p.visualJson?.visual?.query, fields.length]
+  )
+  const expansion = useMemo(
+    () => readExpansion(p.visualJson, 'Values', levels.map((l) => l.queryRef), () => false),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [levels, p.visualJson?.visual?.expansionStates]
+  )
+  const editExpansion = (command: (e: ExpansionEdit) => void) => ctx.updateVisual((j) => applyExpansion(j, 'Values', levels, expansion, command))
+  const expansionMenu = (path: Scalar[], expandable: boolean, open: boolean): ContextMenuEntry[] => {
+    const level = path.length - 1
+    const sub = (to: boolean): ContextMenuEntry[] => [
+      { label: 'Selection', disabled: !expandable || open === to, onClick: () => editExpansion((e) => setNodeExpanded(e, path, to)) },
+      { label: 'Entire level', disabled: level >= levels.length - 1, onClick: () => editExpansion((e) => setLevelExpanded(e, level, to)) },
+      { label: 'All', onClick: () => editExpansion((e) => setAllExpanded(e, to)) }
+    ]
+    return [
+      { label: 'Expand', items: sub(true) },
+      { label: 'Collapse', items: sub(false) }
+    ]
+  }
   const filtersKey = JSON.stringify(ctx.filters)
   const force = ext.forceSelection
 
@@ -230,7 +259,8 @@ export function useListRows(p: ListSlicerProps, search: string) {
     const walk = (n: HierNode, depth: number) => {
       for (const c of n.children) {
         const k = pathKey(c.path)
-        const isOpen = expanded.has(k) || !!search
+        const saved = c.children.length > 0 && isExpanded(expansion, c.path)
+        const isOpen = saved || !!search
         const st = nodeState(c, selected)
         if (st === 'on' && depth === 0) selectedLabels.push(formatItem(ctx, fields[0], c.value))
         rows.push({
@@ -245,13 +275,8 @@ export function useListRows(p: ListSlicerProps, search: string) {
             commit(toggleHierNode(c, selected, replace))
           },
           onRemove: depth === 0 && st === 'on' ? () => commit(toggleHierNode(c, selected, false)) : undefined,
-          onToggle: () =>
-            setExpanded((prev) => {
-              const nx = new Set(prev)
-              if (nx.has(k)) nx.delete(k)
-              else nx.add(k)
-              return nx
-            })
+          onToggle: c.children.length ? () => editExpansion((e) => setNodeExpanded(e, c.path, !saved)) : undefined,
+          menu: () => expansionMenu(c.path, c.children.length > 0, saved)
         })
         if (isOpen && c.children.length) walk(c, depth + 1)
       }
@@ -287,6 +312,17 @@ export function useListRows(p: ListSlicerProps, search: string) {
   }, [strict, force, pickKey, !!filter, fmt.inverted, hierarchical, search])
 
   return { rows, error, selectedLabels, selectedCount, total, canClear, listState, paste }
+}
+
+/** Right-click on a slicer item: its value for Copy, Expand ▸ / Collapse ▸ for hierarchy items, then the slicer's own entries. */
+function rowMenu(p: ListSlicerProps): (row: RowModel, e: React.MouseEvent) => void {
+  return (row, e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const own = row.menu?.() ?? []
+    const shared = p.menuEntries?.() ?? []
+    p.ctx.showContextMenu({ x: e.clientX, y: e.clientY, target: 'header', value: row.label, entries: own.length && shared.length ? [...own, { separator: true }, ...shared] : [...own, ...shared] })
+  }
 }
 
 /** Row height in px for an item font + padding. */
@@ -346,7 +382,7 @@ function useListKeyboard(rows: RowModel[], onEscape?: () => void) {
   return { focus, setFocus, onKeyDown }
 }
 
-function ItemRows({ rows, fmt, strict, focus, onHover }: { rows: RowModel[]; fmt: SlicerFormat; strict: boolean; focus: number; onHover?(i: number): void }) {
+function ItemRows({ rows, fmt, strict, focus, onHover, onMenu }: { rows: RowModel[]; fmt: SlicerFormat; strict: boolean; focus: number; onHover?(i: number): void; onMenu?(row: RowModel, e: React.MouseEvent): void }) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const rowH = rowHeightFor(fmt.items.font, fmt.items.padding)
   const virt = useVirtualizer({ count: rows.length, getScrollElement: () => scrollRef.current, estimateSize: () => rowH, overscan: 12 })
@@ -386,7 +422,10 @@ function ItemRows({ rows, fmt, strict, focus, onHover }: { rows: RowModel[]; fmt
               aria-selected={r.state === 'on'}
               className="wbi-slicer-row"
               style={style}
+              data-depth={r.depth}
+              aria-expanded={r.expandable ? r.expanded : undefined}
               onClick={r.onClick}
+              onContextMenu={onMenu && !r.selectAll ? (e) => onMenu(r, e) : undefined}
               onMouseEnter={() => onHover?.(vi.index)}
               title={r.label}
             >
@@ -509,6 +548,7 @@ export function ListSlicer(p: ListSlicerProps) {
   const onPaste = (e: React.ClipboardEvent) => {
     if (paste(parsePastedValues(e.clipboardData.getData('text/plain')))) e.preventDefault()
   }
+  const onRowMenu = rowMenu(p)
 
   const header = (
     <SlicerHeader
@@ -556,7 +596,7 @@ export function ListSlicer(p: ListSlicerProps) {
         }}
         onPaste={onPaste}
         onBlur={() => kb.setFocus(-1)} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', outline: 'none' }}>
-        {error ? <SlicerMessage text={error} font={fmt.items.font} /> : rows.length ? <ItemRows rows={rows} fmt={fmt} strict={strict} focus={kb.focus} /> : search ? <SlicerMessage text="No results" font={fmt.items.font} /> : null}
+        {error ? <SlicerMessage text={error} font={fmt.items.font} /> : rows.length ? <ItemRows rows={rows} fmt={fmt} strict={strict} focus={kb.focus} onMenu={onRowMenu} /> : search ? <SlicerMessage text="No results" font={fmt.items.font} /> : null}
       </div>
     </>
   )
@@ -766,7 +806,7 @@ function DropdownList({ p, search, setSearch, paste, rows, error, selectedLabels
               {error ? (
                 <SlicerMessage text={error} font={fmt.items.font} />
               ) : rows.length ? (
-                <ItemRows rows={rows} fmt={fmt} strict={strict} focus={kb.focus} />
+                <ItemRows rows={rows} fmt={fmt} strict={strict} focus={kb.focus} onMenu={rowMenu(p)} />
               ) : (
                 <SlicerMessage text={search ? 'No results' : 'No values'} font={fmt.items.font} />
               )}

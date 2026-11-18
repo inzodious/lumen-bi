@@ -28,6 +28,13 @@ async function fileMenu(page: Page, item: string): Promise<void> {
   await bs.locator('.wbi-backstage__item', { hasText: new RegExp(`^${item}$`) }).click()
 }
 
+/** The page-selection dialog opened by an export tile: keep its default selection and export. */
+async function confirmExport(page: Page): Promise<void> {
+  const dlg = page.getByRole('dialog', { name: /^Export / })
+  await dlg.getByRole('button', { name: 'Export', exact: true }).click()
+  await expect.poll(() => dlg.count()).toBe(0)
+}
+
 function pngSize(buf: Buffer): { width: number; height: number } {
   expect(buf.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) }
@@ -81,12 +88,14 @@ describe('save and export', () => {
 
   it('exports PDF, PowerPoint and PNG files that are valid', async () => {
     const { page, app, tmp } = lumen()
+    // the sample has no tooltip pages: the default selection is every page
     const pages = (await reportShape(page)).pages.length
     // PDF
     const pdf = join(tmp, 'out.pdf')
     await stubSaveDialog(app, pdf)
     await fileMenu(page, 'Export')
     await page.getByRole('button', { name: /Export to PDF/ }).click()
+    await confirmExport(page)
     await untilNode(() => existsSync(pdf) && statSync(pdf).size > 1000, 60_000, 'PDF')
     const pdfText = readFileSync(pdf).toString('latin1')
     expect(pdfText.startsWith('%PDF-')).toBe(true)
@@ -97,6 +106,7 @@ describe('save and export', () => {
     await stubSaveDialog(app, pptx)
     await fileMenu(page, 'Export')
     await page.getByRole('button', { name: /Export to PowerPoint/ }).click()
+    await confirmExport(page)
     await untilNode(() => existsSync(pptx) && statSync(pptx).size > 1000, 60_000, 'PPTX')
     const zip = unzipSync(new Uint8Array(readFileSync(pptx)))
     const slides = Object.keys(zip).filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k))
@@ -109,6 +119,7 @@ describe('save and export', () => {
     await stubOpenDialog(app, [dir])
     await fileMenu(page, 'Export')
     await page.getByRole('button', { name: /Export pages as images/ }).click()
+    await confirmExport(page)
     await untilNode(() => existsSync(dir) && readdirSync(dir).filter((f) => f.endsWith('.png')).length === pages, 60_000, 'PNG files')
     const pageSize = await lumenEval(page, (l) => {
       const r = l.useApp.getState().project!.report!

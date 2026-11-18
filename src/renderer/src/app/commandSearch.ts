@@ -11,7 +11,7 @@ import {
 } from '@fluentui/react-icons'
 import { useApp } from '../state/store'
 import { useShell } from './shellState'
-import { exportReport } from '../export'
+import { openExportDialog } from '../export'
 import { importThemeFile } from './themes'
 import { insertImage, insertTextBox, insertVisual, newPage, newReport, openFileDialog, refreshAll, runModelingCommand, save, saveAs, useSampleData, regenerateSampleData, undo, redo, loadSampleProject } from './commands'
 
@@ -34,10 +34,10 @@ function commands(): SearchableCommand[] {
     { id: 'open', label: 'Open report', group: 'File', keywords: 'pbix pbip pbit wbi', icon: ic(FolderOpenRegular), run: () => void openFileDialog() },
     { id: 'save', label: 'Save', group: 'File', icon: ic(SaveRegular), run: () => void save() },
     { id: 'saveas', label: 'Save as', group: 'File', keywords: 'pbip wbi', icon: ic(SaveEditRegular), run: () => void saveAs() },
-    { id: 'pdf', label: 'Export to PDF', group: 'Export', icon: ic(DocumentPdfRegular), run: () => void exportReport('pdf') },
-    { id: 'pptx', label: 'Export to PowerPoint', group: 'Export', keywords: 'pptx slides', icon: ic(SlideTextRegular), run: () => void exportReport('pptx') },
-    { id: 'png', label: 'Export pages as images', group: 'Export', keywords: 'png', icon: ic(ImageMultipleRegular), run: () => void exportReport('png') },
-    { id: 'html', label: 'Export to HTML', group: 'Export', keywords: 'web static', icon: ic(CodeRegular), run: () => void exportReport('html') },
+    { id: 'pdf', label: 'Export to PDF', group: 'Export', keywords: 'pages print', icon: ic(DocumentPdfRegular), run: () => openExportDialog('pdf') },
+    { id: 'pptx', label: 'Export to PowerPoint', group: 'Export', keywords: 'pptx slides pages', icon: ic(SlideTextRegular), run: () => openExportDialog('pptx') },
+    { id: 'png', label: 'Export pages as images', group: 'Export', keywords: 'png pages', icon: ic(ImageMultipleRegular), run: () => openExportDialog('png') },
+    { id: 'html', label: 'Export to HTML', group: 'Export', keywords: 'web static pages', icon: ic(CodeRegular), run: () => openExportDialog('html') },
     { id: 'getdata', label: 'Get data', group: 'Home', keywords: 'import source csv excel sql', icon: ic(DatabaseArrowRightRegular), run: () => shell.openDialog({ id: 'getData' }) },
     { id: 'enterdata', label: 'Enter data', group: 'Home', icon: ic(TableAddRegular), run: () => shell.openDialog({ id: 'enterData' }) },
     { id: 'transform', label: 'Transform data', group: 'Home', keywords: 'power query m editor', icon: ic(TableEditRegular), run: () => app.setView('powerquery') },

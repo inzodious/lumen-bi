@@ -1,5 +1,6 @@
 /**
- * Renders the shell dialog selected in useShell().dialog, plus the visual "Export data" dialog.
+ * Renders the shell dialog selected in useShell().dialog, plus the visual "Export data" dialog and the report
+ * export page-selection dialog.
  * Mounted once by the App shell.
  */
 import './dialogs.css'
@@ -12,6 +13,7 @@ import { OptionsDialog } from './OptionsDialog'
 import { AboutDialog } from './AboutDialog'
 import { PageSettingsDialog } from './PageSettingsDialog'
 import { ExportDataDialog } from './ExportDataDialog'
+import { ExportPagesDialog } from './ExportPagesDialog'
 import { DataSourceSettings } from '../views/powerquery/dialogs/SourceDialogs'
 
 export function DialogsHost() {
@@ -52,6 +54,7 @@ export function DialogsHost() {
     <>
       {body}
       <ExportDataDialog />
+      <ExportPagesDialog />
     </>
   )
 }

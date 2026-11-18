@@ -15,7 +15,7 @@ import { LumenLogo } from '../Logo'
 import { RecentList } from '../RecentList'
 import { cx } from '../ui/cx'
 import { closeProject, loadSampleProject, newReport, openFileDialog, openFolderDialog, save, saveAs } from '../commands'
-import { exportReport, usePngExportPrefs } from '../../export'
+import { openExportDialog } from '../../export'
 
 interface NavItem {
   page?: BackstagePage
@@ -169,22 +169,14 @@ function SaveAsPage({ run }: { run: Run }) {
 }
 
 function ExportPage({ run }: { run: Run }) {
-  const pngRes = usePngExportPrefs((s) => s.resolution)
+  // each page-based export opens the page selection dialog (dialogs/ExportPagesDialog.tsx)
   return (
     <Page title="Export">
       <div className="wbi-bs-list">
-        <Tile icon={<DocumentPdfRegular fontSize={32} />} title="Export to PDF" desc="Every visible page, one PDF page per report page, at the report page size" onClick={run(() => exportReport('pdf'))} />
-        <Tile icon={<SlideTextRegular fontSize={32} />} title="Export to PowerPoint" desc="One slide per page with the page image; filters listed in the notes" onClick={run(() => exportReport('pptx'))} />
-        <Tile icon={<ImageMultipleRegular fontSize={32} />} title="Export pages as images" desc={`One PNG per page into a folder · ${pngRes}× resolution`} onClick={run(() => exportReport('png'))} />
-        <div className="wbi-bs-option">
-          <span>PNG resolution</span>
-          {[1, 2, 3].map((r) => (
-            <button key={r} type="button" className={'wbi-bs-chip' + (pngRes === r ? ' is-on' : '')} aria-pressed={pngRes === r} onClick={() => usePngExportPrefs.getState().set(r)}>
-              {r}×{r === 1 ? ' (page size)' : ''}
-            </button>
-          ))}
-        </div>
-        <Tile icon={<CodeRegular fontSize={32} />} title="Export to HTML" desc="A single self-contained web page with page navigation" onClick={run(() => exportReport('html'))} />
+        <Tile icon={<DocumentPdfRegular fontSize={32} />} title="Export to PDF" desc="Choose the pages, hidden pages included; one PDF page per report page, at the report page size" onClick={run(() => openExportDialog('pdf'))} />
+        <Tile icon={<SlideTextRegular fontSize={32} />} title="Export to PowerPoint" desc="Choose the pages; one slide per page with the page image, filters listed in the notes" onClick={run(() => openExportDialog('pptx'))} />
+        <Tile icon={<ImageMultipleRegular fontSize={32} />} title="Export pages as images" desc="Choose the pages and the resolution; one PNG per page into a folder" onClick={run(() => openExportDialog('png'))} />
+        <Tile icon={<CodeRegular fontSize={32} />} title="Export to HTML" desc="Choose the pages; a single self-contained web page with page navigation" onClick={run(() => openExportDialog('html'))} />
         <Tile icon={<FolderZipRegular fontSize={32} />} title="Power BI project (.pbip)" desc="Save a copy as PBIR + TMDL folders" onClick={run(() => saveAs('pbip'))} />
       </div>
     </Page>

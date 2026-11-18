@@ -1,7 +1,9 @@
 /**
  * Report and data exports.
  *
- *   exportReport('pdf' | 'pptx' | 'png' | 'html', { path? })  — File ▸ Export, ribbon, menu
+ *   openExportDialog('pdf' | 'pptx' | 'png' | 'html')          — File ▸ Export, menu, command search: the page
+ *                                                                selection dialog (dialogs/ExportPagesDialog.tsx)
+ *   exportReport(format, { pages?, path?, resolution? })        — runs the export (the dialog, scripts, e2e)
  *   exportVisualData(req)                                      — a visual's "Export data" (register
  *                                                                with useApp().setExportVisualDataHandler)
  *   PrintLayout (./PrintLayout)                                — '#/print' route (renders the current print job)
@@ -13,8 +15,10 @@ import { toast } from '../app/ui/Notify'
 import { capturePagesPng, printPagesPdf } from './capture'
 import { buildHtml, buildPptx, type ExportedPage } from './builders'
 import { buildXlsx, toCsv, type TabularData } from './data'
+import type { PageExportOptions } from './pageSelection'
 
 export { capturePagesPng, printPagesPdf, exportablePages } from './capture'
+export * from './pageSelection'
 export { buildHtml, buildPptx, type ExportedPage } from './builders'
 export { buildXlsx, toCsv } from './data'
 export { describeFilterCards } from './filterText'
@@ -38,7 +42,6 @@ function errText(e: unknown): string {
 
 let exporting = false
 
-/** Export the report. Returns the written path (file or folder), or null when cancelled/failed. */
 /** PNG export resolution (1 = native page size, 2 / 3 = high-DPI). Persisted per user. */
 export const usePngExportPrefs = create<{ resolution: number; set(resolution: number): void }>((set) => ({
   resolution: (() => {
@@ -58,7 +61,33 @@ export const usePngExportPrefs = create<{ resolution: number; set(resolution: nu
   }
 }))
 
-export async function exportReport(format: ReportExportFormat, opts: { path?: string; resolution?: number } = {}): Promise<string | null> {
+/** The page-selection export dialog (rendered by dialogs/DialogsHost). */
+export const useReportExportDialog = create<{ format: ReportExportFormat | null; open(format: ReportExportFormat | null): void }>((set) => ({
+  format: null,
+  open: (format) => set({ format })
+}))
+
+/** Ask which pages to export (and the format's options), then export. */
+export function openExportDialog(format: ReportExportFormat): void {
+  if (!useApp.getState().project?.report) {
+    toast({ kind: 'warning', message: 'Open a report to export it.' })
+    return
+  }
+  useReportExportDialog.getState().open(format)
+}
+
+export interface ReportExportOptions extends PageExportOptions {
+  /** target file (folder for PNG); asked with a save dialog when absent */
+  path?: string
+  /** PNG only: 1 = page size, 2 / 3 = high-DPI */
+  resolution?: number
+}
+
+/**
+ * Export the report pages in `opts.pages` (report order; default: every page except tooltip pages, hidden pages
+ * included). Returns the written path (file or folder), or null when cancelled/failed.
+ */
+export async function exportReport(format: ReportExportFormat, opts: ReportExportOptions = {}): Promise<string | null> {
   const project = useApp.getState().project
   if (!project?.report) {
     toast({ kind: 'warning', message: 'Open a report to export it.' })
@@ -81,12 +110,12 @@ export async function exportReport(format: ReportExportFormat, opts: { path?: st
   try {
     const meta = { reportName, exportedAt: new Date() }
     if (format === 'pdf') {
-      const bytes = await printPagesPdf()
+      const bytes = await printPagesPdf({ pages: opts.pages })
       await window.wbi.fs.writeFile(target, bytes)
     } else {
       // PNG files honor the resolution option; PowerPoint/HTML embed 2× images so they stay sharp when enlarged
       const resolution = format === 'png' ? (opts.resolution ?? usePngExportPrefs.getState().resolution) : 2
-      const pages: ExportedPage[] = await capturePagesPng(undefined, { resolution })
+      const pages: ExportedPage[] = await capturePagesPng(undefined, { resolution, pages: opts.pages })
       if (format === 'png') {
         await window.wbi.fs.mkdirp(target)
         for (let i = 0; i < pages.length; i++) await window.wbi.fs.writeFile(`${target}/${i + 1} - ${safeName(pages[i].displayName)}.png`, pages[i].png)

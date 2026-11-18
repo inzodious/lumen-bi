@@ -3,13 +3,17 @@
  * canvas' non-interactive PrintLayout — independent of the interactive canvas, its zoom and chrome.
  *   capturePagesPng → each page alone at native size (scaled down only if larger than the window) → PNG
  *   printPagesPdf   → all pages, one named @page box each → printToPDF (vector text)
+ * Both take the page names chosen in the export dialog (export/pageSelection.ts) and render them in report order.
+ * Hidden pages and pages never opened in this session render the same way as any other: the print route mounts a
+ * fresh PageCanvas per page (it does not depend on the interactive canvas having visited the page) and each job
+ * resolves on the canvas' own readiness callback (every visual rendered), with the model's data already in memory.
  */
 import { useApp } from '../state/store'
-import { orderedPages, pageType } from '../report/pbir'
 import { cardsFilters } from '../report/filters'
 import type { ExportedPage } from './builders'
 import { describeFilterCards } from './filterText'
 import { usePrintJob, CAPTURE_ROOT_CLASS, type PrintJob } from './PrintLayout'
+import { defaultSelection, exportPageEntries, orderedSelection, type PageExportOptions } from './pageSelection'
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
@@ -25,13 +29,14 @@ export interface ExportPageInfo {
   height: number
 }
 
-/** Pages that are exported: visible in reading view and not tooltip pages, in report order. */
-export function exportablePages(): ExportPageInfo[] {
-  const report = useApp.getState().project?.report
-  if (!report) return []
-  return orderedPages(report)
-    .filter((p) => p.json?.visibility !== 'HiddenInViewMode' && pageType(p) !== 'tooltip')
-    .map((p) => ({ name: p.name, displayName: String(p.json?.displayName ?? p.name), width: Number(p.json?.width ?? 1280), height: Number(p.json?.height ?? 720) }))
+/**
+ * Pages to export, in report order: the given page names (unknown names ignored), or by default every page except
+ * tooltip pages, hidden pages included.
+ */
+export function exportablePages(names?: readonly string[]): ExportPageInfo[] {
+  const entries = exportPageEntries(useApp.getState().project?.report)
+  const chosen = new Set(orderedSelection(entries, names ?? defaultSelection(entries)))
+  return entries.filter((p) => chosen.has(p.name)).map((p) => ({ name: p.name, displayName: p.displayName, width: p.width, height: p.height }))
 }
 
 /** Report + page filter summaries for slide notes. */
@@ -73,16 +78,16 @@ async function inPrintRoute<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function ensurePages(): ExportPageInfo[] {
+function ensurePages(names?: readonly string[]): ExportPageInfo[] {
   if (!useApp.getState().project?.report) throw new Error('There is no report to export.')
-  const pages = exportablePages()
-  if (!pages.length) throw new Error('The report has no visible pages to export.')
+  const pages = exportablePages(names)
+  if (!pages.length) throw new Error(names ? 'No pages are selected for export.' : 'The report has no pages to export.')
   return pages
 }
 
-/** Render each exportable page alone and capture it as PNG. */
-export async function capturePagesPng(onProgress?: (done: number, total: number, page: string) => void, opts: { resolution?: number } = {}): Promise<ExportedPage[]> {
-  const pages = ensurePages()
+/** Render each selected page alone and capture it as PNG (report order). */
+export async function capturePagesPng(onProgress?: (done: number, total: number, page: string) => void, opts: { resolution?: number } & PageExportOptions = {}): Promise<ExportedPage[]> {
+  const pages = ensurePages(opts.pages)
   const resolution = Math.max(1, Math.min(4, opts.resolution ?? 1))
   return inPrintRoute(async () => {
     const out: ExportedPage[] = []
@@ -163,9 +168,9 @@ async function captureTiled(p: ExportPageInfo, scale: number): Promise<Uint8Arra
   return new Uint8Array(await blob.arrayBuffer())
 }
 
-/** Render every exportable page in the print layout and print the window to PDF bytes (vector). */
-export async function printPagesPdf(): Promise<Uint8Array> {
-  const pages = ensurePages()
+/** Render the selected pages (report order) in the print layout and print the window to PDF bytes (vector). */
+export async function printPagesPdf(opts: PageExportOptions = {}): Promise<Uint8Array> {
+  const pages = ensurePages(opts.pages)
   return inPrintRoute(async () => {
     await runJob({ mode: 'pdf', pages: pages.map((p) => p.name), scale: 1 })
     await sleep(300)

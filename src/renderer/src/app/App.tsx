@@ -32,7 +32,7 @@ import { PaneHost } from '../panes/PaneHost'
 import { DialogsHost } from '../dialogs/DialogsHost'
 import { AuthPromptHost } from '../views/powerquery/AuthPromptHost'
 import { ModelingDialogHost } from '../dialogs/modeling'
-import { exportVisualData, exportReport } from '../export'
+import { exportVisualData, exportReport, openExportDialog } from '../export'
 import { TitleBar } from './TitleBar'
 import { Ribbon } from './ribbon/Ribbon'
 import { registerStandardTabs } from './ribbon/tabs'
@@ -192,13 +192,13 @@ function useMenuCommands(): void {
         case 'file.close':
           return void closeProject()
         case 'file.export.pdf':
-          return void exportReport('pdf')
+          return openExportDialog('pdf')
         case 'file.export.pptx':
-          return void exportReport('pptx')
+          return openExportDialog('pptx')
         case 'file.export.png':
-          return void exportReport('png')
+          return openExportDialog('png')
         case 'file.export.html':
-          return void exportReport('html')
+          return openExportDialog('html')
         case 'file.export.pbip':
           return void saveAs('pbip')
         case 'edit.undo':

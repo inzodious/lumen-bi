@@ -80,7 +80,11 @@ export async function buildPptx(pages: ExportedPage[], meta: ExportMeta): Promis
   throw new Error('PowerPoint export produced no data')
 }
 
-/** Self-contained HTML viewer. */
+/**
+ * Self-contained HTML viewer. The page tabs list exactly the exported pages (`pages`, already in report order).
+ * Pages are embedded as images, so buttons drawn inside a page (page navigators, bookmarks, drillthrough) are
+ * inert: one pointing at a page left out of the export cannot lead anywhere broken.
+ */
 export function buildHtml(pages: ExportedPage[], meta: ExportMeta): string {
   const when = meta.exportedAt ?? new Date()
   const sections = pages

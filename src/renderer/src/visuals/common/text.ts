@@ -47,24 +47,85 @@ const FONT_STACKS: Record<string, string> = {
 
 export const DEFAULT_FONT_FAMILY = 'Segoe UI'
 
-/** Weight implied by a PBI family name ("Segoe UI Semibold" → 600). */
+/** First family of a (possibly quoted / doubly quoted) PBI font value: "''Segoe UI Semibold'', wf_…, arial" → "Segoe UI Semibold". */
+export function primaryFamily(family: string | undefined): string {
+  return (family ?? '').split(',')[0].replace(/['"]/g, '').trim()
+}
+
+/**
+ * Weight carried by a PBI family name. Power BI has no weight property: the format pane's font list offers
+ * faces ("Segoe UI Light / Semibold / Bold", the web-font aliases `wf_segoe-ui_*`, DIN = `wf_standard-font*`) and a
+ * separate Bold toggle. Only the FIRST family of a stack counts (its fallbacks say nothing about the weight).
+ */
+const FACE_WEIGHTS: Array<[RegExp, number]> = [
+  [/[ _-](semi-?bold|demi-?bold)$/i, 600],
+  [/[ _-](semi-?light)$/i, 350],
+  [/[ _-](extra-?bold|ultra-?bold)$/i, 800],
+  [/[ _-](black|heavy)$/i, 900],
+  [/[ _-]bold$/i, 700],
+  [/[ _-](extra-?light|ultra-?light|thin)$/i, 200],
+  [/[ _-]light$/i, 300]
+]
+
+function faceOf(first: string): { base: string; weight: number; face?: string } {
+  for (const [re, weight] of FACE_WEIGHTS) {
+    if (!re.test(first)) continue
+    let base = first.replace(re, '')
+    if (/^wf_segoe-ui$/i.test(base)) base = 'Segoe UI'
+    else if (/^wf_standard-font$/i.test(base)) base = 'DIN'
+    return { base, weight, face: /^wf_/i.test(first) ? undefined : first }
+  }
+  if (/^wf_segoe-ui(_normal)?$/i.test(first)) return { base: 'Segoe UI', weight: 400 }
+  if (/^wf_standard-font$/i.test(first)) return { base: 'DIN', weight: 400 }
+  return { base: first, weight: 400 }
+}
+
+/** Weight implied by a PBI family name ("Segoe UI Semibold" → 600); the Bold toggle wins. */
 export function fontWeightOf(family: string | undefined, bold?: boolean): number {
-  if (bold) return 700
-  const f = (family ?? '').toLowerCase()
-  if (f.includes('semibold')) return 600
-  if (f.includes('bold')) return 700
-  if (f.includes('light')) return 300
-  return 400
+  const w = faceOf(primaryFamily(family)).weight
+  return bold ? Math.max(700, w) : w
+}
+
+const GENERIC_FAMILY = /^(serif|sans-serif|monospace|cursive|fantasy|system-ui|helvetica|arial)$/i
+
+/**
+ * PBI font value (+ Bold toggle) → CSS `font-family` stack and numeric `font-weight`.
+ *
+ *  - "Segoe UI Semibold", "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif" (what the format
+ *    pane stores), "wf_segoe-ui_semibold" → the Semibold face at weight 600 — never bold because of a family name;
+ *  - Bold toggle on a weighted face ("Segoe UI Semibold" + bold) → the family's real Bold face (weight 700), like
+ *    Windows does, not a synthesized bold of the Semibold face;
+ *  - PBI's own fallbacks (helvetica, arial) are replaced by the Segoe-metric stack: on Linux they resolve to
+ *    Arial-metric fonts, 5–10% wider than what Power BI renders.
+ */
+export function resolveFont(family: string | undefined, opts: { bold?: boolean } = {}): { fontFamily: string; fontWeight: number } {
+  const first = primaryFamily(family)
+  if (!first) return { fontFamily: FONT_STACKS['segoe ui'], fontWeight: opts.bold ? 700 : 400 }
+  const f = faceOf(first)
+  const known = FONT_STACKS[f.base.toLowerCase()]
+  let stack: string
+  if (known) stack = known
+  else {
+    // custom family: keep the author's own fallbacks (minus the generic ones) ahead of ours
+    const rest = (family ?? '')
+      .split(',')
+      .slice(1)
+      .map((x) => x.replace(/['"]/g, '').trim())
+      .filter((x) => x && !GENERIC_FAMILY.test(x) && !/^wf_/i.test(x))
+    stack = [f.base, ...rest].map((x) => `'${x}'`).join(', ') + ', ' + FONT_STACKS['segoe ui']
+  }
+  // the named face first (a locally installed "Segoe UI Semibold" / the bundled alias), unless Bold asks for the real bold face
+  const fontFamily = f.face && !opts.bold && !stack.startsWith(`'${f.face}'`) ? `'${f.face}', ${stack}` : stack
+  return { fontFamily, fontWeight: opts.bold ? Math.max(700, f.weight) : f.weight }
 }
 
 /** CSS font-family stack for a PBI font family (may already be a comma-separated stack). */
 export function cssFontFamily(family: string | undefined): string {
   if (!family) return FONT_STACKS['segoe ui']
-  const first = family.split(',')[0].trim().replace(/^['"]|['"]$/g, '')
+  const first = primaryFamily(family)
   const stack = FONT_STACKS[first.toLowerCase()]
   if (stack) return stack
-  if (family.includes(',')) return family
-  return `'${first}', ${FONT_STACKS['segoe ui']}`
+  return resolveFont(family).fontFamily
 }
 
 export interface FontSpec {

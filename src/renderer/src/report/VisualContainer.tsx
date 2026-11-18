@@ -23,7 +23,7 @@ import { getVisual } from '../visuals/registry'
 import { customVisualDisplayName, customVisualLabel } from '../visuals/custom/customVisualInfo'
 import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
-import { resolveChrome, type ChromeSpec, type TextSpec } from './chrome'
+import { resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
 import { useCanvasEnv } from './canvasEnv'
 import { lastMenuRequest, registerLiveContext, useVisualHost } from './host'
 import { meters } from './perf'
@@ -197,8 +197,47 @@ function textStyle(t: TextSpec): CSSProperties {
     whiteSpace: t.wrap ? 'normal' : 'nowrap',
     overflow: 'hidden',
     textOverflow: t.wrap ? undefined : 'ellipsis',
-    lineHeight: 1.3
+    // Power BI doesn't set a line height on titles: the font's own (Segoe UI: 1.33)
+    lineHeight: 'normal'
   }
+}
+
+/**
+ * Title block (title, subtitle, divider) laid out the way Power BI does (measured on Desktop renders):
+ *  - the title's line box starts at the container's top padding edge; text is inset by the left/right padding, but the
+ *    title background spans the full container width and covers the spacing below the text;
+ *  - each shown element is followed by its spacing (`titleAreaGaps`); the divider respects the horizontal padding
+ *    unless "Ignore padding" is on.
+ */
+export function TitleBlock({ chrome, title, subTitle }: { chrome: ChromeSpec; title?: string; subTitle?: string }) {
+  const hasTitle = !!title
+  const hasSub = !!subTitle
+  const divider = chrome.divider
+  if (!hasTitle && !hasSub && !divider) return null
+  const gaps = titleAreaGaps(chrome.spacing, { title: hasTitle, subTitle: hasSub, divider: !!divider })
+  const { left, right } = chrome.padding
+  const afterText = divider ? gaps.aboveDivider : gaps.aboveContent
+  const band = (t: TextSpec, below: number): CSSProperties => ({ ...textStyle(t), padding: `0 ${right}px ${below}px ${left}px` })
+  return (
+    <>
+      {(hasTitle || hasSub) && (
+        <div className="wbi-vc-titles" style={{ margin: `0 -${right}px 0 -${left}px` }}>
+          {hasTitle ? <div style={band(chrome.title, hasSub ? gaps.titleToSubTitle : afterText)}>{title}</div> : null}
+          {hasSub ? <div style={band(chrome.subTitle, afterText)}>{subTitle}</div> : null}
+        </div>
+      )}
+      {divider && (
+        <div
+          className="wbi-vc-divider"
+          style={{
+            flex: '0 0 auto',
+            borderTop: `${divider.width}px ${divider.style} ${divider.color}`,
+            margin: divider.ignorePadding ? `0 -${right}px ${gaps.aboveContent}px -${left}px` : `0 0 ${gaps.aboveContent}px`
+          }}
+        />
+      )}
+    </>
+  )
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -225,7 +264,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   const isSlicer = def?.isSlicer ?? isSlicerType(type)
   const ctx = useVisualHost(env, visual.name, props.filters, props.highlightFilters, isSlicer)
   const baseChrome: ChromeSpec = useMemo(
-    () => resolveChrome(visual.json, theme, def ? { titleOnByDefault: def.category === 'chart' || def.category === 'map' ? undefined : false } : {}),
+    () => resolveChrome(visual.json, theme, def ? { titleOnByDefault: def.category === 'chart' || def.category === 'map' ? undefined : false, element: def.category === 'element' } : {}),
     [visual.json, theme, def]
   )
   // fx on container colors (title / background / border …) evaluated in the visual's filter context
@@ -407,20 +446,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
       }}
     >
       <div className="wbi-vc-box" style={{ ...box, cursor: linkActive ? 'pointer' : undefined }}>
-        {(titleText || subText) && (
-          <div className="wbi-vc-titles" style={{ marginBottom: chrome.divider ? 0 : chrome.spaceBelowTitleArea }}>
-            {titleText ? <div style={{ ...textStyle(chrome.title), marginBottom: chrome.spaceBelowTitle }}>{titleText}</div> : null}
-            {subText ? <div style={textStyle(chrome.subTitle)}>{subText}</div> : null}
-          </div>
-        )}
-        {chrome.divider && (
-          <div
-            style={{
-              borderTop: `${chrome.divider.width}px ${chrome.divider.style} ${chrome.divider.color}`,
-              margin: chrome.divider.ignorePadding ? `0 -${chrome.padding.right}px ${chrome.spaceBelowTitleArea}px -${chrome.padding.left}px` : `0 0 ${chrome.spaceBelowTitleArea}px`
-            }}
-          />
-        )}
+        <TitleBlock chrome={chrome} title={titleText || undefined} subTitle={subText || undefined} />
         <div ref={contentRef} className="wbi-vc-content">
           {!def ? (
             <UnknownVisual visualType={type} report={env.report} />

@@ -24,6 +24,9 @@ follow them without your own data. Where Lumen behaves differently from Power BI
 | [The Data pane and field wells](the-data-pane-and-field-wells.md) | How-to | Add, move, rename and summarize fields in a visual |
 | [Text boxes, shapes and images](text-boxes-shapes-and-images.md) | How-to | Report elements that don't show data |
 | [Add icons to a report](icons.md) | How-to | Insert Lucide and Fluent Color icons, put them on cards, how they are saved |
+| [Use the code visual](code-visual.md) | How-to | Design a visual in HTML, CSS and JSX that cross-filters, drills and takes parameters |
+| [Tutorial: build a KPI tile with HTML and CSS](tutorial-build-a-kpi-tile-with-html-and-css.md) | Tutorial | A KPI tile whose text and bar come straight from measures and that resizes with container queries |
+| [Tutorial: build a drillable bar list](tutorial-build-a-drillable-bar-list.md) | Tutorial | A code visual that drills through Category > Subcategory > Product and cross-filters a card |
 
 ## Format
 

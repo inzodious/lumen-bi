@@ -110,6 +110,7 @@ Lumen adds data of its own only where Power BI's formats leave room for it, and 
 | Built-in icon reference | visual `annotations` entry named `Lumen_Icon` (JSON string) and image resources named `LumenIcon_*.svg` (`src/core/icons/bake.ts`) | an icon from Lumen's icon sets is used |
 | Model diagram customisations | `diagramLayout.lumen.json` beside `diagramLayout.json` (`src/core/io/diagramSidecar.ts`) | lines, groups or styles were customised; removed when nothing custom is left |
 | Sample-table marker | table annotation `Lumen_Sample = true` | tables of the built-in sample project only |
+| Code visual | `visual.json` with `visualType` `lumenCodeVisualC0DE5A1E7B3F4E2A9D6C8B1F0E4A7D3C` and objects `lumenCode`, `lumenParams`, `lumenCodeFormat`; the code as `code.html`, `code.css`, `code.jsx` beside `visual.json` (`src/core/codevisual/storage.ts`, see [Code visual internals](code-visual-internals.md#storage)) | a code visual is on a page; only the code layers in use get a file |
 | Classic base theme | `report.json` `themeCollection.baseTheme = { name: 'Classic', type: 'SharedResources' }` plus `StaticResources/SharedResources/BaseThemes/Classic.json` | a legacy layout without a base theme is saved as PBIR |
 
 Unknown report objects and visual annotations are designed to be ignored by Power BI Desktop. That Power BI Desktop

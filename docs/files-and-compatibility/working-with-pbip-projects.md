@@ -97,6 +97,7 @@ reserve for extensions or annotations, and only when you use the feature:
 | Layout guides (page margin and gutter) | `report.json`, object `lumenLayout` | You set non-default guides; removed when set back to none |
 | Lumen-only slicer options (dropdown summary style and others) | The slicer's `visual.json`, object `lumenSlicer` | You changed one from its default |
 | Built-in icons | The icon's picture as an ordinary image (a registered resource, or a data URI for card images) plus an annotation `Lumen_Icon` in the visual's `annotations` with the icon's name, colour and a fingerprint | You inserted an icon |
+| Code visual | The visual's `visual.json` (a Lumen-only visual type with objects `lumenCode`, `lumenParams` and `lumenCodeFormat`) and its code as `code.html`, `code.css` and `code.jsx` in the same folder. Power BI Desktop is not expected to display the visual (not verified). See [Code visual](../visuals/code-visual.md) | You added a code visual |
 | Built-in sample report marker | Annotation `Lumen_Sample` on the model and its tables | Only in projects saved from the built-in sample |
 | New project metadata | `.platform` files with a new logical id; `definition.pbism`; `.pbip` with `enableAutoRecovery` | The project is saved for the first time |
 

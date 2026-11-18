@@ -19,7 +19,10 @@ node scripts/sweep-summary.mjs <outdir> [--cards] [--all] [--json]
 * Output: `<outdir>/<report>/NN-<page>.png`, `report.json` (rewritten after each page), `console.log`
   (renderer console) and `<outdir>/summary.tsv` (one line per report).
 * `--sample-data` fills tables that have no data with synthetic rows (`src/core/data/synthetic.ts`). Use it
-  for PBIP projects without a data cache.
+  for PBIP projects without a data cache. The sweep reuses every literal of the definitions, including names
+  and ids that filters or formulas mention, so visuals pinned to them render. Add `--private` to use the app's
+  default instead (`identifyingLiterals: 'never'`): those literals are never copied into the data and the
+  visuals filtered to them are empty by design.
 * **`WBI_BLOCK_CACHE=1` is always set.** The main process passes `--wbi-block-cache` to the renderer, and the
   preload exposes `__LUMEN_BLOCK_CACHE_ABF__ = true`, so `openProject` never decodes a PBIP `.pbi/cache.abf`.
   The renderer refuses to open anything if the guard is missing (`report.json` → `cacheBlocked`).

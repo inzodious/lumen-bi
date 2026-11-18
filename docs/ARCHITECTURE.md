@@ -74,8 +74,13 @@ be coordinated — note them prominently in your final report.
 Most real models import from Fabric SQL endpoints. Order of preference when opening:
 1. Data embedded in the file (PBIX DataModel, PBIP `.pbi/cache.abf`, `.wbi` bundle).
 2. Refresh from source (M engine; SQL via tedious + Entra ID device-code/CLI auth; files; web).
-3. Synthetic data generated from the schema (keys consistent across relationships, value domains
-   mined from DAX/filters literals so measures produce non-empty results).
+3. Synthetic data generated from the schema (keys consistent across relationships — also through
+   calculated tables that combine imported ones, `data/synthetic-lineage.ts` —, value domains mined from
+   DAX/filter literals so measures produce non-empty results, survey scores skewed like real ones).
+   Only definitions are read; literals compared to name-like / id-like / free-text columns are never copied
+   into the data (`SyntheticOptions.identifyingLiterals`, Options ▸ Data load). "Regenerate sample data"
+   (status-bar badge, Data pane menu, command search) draws a new seed for the sample tables; a `.wbi`
+   bundle keeps the generated rows.
 
 ## Subsystems added in phase 2
 

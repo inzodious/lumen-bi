@@ -9,7 +9,7 @@ import { useApp, type FieldSelection } from '../../state/store'
 import { columnExpr } from '@core/report/sq'
 import { findPage, findVisual } from '../../report/pbir'
 import { Checkbox, IconButton, SearchBox, cx, showContextMenu, confirmDialog, promptDialog, toast, type MenuItem } from '../../app/ui'
-import { insertVisual, refreshAll, runModelingCommand } from '../../app/commands'
+import { insertVisual, refreshAll, regenerateSampleData, runModelingCommand, syntheticTables, tablesWithoutData, useSampleData } from '../../app/commands'
 import { PaneFrame } from '../PaneFrame'
 import { endFieldDrag, startFieldDrag, type DraggedField } from '../fieldDrag'
 import { addFilterCard } from '../filters/FiltersPane'
@@ -20,6 +20,8 @@ import { renameSelected } from '../../dialogs/modeling/fieldEdits'
 import { addHierarchy, daxReference, deleteObject, isHidden, setDisplayFolder, setHidden, unhideAll, validateName, type ModelTarget } from './modelOps'
 import './data.css'
 import { propagateSlicerFields } from '../syncslicers/sync'
+import type { ColumnDef, DataType } from '@core/model/types'
+import { effectiveDataType } from '../../dialogs/modeling/logic/columnTypes'
 
 function dragFieldOf(n: TreeNode): DraggedField | null {
   switch (n.kind) {
@@ -106,7 +108,23 @@ export function DataPane() {
 
   const model = project?.model
   const report = project?.report
-  const tree = useMemo(() => buildTree(model, { search, showHidden }), [model, search, showHidden])
+  // "Hide in report view" only hides in Report view: Table and Model views list hidden tables and fields (dimmed)
+  const listHidden = showHidden || view !== 'report'
+  const tree = useMemo(() => buildTree(model, { search, showHidden: listHidden }), [model, search, listHidden])
+  const revision = useApp((s) => s.revision)
+  // data type per column for the icons: calculated tables / columns often declare none (see columnTypes.ts)
+  const typeOf = useMemo(() => {
+    const data = project?.data
+    const cache = new Map<string, DataType>()
+    return (table: string, column: ColumnDef): DataType => {
+      if (column.dataType !== 'unknown' && column.dataType !== 'variant') return column.dataType
+      const k = `${table}\u0000${column.name}`
+      let t = cache.get(k)
+      if (!t) cache.set(k, (t = effectiveDataType(column, data?.tables.get(table)?.columns.find((c) => c.name === column.name))))
+      return t
+    }
+    // revision: the data store is mutated in place
+  }, [project?.data, revision])
   const page = findPage(report, activePage)
   const selVisual = view === 'report' && editMode && selectedVisuals.length === 1 ? findVisual(page, selectedVisuals[0]) : undefined
   const showChecks = view === 'report' && !!report && editMode && (!selVisual || !!selVisual.json?.visual)
@@ -120,11 +138,20 @@ export function DataPane() {
       return n
     })
 
+  const hasSample = useMemo(() => syntheticTables(project ?? null).length > 0, [project, revision])
   const paneMenu = (): MenuItem[] => [
-    { label: 'View hidden', checked: showHidden, onClick: () => setShowHidden(!showHidden) },
+    { label: 'View hidden', checked: listHidden, disabled: view !== 'report', onClick: () => setShowHidden(!showHidden) },
     { label: 'Unhide all', disabled: !model, onClick: () => useApp.getState().mutateModel('Unhide all', unhideAll) },
     { separator: true },
-    { label: 'Expand all', onClick: () => setExpanded(new Set(expandableKeys(buildTree(model, { showHidden })))) },
+    ...(model
+      ? ([
+          hasSample
+            ? { label: 'Regenerate sample data', onClick: () => void regenerateSampleData() }
+            : { label: 'Use sample data', disabled: !tablesWithoutData(project!).length, onClick: () => void useSampleData() },
+          { separator: true }
+        ] as MenuItem[])
+      : []),
+    { label: 'Expand all', onClick: () => setExpanded(new Set(expandableKeys(buildTree(model, { showHidden: listHidden })))) },
     { label: 'Collapse all', onClick: () => setExpanded(new Set()) }
   ]
 
@@ -269,7 +296,7 @@ export function DataPane() {
     const used = checkable && selVisual && field ? visualUsesField(selVisual.json, field) : false
     const label = nodeLabel(n)
     const icon =
-      n.kind === 'table' ? <TableIcon table={n.table} /> : n.kind === 'folder' ? <FolderIcon /> : n.kind === 'column' ? <ColumnIcon column={n.column} /> : n.kind === 'measure' ? <MeasureIcon /> : n.kind === 'hierarchy' ? <HierarchyIcon /> : n.column ? <ColumnIcon column={n.column} /> : null
+      n.kind === 'table' ? <TableIcon table={n.table} /> : n.kind === 'folder' ? <FolderIcon /> : n.kind === 'column' ? <ColumnIcon column={n.column} dataType={typeOf(n.table, n.column)} /> : n.kind === 'measure' ? <MeasureIcon /> : n.kind === 'hierarchy' ? <HierarchyIcon /> : n.column ? <ColumnIcon column={n.column} /> : null
     const tip = n.kind === 'measure' ? n.measure.description || n.measure.expression : n.kind === 'column' ? n.column.description || (n.column.kind === 'calculated' ? n.column.expression : undefined) : n.kind === 'table' ? n.table.description : undefined
     return (
       <div key={n.key} role="treeitem" aria-expanded={expandable ? open : undefined}>
@@ -319,6 +346,7 @@ export function DataPane() {
       id="data"
       title="Data"
       collapsible
+      alwaysOpen={view !== 'report'}
       actions={
         model ? (
           <IconButton

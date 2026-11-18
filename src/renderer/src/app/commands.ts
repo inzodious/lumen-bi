@@ -5,7 +5,7 @@
  */
 import { nanoid } from 'nanoid'
 import { openProject, saveProject } from '@core/io/open'
-import { generateSyntheticData } from '@core/data/synthetic'
+import { generateSyntheticData, type SyntheticResult } from '@core/data/synthetic'
 import { emptyModel } from '@core/model/types'
 import { emptyDataStore } from '@core/model/data'
 import { emptyReport, type ReportDocument } from '@core/report/types'
@@ -261,19 +261,97 @@ export function refreshAll(tables?: string[]): void {
   useShell.getState().openDialog({ id: 'refresh', tables })
 }
 
-/** Fill tables that have no data with schema-driven synthetic rows. */
-export function useSampleData(): void {
+/** Tables holding rows that were loaded from a source / file (not sample rows, not computed by the engine). */
+export function tablesWithRealData(project: ProjectDocument | null): string[] {
+  if (!project) return []
+  const out: string[] = []
+  for (const [name, st] of project.data.status) {
+    if (st.state === 'loaded' && st.source !== 'synthetic' && st.source !== 'calculated' && (project.data.tables.get(name)?.rowCount ?? 0) > 0) out.push(name)
+  }
+  return out
+}
+
+/** What a sample-data run did, in one sentence per fact the user needs (toast + e2e). */
+export function describeSampleRun(project: ProjectDocument, r: SyntheticResult): string {
+  const filled = r.tables.filter((t) => (project.data.tables.get(t)?.rowCount ?? 0) > 0).length
+  const count = (reason: string) => r.skipped.filter((s) => s.reason === reason).length
+  const parts = [`Generated sample rows for ${filled} table${filled === 1 ? '' : 's'} (seed ${r.seed}).`]
+  const calc = count('calculated')
+  const meas = count('measureTable')
+  const groups = count('calculationGroup')
+  const kept = count('hasData')
+  const empty: string[] = []
+  if (calc) empty.push(`${calc} calculated table${calc === 1 ? ' is' : 's are'} computed from them`)
+  if (meas) empty.push(`${meas} measure table${meas === 1 ? ' has' : 's have'} no rows by design`)
+  if (groups) empty.push(`${groups} calculation group${groups === 1 ? '' : 's'} hold no rows`)
+  if (kept) empty.push(`${kept} table${kept === 1 ? '' : 's'} kept ${kept === 1 ? 'its' : 'their'} existing data`)
+  if (empty.length) parts.push(`${empty.join('; ')}.`.replace(/^./, (c) => c.toUpperCase()))
+  // free-text literals that were not reused need no warning: nothing is filtered to them in practice
+  const named = r.withheld.filter((w) => w.kind !== 'text')
+  const withheld = named.reduce((n, w) => n + w.literals, 0)
+  if (withheld) {
+    const where = [...new Set(named.map((w) => `${w.table}[${w.column}]`))]
+    parts.push(
+      `Privacy: ${withheld} name / id value${withheld === 1 ? '' : 's'} that formulas or report filters mention (${where.slice(0, 3).join(', ')}${where.length > 3 ? '…' : ''}) ${withheld === 1 ? 'was' : 'were'} not copied into the data; visuals or slicers filtered to ${withheld === 1 ? 'it' : 'them'} show no data until that filter is cleared (or allow it in Options ▸ Data load ▸ Sample data).`
+    )
+  }
+  parts.push('All values are invented — refresh from the source for real data.')
+  return parts.join(' ')
+}
+
+/**
+ * Fill the model with schema-driven sample rows (src/core/data/synthetic.ts).
+ *  - default: only tables without rows;
+ *  - `replace: 'synthetic'`: also regenerate tables that hold sample rows (real data is kept);
+ *  - `replace: 'all'`: every table, real data included.
+ * `seed` overrides the seed of Options ▸ Data load.
+ */
+export function useSampleData(run: { replace?: 'empty' | 'synthetic' | 'all'; seed?: number } = {}): SyntheticResult | undefined {
   const { project } = useApp.getState()
-  if (!project) return
+  if (!project) return undefined
   const opts = useShell.getState().options
   try {
-    const r = generateSyntheticData(project, { seed: opts.syntheticSeed, factRows: opts.syntheticFactRows, onlyEmpty: true })
+    const r = generateSyntheticData(project, {
+      seed: run.seed ?? opts.syntheticSeed,
+      factRows: opts.syntheticFactRows,
+      replace: run.replace ?? 'empty',
+      identifyingLiterals: opts.syntheticReuseIdentifying ? 'reuse' : 'never'
+    })
     useApp.getState().dataChanged()
     useShell.getState().setDataNotice(null)
-    toast({ kind: 'info', title: 'Sample data', message: `Generated sample rows for ${r.tables.length} table${r.tables.length === 1 ? '' : 's'}. Numbers are synthetic — refresh from the source for real data.` })
+    toast({ kind: 'info', title: 'Sample data', message: describeSampleRun(project, r) })
+    return r
   } catch (e) {
     toast({ kind: 'error', title: "Couldn't generate sample data", message: errMessage(e) })
+    return undefined
   }
+}
+
+/**
+ * "Regenerate sample data": a new random seed (stored in Options, so the dataset can be reproduced) and new
+ * rows for every table that holds sample data or none — a different but equally consistent dataset. Tables
+ * loaded from a real source are left alone unless the user asks for all tables.
+ */
+export async function regenerateSampleData(): Promise<SyntheticResult | undefined> {
+  const { project } = useApp.getState()
+  if (!project) return undefined
+  const shell = useShell.getState()
+  let replace: 'synthetic' | 'all' = 'synthetic'
+  const real = tablesWithRealData(project)
+  if (real.length) {
+    const r = await confirmDialog({
+      title: 'Regenerate sample data',
+      message: `${real.length} table${real.length === 1 ? ' holds' : 's hold'} data loaded from the source${real.length <= 3 ? ` (${real.join(', ')})` : ''}. Replace only the sample tables, or every table?`,
+      buttons: ['Sample tables only', 'All tables', 'Cancel'],
+      primary: 0
+    })
+    if (r === 2 || r < 0) return undefined
+    if (r === 1) replace = 'all'
+  }
+  let seed = shell.options.syntheticSeed
+  while (seed === shell.options.syntheticSeed) seed = 1 + Math.floor(Math.random() * 2147483646)
+  shell.setOptions({ syntheticSeed: seed })
+  return useSampleData({ replace, seed })
 }
 
 // ---------------------------------------------------------------------------------------------

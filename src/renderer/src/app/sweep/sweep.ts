@@ -1,5 +1,5 @@
 /**
- * In-app sweep mode: `#/?sweep=<outdir>&open=<path>[&synthetic=1][&blockCache=1][&pages=a,b][&start=0]`
+ * In-app sweep mode: `#/?sweep=<outdir>&open=<path>[&synthetic=1[&private=1]][&blockCache=1][&pages=a,b][&start=0]`
  * (driven by scripts/sweep.sh with WBI_SWEEP=1 so the main process keeps the hidden window alive).
  *
  *  1. refuses to start when `blockCache=1` is requested but the WBI_BLOCK_CACHE guard is not active;
@@ -239,7 +239,10 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
     rep.diagnostics = app.project.diagnostics.map((d) => ({ level: d.level, message: d.message }))
     if (sample) {
       const t1 = performance.now()
-      const r = generateSyntheticData(app.project, { onlyEmpty: true })
+      // The sweep is a rendering oracle over local files: it reuses every literal of the definitions (also names
+      // and ids in filters) so that visuals pinned to them render; `private=1` uses the app's default instead,
+      // where such literals are never copied into the data and those visuals are empty by design.
+      const r = generateSyntheticData(app.project, { onlyEmpty: true, identifyingLiterals: params.get('private') === '1' ? 'never' : 'reuse' })
       useApp.getState().dataChanged()
       rep.synthetic = { tables: r.tables.length, ms: Math.round(performance.now() - t1) }
     }

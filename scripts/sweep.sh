@@ -5,7 +5,10 @@
 #   <file-or-folder>  a .pbix/.pbit/.pbip/.wbi file, a *.Report folder, or a folder searched (depth 4)
 #                     for those; one Electron process per report.
 #   <outdir>          results: <outdir>/<report>/NN-<page>.png + report.json, and <outdir>/summary.tsv
-#   --sample-data     fill tables without data with synthetic sample rows (PBIP corpus without data)
+#   --sample-data     fill tables without data with synthetic sample rows (PBIP corpus without data); names and ids
+#                     that filters / formulas mention are reused so visuals pinned to them render
+#   --private         with --sample-data: the app's default instead — such names / ids are never copied into the
+#                     data (visuals filtered to them are then empty by design)
 #   --pages a,b       only these pages (name, display name or 1-based index)
 #   --dax 'EVALUATE …' run a DAX query in the app after loading (repeatable; results in report.json .dax)
 #
@@ -14,12 +17,13 @@
 # newer than src/). Uses a private Xvfb display when available. WBI_TIMEOUT (ms) bounds each report.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-[ $# -ge 2 ] || { sed -n '2,14p' "$0"; exit 2; }
+[ $# -ge 2 ] || { sed -n '2,17p' "$0"; exit 2; }
 SRC="$(realpath -m "$1")"; OUT="$(realpath -m "$2")"; shift 2
-SAMPLE=0; PAGES=""; SIZE="1800x1200"; BUILD=1; DAX=()
+SAMPLE=0; PRIVATE=0; PAGES=""; SIZE="1800x1200"; BUILD=1; DAX=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --sample-data) SAMPLE=1 ;;
+    --private) PRIVATE=1 ;;
     --pages) PAGES="$2"; shift ;;
     --dax) DAX+=("$2"); shift ;;
     --size) SIZE="$2"; shift ;;
@@ -55,6 +59,7 @@ for T in "${TARGETS[@]}"; do
   DIR="$OUT/$NAME"; rm -rf "$DIR"; mkdir -p "$DIR"
   ROUTE="#/?start=0&blockCache=1&sweep=$(enc "$DIR")&open=$(enc "$T")"
   [ "$SAMPLE" = 1 ] && ROUTE="$ROUTE&synthetic=1"
+  [ "$PRIVATE" = 1 ] && ROUTE="$ROUTE&private=1"
   [ -n "$PAGES" ] && ROUTE="$ROUTE&pages=$(enc "$PAGES")"
   for q in "${DAX[@]}"; do ROUTE="$ROUTE&dax=$(enc "$q")"; done
   START=$(date +%s)

@@ -23,7 +23,7 @@ export function NoticeArea() {
           onDismiss={() => setNotice(null)}
           actions={[
             { label: 'Refresh from source', primary: true, onClick: () => refreshAll(notice.tables) },
-            { label: 'Use sample data', onClick: useSampleData },
+            { label: 'Use sample data', onClick: () => void useSampleData() },
             { label: 'Dismiss', onClick: () => setNotice(null) }
           ]}
         >
@@ -32,7 +32,7 @@ export function NoticeArea() {
         </NotificationBar>
       )}
       {notice?.kind === 'refreshErrors' && (
-        <NotificationBar kind="error" onDismiss={() => setNotice(null)} actions={[{ label: 'Use sample data', onClick: useSampleData }]}>
+        <NotificationBar kind="error" onDismiss={() => setNotice(null)} actions={[{ label: 'Use sample data', onClick: () => void useSampleData() }]}>
           <b>Refresh failed</b> for {notice.tables.join(', ')}. {notice.message}
         </NotificationBar>
       )}

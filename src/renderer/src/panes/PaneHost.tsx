@@ -53,7 +53,9 @@ export function PaneHost() {
       <div className="wbi-panehost__panes">
         {allowed.map((id) => {
           const P = PANES[id]
-          return panes[id].open ? <P key={id} /> : null
+          // Table / Model views: the Data pane is the only way to pick a table, and there is no pane switcher to
+          // bring it back — so it is always there (collapsible), even if it was closed in Report view
+          return panes[id].open || view !== 'report' ? <P key={id} /> : null
         })}
       </div>
       {view === 'report' && (

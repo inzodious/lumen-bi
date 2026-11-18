@@ -13,7 +13,7 @@ import { useApp } from '../state/store'
 import { useShell } from './shellState'
 import { exportReport } from '../export'
 import { importThemeFile } from './themes'
-import { insertImage, insertTextBox, insertVisual, newPage, newReport, openFileDialog, refreshAll, runModelingCommand, save, saveAs, useSampleData, undo, redo, loadSampleProject } from './commands'
+import { insertImage, insertTextBox, insertVisual, newPage, newReport, openFileDialog, refreshAll, runModelingCommand, save, saveAs, useSampleData, regenerateSampleData, undo, redo, loadSampleProject } from './commands'
 
 export interface SearchableCommand {
   id: string
@@ -42,7 +42,8 @@ function commands(): SearchableCommand[] {
     { id: 'enterdata', label: 'Enter data', group: 'Home', icon: ic(TableAddRegular), run: () => shell.openDialog({ id: 'enterData' }) },
     { id: 'transform', label: 'Transform data', group: 'Home', keywords: 'power query m editor', icon: ic(TableEditRegular), run: () => app.setView('powerquery') },
     { id: 'refresh', label: 'Refresh', group: 'Home', icon: ic(ArrowSyncRegular), run: () => refreshAll() },
-    { id: 'sample', label: 'Use sample data for empty tables', group: 'Data', keywords: 'synthetic fake', icon: ic(BeakerRegular), run: useSampleData },
+    { id: 'sample', label: 'Use sample data for empty tables', group: 'Data', keywords: 'synthetic fake mock', icon: ic(BeakerRegular), run: () => void useSampleData() },
+    { id: 'resample', label: 'Regenerate sample data (new random values)', group: 'Data', keywords: 'synthetic fake mock seed shuffle randomize', icon: ic(BeakerRegular), run: () => void regenerateSampleData() },
     { id: 'demo', label: 'Open sample report', group: 'File', keywords: 'demo example', icon: ic(BeakerRegular), run: () => void loadSampleProject() },
     { id: 'visual', label: 'New visual', group: 'Insert', keywords: 'chart', icon: ic(DataBarVerticalAddRegular), run: () => void insertVisual('clusteredColumnChart') },
     { id: 'text', label: 'Text box', group: 'Insert', icon: ic(TextFieldRegular), run: insertTextBox },

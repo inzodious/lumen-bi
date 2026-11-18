@@ -66,6 +66,11 @@ export interface UserOptions {
   onMissingData: 'ask' | 'synthetic' | 'refresh'
   syntheticSeed: number
   syntheticFactRows: number
+  /**
+   * Sample data may contain the names / ids that formulas and report filters mention (`customer = "…"`).
+   * Off by default: sample data is meant to be shown to others, so those real values are never copied.
+   */
+  syntheticReuseIdentifying: boolean
   sqlAuth: 'azure-default' | 'azure-cli' | 'device-code' | 'interactive' | 'sql'
   sqlTenantId: string
   /** Report settings */
@@ -83,6 +88,7 @@ export const DEFAULT_OPTIONS: UserOptions = {
   onMissingData: 'ask',
   syntheticSeed: 42,
   syntheticFactRows: 5000,
+  syntheticReuseIdentifying: false,
   sqlAuth: 'azure-default',
   sqlTenantId: '',
   showStartScreen: true,

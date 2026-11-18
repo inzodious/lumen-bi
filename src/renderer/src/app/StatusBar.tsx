@@ -6,7 +6,8 @@ import { useMemo } from 'react'
 import { AddRegular, SubtractRegular, ArrowFitRegular, BeakerRegular, ErrorCircleRegular, CheckmarkCircleRegular } from '@fluentui/react-icons'
 import { useApp } from '../state/store'
 import { orderedPages } from '../report/pbir'
-import { syntheticTables, tablesWithoutData } from './commands'
+import { regenerateSampleData, syntheticTables, tablesWithoutData } from './commands'
+import { showContextMenu } from './ui/Menu'
 import { useShell } from './shellState'
 import { Tip } from './ui/Tooltip'
 import { APP_NAME } from './brand'
@@ -59,8 +60,22 @@ export function StatusBar() {
       {busy && <span className="wbi-statusbar__item wbi-muted">{busy.message}</span>}
       <span className="wbi-statusbar__spacer" />
       {synthetic.length > 0 && (
-        <Tip title="Sample data" description={`${synthetic.length} table(s) contain generated sample rows, not data from the source. Refresh to load real data.`} placement="above">
-          <button type="button" className="wbi-statusbar__badge wbi-statusbar__badge--sample" onClick={() => openDialog({ id: 'refresh' })}>
+        <Tip title="Sample data" description={`${synthetic.length} table(s) contain generated sample rows, not data from the source. Click to regenerate them with new random values, or to refresh from the source.`} placement="above">
+          <button
+            type="button"
+            className="wbi-statusbar__badge wbi-statusbar__badge--sample"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect()
+              // opens above the status bar, right-aligned with the badge (3 items + separator ≈ 116px tall)
+              showContextMenu({ x: Math.max(8, r.right - 250), y: Math.max(8, r.top - 120) }, [
+                { label: 'Regenerate sample data', onClick: () => void regenerateSampleData() },
+                { label: 'Sample data options…', onClick: () => openDialog({ id: 'options', section: 'dataLoad' }) },
+                { separator: true },
+                { label: 'Refresh from the source…', onClick: () => openDialog({ id: 'refresh' }) }
+              ])
+            }}
+          >
             <BeakerRegular fontSize={14} /> Sample data
           </button>
         </Tip>

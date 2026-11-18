@@ -1,0 +1,1 @@
+Lumen is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Microsoft. Power BI, Power BI Desktop, Power Query, Microsoft Fabric and Excel are trademarks of the Microsoft group of companies; they are used here only to describe what Lumen works with.

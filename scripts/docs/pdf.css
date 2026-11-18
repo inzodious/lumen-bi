@@ -1,0 +1,157 @@
+/* Print stylesheet for the Lumen documentation PDFs (scripts/docs/build-pdf.mjs). A4; margins and the footer come
+   from printToPDF (scripts/docs/pdf-print.cjs). Selawik is embedded by build-pdf.mjs (@font-face rules). */
+
+:root {
+  --ink: #252423;
+  --muted: #605e5c;
+  --rule: #d2d0ce;
+  --soft: #f3f2f1;
+  --accent: #b88a00;
+  --link: #0f6cbd;
+}
+
+html { font-size: 10pt; }
+body {
+  font-family: 'Selawik', 'Segoe UI', 'Noto Sans', 'DejaVu Sans', sans-serif;
+  color: var(--ink);
+  line-height: 1.45;
+  margin: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  hyphens: manual;
+  overflow-wrap: break-word;
+}
+
+/* ---------------------------------------------------------------- cover */
+.cover {
+  height: 228mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 10mm;
+  break-after: page;
+  border-top: 10mm solid #f2c811;
+}
+.cover-brand { font-size: 44pt; font-weight: 700; letter-spacing: -0.5pt; margin-bottom: 40mm; color: #201f1e; }
+.cover-kind { font-size: 13pt; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5pt; }
+.cover-title { font-size: 30pt; font-weight: 600; margin: 2mm 0 6mm; border: 0; padding: 0; break-before: avoid; }
+.cover-audience { font-size: 12pt; margin-bottom: 30mm; }
+.cover-meta { font-size: 9pt; color: var(--muted); margin-bottom: 4mm; }
+.cover-disclaimer { font-size: 8pt; color: var(--muted); max-width: 150mm; border-top: 0.5pt solid var(--rule); padding-top: 3mm; }
+
+/* ---------------------------------------------------------------- table of contents */
+.toc { break-after: page; }
+.toc-title { font-size: 20pt; margin: 0 0 6mm; border: 0; }
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 0; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc-l1 { font-weight: 600; font-size: 11pt; margin-top: 4mm !important; border-bottom: 0.5pt solid var(--rule); padding-bottom: 0.6mm; }
+.toc-l2 { padding-left: 6mm; font-size: 9.5pt; line-height: 1.6; }
+
+/* ---------------------------------------------------------------- structure */
+section.part { break-before: page; }
+section.part.hub + section.part { break-before: page; }
+article.doc { break-before: page; }
+
+h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.2; break-after: avoid; page-break-after: avoid; }
+section.part > h1 { font-size: 26pt; margin: 0 0 6mm; padding-bottom: 3mm; border-bottom: 2pt solid #f2c811; }
+article.doc > h2:first-child, article.doc h2:first-of-type { font-size: 19pt; margin: 0 0 4mm; }
+h2 { font-size: 15pt; margin: 7mm 0 2.5mm; }
+h3 { font-size: 12.5pt; margin: 6mm 0 2mm; }
+h4 { font-size: 11pt; margin: 5mm 0 1.5mm; }
+h5, h6 { font-size: 10pt; margin: 4mm 0 1mm; }
+section.part h2 { font-size: 14pt; }
+
+p, ul, ol, dl { margin: 0 0 2.5mm; orphans: 3; widows: 3; }
+ul, ol { padding-left: 6mm; }
+li { margin: 0.6mm 0; }
+li > p { margin: 0 0 1mm; }
+
+a { color: var(--link); text-decoration: none; }
+.xref { color: var(--muted); font-size: 0.85em; }
+.repo-ref { font-family: inherit; }
+
+strong { font-weight: 600; }
+hr { border: 0; border-top: 0.5pt solid var(--rule); margin: 5mm 0; }
+
+/* ---------------------------------------------------------------- code */
+code {
+  font-family: 'DejaVu Sans Mono', 'Noto Sans Mono', 'Liberation Mono', monospace;
+  font-size: 0.86em;
+  background: var(--soft);
+  padding: 0.1mm 0.8mm;
+  border-radius: 1mm;
+  overflow-wrap: anywhere;
+}
+pre, div.sourceCode {
+  background: var(--soft);
+  border: 0.5pt solid var(--rule);
+  border-radius: 1.2mm;
+  margin: 0 0 3mm;
+}
+pre {
+  padding: 2mm 3mm;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  font-size: 8.3pt;
+  line-height: 1.35;
+  break-inside: auto;
+}
+div.sourceCode pre { border: 0; margin: 0; background: transparent; }
+pre code, pre > code.sourceCode { background: none; padding: 0; font-size: inherit; white-space: pre-wrap !important; }
+pre > code.sourceCode > span { text-indent: 0 !important; padding-left: 0 !important; display: inline; }
+
+/* wide code blocks (class set by pdf-filter.lua from the longest line): smaller type instead of wrapping */
+pre.w1, div.sourceCode.w1 pre, .w1 > pre { font-size: 7.2pt; }
+pre.w2, div.sourceCode.w2 pre, .w2 > pre { font-size: 6.3pt; }
+pre.w3, div.sourceCode.w3 pre, .w3 > pre { font-size: 5.3pt; }
+pre.w4, div.sourceCode.w4 pre, .w4 > pre { font-size: 5.3pt; }
+
+/* ---------------------------------------------------------------- tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 3.5mm;
+  font-size: 8.6pt;
+  line-height: 1.35;
+  table-layout: auto;
+  break-inside: auto;
+}
+thead { display: table-header-group; }
+tr { break-inside: avoid; page-break-inside: avoid; }
+th, td { border: 0.5pt solid var(--rule); padding: 1.1mm 1.6mm; vertical-align: top; text-align: left; overflow-wrap: break-word; }
+td:first-child, th:first-child { min-width: 16mm; }
+th { background: var(--soft); font-weight: 600; }
+td code, th code { overflow-wrap: break-word; font-size: 0.92em; }
+td img { max-width: 100%; height: auto; }
+
+/* ---------------------------------------------------------------- images */
+img { max-width: 100%; max-height: 215mm; height: auto; display: block; margin: 1mm 0 3mm; break-inside: avoid; border: 0.5pt solid var(--rule); }
+p > img:only-child { margin: 1mm auto 1mm 0; }
+figure { margin: 0 0 3mm; break-inside: avoid; }
+figcaption { font-size: 8.5pt; color: var(--muted); margin-top: -1.5mm; }
+
+/* ---------------------------------------------------------------- callouts ([!NOTE] etc., from pdf-filter.lua) */
+.callout {
+  border-left: 1.2mm solid #0f6cbd;
+  background: #ebf3fc;
+  padding: 2mm 3.5mm 0.6mm;
+  margin: 0 0 3.5mm;
+  border-radius: 0 1.2mm 1.2mm 0;
+  break-inside: avoid;
+}
+.callout p { margin: 0 0 1.6mm; }
+.callout .callout-title { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.6pt; margin-bottom: 1mm; color: #0f548c; }
+.callout-tip { border-left-color: #107c10; background: #f1faf1; }
+.callout-tip .callout-title { color: #0e700e; }
+.callout-important { border-left-color: #8764b8; background: #f5f0fa; }
+.callout-important .callout-title { color: #5c2e91; }
+.callout-warning { border-left-color: #c19c00; background: #fffaeb; }
+.callout-warning .callout-title { color: #8a6a00; }
+.callout-caution { border-left-color: #c4314b; background: #fdf3f4; }
+.callout-caution .callout-title { color: #a4262c; }
+
+/* plain blockquotes (quoted messages) */
+blockquote { margin: 0 0 3mm; padding: 1.5mm 3.5mm; border-left: 1mm solid var(--rule); color: #3b3a39; }
+blockquote p { margin: 0 0 1.2mm; }

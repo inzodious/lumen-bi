@@ -32,6 +32,17 @@ work on Linux — not a Power BI replacement and not affiliated with Microsoft.
 - **Sample data** — schema-driven synthetic data for reports whose sources aren't reachable, and seven fictional
   lakehouse datasets (see [`datasets/`](datasets/README.md)).
 
+## Documentation
+
+The full documentation is in [`docs/`](docs/README.md), written for report creators, analysts and developers:
+
+- [Get started](docs/get-started/README.md): what Lumen is, installing it, a first report.
+- [Files and compatibility](docs/files-and-compatibility/README.md): PBIX, PBIP, `.wbi`, round-tripping with Power BI Desktop.
+- [Developer guide](docs/developer/README.md): architecture, engines, tests and tooling.
+- [Troubleshooting](docs/troubleshooting/README.md) and [reference tables](docs/reference/README.md).
+
+PDF editions of every section are in [`docs/pdf/`](docs/pdf/README.md) (regenerate with `scripts/docs/build-pdf.sh`).
+
 ## Getting started
 
 Requires Node.js 22+ on Linux (developed on Node 24, Linux Mint / Cinnamon).

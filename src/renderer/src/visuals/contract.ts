@@ -261,6 +261,11 @@ export interface VisualDefinition {
   inGallery?: boolean
   isSlicer?: boolean
   supportsHighlight?: boolean
+  /**
+   * Per-visual answer to `supportsHighlight` (the code visual highlights when it has Rows, and is filtered like a card
+   * when it shows measures only). Overrides `supportsHighlight` where the visual's JSON is known.
+   */
+  highlightsFor?(visualJson: any): boolean
   supportsDrill?: boolean
   /** Data behind the visual for "Show as table", "Export data", and accessibility. */
   getData?(visual: VisualDocument, ctx: VisualHostContext): { columns: string[]; rows: Scalar[][] } | undefined

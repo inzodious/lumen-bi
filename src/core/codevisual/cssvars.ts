@@ -4,6 +4,7 @@
  * Root (the visual's `#lumen-root` element, set by the frame runtime with `style.setProperty`):
  *   --<field>: 6487996            every measure / aggregation at the grand total, unformatted (usable in calc())
  *   --<field>-text: "$6.49M"      the same value formatted, as a CSS string (for `content:`)
+ *   --<field>-highlight, --<field>-highlight-text   the value under another visual's cross-highlight (when active)
  *   --width / --height: 320px     the content area (also as container query units: the root is a size container)
  *   --theme-color-1 … -N, --theme-foreground, --theme-foreground-secondary, --theme-foreground-tertiary,
  *   --theme-background, --theme-background-light, --theme-background-neutral, --theme-accent, --theme-hyperlink,
@@ -53,6 +54,12 @@ function cellVars(name: string, cell: CodeCell | undefined, out: Record<string, 
   const n = cssNumber(cell.value)
   if (n !== null) out[`--${name}`] = n
   out[`--${name}-text`] = cssString(cell.formatted)
+  // cross-highlight from another visual: the value under the highlight
+  if (cell.highlight !== undefined) {
+    const h = cssNumber(cell.highlight ?? 0)
+    if (h !== null) out[`--${name}-highlight`] = h
+    out[`--${name}-highlight-text`] = cssString(cell.highlightFormatted ?? '')
+  }
 }
 
 export function themeVars(theme: ThemeInfo): Record<string, string> {

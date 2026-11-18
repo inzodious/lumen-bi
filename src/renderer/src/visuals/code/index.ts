@@ -82,6 +82,8 @@ registerVisual({
   component: CodeVisual,
   inGallery: true,
   supportsHighlight: true,
+  // with Rows it cross-highlights like a chart; with measures only it is filtered like a card (the number changes)
+  highlightsFor: (visualJson) => (visualJson?.visual?.query?.queryState?.[ROWS_ROLE]?.projections?.length ?? 0) > 0,
   supportsDrill: true,
   defaultSize: { width: 400, height: 240 },
   getData(visual, ctx) {

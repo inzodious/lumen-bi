@@ -299,8 +299,14 @@ describe('code visual', () => {
     const hover = () => page.locator(`.wbi-page [data-visual="${cv}"]`).hover({ position: { x: 30, y: 30 } })
     // the header re-renders while the visual updates: click it by position
     const headerClick = async (name: string) => {
-      await hover()
-      const b = (await header.getByRole('button', { name, exact: true }).boundingBox())!
+      const btn = header.getByRole('button', { name, exact: true })
+      await expect
+        .poll(async () => {
+          await hover()
+          return btn.boundingBox()
+        })
+        .not.toBeNull()
+      const b = (await btn.boundingBox())!
       await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
     }
     await headerClick('Click to turn on Drill down')

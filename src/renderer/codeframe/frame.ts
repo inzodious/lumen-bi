@@ -66,7 +66,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:t
 .lumen-error{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   padding:8px;text-align:center;font:12px "Segoe UI","Selawik",sans-serif;color:#605E5C;}
 .lumen-error b{color:#A4262C;font-weight:600;}
-::-webkit-scrollbar{width:8px;height:8px;}::-webkit-scrollbar-thumb{background:rgba(0,0,0,.25);border-radius:4px;}`
+::-webkit-scrollbar{width:8px;height:8px;}::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--theme-foreground,#252423) 28%,transparent);border-radius:4px;}`
 
 function styleEl(id: string, text = ''): HTMLStyleElement {
   let el = document.getElementById(id) as HTMLStyleElement | null

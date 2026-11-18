@@ -7,8 +7,12 @@
 import DOMPurify from 'dompurify'
 import { preSanitize } from '../custom/htmlSanitize'
 
-/** URLs a code visual may reference: data: and blob: (images passed in), in-document fragments. */
-const ALLOWED_URI = /^(?:data:|blob:|#)/i
+/**
+ * Attribute values DOMPurify accepts (it tests every non-URI-safe attribute value against this): values without a
+ * scheme (numbers, SVG coordinates, relative references, which resolve to the frame's own scheme and never reach the
+ * network) and the data: / blob: schemes. Any other scheme (http:, https:, javascript:, file:, …) is removed.
+ */
+const ALLOWED_URI = /^(?:(?:data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i
 
 const FORBID_TAGS = ['script', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'form', 'base', 'meta', 'link', 'portal', 'noscript', 'template']
 

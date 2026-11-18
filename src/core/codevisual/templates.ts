@@ -49,8 +49,13 @@ export const KPI_TILE: StarterTemplate = {
   html: `{{#if measureName1}}
 <div class="kpi" data-trend="{{#if measureName2}}{{#if (gte measure1 measure2)}}up{{else}}down{{/if}}{{/if}}">
   <div class="kpi__label">{{default params.title measureName1}}</div>
+  {{#if hasHighlight}}
+  <div class="kpi__value">{{measure1.highlightFormatted}}</div>
+  <div class="kpi__delta"><span class="kpi__vs">highlighted, of <b>{{measure1}}</b></span></div>
+  {{else}}
   <div class="kpi__value">{{measure1}}</div>
-  {{#if measureName2}}
+  {{/if}}
+  {{#if (and measureName2 (not hasHighlight))}}
   <div class="kpi__delta">
     <span class="kpi__chip">{{#if (gte measure1 measure2)}}▲{{else}}▼{{/if}} {{percent (abs (div (sub measure1 measure2) measure2)) 1}}</span>
     <span class="kpi__vs">vs {{measureName2}} <b>{{measure2}}</b></span>
@@ -151,7 +156,7 @@ export const PROGRESS_RING: StarterTemplate = {
   padding: clamp(8px, 6cqmin, 18px);
   color: var(--fg);
 }
-.ring__dial { position: relative; height: min(100cqh - 2 * clamp(8px, 6cqmin, 18px), 60cqw); aspect-ratio: 1; }
+.ring__dial { position: relative; height: min(100cqh - 2 * clamp(8px, 6cqmin, 18px), 48cqw); aspect-ratio: 1; }
 .ring__dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring__track, .ring__bar { fill: none; stroke-width: 11; }
 .ring__track { stroke: var(--track); }
@@ -165,15 +170,16 @@ export const PROGRESS_RING: StarterTemplate = {
 .ring__pct { font-size: clamp(14px, 13cqmin, 34px); font-weight: 600; font-variant-numeric: tabular-nums; }
 .ring__of { font-size: clamp(9px, 4.2cqmin, 12px); color: var(--muted); max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ring__label { font-size: clamp(11px, 5.5cqmin, 15px); font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ring__value { font-size: clamp(18px, 12cqmin, 40px); font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ring__value { font-size: clamp(16px, min(11cqmin, 7cqw), 40px); font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ring__target { font-size: clamp(10px, 4.5cqmin, 13px); color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ring__target b { color: var(--fg); font-weight: 600; }
 /* narrow or tall: the ring alone, centred, with the label underneath */
 @container (max-width: 260px), (max-aspect-ratio: 5/4) {
   .ring { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; text-align: center; gap: 6px; }
-  .ring__dial { height: min(100cqh - 64px, 86cqw); }
+  .ring__dial { height: min(100cqh - 44px, 86cqw); }
   .ring__value, .ring__target { display: none; }
 }
+@container (max-height: 170px) { .ring__of { display: none; } }
 @container (max-height: 110px) { .ring__text { display: none; } .ring__dial { height: calc(100cqh - 12px); } .ring { grid-template-rows: 1fr; } }
 .hint { height: 100%; display: grid; place-items: center; color: var(--muted); font-size: 12px; text-align: center; padding: 8px; }`
 }
@@ -278,6 +284,7 @@ export const BADGE_GRID: StarterTemplate = {
   height: 100%; overflow: auto;
   display: grid; gap: clamp(6px, 2cqmin, 10px); align-content: start;
   grid-template-columns: repeat(auto-fill, minmax(clamp(92px, 28cqw, 150px), 1fr));
+  grid-auto-rows: max-content;
   padding: clamp(6px, 3cqmin, 12px);
   color: var(--fg);
 }
@@ -298,6 +305,7 @@ export const BADGE_GRID: StarterTemplate = {
 .bg__tile[data-selected="false"], .bg__tile[data-highlighted="false"] { opacity: .4; }
 .bg__tile[data-selected="true"] { outline: 2px solid var(--accent); outline-offset: -2px; }
 @container (max-height: 90px) { .bg__sub { display: none; } }
+@container (max-width: 260px) { .bg__tile { padding: 8px 8px 10px; } .bg__value { font-size: 13px; } .bg__sub { display: none; } }
 .hint { grid-column: 1 / -1; padding: 16px 8px; color: var(--muted); font-size: 12px; text-align: center; }`
 }
 
@@ -398,7 +406,7 @@ export const STEPS: StarterTemplate = {
   list-style: none; margin: 0; height: 100%;
   padding: clamp(8px, 5cqmin, 18px) clamp(8px, 3cqw, 20px);
   display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-  align-items: start; color: var(--fg); overflow: auto;
+  align-items: start; align-content: center; color: var(--fg); overflow: auto;
 }
 .st__step { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 0 4px; cursor: pointer; transition: opacity .15s; min-width: 0; }
 /* the connector to the previous step */
@@ -415,11 +423,12 @@ export const STEPS: StarterTemplate = {
 .is-current .st__dot { color: #fff; background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
 .st__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; max-width: 100%; }
 .st__name { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st__value { font-size: clamp(12px, 8cqh, 17px); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st__value { font-size: clamp(11px, 3.4cqw, 17px); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .st__step[data-selected="false"], .st__step[data-highlighted="false"] { opacity: .4; }
 /* narrow: vertical */
 @container (max-width: 360px) {
-  .st { grid-auto-flow: row; grid-auto-columns: auto; grid-auto-rows: auto; gap: 14px; }
+  .st { grid-auto-flow: row; grid-auto-columns: auto; grid-auto-rows: max-content; gap: 14px; align-content: start; }
+  .st__value { font-size: 13px; }
   .st__step { flex-direction: row; text-align: left; gap: 12px; }
   .st__step + .st__step::before { top: auto; bottom: calc(100% - 2px); left: 17px; right: auto; width: 2px; height: 14px; }
   .st__text { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; flex: 1; }

@@ -1,7 +1,7 @@
 {
  "source": "https://learn.microsoft.com/en-us/dax/toc.json",
  "retrievedAt": "2026-11-18",
- "count": 459,
+ "count": 460,
  "functions": [
   {
    "name": "APPROXIMATEDISTINCTCOUNT",
@@ -1497,6 +1497,10 @@
   },
   {
    "name": "DETAILROWS",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "DISTINCT",
    "category": "Table manipulation"
   },
   {

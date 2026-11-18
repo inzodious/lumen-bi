@@ -22,7 +22,8 @@ const SOURCES = [
 /** Leaves under `root`: { name, category } where category is the heading the leaf sits under. */
 function collect(node, inRoot, category, out) {
   for (const c of node.children ?? node.items ?? []) {
-    const title = (c.toc_title ?? '').trim()
+    // "DISTINCT (column)" / "DISTINCT (table)": one function with two reference pages
+    const title = (c.toc_title ?? '').trim().replace(/\s*\((column|table)\)$/i, '')
     const kids = c.children ?? []
     if (!inRoot) {
       collect(c, title === rootName, null, out)

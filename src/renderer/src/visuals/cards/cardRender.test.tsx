@@ -175,9 +175,9 @@ describe('card visual rendering — KPI tile', () => {
     const refs = styleOf(html, 'wbi-card-area wbi-card-area-referenceLabel')
     expect(refs).toContain('flex:1 1 0')
     expect(refs).toContain('overflow:hidden')
-    // card padding 5px, no outline / fill
+    // paddingUniform 5 stored without a padding size: the GA "Normal" 12px applies; no outline / fill
     const tile = styleOf(html, 'wbi-card-tile')
-    expect(tile).toContain('padding:5px 5px 5px 5px')
+    expect(tile).toContain('padding:12px 12px 12px 12px')
     expect(tile).not.toContain('border:')
   })
 

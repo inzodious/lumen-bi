@@ -54,6 +54,12 @@ export class CardProps {
 
   /** Raw (undecoded) property at a scope. */
   raw(object: string, prop: string, scope: CardScope = {}): any {
+    const own = this.ownRaw(object, prop, scope)
+    return own !== undefined ? own : this.themeRaw(object, prop)
+  }
+
+  /** Raw property written in the visual itself (no theme fallback, except a state-specific theme entry). */
+  ownRaw(object: string, prop: string, scope: CardScope = {}): any {
     const entries = this.entries(object)
     const has = (e: ObjectEntry) => e.properties && prop in e.properties
     if (scope.state && scope.state !== 'default') {
@@ -78,7 +84,7 @@ export class CardProps {
     }
     const def = entries.find((e) => has(e) && isDefaultSelector(e.selector))
     if (def) return def.properties[prop]
-    return this.themeRaw(object, prop)
+    return undefined
   }
 
   /**

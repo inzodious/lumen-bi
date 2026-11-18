@@ -26,6 +26,7 @@ import { SmallMultiples } from './SmallMultiples'
 import { ZoomSlider } from './ZoomSlider'
 import { categoryZoomProps, readSavedZoom, savedCategoryWindow, savedValueWindow, valueZoomProps, writeZoom } from './zoomPersist'
 import { readSeriesLabels, spreadLabels } from './seriesLabels'
+import { lineLabelSides, type LinePlacement } from './lineLabelPosition'
 import { readErrorBars, errorBounds, errorSpecFor, errorTooltip, type ErrorBarSpec } from './errorBars'
 import { decodeValue } from '@core/report/props'
 import { detectAnomalies } from './anomaly'
@@ -33,8 +34,8 @@ import { forecastSeries, readForecastSpecs, FORECAST_DEFAULT_COLOR, type SeriesF
 
 /** Default data-label position of bars (also shown by the Format pane): inside center when stacked, else Auto. */
 export const barLabelPositionDefault = (stacking: CartesianConfig['stacking']): string => (stacking !== 'clustered' ? 'InsideCenter' : 'Auto')
-/** Default data-label position of lines / areas. */
-export const LINE_LABEL_POSITION_DEFAULT = 'Above'
+/** Default data-label position of lines / areas: Auto (see lineLabelPosition.ts). */
+export const LINE_LABEL_POSITION_DEFAULT = 'Auto'
 
 export type SeriesKind = 'bar' | 'line' | 'area'
 
@@ -255,6 +256,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
   for (const ln of L.lines) {
     const s = data.series[ln.si]
     const pts = ln.points.map((p) => (p ? ([...xy(p.c, p.v)] as [number, number]) : null))
+    const labelYs = pts.map((p) => (p ? p[1] : null))
     const curve =
       ln.curve === 'smooth'
         ? ln.smoothType === 'cardinal'
@@ -315,11 +317,18 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
         const text = ls.format(s.values[ci] as number, s.formats[ci])
         const tw = measureText(text, ls.font)
         const th = lineHeight(ls.font)
-        const below = ln.labelPos === 'Below'
-        const ly = below ? y + th / 2 + 4 : y - th / 2 - 4
-        const box = { x: x - tw / 2, y: ly - th / 2, w: tw, h: th }
+        const centreY = (side: LinePlacement) => (side === 'below' ? y + th / 2 + 4 : y - th / 2 - 4)
+        const sides = lineLabelSides(ln.labelPos, labelYs, ci, (side) => centreY(side) - th / 2, th, L.plot.y, L.plot.y + L.plot.h)
         const visible = vertical && x >= L.plot.x - 1 && x <= L.plot.x + L.plot.w + 1
-        if (visible && tryPlace(box))
+        let ly = centreY(sides[0])
+        let box = { x: x - tw / 2, y: ly - th / 2, w: tw, h: th }
+        let ok = false
+        for (const side of visible ? sides : []) {
+          ly = centreY(side)
+          box = { x: x - tw / 2, y: ly - th / 2, w: tw, h: th }
+          if ((ok = tryPlace(box))) break
+        }
+        if (ok)
           labelNodes.push(
             <g key={`ll${ln.si}-${ci}`} pointerEvents="none">
               {ls.background ? (
@@ -2058,8 +2067,14 @@ interface GridSpec {
 
 const UNIT_NAMES: Record<number, string> = { 1000: 'Thousands', 1000000: 'Millions', 1000000000: 'Billions', 1000000000000: 'Trillions' }
 
-/** Gridline formatting (PBI: dotted #C8C6C4 1px by default; custom dash arrays; transparency). */
-function readGrid(fmt: FormatReader, obj: string, defaultShow: boolean): GridSpec | undefined {
+/**
+ * Gridline formatting (PBI: dotted #C8C6C4 1px by default; custom dash arrays; transparency). An axis switched off
+ * takes its gridlines with it, whatever `gridlineShow` says: on a Power BI Desktop render a clustered bar chart with
+ * `valueAxis.show` false has no gridlines while a combo chart on the same page draws them, and "show gridlines
+ * without the axis" is a known Power BI limitation (the usual workaround is an axis with invisible labels).
+ */
+export function readGrid(fmt: FormatReader, obj: string, defaultShow: boolean): GridSpec | undefined {
+  if (!fmt.bool(obj, 'show', true)) return undefined
   if (!fmt.bool(obj, 'gridlineShow', defaultShow)) return undefined
   const width = fmt.num(obj, 'gridlineThickness', 1)
   const style = fmt.str(obj, 'gridlineStyle', 'dotted')

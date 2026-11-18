@@ -257,6 +257,19 @@ describe('cardVisual GA features', () => {
     expect(wide.callouts[0].tile.padding.left).toBe(20)
   })
 
+  it('padding size decides: presets ignore paddingUniform, only Custom uses it, no size = Normal 12', () => {
+    const pad = (properties: Record<string, any>) =>
+      computeCardVisual(card([proj(S.m('Orders'), '_m.Orders')], { padding: [{ properties, selector: { id: 'default' } }] }), host()).callouts[0].tile.padding
+    expect(pad({ paddingSelection: lit("'Narrow'") })).toEqual({ top: 4, right: 4, bottom: 4, left: 4 })
+    expect(pad({ paddingSelection: lit("'Normal'"), paddingUniform: lit('3L') }).left).toBe(12)
+    expect(pad({ paddingSelection: lit("'Custom'"), paddingUniform: lit('3L') }).left).toBe(3)
+    // a preview-era paddingUniform without a size: the GA default (Normal) applies
+    expect(pad({ paddingUniform: lit('5L'), paddingIndividual: lit('false'), topMargin: lit('0L') })).toEqual({ top: 12, right: 12, bottom: 12, left: 12 })
+    // individual margins without a size are still honoured
+    expect(pad({ paddingIndividual: lit('true'), paddingUniform: lit('6L'), leftMargin: lit('2L') })).toEqual({ top: 6, right: 6, bottom: 6, left: 2 })
+    expect(pad({})).toEqual({ top: 12, right: 12, bottom: 12, left: 12 })
+  })
+
   it('splits into one section per category value with identities (multi-category layout)', () => {
     const json = {
       name: 'c',

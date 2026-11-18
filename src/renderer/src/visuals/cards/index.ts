@@ -344,7 +344,7 @@ export const cardVisualDef: VisualDefinition = {
       displayName: 'Card padding',
       properties: [
         { name: 'paddingSelection', displayName: 'Size', type: 'enum', options: [{ value: 'Narrow', label: 'Narrow' }, { value: 'Normal', label: 'Normal' }, { value: 'Wide', label: 'Wide' }, { value: 'Custom', label: 'Custom' }], default: 'Normal' },
-        { name: 'paddingUniform', displayName: 'Padding', type: 'integer', min: 0, max: 100 },
+        { name: 'paddingUniform', displayName: 'Padding (Size: Custom)', type: 'integer', min: 0, max: 100 },
         { name: 'paddingIndividual', displayName: 'Individual padding', type: 'bool', default: false },
         { name: 'topMargin', displayName: 'Top', type: 'integer', min: 0 },
         { name: 'rightMargin', displayName: 'Right', type: 'integer', min: 0 },

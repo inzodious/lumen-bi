@@ -141,7 +141,7 @@ describe('format pane renderer defaults (probed / tables)', () => {
     expect(rendererDefault('dataPoint', 'fill', themed, two, false, { type: 'color' })).toBeUndefined()
     expect(rendererDefault('labels', 'labelPosition', theme, col, false)).toBe('Auto')
     expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'columnChart' } }, false)).toBe('InsideCenter')
-    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'lineChart' } }, false)).toBe('Above')
+    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'lineChart' } }, false)).toBe('Auto')
     expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'lineClusteredColumnComboChart' } }, false)).toBeUndefined()
   })
 })

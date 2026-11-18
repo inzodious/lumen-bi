@@ -118,7 +118,7 @@ export const galleryEntries: NonChartGalleryEntry[] = [
         outline: [{ properties: { show: lit('true'), lineColor: color('#E1E5EE') }, selector: def }],
         shapeCustomRectangle: [{ properties: { rectangleRoundedCurve: lit('8L') }, selector: def }],
         accentBar: [{ properties: { show: lit('true') }, selector: def }],
-        padding: [{ properties: { paddingUniform: lit('10L') }, selector: def }]
+        padding: [{ properties: { paddingSelection: lit("'Custom'"), paddingUniform: lit('10L') }, selector: def }]
       }
     )
   },

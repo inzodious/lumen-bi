@@ -200,6 +200,7 @@ export function dataLabelsCard(kind: 'bar' | 'line' | 'pie' = 'bar'): FormatCard
   const positions =
     kind === 'line'
       ? enumOf([
+          ['Auto', 'Auto'],
           ['Above', 'Above'],
           ['Below', 'Below'],
           ['Center', 'Center'],

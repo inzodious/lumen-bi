@@ -24,7 +24,7 @@
  *     preview "build a new card" screenshots on a classic-theme report); "Below value" is the option.
  *   - Approximations (not verifiable from public docs, closest observed look): the +2pt of the
  *     category label and the reference-label size are read off Learn screenshots; padding presets
- *     Narrow 8 / Wide 20; overflow style 0 = continuous scroll / 1 = paginate; reference labels in
+ *     Narrow 4 / Wide 20 (see PADDING_PRESET); overflow style 0 = continuous scroll / 1 = paginate; reference labels in
  *     the "tabular" style put titles in a left-aligned column and values in a right-aligned column
  *     spanning the reference-label area (`valueArea`% wide when set).
  *
@@ -437,8 +437,34 @@ function readCorners(props: CardProps, object: string, scope: CardScope, fallbac
  */
 export const DEFAULT_LABEL_SPACING = 12
 
-/** Card padding presets (format pane "Padding > Size"). Normal = 12px per Microsoft Learn; Narrow/Wide estimated. */
-export const PADDING_PRESET: Record<string, number> = { narrow: 8, normal: 12, wide: 20 }
+/**
+ * Card padding presets (format pane "Cards > Padding > Size"). Normal = 12px per Microsoft Learn ("the new default
+ * is 12px"). Narrow is measured on a Power BI Desktop render (a right-aligned 10pt value on a "Narrow" card ends
+ * ≈ 8px from the container edge, 5px of which is the container padding): about 4px, i.e. the 8px step below Normal.
+ * Wide is that step above Normal. Approximation: Microsoft doesn't publish the Narrow / Wide values.
+ */
+export const PADDING_PRESET: Record<string, number> = { narrow: 4, normal: 12, wide: 20 }
+
+/**
+ * The card tile's padding (`padding` object). Since the GA release the format pane's "Size" (`paddingSelection`)
+ * decides: Narrow / Normal / Wide use the preset and ignore the stored `paddingUniform`; only "Custom" uses
+ * `paddingUniform` (and the per-side margins when `paddingIndividual` is on). Without a stored size the card is at
+ * the "Normal" default, so a `paddingUniform` written by a preview-era build is not used (Learn: "During preview,
+ * the default settings had less padding in the cards. After the November 2025 release, more padding and padding
+ * options were added … The new default is 12px"; on a Power BI Desktop render a card storing `paddingUniform` 5
+ * without a size has its content inset like a 12px card). Two exceptions keep documented paths working: per-side
+ * margins with `paddingIndividual` on (Learn: "toggling on individual padding can restore previous padding
+ * settings") and a report theme's `paddingUniform` (Learn's theme example `cardVisual.*.*.paddingUniform`).
+ */
+export function readCardPadding(props: CardProps, s: CardScope): Box {
+  const sides = ['topMargin', 'rightMargin', 'bottomMargin', 'leftMargin']
+  const stored = props.get<any>('padding', 'paddingSelection', undefined, s)
+  const selection = typeof stored === 'string' ? stored.toLowerCase() : undefined
+  if (selection && selection !== 'custom') return box(PADDING_PRESET[selection] ?? PADDING_PRESET.normal)
+  if (selection === 'custom' || props.bool('padding', 'paddingIndividual', false, s)) return readPadding(props, 'padding', s, PADDING_PRESET.normal, sides)
+  const ownUniform = props.ownRaw('padding', 'paddingUniform', s) !== undefined
+  return ownUniform ? box(PADDING_PRESET.normal) : readPadding(props, 'padding', s, PADDING_PRESET.normal, sides)
+}
 
 function alignOf(v: string, fallback: 'left' | 'center' | 'right'): 'left' | 'center' | 'right' {
   const s = v.toLowerCase()
@@ -752,9 +778,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     const outlineShow = props.bool('outline', 'show', true, s)
     const outlineColor = ruleColor('outline', 'lineColor', s) ?? props.color('outline', 'lineColor', props.color('outline', 'color', theme.backgroundLight, s), s)
     const tileShape = props.str('shapeCustomRectangle', 'tileShape', 'rectangleRoundedByPixel', s)
-    const preset = props.str('padding', 'paddingSelection', 'Normal', s).toLowerCase()
-    const presetValue = PADDING_PRESET[preset]
-    const padding = readPadding(props, 'padding', s, presetValue ?? 12, ['topMargin', 'rightMargin', 'bottomMargin', 'leftMargin'])
+    const padding = readCardPadding(props, s)
     const accentShow = props.bool('accentBar', 'show', false, s)
     return {
       fill: fillShow ? withAlpha(fillColor, fillTransparency) : undefined,

@@ -1,0 +1,53 @@
+/* DAX editor (CodeMirror) — Power BI formula bar / DAX query view look */
+.wbi-dax-editor { min-width: 0; background: #fff; }
+.wbi-dax-editor .cm-editor { height: 100%; font-size: 13px; background: #fff; }
+.wbi-dax-editor .cm-editor.cm-focused { outline: none; }
+.wbi-dax-editor .cm-scroller { font-family: 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Liberation Mono', monospace; line-height: 19px; }
+.wbi-dax-editor .cm-content { padding: 4px 0; caret-color: #252423; }
+.wbi-dax-editor .cm-line { padding: 0 6px; }
+.wbi-dax-editor .cm-gutters { background: #fff; border-right: 0; color: #237893; }
+.wbi-dax-editor .cm-activeLine { background: #F7F7F7; }
+.wbi-dax-editor .cm-activeLineGutter { background: transparent; color: #0B216F; }
+.wbi-dax-editor .cm-matchingBracket { background: #E5E5E5; outline: 1px solid #B9B9B9; color: inherit !important; }
+.wbi-dax-editor .cm-nonmatchingBracket { color: #C4314B !important; }
+.wbi-dax-editor .cm-selectionBackground, .wbi-dax-editor .cm-focused .cm-selectionBackground { background: #ADD6FF !important; }
+.wbi-dax-editor .cm-selectionMatch { background: #E8F0FB; }
+.wbi-dax-editor .cm-placeholder { color: #A19F9D; }
+.wbi-dax-editor .cm-lintRange-error { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='m0 3 l2 -2 l1 0 l2 2 l1 0' stroke='%23C4314B' fill='none' stroke-width='.9'/%3E%3C/svg%3E"); }
+.wbi-dax-editor .cm-lintRange-warning { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='m0 3 l2 -2 l1 0 l2 2 l1 0' stroke='%23C19C00' fill='none' stroke-width='.9'/%3E%3C/svg%3E"); }
+
+/* tooltips / completion popups are mounted in the editor root */
+.cm-tooltip { font-family: 'Segoe UI', 'Selawik', 'Open Sans', system-ui, sans-serif; font-size: 12px; border: 1px solid #C8C6C4 !important; background: #fff !important; box-shadow: 0 3.2px 7.2px rgba(0,0,0,.13), 0 .6px 1.8px rgba(0,0,0,.11); }
+.cm-tooltip-autocomplete > ul { font-family: 'Segoe UI', 'Selawik', 'Open Sans', system-ui, sans-serif !important; max-height: 16em !important; min-width: 260px; }
+.cm-tooltip-autocomplete > ul > li { padding: 2px 8px !important; line-height: 20px; }
+.cm-tooltip-autocomplete > ul > li[aria-selected] { background: #E1DFDD !important; color: #252423 !important; }
+.cm-completionDetail { color: #8A8886; font-style: normal !important; margin-left: 12px; font-size: 11px; }
+.cm-completionMatchedText { text-decoration: none !important; font-weight: 700; }
+.cm-completionIcon { opacity: .9; width: 1.1em !important; }
+.cm-completionIcon-function::after { content: 'ƒ' !important; color: #035ACA; font-style: italic; }
+.cm-completionIcon-keyword::after { content: '▪' !important; color: #605E5C; }
+.cm-completionIcon-class::after { content: '▦' !important; color: #605E5C; }
+.cm-completionIcon-property::after { content: '▤' !important; color: #605E5C; }
+.cm-completionIcon-variable::after { content: '◫' !important; color: #605E5C; }
+.cm-completionInfo { padding: 8px 10px !important; max-width: 380px; }
+.wbi-dax-info__sig { font-weight: 600; margin-bottom: 4px; }
+.wbi-dax-info__desc { color: #605E5C; }
+.wbi-dax-sighelp { padding: 6px 10px; max-width: 520px; }
+.wbi-dax-sighelp__sig { font-family: 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', monospace; font-size: 12px; }
+.wbi-dax-sighelp__sig .is-active { font-weight: 700; color: #035ACA; }
+.wbi-dax-sighelp__desc { color: #605E5C; margin-top: 3px; }
+.cm-diagnostic { font-family: 'Segoe UI', 'Selawik', system-ui, sans-serif; padding: 4px 8px !important; }
+.cm-diagnostic-error { border-left: 4px solid #C4314B !important; }
+.cm-completionIcon-dax-measure::after { content: '▦' !important; color: #605E5C; }
+.cm-completionIcon-dax-num::after { content: 'Σ' !important; color: #605E5C; font-weight: 600; }
+.cm-completionIcon-dax-text::after { content: 'T' !important; color: #605E5C; font-family: Georgia, serif; }
+.cm-completionIcon-dax-date::after { content: '📅' !important; font-size: 10px; filter: grayscale(1); }
+.cm-completionIcon-dax-bool::after { content: '◐' !important; color: #605E5C; }
+.cm-completionIcon-dax-calc::after { content: 'fx' !important; color: #605E5C; font-style: italic; font-size: 10px; font-weight: 600; }
+.cm-completionIcon-text::after { content: '⟨⟩' !important; color: #8764B8; font-size: 10px; }
+.wbi-dax-info__ex, .wbi-dax-hover__code { margin: 6px 0 0; padding: 6px 8px; background: #F7F7F7; border-radius: 2px; font-family: 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', monospace; font-size: 11.5px; white-space: pre-wrap; color: #252423; }
+.wbi-dax-hover { padding: 8px 10px; max-width: 520px; }
+.wbi-dax-hover__title { font-weight: 600; }
+.wbi-dax-hover__body { color: #605E5C; margin-top: 4px; line-height: 17px; }
+.wbi-dax-hover__label { color: #8A8886; font-size: 11px; margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.cm-diagnosticAction { background: #F2C811 !important; color: #252423 !important; border-radius: 2px; padding: 1px 8px !important; font: inherit; font-size: 12px; margin-left: 8px !important; }

@@ -1,0 +1,103 @@
+/* Power Query Editor dialogs (Power BI Desktop look). Prefix: wbi-pq-dlg */
+
+.wbi-pq-dlg__field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wbi-pq-dlg__label { font-size: 12px; font-weight: 600; color: var(--wbi-fg-2); margin-bottom: 2px; }
+.wbi-pq-dlg__hint { font-size: 12px; color: var(--wbi-fg-3); line-height: 16px; }
+.wbi-pq-dlg__empty { padding: 16px 8px; color: var(--wbi-fg-3); font-size: 12px; text-align: center; }
+.wbi-pq-dlg__grow { flex: 1; min-width: 0; }
+.wbi-pq-dlg__w240 { width: 240px; flex: none; }
+.wbi-pq-dlg__w320 { width: 320px; max-width: 100%; }
+.wbi-pq-dlg__static { font-size: 13px; padding: 4px 0; }
+.wbi-pq-dlg__status { font-size: 12px; color: var(--wbi-fg-2); min-height: 18px; }
+
+/* bordered list boxes */
+.wbi-pq-dlg__list { border: 1px solid var(--wbi-border); border-radius: 2px; background: var(--wbi-bg); overflow: auto; min-height: 0; }
+.wbi-pq-dlg__item { padding: 4px 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.wbi-pq-dlg__item:hover { background: var(--wbi-hover); }
+.wbi-pq-dlg__item.is-selected { background: var(--wbi-checked); }
+.wbi-pq-dlg__item.is-static { color: var(--wbi-fg-3); font-style: italic; }
+.wbi-pq-dlg__checks { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+
+.wbi-pq-dlg__advanced > summary { cursor: default; font-size: 12px; color: var(--wbi-fg-2); user-select: none; }
+.wbi-pq-dlg__advanced > summary:hover { color: var(--wbi-fg); }
+
+/* Data source settings */
+.wbi-pq-dlg__sources { height: 280px; }
+.wbi-pq-dlg__source { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--wbi-border-light); }
+.wbi-pq-dlg__source:hover { background: var(--wbi-hover); }
+.wbi-pq-dlg__source.is-selected { background: var(--wbi-checked); }
+.wbi-pq-dlg__source-icon { display: inline-flex; color: var(--wbi-fg-2); flex: none; }
+.wbi-pq-dlg__source-text { display: flex; flex-direction: column; min-width: 0; }
+.wbi-pq-dlg__source-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wbi-pq-dlg__source-sub { font-size: 11px; color: var(--wbi-fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wbi-pq-dlg__credsource { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 10px; background: var(--wbi-bg-3); border-radius: 2px; word-break: break-all; }
+
+/* Manage Parameters */
+.wbi-pq-dlg__params { display: flex; gap: 16px; height: 100%; min-height: 380px; }
+.wbi-pq-dlg__params-left { width: 220px; flex: none; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.wbi-pq-dlg__params-left .wbi-pq-dlg__list { flex: 1; align-self: stretch; }
+.wbi-pq-dlg__params-form { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; overflow: auto; padding-right: 4px; }
+.wbi-pq-dlg__param { display: flex; align-items: center; padding: 2px 2px 2px 8px; font-size: 12px; }
+.wbi-pq-dlg__param:hover { background: var(--wbi-hover); }
+.wbi-pq-dlg__param.is-selected { background: var(--wbi-checked); }
+.wbi-pq-dlg__param-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbi-pq-dlg__param-del { opacity: 0; }
+.wbi-pq-dlg__param:hover .wbi-pq-dlg__param-del, .wbi-pq-dlg__param.is-selected .wbi-pq-dlg__param-del { opacity: 1; }
+.wbi-pq-dlg__listedit { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.wbi-pq-dlg__listedit > .wbi-btn { align-self: flex-start; }
+.wbi-pq-dlg__listnum { width: 18px; text-align: right; color: var(--wbi-fg-3); font-size: 11px; flex: none; }
+
+/* Create Table (Enter data) */
+.wbi-pq-dlg__enter { height: 100%; min-height: 300px; overflow: auto; border: 1px solid var(--wbi-border); background: var(--wbi-bg); }
+.wbi-pq-dlg__entergrid { border-collapse: collapse; font-size: 12px; }
+.wbi-pq-dlg__entergrid th, .wbi-pq-dlg__entergrid td { border: 1px solid var(--wbi-border-light); padding: 0; height: 24px; min-width: 120px; }
+.wbi-pq-dlg__entergrid th { background: var(--wbi-bg-3); font-weight: 600; position: sticky; top: 0; z-index: 1; }
+.wbi-pq-dlg__entergrid input { width: 100%; height: 23px; border: 0; padding: 0 6px; background: transparent; outline: none; font: inherit; }
+.wbi-pq-dlg__entergrid th input { font-weight: 600; }
+.wbi-pq-dlg__entergrid input:focus { box-shadow: inset 0 0 0 1px var(--wbi-fg); background: var(--wbi-bg); }
+.wbi-pq-dlg__entergrid input.is-invalid { box-shadow: inset 0 0 0 1px var(--wbi-error); }
+.wbi-pq-dlg__entergrid .wbi-pq-dlg__rownum { min-width: 36px; width: 36px; text-align: center; color: var(--wbi-fg-3); background: var(--wbi-bg-3); }
+.wbi-pq-dlg__addcol { min-width: 28px !important; width: 28px; }
+.wbi-pq-dlg__addcol button { width: 100%; height: 23px; border: 0; background: transparent; color: var(--wbi-fg-3); display: inline-flex; align-items: center; justify-content: center; }
+.wbi-pq-dlg__addcol button:hover { background: var(--wbi-hover); color: var(--wbi-fg); }
+.wbi-pq-dlg__addrow td { cursor: default; }
+.wbi-pq-dlg__addrow:hover td { background: var(--wbi-hover); }
+
+/* Group By */
+.wbi-pq-dlg__aggs { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) 28px; gap: 6px 8px; align-items: center; }
+
+/* Merge */
+.wbi-pq-dlg__mini { border: 1px solid var(--wbi-border); max-height: 170px; overflow: auto; background: var(--wbi-bg); }
+.wbi-pq-dlg__mini--empty { height: 120px; display: flex; align-items: center; justify-content: center; }
+.wbi-pq-dlg__mini table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.wbi-pq-dlg__mini th, .wbi-pq-dlg__mini td { padding: 3px 8px; border-right: 1px solid var(--wbi-border-light); border-bottom: 1px solid var(--wbi-border-light); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.wbi-pq-dlg__mini th { position: sticky; top: 0; background: var(--wbi-bg-3); font-weight: 600; cursor: default; }
+.wbi-pq-dlg__mini th:hover { background: var(--wbi-pressed); }
+/* selected key columns: Power BI's pale yellow selection tint */
+.wbi-pq-dlg__mini th.is-selected { background: #f8e7a1; }
+.wbi-pq-dlg__mini td.is-selected { background: #fdf6d8; }
+.wbi-pq-dlg__mini td.is-null { font-style: italic; color: var(--wbi-fg-3); }
+
+/* Append */
+.wbi-pq-dlg__append { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: start; }
+.wbi-pq-dlg__applist { height: 220px; min-width: 200px; flex: 1; }
+.wbi-pq-dlg__append-mid { padding-top: 90px; }
+
+/* Custom Column */
+.wbi-pq-dlg__custom { display: flex; gap: 16px; height: 100%; min-height: 360px; }
+.wbi-pq-dlg__custom-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.wbi-pq-dlg__custom-side { width: 200px; flex: none; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.wbi-pq-dlg__collist { flex: 1; align-self: stretch; }
+.wbi-pq-dlg__formula { flex: 1; min-height: 0; display: flex; border: 1px solid var(--wbi-border-input); border-radius: 2px; background: var(--wbi-bg); overflow: hidden; }
+.wbi-pq-dlg__eq { flex: none; padding: 4px 4px 0 8px; font-family: Consolas, 'Cascadia Mono', 'DejaVu Sans Mono', monospace; font-size: 13px; color: var(--wbi-fg-3); }
+.wbi-pq-dlg__meditor { flex: 1; min-width: 0; height: 100%; overflow: auto; }
+.wbi-pq-dlg__syntax { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--wbi-success); min-height: 20px; }
+.wbi-pq-dlg__syntax.is-error { color: var(--wbi-error); }
+
+/* Conditional Column */
+.wbi-pq-dlg__cond { display: grid; grid-template-columns: 52px minmax(130px, 1fr) minmax(130px, 1fr) minmax(170px, 1.2fr) 36px minmax(170px, 1.2fr) 28px; gap: 6px 6px; align-items: center; }
+.wbi-pq-dlg__condkw { font-size: 12px; color: var(--wbi-fg-2); white-space: nowrap; }
+.wbi-pq-dlg__mode { width: 86px; flex: none; }
+
+/* Sign-in prompt */
+.wbi-pq-dlg__code { font-family: Consolas, 'Cascadia Mono', 'DejaVu Sans Mono', monospace; font-size: 22px; font-weight: 600; letter-spacing: 2px; padding: 6px 14px; border: 1px solid var(--wbi-border); border-radius: 4px; background: var(--wbi-bg-3); }

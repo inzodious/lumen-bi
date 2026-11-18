@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Lumen app icon: a glowing aperture casting a beam of light over ascending bars. -->
+  <defs>
+    <linearGradient id="lm-bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#34323D"/>
+      <stop offset="1" stop-color="#16151B"/>
+    </linearGradient>
+    <linearGradient id="lm-bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE07A"/>
+      <stop offset="1" stop-color="#E9A40C"/>
+    </linearGradient>
+    <linearGradient id="lm-bar-dim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7C948"/>
+      <stop offset="1" stop-color="#C7820A"/>
+    </linearGradient>
+    <radialGradient id="lm-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF7D6" stop-opacity="1"/>
+      <stop offset="0.3" stop-color="#FFDC5C" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#F2C811" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lm-beam" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#FFE8A3" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#FFE8A3" stop-opacity="0.04"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#lm-bg)"/>
+  <path d="M150 150 L96 420 L432 420 L196 128 Z" fill="url(#lm-beam)"/>
+  <circle cx="160" cy="138" r="104" fill="url(#lm-glow)"/>
+  <circle cx="160" cy="138" r="36" fill="#FFF9E3"/>
+  <rect x="110" y="318" width="76" height="104" rx="18" fill="url(#lm-bar-dim)"/>
+  <rect x="218" y="250" width="76" height="172" rx="18" fill="url(#lm-bar)"/>
+  <rect x="326" y="172" width="76" height="250" rx="18" fill="url(#lm-bar)"/>
+</svg>

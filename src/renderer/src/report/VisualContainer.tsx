@@ -1,0 +1,614 @@
+/**
+ * Visual container: positions a visual on the page and draws PBI container chrome (title, subtitle,
+ * divider, background, border, shadow, padding, visual header on hover, visual link), hosts the visual
+ * component (via the registry) inside an error boundary, and reports first render for headless readiness.
+ */
+import { Component, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import {
+  QuestionCircleRegular,
+  ArrowDownRegular,
+  ArrowMaximizeRegular,
+  ArrowTurnDownRightRegular,
+  ArrowUpRegular,
+  ErrorCircleRegular,
+  FilterRegular,
+  MoreHorizontalRegular,
+  BranchForkRegular
+} from '@fluentui/react-icons'
+import type { ReportDocument, VisualDocument } from '@core/report/types'
+import type { SQFilter } from '@core/report/sq'
+import type { VisualDefinition, VisualHostContext, VisualProps } from '../visuals/contract'
+import { getVisual } from '../visuals/registry'
+import { customVisualDisplayName, customVisualLabel } from '../visuals/custom/customVisualInfo'
+import { useApp } from '../state/store'
+import { useInteraction } from '../state/interaction'
+import { resolveChrome, type ChromeSpec, type TextSpec } from './chrome'
+import { useCanvasEnv } from './canvasEnv'
+import { lastMenuRequest, registerLiveContext, useVisualHost } from './host'
+import { meters } from './perf'
+import { applyBoundContainerColors } from './containerCF'
+import { brokenFields, removeBrokenFields, reportMeasureKeys, type BrokenField } from './brokenFields'
+
+const NO_BROKEN: BrokenField[] = []
+import { useShell } from '../app/shellState'
+import { isSlicerType, visualFields, visualTypeOf, type Rect } from './pbir'
+import { applyBookmark, drillthrough, goBack, navigatePage, openUrl, clearAllSlicers, setDrill } from './runtime'
+import { describeFilters } from './filterSummary'
+
+// ---------------------------------------------------------------------------------------------
+// Error boundary
+// ---------------------------------------------------------------------------------------------
+
+interface BoundaryProps {
+  visualType: string
+  resetKey: unknown
+  onError?(): void
+  children: ReactNode
+}
+
+export class VisualErrorBoundary extends Component<BoundaryProps, { error: Error | null; details: boolean }> {
+  override state = { error: null as Error | null, details: false }
+  static getDerivedStateFromError(error: Error) {
+    return { error, details: false }
+  }
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(`[visual ${this.props.visualType}]`, error, info.componentStack)
+    this.props.onError?.()
+  }
+  override componentDidUpdate(prev: BoundaryProps): void {
+    if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null, details: false })
+  }
+  override render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <VisualMessage
+        title="Can't display this visual"
+        detailsOpen={this.state.details}
+        onToggleDetails={() => this.setState({ details: !this.state.details })}
+        details={`${this.state.error.message}\n\nVisual type: ${this.props.visualType}`}
+      />
+    )
+  }
+}
+
+export function VisualMessage(props: { title: string; details?: string; detailsOpen?: boolean; onToggleDetails?(): void; icon?: ReactNode; action?: { label: string; onClick(): void } }) {
+  return (
+    <div className="wbi-vmsg">
+      <div className="wbi-vmsg-icon">{props.icon ?? <ErrorCircleRegular />}</div>
+      <div className="wbi-vmsg-title">{props.title}</div>
+      {props.action && (
+        <button
+          className="wbi-link"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            props.action!.onClick()
+          }}
+        >
+          {props.action.label}
+        </button>
+      )}
+      {props.details && (
+        <button
+          className="wbi-link"
+          onClick={(e) => {
+            e.stopPropagation()
+            props.onToggleDetails?.()
+          }}
+        >
+          {props.detailsOpen ? 'Hide details' : 'See details'}
+        </button>
+      )}
+      {props.details && props.detailsOpen && <pre className="wbi-vmsg-details">{props.details}</pre>}
+    </div>
+  )
+}
+
+function UnknownVisual({ visualType, report }: { visualType: string; report?: ReportDocument }) {
+  // AppSource / organizational custom visuals: their visualType carries a GUID suffix or is listed by the report
+  const isCustom = /[0-9A-F]{32}$/i.test(visualType) || ((report?.report?.publicCustomVisuals ?? []) as string[]).includes(visualType) || !!(report && customVisualDisplayName(report, visualType))
+  const short = isCustom ? customVisualLabel(report, visualType) : visualType
+  return (
+    <div className="wbi-unknown">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden>
+        <rect x="3" y="14" width="5" height="11" fill="#C8C6C4" />
+        <rect x="11.5" y="8" width="5" height="17" fill="#B3B0AD" />
+        <rect x="20" y="3" width="5" height="22" fill="#C8C6C4" />
+      </svg>
+      <div className="wbi-unknown-type" title={visualType}>
+        {short}
+      </div>
+      <div className="wbi-unknown-note">{isCustom ? "This custom visual isn't supported in Lumen" : "This visual type isn't supported yet"}</div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------------------------
+// Visual content (memoized: dragging the container doesn't re-render the visual)
+// ---------------------------------------------------------------------------------------------
+
+const VisualContent = memo(function VisualContent(props: { def: VisualDefinition } & VisualProps) {
+  const C = props.def.component
+  return <C visual={props.visual} pageName={props.pageName} width={props.width} height={props.height} ctx={props.ctx} />
+})
+
+// ---------------------------------------------------------------------------------------------
+// Titles
+// ---------------------------------------------------------------------------------------------
+
+function quoteTable(t: string): string {
+  return `'${t.replace(/'/g, "''")}'`
+}
+
+/** Evaluate a data-bound title/subtitle (field-value conditional formatting: a measure or aggregation). */
+function evalBoundText(raw: any, ctx: VisualHostContext | null): string | undefined {
+  if (!ctx) return undefined
+  const e = raw?.expr ?? raw
+  try {
+    if (e?.Measure) {
+      const t = e.Measure.Expression?.SourceRef?.Entity
+      const dax = t ? `${quoteTable(t)}[${e.Measure.Property}]` : `[${e.Measure.Property}]`
+      const r = ctx.engine.evaluateScalar(dax, ctx.filters)
+      return r.value === null ? '' : ctx.format(r.value, r.formatString)
+    }
+    if (e?.Aggregation?.Expression?.Column) {
+      const c = e.Aggregation.Expression.Column
+      const fn = ['SUM', 'AVERAGE', 'DISTINCTCOUNT', 'MIN', 'MAX', 'COUNT', 'MEDIAN', 'STDEV.P', 'VAR.P'][e.Aggregation.Function ?? 0] ?? 'SUM'
+      const r = ctx.engine.evaluateScalar(`${fn}(${quoteTable(c.Expression?.SourceRef?.Entity ?? '')}[${c.Property}])`, ctx.filters)
+      return r.value === null ? '' : ctx.format(r.value, r.formatString)
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+const VALUE_ROLES = ['Y', 'Values', 'Y2', 'Size', 'Value', 'Fields', 'Data', 'Measure', 'TargetValue', 'Indicator', 'Goal']
+const CATEGORY_ROLES = ['Category', 'Axis', 'Rows', 'Series', 'Legend', 'Columns', 'X', 'Details', 'Location']
+
+/** PBI auto title: "<values> by <categories>" (e.g. "Total Sales by Category and Region"). */
+function titleForPerf(visualJson: any, ctx: VisualHostContext, chrome: ChromeSpec): string {
+  const t = chrome.title.text ?? autoTitle(visualJson, ctx)
+  return t || visualTypeOf({ name: '', json: visualJson })
+}
+
+export function autoTitle(visualJson: any, ctx: VisualHostContext | null): string {
+  const fields = visualFields(visualJson)
+  const name = (f: { expr: any; displayName?: string }) => f.displayName ?? ctx?.engine.describeField(f.expr)?.displayName ?? (f.expr?.Measure?.Property ?? f.expr?.Column?.Property ?? f.expr?.HierarchyLevel?.Level ?? f.expr?.Aggregation?.Expression?.Column?.Property ?? '')
+  const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))]
+  const values = uniq(fields.filter((f) => VALUE_ROLES.includes(f.role)).map(name))
+  const cats = uniq(fields.filter((f) => CATEGORY_ROLES.includes(f.role)).map(name))
+  const join = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+  if (values.length && cats.length) return `${join(values)} by ${join(cats)}`
+  return join(values.length ? values : cats)
+}
+
+function textStyle(t: TextSpec): CSSProperties {
+  return {
+    color: t.color,
+    background: t.background,
+    fontSize: t.fontSizePx,
+    fontFamily: t.fontFamily,
+    fontWeight: t.fontWeight,
+    fontStyle: t.italic ? 'italic' : undefined,
+    textDecoration: t.underline ? 'underline' : undefined,
+    textAlign: t.align,
+    whiteSpace: t.wrap ? 'normal' : 'nowrap',
+    overflow: 'hidden',
+    textOverflow: t.wrap ? undefined : 'ellipsis',
+    lineHeight: 1.3
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Container
+// ---------------------------------------------------------------------------------------------
+
+export interface VisualContainerProps {
+  visual: VisualDocument
+  /** rect relative to the parent (page or group) */
+  rect: Rect
+  z: number
+  filters: SQFilter[]
+  highlightFilters: SQFilter[]
+  /** fill the whole box (focus mode) */
+  fill?: boolean
+}
+
+export const VisualContainer = memo(function VisualContainer(props: VisualContainerProps) {
+  const env = useCanvasEnv()
+  const theme = useApp((s) => s.theme)
+  const { visual, rect } = props
+  const type = visualTypeOf(visual)
+  const def = getVisual(type)
+  const isSlicer = def?.isSlicer ?? isSlicerType(type)
+  const ctx = useVisualHost(env, visual.name, props.filters, props.highlightFilters, isSlicer)
+  const baseChrome: ChromeSpec = useMemo(
+    () => resolveChrome(visual.json, theme, def ? { titleOnByDefault: def.category === 'chart' || def.category === 'map' ? undefined : false } : {}),
+    [visual.json, theme, def]
+  )
+  // fx on container colors (title / background / border …) evaluated in the visual's filter context
+  const chrome: ChromeSpec = useMemo(() => applyBoundContainerColors(baseChrome, visual.json, ctx), [baseChrome, visual.json, ctx])
+  useEffect(() => (env.interactive ? registerLiveContext(env.pageName, visual.name, ctx) : undefined), [env.interactive, env.pageName, visual.name, ctx])
+  const [hover, setHoverState] = useState(false)
+  // the header can sit outside the container (above it, in the canvas header layer): leaving the container towards the
+  // header must not hide it, so hiding is deferred and cancelled when the pointer enters the header
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const setHover = useCallback((on: boolean) => {
+    if (hideTimer.current) clearTimeout(hideTimer.current)
+    hideTimer.current = null
+    if (on) setHoverState(true)
+    else hideTimer.current = setTimeout(() => setHoverState(false), 120)
+  }, [])
+  useEffect(() => () => void (hideTimer.current && clearTimeout(hideTimer.current)), [])
+  const outerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    const measure = () => {
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      setSize((s) => (s && s.w === w && s.h === h ? s : { w, h }))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // readiness: first render with a measured size (or a terminal state) counts as done
+  const reported = useRef(false)
+  const canRenderVisual = !!def && !!ctx && !!size && size.w > 0 && size.h > 0
+  const reportDoneRef = useRef(env.reportDone)
+  reportDoneRef.current = env.reportDone
+  useEffect(() => {
+    if (reported.current) return
+    if (canRenderVisual || !def || !ctx || (size && (size.w <= 0 || size.h <= 0))) {
+      reported.current = true
+      // give the visual a frame to paint (charts often lay out in effects); setTimeout fallback for hidden windows
+      let fired = false
+      const fire = () => {
+        if (fired) return
+        fired = true
+        reportDoneRef.current(visual.name)
+      }
+      requestAnimationFrame(() => setTimeout(fire, 0))
+      setTimeout(fire, 250)
+    }
+  })
+
+  // Performance analyzer: time from a new host context (new filters / data / drill…) to the next paint
+  const perfStart = useRef<{ ctx: VisualHostContext | null; t0: number }>({ ctx: null, t0: 0 })
+  if (ctx && perfStart.current.ctx !== ctx) {
+    perfStart.current = { ctx, t0: performance.now() }
+    const m = meters.get(ctx)
+    if (m) {
+      m.queryMs = 0
+      m.queries = []
+    }
+  }
+  useEffect(() => {
+    if (!ctx || !env.interactive || !useShell.getState().perfRecording || !canRenderVisual) return
+    const start = perfStart.current
+    if (start.ctx !== ctx) return
+    let cancelled = false
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        if (cancelled) return
+        const m = meters.get(ctx)
+        const total = performance.now() - start.t0
+        // query = engine time inside the visual; display = everything else up to the next paint (React render, layout,
+        // SVG/canvas drawing). PBI's "Other" (waiting on other visuals) has no equivalent here: queries run synchronously.
+        const query = Math.min(total, m?.queryMs ?? 0)
+        const render = total - query
+        useShell.getState().logPerf({
+          visual: visual.name,
+          title: titleForPerf(visual.json, ctx, chrome),
+          ms: total,
+          query,
+          render,
+          queries: m?.queries.slice(),
+          page: env.pageName
+        })
+      }, 0)
+    )
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, canRenderVisual])
+
+  const titleText = chrome.title.show ? (chrome.title.boundExpr ? evalBoundText(chrome.title.boundExpr, ctx) : (chrome.title.text ?? autoTitle(visual.json, ctx))) : undefined
+  const subText = chrome.subTitle.show ? (chrome.subTitle.boundExpr ? evalBoundText(chrome.subTitle.boundExpr, ctx) : chrome.subTitle.text) : undefined
+  const engineError = useApp((s) => s.engineError)
+  // fields that no longer resolve against the model → PBI's field error state
+  const engineForCheck = useApp((s) => s.engine)
+  const broken = useMemo(() => {
+    if (!engineForCheck || !def) return NO_BROKEN
+    const b = brokenFields(visual.json, engineForCheck, reportMeasureKeys(env.report.reportExtensions))
+    return b.length ? b : NO_BROKEN
+  }, [visual.json, engineForCheck, def, env.report.reportExtensions])
+  const [brokenDetails, setBrokenDetails] = useState(false)
+
+  const outer: CSSProperties = props.fill
+    ? { position: 'absolute', inset: 0 }
+    : { position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, zIndex: props.z }
+  const spotDim = env.spotlight && env.spotlight !== visual.name
+  const box: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background: chrome.background,
+    borderRadius: chrome.radius || undefined,
+    border: chrome.border ? `${chrome.border.width}px solid ${chrome.border.color}` : undefined,
+    boxShadow: chrome.shadow?.css,
+    padding: `${chrome.padding.top}px ${chrome.padding.right}px ${chrome.padding.bottom}px ${chrome.padding.left}px`,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: chrome.radius ? 'hidden' : undefined,
+    opacity: spotDim ? 0.15 : 1,
+    transition: 'opacity 120ms'
+  }
+
+  const link = chrome.link
+  const linkActive = !!link && (env.mode === 'view' || !env.editing)
+  const runLink = () => {
+    if (!link) return
+    switch (link.type) {
+      case 'Back':
+        goBack()
+        break
+      case 'Bookmark':
+        if (link.bookmark) applyBookmark(link.bookmark)
+        break
+      case 'PageNavigation':
+        if (link.navigationSection) navigatePage(link.navigationSection)
+        break
+      case 'Drillthrough': {
+        const sel = useInteraction.getState().crossFilter[env.pageName]
+        if (link.drillthroughSection && sel?.identities[0]) drillthrough(env.pageName, link.drillthroughSection, sel.identities[0], [])
+        break
+      }
+      case 'WebUrl':
+        if (link.webUrl) openUrl(link.webUrl)
+        break
+      case 'ClearAllSlicers':
+        clearAllSlicers(env.pageName)
+        break
+    }
+  }
+
+  return (
+    <div
+      ref={outerRef}
+      className="wbi-vc"
+      data-visual={visual.name}
+      data-type={type}
+      style={outer}
+      aria-label={chrome.altText ?? titleText ?? type}
+      title={linkActive && link?.tooltip ? link.tooltip : undefined}
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+      onPointerDown={env.editing ? (e) => env.onContainerPointerDown?.(e, visual.name) : undefined}
+      onClick={(e) => {
+        if (!link) return
+        // PBI Desktop: Ctrl+click follows a link while editing; plain click in reading view
+        if (env.editing && !(e.ctrlKey || e.metaKey)) return
+        runLink()
+      }}
+      onContextMenu={(e) => {
+        if (!env.interactive) return
+        e.preventDefault()
+        if (Date.now() - lastMenuRequest < 300) return
+        useInteraction.getState().setContextMenu({ page: env.pageName, visual: visual.name, req: { x: e.clientX, y: e.clientY } })
+      }}
+    >
+      <div className="wbi-vc-box" style={{ ...box, cursor: linkActive ? 'pointer' : undefined }}>
+        {(titleText || subText) && (
+          <div className="wbi-vc-titles" style={{ marginBottom: chrome.divider ? 0 : chrome.spaceBelowTitleArea }}>
+            {titleText ? <div style={{ ...textStyle(chrome.title), marginBottom: chrome.spaceBelowTitle }}>{titleText}</div> : null}
+            {subText ? <div style={textStyle(chrome.subTitle)}>{subText}</div> : null}
+          </div>
+        )}
+        {chrome.divider && (
+          <div
+            style={{
+              borderTop: `${chrome.divider.width}px ${chrome.divider.style} ${chrome.divider.color}`,
+              margin: chrome.divider.ignorePadding ? `0 -${chrome.padding.right}px ${chrome.spaceBelowTitleArea}px -${chrome.padding.left}px` : `0 0 ${chrome.spaceBelowTitleArea}px`
+            }}
+          />
+        )}
+        <div ref={contentRef} className="wbi-vc-content">
+          {!def ? (
+            <UnknownVisual visualType={type} report={env.report} />
+          ) : !ctx ? (
+            <VisualMessage title="Can't display this visual" details={engineError ? `The data model couldn't be loaded:\n${engineError}` : 'The data model is still loading.'} />
+          ) : broken.length ? (
+            <VisualMessage
+              title="Something's wrong with one or more fields"
+              detailsOpen={brokenDetails}
+              onToggleDetails={() => setBrokenDetails((o) => !o)}
+              details={`These fields can't be found in the model (they may have been renamed or deleted):\n${broken.map((b) => `  • ${b.label} (${b.role})`).join('\n')}`}
+              action={
+                env.editing
+                  ? {
+                      label: 'Fix this',
+                      onClick: () =>
+                        useApp.getState().mutateReport('Remove missing fields', (r) => {
+                          const v = r.pages.find((p) => p.name === env.pageName)?.visuals.find((x) => x.name === visual.name)
+                          if (v) removeBrokenFields(v.json, broken)
+                        })
+                    }
+                  : undefined
+              }
+            />
+          ) : canRenderVisual ? (
+            <VisualErrorBoundary visualType={type} resetKey={visual.json}>
+              <VisualContent def={def} visual={visual} pageName={env.pageName} width={size!.w} height={size!.h} ctx={ctx} />
+            </VisualErrorBoundary>
+          ) : null}
+        </div>
+      </div>
+      {env.headers && hover && chrome.header.show && def && ctx && (
+        <PlacedHeader layer={env.headerLayer} anchor={outerRef} scale={env.scale} rect={rect} onHover={setHover}>
+          <VisualHeader visual={visual} def={def} ctx={ctx} chrome={chrome} />
+        </PlacedHeader>
+      )}
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------------------------
+// Visual header (icons on hover)
+// ---------------------------------------------------------------------------------------------
+
+/** Height of the header strip in page px (24px buttons + 1px padding + border). */
+const HEADER_H = 28
+
+/**
+ * Places the hover header like PBI Desktop: right-aligned just ABOVE the visual's top edge when there is room on the
+ * page, else inside the top-right corner. Rendered into the canvas header layer (above all visuals) so it never hides
+ * the visual's own top-right controls (slicer eraser, matrix expand icons…) and isn't covered by visuals stacked
+ * above. Without a layer (mobile / focus / print canvases) it falls back to the in-container corner.
+ */
+function PlacedHeader(p: { layer?: HTMLElement | null; anchor: React.RefObject<HTMLDivElement | null>; scale: number; rect: Rect; onHover(on: boolean): void; children: ReactNode }) {
+  const [pos, setPos] = useState<{ left: number; top: number; width: number; inside: boolean } | null>(null)
+  const { layer, anchor, scale } = p
+  useLayoutEffect(() => {
+    const el = anchor.current
+    if (!layer || !el) return
+    const lr = layer.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    const k = scale || 1
+    const left = (er.left - lr.left) / k
+    const top = (er.top - lr.top) / k
+    const width = er.width / k
+    const inside = top < HEADER_H
+    setPos({ left, top: inside ? top + 2 : top - HEADER_H, width, inside })
+  }, [layer, anchor, scale, p.rect.x, p.rect.y, p.rect.width, p.rect.height])
+  if (!layer) return <>{p.children}</>
+  if (!pos) return null
+  return createPortal(
+    <div
+      className={'wbi-vh-slot' + (pos.inside ? ' inside' : '')}
+      style={{ left: pos.left, top: pos.top, width: pos.width, height: HEADER_H }}
+      onPointerEnter={() => p.onHover(true)}
+      onPointerLeave={() => p.onHover(false)}
+    >
+      {p.children}
+    </div>,
+    layer
+  )
+}
+
+function VisualHeader({ visual, def, ctx, chrome }: { visual: VisualDocument; def: VisualDefinition; ctx: VisualHostContext; chrome: ChromeSpec }) {
+  const env = useCanvasEnv()
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const h = chrome.header
+  const iconStyle: CSSProperties = { color: h.foreground }
+  const drill = ctx.drill
+  // matrix: PBI's "Drill on [Rows | Columns]" when there is a hierarchy on Columns
+  const canDrillColumns = visualTypeOf(visual) === 'pivotTable' && (visual.json?.visual?.query?.queryState?.Columns?.projections?.length ?? 0) > 1
+  const onColumns = canDrillColumns && drill.target === 'columns'
+  const canDrillUp = onColumns ? (drill.columnLevel ?? 0) > 0 || drill.path.length > 0 : drill.level > 0 || drill.path.length > 0
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+  const btn = (title: string, icon: ReactNode, onClick: () => void, active = false, disabled = false) => (
+    <button
+      className={'wbi-vh-btn' + (active ? ' active' : '')}
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      style={iconStyle}
+      onPointerDown={stop}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      {icon}
+    </button>
+  )
+  const summary = filtersOpen ? describeFilters(ctx) : []
+  return (
+    <div className="wbi-vh" data-visual-header={visual.name} style={{ background: h.background ?? 'rgba(255,255,255,0.95)', borderColor: h.border }} onPointerDown={stop}>
+      {def.supportsDrill && (
+        <>
+          {canDrillColumns && h.showDrillRoleSelector && (
+            <select
+              className="wbi-vh-drillon"
+              title="Drill on"
+              aria-label="Drill on"
+              value={onColumns ? 'columns' : 'rows'}
+              style={iconStyle}
+              onPointerDown={stop}
+              onClick={stop}
+              onChange={(e) => setDrillSafe(env.pageName, visual.name, { ...drill, target: e.target.value === 'columns' ? 'columns' : 'rows' })}
+            >
+              <option value="rows">Rows</option>
+              <option value="columns">Columns</option>
+            </select>
+          )}
+          {h.showDrillUp && btn('Drill up', <ArrowUpRegular />, () => {
+            const path = drill.path.slice(0, -1)
+            if (onColumns) setDrillSafe(env.pageName, visual.name, { ...drill, path, columnLevel: Math.max(0, (drill.columnLevel ?? 0) - 1) })
+            else setDrillSafe(env.pageName, visual.name, { ...drill, path, level: Math.max(0, drill.level - 1) })
+          }, false, !canDrillUp)}
+          {h.showDrill && btn(drill.drillMode ? 'Drill down is on' : 'Click to turn on Drill down', <ArrowDownRegular />, () => setDrillSafe(env.pageName, visual.name, { ...drill, drillMode: !drill.drillMode }), !!drill.drillMode)}
+          {h.showDrillLevel && btn('Go to the next level in the hierarchy', <ArrowTurnDownRightRegular />, () =>
+            onColumns
+              ? setDrillSafe(env.pageName, visual.name, { ...drill, columnLevel: (drill.columnLevel ?? 0) + 1, columnExpandedLevel: undefined })
+              : setDrillSafe(env.pageName, visual.name, { ...drill, level: drill.level + 1, expandedLevel: undefined })
+          )}
+          {h.showDrillExpand && btn('Expand all down one level in the hierarchy', <BranchForkRegular />, () =>
+            onColumns
+              ? setDrillSafe(env.pageName, visual.name, { ...drill, columnExpandedLevel: (drill.columnExpandedLevel ?? drill.columnLevel ?? 0) + 1 })
+              : setDrillSafe(env.pageName, visual.name, { ...drill, expandedLevel: (drill.expandedLevel ?? drill.level) + 1 })
+          )}
+        </>
+      )}
+      {h.helpTooltip && (
+        <span className="wbi-vh-filterwrap">
+          {btn(h.helpTooltip.title ?? 'Help', <QuestionCircleRegular />, () => setHelpOpen((o) => !o), helpOpen)}
+          {helpOpen && (
+            <div className="wbi-vh-filters wbi-vh-help" style={{ color: h.helpTooltip.color, background: h.helpTooltip.background }} onPointerDown={stop}>
+              {h.helpTooltip.title && <div className="wbi-vh-filters-title">{h.helpTooltip.title}</div>}
+              <div className="wbi-vh-help-text">{h.helpTooltip.text}</div>
+            </div>
+          )}
+        </span>
+      )}
+      {h.showFilter && (
+        <span className="wbi-vh-filterwrap">
+          {btn('Filters and slicers affecting this visual', <FilterRegular />, () => setFiltersOpen((o) => !o), filtersOpen)}
+          {filtersOpen && (
+            <div className="wbi-vh-filters" onPointerDown={stop}>
+              <div className="wbi-vh-filters-title">Filters and slicers affecting this visual</div>
+              {summary.length === 0 ? <div className="wbi-vh-filters-empty">No filters are applied</div> : null}
+              {summary.map((s, i) => (
+                <div key={i} className="wbi-vh-filter">
+                  <div className="wbi-vh-filter-field">{s.field}</div>
+                  <div className="wbi-vh-filter-desc">{s.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </span>
+      )}
+      {h.showFocus && btn('Focus mode', <ArrowMaximizeRegular />, () => useInteraction.getState().setFocus({ page: env.pageName, visual: visual.name, mode: 'focus' }))}
+      {h.showMore &&
+        btn('More options', <MoreHorizontalRegular />, () => {
+          const el = document.querySelector(`.wbi-vh[data-visual-header="${CSS.escape(visual.name)}"]`)
+          const r = el?.getBoundingClientRect()
+          useInteraction.getState().setContextMenu({ page: env.pageName, visual: visual.name, req: { x: r ? r.right - 8 : 0, y: r ? r.bottom : 0 } })
+        })}
+    </div>
+  )
+}
+
+function setDrillSafe(page: string, visual: string, state: Parameters<typeof setDrill>[2]) {
+  setDrill(page, visual, state)
+}

@@ -1,0 +1,553 @@
+{
+ "abfSha256": "96a052372889306b22ed6f1b1ba4c0291b3ec684bf46759dc0bed43a9d7449ad",
+ "abfSize": 1241088,
+ "tables": {
+  "Customers": {
+   "rows": 91,
+   "columns": {
+    "CustomerID": {
+     "sha1": "309d1d464c171a4e16d1beb27fda1f80c8f5ae15",
+     "sample": [
+      "s5:ALFKI",
+      "s5:ANATR",
+      "s5:ANTON",
+      "s5:AROUT",
+      "s5:BERGS"
+     ]
+    },
+    "CompanyName": {
+     "sha1": "5251649d733cc5b48ae6b3015256ab00b4ce4958",
+     "sample": [
+      "s19:Alfreds Futterkiste",
+      "s34:Ana Trujillo Emparedados y helados",
+      "s23:Antonio Moreno Taquería",
+      "s15:Around the Horn",
+      "s18:Berglunds snabbköp"
+     ]
+    },
+    "ContactName": {
+     "sha1": "1f4cb6349b9b6f35bb929826cafab633d0323a6e",
+     "sample": [
+      "s12:Maria Anders",
+      "s12:Ana Trujillo",
+      "s14:Antonio Moreno",
+      "s12:Thomas Hardy",
+      "s18:Christina Berglund"
+     ]
+    },
+    "ContactTitle": {
+     "sha1": "3306e1fcb1cf4058223cb0dbf3cbe1739d1790a0",
+     "sample": [
+      "s20:Sales Representative",
+      "s5:Owner",
+      "s5:Owner",
+      "s20:Sales Representative",
+      "s19:Order Administrator"
+     ]
+    },
+    "Address": {
+     "sha1": "56426959436c3115049a16db3f25633024800a3f",
+     "sample": [
+      "s13:Obere Str. 57",
+      "s29:Avda. de la Constitución 2222",
+      "s15:Mataderos  2312",
+      "s15:120 Hanover Sq.",
+      "s15:Berguvsvägen  8"
+     ]
+    },
+    "City": {
+     "sha1": "70ad86898f6d2ca217083d116ec6cdaf7810e6fb",
+     "sample": [
+      "s6:Berlin",
+      "s11:México D.F.",
+      "s11:México D.F.",
+      "s6:London",
+      "s5:Luleå"
+     ]
+    },
+    "Region": {
+     "sha1": "177a6d62186d7af22d0f11244a4f60568a3470b6",
+     "sample": [
+      "N",
+      "N",
+      "N",
+      "N",
+      "N"
+     ]
+    },
+    "PostalCode": {
+     "sha1": "6a1da575d7c126fffa6046754a982fe49285f035",
+     "sample": [
+      "s5:12209",
+      "s5:05021",
+      "s5:05023",
+      "s7:WA1 1DP",
+      "s8:S-958 22"
+     ]
+    },
+    "Country": {
+     "sha1": "62993d6b4728f3f9d258c2eade044d0a8196e250",
+     "sample": [
+      "s7:Germany",
+      "s6:Mexico",
+      "s6:Mexico",
+      "s2:UK",
+      "s6:Sweden"
+     ]
+    },
+    "Phone": {
+     "sha1": "aae8423b2e2b9d30b1bf6d5dd4be72d6dcbbed74",
+     "sample": [
+      "s11:030-0074321",
+      "s12:(5) 555-4729",
+      "s12:(5) 555-3932",
+      "s14:(171) 555-7788",
+      "s13:0921-12 34 65"
+     ]
+    },
+    "Fax": {
+     "sha1": "f720c5812dbd97af0dcf1ce2c3da4eb8d9a902a4",
+     "sample": [
+      "s11:030-0076545",
+      "s12:(5) 555-3745",
+      "N",
+      "s14:(171) 555-6750",
+      "s13:0921-12 34 67"
+     ]
+    }
+   }
+  },
+  "DateTableTemplate_4f8920eb-1212-4b4f-a76d-c176c7ebe49d": {
+   "rows": 1,
+   "columns": {
+    "Date": {
+     "sha1": "ddc3c95e58b0297a8ae9c89983e77685540ab8dd",
+     "sample": [
+      "d:1420070400000"
+     ]
+    },
+    "Year": {
+     "sha1": "80236b1d2ff6448de06ff1429e6d276db2540814",
+     "sample": [
+      "n:409f7c0000000000"
+     ]
+    },
+    "MonthNo": {
+     "sha1": "ba5cf99a5599a5f098d07fbab7b15d895951dbbb",
+     "sample": [
+      "n:3ff0000000000000"
+     ]
+    },
+    "Month": {
+     "sha1": "907a0f5a095cc8e326a6a43b1060a38c4456fa5b",
+     "sample": [
+      "s7:January"
+     ]
+    },
+    "QuarterNo": {
+     "sha1": "ba5cf99a5599a5f098d07fbab7b15d895951dbbb",
+     "sample": [
+      "n:3ff0000000000000"
+     ]
+    },
+    "Quarter": {
+     "sha1": "39af0491dde3bd443cbacd9af52ff7e199345e07",
+     "sample": [
+      "s5:Qtr 1"
+     ]
+    },
+    "Day": {
+     "sha1": "ba5cf99a5599a5f098d07fbab7b15d895951dbbb",
+     "sample": [
+      "n:3ff0000000000000"
+     ]
+    }
+   }
+  },
+  "LocalDateTable_49867f5a-779b-41d5-a53f-f14479577782": {
+   "rows": 1096,
+   "columns": {
+    "Date": {
+     "sha1": "07e0689ba0db4706bd055efbe041d3ea27ecfb2e",
+     "sample": [
+      "d:820454400000",
+      "d:820540800000",
+      "d:820627200000",
+      "d:820713600000",
+      "d:820800000000"
+     ]
+    },
+    "Year": {
+     "sha1": "66fbb6bb973b0de5a601e21946d57cd84664534f",
+     "sample": [
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000"
+     ]
+    },
+    "MonthNo": {
+     "sha1": "2ae0b530bf3ec572109d613c5e70cba0345841a8",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000"
+     ]
+    },
+    "Month": {
+     "sha1": "e12f51ed6bacb4be86e66f45b708b7c701037562",
+     "sample": [
+      "s7:January",
+      "s7:January",
+      "s7:January",
+      "s7:January",
+      "s7:January"
+     ]
+    },
+    "QuarterNo": {
+     "sha1": "5083ef2ca820c6ad2b2fb92b5afbb0e2814531e8",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000"
+     ]
+    },
+    "Quarter": {
+     "sha1": "eba13d1d4b1a828893db0d8a71a961bfbb58d3c4",
+     "sample": [
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1"
+     ]
+    },
+    "Day": {
+     "sha1": "e86364785e2dbdec9c23706809f205c2642cfe61",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:4000000000000000",
+      "n:4008000000000000",
+      "n:4010000000000000",
+      "n:4014000000000000"
+     ]
+    }
+   }
+  },
+  "LocalDateTable_4e215a5d-84a0-4382-a1a4-fa9aca5802de": {
+   "rows": 1096,
+   "columns": {
+    "Date": {
+     "sha1": "07e0689ba0db4706bd055efbe041d3ea27ecfb2e",
+     "sample": [
+      "d:820454400000",
+      "d:820540800000",
+      "d:820627200000",
+      "d:820713600000",
+      "d:820800000000"
+     ]
+    },
+    "Year": {
+     "sha1": "66fbb6bb973b0de5a601e21946d57cd84664534f",
+     "sample": [
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000"
+     ]
+    },
+    "MonthNo": {
+     "sha1": "2ae0b530bf3ec572109d613c5e70cba0345841a8",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000"
+     ]
+    },
+    "Month": {
+     "sha1": "e12f51ed6bacb4be86e66f45b708b7c701037562",
+     "sample": [
+      "s7:January",
+      "s7:January",
+      "s7:January",
+      "s7:January",
+      "s7:January"
+     ]
+    },
+    "QuarterNo": {
+     "sha1": "5083ef2ca820c6ad2b2fb92b5afbb0e2814531e8",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000"
+     ]
+    },
+    "Quarter": {
+     "sha1": "eba13d1d4b1a828893db0d8a71a961bfbb58d3c4",
+     "sample": [
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1"
+     ]
+    },
+    "Day": {
+     "sha1": "e86364785e2dbdec9c23706809f205c2642cfe61",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:4000000000000000",
+      "n:4008000000000000",
+      "n:4010000000000000",
+      "n:4014000000000000"
+     ]
+    }
+   }
+  },
+  "LocalDateTable_fc40ce61-4ee5-4f8d-9efc-5bde7d7411a6": {
+   "rows": 1096,
+   "columns": {
+    "Date": {
+     "sha1": "07e0689ba0db4706bd055efbe041d3ea27ecfb2e",
+     "sample": [
+      "d:820454400000",
+      "d:820540800000",
+      "d:820627200000",
+      "d:820713600000",
+      "d:820800000000"
+     ]
+    },
+    "Year": {
+     "sha1": "66fbb6bb973b0de5a601e21946d57cd84664534f",
+     "sample": [
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000",
+      "n:409f300000000000"
+     ]
+    },
+    "MonthNo": {
+     "sha1": "2ae0b530bf3ec572109d613c5e70cba0345841a8",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000"
+     ]
+    },
+    "Month": {
+     "sha1": "e12f51ed6bacb4be86e66f45b708b7c701037562",
+     "sample": [
+      "s7:January",
+      "s7:January",
+      "s7:January",
+      "s7:January",
+      "s7:January"
+     ]
+    },
+    "QuarterNo": {
+     "sha1": "5083ef2ca820c6ad2b2fb92b5afbb0e2814531e8",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000"
+     ]
+    },
+    "Quarter": {
+     "sha1": "eba13d1d4b1a828893db0d8a71a961bfbb58d3c4",
+     "sample": [
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1",
+      "s5:Qtr 1"
+     ]
+    },
+    "Day": {
+     "sha1": "e86364785e2dbdec9c23706809f205c2642cfe61",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:4000000000000000",
+      "n:4008000000000000",
+      "n:4010000000000000",
+      "n:4014000000000000"
+     ]
+    }
+   }
+  },
+  "Numbers": {
+   "rows": 1000,
+   "columns": {
+    "Column1": {
+     "sha1": "873b5e6c928a69f3353aaa960c14acbff1f7d496",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:4000000000000000",
+      "n:4008000000000000",
+      "n:4010000000000000",
+      "n:4014000000000000"
+     ]
+    }
+   }
+  },
+  "Orders": {
+   "rows": 830,
+   "columns": {
+    "OrderID": {
+     "sha1": "69d4145e05574bb7ea7afe2701982a2fbbbe1ee5",
+     "sample": [
+      "n:40c4048000000000",
+      "n:40c40a0000000000",
+      "n:40c40d8000000000",
+      "n:40c4108000000000",
+      "n:40c4128000000000"
+     ]
+    },
+    "CustomerID": {
+     "sha1": "388536e287e29021afc6eed63e2c28310cf83a23",
+     "sample": [
+      "s5:TOMSP",
+      "s5:OTTIK",
+      "s5:FRANK",
+      "s5:QUICK",
+      "s5:MORGK"
+     ]
+    },
+    "EmployeeID": {
+     "sha1": "02054b86448bb8089cc10124780fc48bdc7eac2c",
+     "sample": [
+      "n:4018000000000000",
+      "n:4010000000000000",
+      "n:4010000000000000",
+      "n:4008000000000000",
+      "n:4000000000000000"
+     ]
+    },
+    "OrderDate": {
+     "sha1": "40ef074f27d2e195c7f1225090fd8bdeea3aa6f7",
+     "sample": [
+      "d:836524800000",
+      "d:837734400000",
+      "d:838598400000",
+      "d:839203200000",
+      "d:839548800000"
+     ]
+    },
+    "RequiredDate": {
+     "sha1": "4819d598257711d1c38268d7c21436d5f24ef268",
+     "sample": [
+      "d:840153600000",
+      "d:840153600000",
+      "d:841017600000",
+      "d:841622400000",
+      "d:841968000000"
+     ]
+    },
+    "ShippedDate": {
+     "sha1": "6352b935f7d6ac3e36c411c93ebc47a312a8f12f",
+     "sample": [
+      "d:836956800000",
+      "d:838598400000",
+      "d:839289600000",
+      "d:839808000000",
+      "d:839894400000"
+     ]
+    },
+    "ShipVia": {
+     "sha1": "4dcbe466ac5c0b81891630e7e49a736e584af233",
+     "sample": [
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:3ff0000000000000",
+      "n:4008000000000000",
+      "n:4008000000000000"
+     ]
+    },
+    "Freight": {
+     "sha1": "01a6ed7ec0a16952e2bcc4796eea2fe4641db61d",
+     "sample": [
+      "n:40273851eb851eb8",
+      "n:404b8b851eb851ec",
+      "n:406a128f5c28f5c3",
+      "n:4053047ae147ae14",
+      "n:405f7147ae147ae1"
+     ]
+    },
+    "ShipName": {
+     "sha1": "37d3583e7f40fb12c0ff0a23f3eb833717aca087",
+     "sample": [
+      "s18:Toms Spezialitäten",
+      "s18:Ottilies Käseladen",
+      "s14:Frankenversand",
+      "s10:QUICK-Stop",
+      "s22:Morgenstern Gesundkost"
+     ]
+    },
+    "ShipAddress": {
+     "sha1": "1cd033ee91f88e633bd2dfb7c199880a9a5dafcd",
+     "sample": [
+      "s13:Luisenstr. 48",
+      "s18:Mehrheimerstr. 369",
+      "s17:Berliner Platz 43",
+      "s16:Taucherstraße 10",
+      "s11:Heerstr. 22"
+     ]
+    },
+    "ShipCity": {
+     "sha1": "5165de7938d11fd21e858cf08d18834e3f53ff5d",
+     "sample": [
+      "s7:Münster",
+      "s4:Köln",
+      "s7:München",
+      "s9:Cunewalde",
+      "s7:Leipzig"
+     ]
+    },
+    "ShipRegion": {
+     "sha1": "27674d22f8d1f2c7083f15fb0ab818933ca0ae37",
+     "sample": [
+      "N",
+      "N",
+      "N",
+      "N",
+      "N"
+     ]
+    },
+    "ShipPostalCode": {
+     "sha1": "ef203b3b9527e422016be32cd1085d9f5de4a619",
+     "sample": [
+      "s5:44087",
+      "s5:50739",
+      "s5:80805",
+      "s5:01307",
+      "s5:04179"
+     ]
+    },
+    "ShipCountry": {
+     "sha1": "21a7f7601cc02fe08f8e544eccb5950c9fb6ef79",
+     "sample": [
+      "s7:Germany",
+      "s7:Germany",
+      "s7:Germany",
+      "s7:Germany",
+      "s7:Germany"
+     ]
+    }
+   }
+  }
+ }
+}

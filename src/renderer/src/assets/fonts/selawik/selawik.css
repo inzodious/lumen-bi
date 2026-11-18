@@ -1,0 +1,32 @@
+/*
+ * Selawik — Microsoft's open-source, metric-compatible fallback for Segoe UI (SIL OFL 1.1, see OFL.txt).
+ * Power BI renders with Segoe UI; on Linux it is usually missing, and the usual fallbacks (Open Sans) are 5–13% wider,
+ * which truncates/wraps labels that fit in Power BI. These rules:
+ *  - define the 'Selawik' family (300/350/400/600/700);
+ *  - alias the Segoe UI family names Power BI files reference ('Segoe UI', 'Segoe UI Light|Semilight|Semibold|Bold',
+ *    and the web-font names 'wf_segoe-ui_*') to Selawik, but always try a locally installed Segoe UI first (local()).
+ * font-display: block keeps text measurement stable (no swap after the first layout).
+ */
+@font-face { font-family: 'Selawik'; src: url('./selawkl.woff2') format('woff2'); font-weight: 300; font-style: normal; font-display: block; }
+@font-face { font-family: 'Selawik'; src: url('./selawksl.woff2') format('woff2'); font-weight: 350; font-style: normal; font-display: block; }
+@font-face { font-family: 'Selawik'; src: url('./selawk.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Selawik'; src: url('./selawksb.woff2') format('woff2'); font-weight: 600; font-style: normal; font-display: block; }
+@font-face { font-family: 'Selawik'; src: url('./selawkb.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI'; src: local('Segoe UI Light'), url('./selawkl.woff2') format('woff2'); font-weight: 300; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI'; src: local('Segoe UI Semilight'), url('./selawksl.woff2') format('woff2'); font-weight: 350; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI'; src: local('Segoe UI'), url('./selawk.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI'; src: local('Segoe UI Semibold'), url('./selawksb.woff2') format('woff2'); font-weight: 600; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI'; src: local('Segoe UI Bold'), url('./selawkb.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI Light'; src: local('Segoe UI Light'), url('./selawkl.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI Light'; src: local('Segoe UI Light'), url('./selawkl.woff2') format('woff2'); font-weight: 300; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI Semilight'; src: local('Segoe UI Semilight'), url('./selawksl.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI Semilight'; src: local('Segoe UI Semilight'), url('./selawksl.woff2') format('woff2'); font-weight: 350; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI Semibold'; src: local('Segoe UI Semibold'), url('./selawksb.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI Semibold'; src: local('Segoe UI Semibold'), url('./selawksb.woff2') format('woff2'); font-weight: 600; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI Bold'; src: local('Segoe UI Bold'), url('./selawkb.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Segoe UI Bold'; src: local('Segoe UI Bold'), url('./selawkb.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: 'wf_segoe-ui_light'; src: url('./selawkl.woff2') format('woff2'); font-weight: normal; font-style: normal; font-display: block; }
+@font-face { font-family: 'wf_segoe-ui_semilight'; src: url('./selawksl.woff2') format('woff2'); font-weight: normal; font-style: normal; font-display: block; }
+@font-face { font-family: 'wf_segoe-ui_normal'; src: url('./selawk.woff2') format('woff2'); font-weight: normal; font-style: normal; font-display: block; }
+@font-face { font-family: 'wf_segoe-ui_semibold'; src: url('./selawksb.woff2') format('woff2'); font-weight: normal; font-style: normal; font-display: block; }
+@font-face { font-family: 'wf_segoe-ui_bold'; src: url('./selawkb.woff2') format('woff2'); font-weight: normal; font-style: normal; font-display: block; }

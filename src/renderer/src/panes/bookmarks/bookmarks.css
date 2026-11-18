@@ -1,0 +1,6 @@
+.wbi-bm__icon { color: var(--wbi-fg-2); flex: none; margin-right: 4px; }
+.wbi-bm__group { font-weight: 600; }
+.wbi-bm__more { opacity: 0; }
+.wbi-bm__row:hover .wbi-bm__more, .wbi-bm__row.is-selected .wbi-bm__more { opacity: 1; }
+.wbi-bm__viewbar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--wbi-border); background: var(--wbi-bg-2); flex: none; }
+.wbi-bm__viewname { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

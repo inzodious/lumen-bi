@@ -1,0 +1,26 @@
+/* Right-hand panes: host, frame, switcher. Individual panes keep their styles in their own folder. */
+.wbi-panehost { display: flex; min-height: 0; height: 100%; flex: none; }
+.wbi-panehost__panes { display: flex; gap: 0; min-height: 0; height: 100%; }
+.wbi-pane {
+  position: relative; display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--wbi-bg);
+  border-left: 1px solid var(--wbi-border); flex: none;
+}
+.wbi-pane__grip { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 2; }
+.wbi-pane__grip:hover { background: rgba(0, 0, 0, 0.06); }
+.wbi-pane__header { display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 6px 0 14px; flex: none; }
+.wbi-pane__title { flex: 1; margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wbi-pane__actions { display: flex; align-items: center; gap: 0; }
+.wbi-pane__body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.wbi-pane--collapsed { width: 32px; align-items: center; padding-top: 8px; gap: 8px; }
+.wbi-pane__expand { width: 26px; height: 26px; border: 0; background: transparent; border-radius: var(--wbi-radius); display: inline-flex; align-items: center; justify-content: center; }
+.wbi-pane__expand:hover { background: var(--wbi-hover); }
+.wbi-pane__vtitle { writing-mode: vertical-rl; border: 0; background: transparent; font-size: 14px; font-weight: 600; padding: 6px 0; }
+.wbi-pane__vtitle:hover { background: var(--wbi-hover); }
+.wbi-pane__section-title { font-size: 12px; font-weight: 600; padding: 8px 14px 4px; color: var(--wbi-fg); }
+.wbi-pane__empty { padding: 16px 14px; color: var(--wbi-fg-3); font-size: 12px; line-height: 18px; }
+.wbi-pane__search { padding: 0 12px 8px; flex: none; }
+
+.wbi-paneswitch { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 40px; padding-top: 6px; background: var(--wbi-chrome); border-left: 1px solid var(--wbi-border); flex: none; }
+.wbi-paneswitch__btn { position: relative; width: 32px; height: 32px; border: 0; border-radius: var(--wbi-radius); background: transparent; color: var(--wbi-fg-2); display: inline-flex; align-items: center; justify-content: center; }
+.wbi-paneswitch__btn:hover { background: var(--wbi-hover); color: var(--wbi-fg); }
+.wbi-paneswitch__btn.is-on { background: var(--wbi-bg); color: var(--wbi-fg); box-shadow: var(--wbi-shadow-4); }

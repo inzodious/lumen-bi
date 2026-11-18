@@ -1,0 +1,23 @@
+/* Power BI formula bar */
+.wbi-formula-bar { background: #fff; border-bottom: 1px solid #E1DFDD; flex: none; }
+.wbi-formula-bar__row { display: flex; align-items: flex-start; min-height: 34px; padding: 1px 0; }
+.wbi-formula-bar__buttons { display: flex; flex: none; padding: 2px 4px; gap: 2px; border-right: 1px solid #EDEBE9; height: 32px; align-items: center; }
+.wbi-formula-bar__btn { width: 26px; height: 26px; border: 0; background: transparent; display: grid; place-items: center; color: #252423; border-radius: 2px; font-size: 16px; padding: 0; }
+.wbi-formula-bar__btn:hover:not(:disabled) { background: #F3F2F1; }
+.wbi-formula-bar__btn:disabled { color: #A19F9D; }
+.wbi-formula-bar__editor { flex: 1; min-width: 0; padding-top: 1px; }
+.wbi-formula-bar__editor .wbi-dax-editor .cm-gutters { color: #A19F9D; min-width: 28px; }
+.wbi-formula-bar__editor .wbi-dax-editor .cm-content { padding: 6px 0; }
+.wbi-formula-bar__editor .wbi-dax-editor .cm-activeLine { background: transparent; }
+.wbi-formula-bar__expand { margin: 3px 6px 0 2px; flex: none; }
+.wbi-formula-bar__msg { display: flex; align-items: center; gap: 6px; padding: 4px 10px 5px 72px; font-size: 12px; border-top: 1px solid #EDEBE9; }
+.wbi-formula-bar__msg.is-error { color: #A4262C; background: #FDE7E9; }
+.wbi-formula-bar__msg.is-warning { color: #8A6100; background: #FFF4CE; }
+.wbi-formula-bar__msg svg { flex: none; font-size: 14px; }
+.wbi-formula-bar .cm-editor { max-height: 132px; }
+.wbi-formula-bar.is-expanded .cm-editor { min-height: 180px; max-height: 360px; }
+.wbi-formula-bar__preview { flex: none; align-self: center; max-width: 280px; margin: 0 4px; padding: 2px 10px; border-radius: 10px; background: #F3F2F1; color: #323130; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.wbi-formula-bar__preview.is-error { background: #FDE7E9; color: #A4262C; }
+.wbi-formula-bar__more { margin-top: 3px; }
+/* placement under the shell ribbon (the ribbon is a floating card with 8px margins) */
+.wbi-formula-bar--shell { margin: 0 8px 6px; border: 1px solid #e1dfdd; border-radius: 6px; overflow: hidden; }

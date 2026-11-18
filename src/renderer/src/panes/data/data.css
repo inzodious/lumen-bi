@@ -1,0 +1,23 @@
+/* Data pane tree (PBI look: 28px rows, 16px gray icons, bold-ish table names, gray selection). */
+.wbi-dtree { display: flex; flex-direction: column; padding: 0 4px 16px; flex: 1; }
+.wbi-dtree__row {
+  display: flex; align-items: center; gap: 4px; height: 28px; padding-right: 8px; border-radius: var(--wbi-radius);
+  font-size: 12px; color: var(--wbi-fg); white-space: nowrap; cursor: default;
+}
+.wbi-dtree__row:hover { background: var(--wbi-hover); }
+.wbi-dtree__row.is-selected { background: var(--wbi-checked); }
+.wbi-dtree__row.is-table .wbi-dtree__name { font-weight: 600; }
+.wbi-dtree__row.is-hidden .wbi-dtree__icon, .wbi-dtree__row.is-hidden .wbi-dtree__name { opacity: 0.55; }
+.wbi-dtree__chev { width: 14px; flex: none; display: inline-flex; justify-content: center; color: var(--wbi-fg-2); }
+.wbi-dtree__check { width: 20px; flex: none; display: inline-flex; align-items: center; }
+.wbi-dtree__icon { width: 18px; height: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; color: var(--wbi-fg-3); }
+.wbi-dtree__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wbi-dtree__hidden { color: var(--wbi-fg-3); flex: none; }
+.wbi-dtree__rename { flex: 1; min-width: 0; height: 22px; border: 1px solid var(--wbi-fg); border-radius: 2px; padding: 0 4px; font-size: 12px; outline: 0; user-select: text; }
+.wbi-dtree__stack { position: relative; display: inline-flex; }
+.wbi-dtree__fx {
+  position: absolute; right: -5px; bottom: -4px; font-size: 8px; line-height: 9px; font-style: italic; font-weight: 700; font-family: Georgia, serif;
+  background: var(--wbi-bg); color: var(--wbi-fg-2); padding: 0 1px; border-radius: 2px;
+}
+.wbi-dtree__row:hover .wbi-dtree__fx { background: var(--wbi-hover); }
+.wbi-dtree__row.is-selected .wbi-dtree__fx { background: var(--wbi-checked); }

@@ -1,0 +1,65 @@
+/* Filters pane (PBI Desktop look: section titles, white cards with a light border, dashed drop wells). */
+.wbi-filters { display: flex; flex-direction: column; gap: 4px; padding: 0 12px 16px; }
+.wbi-filters__section { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
+.wbi-filters__title { margin: 4px 0 2px; font-size: 12px; font-weight: 600; color: var(--wbi-fg); }
+.wbi-filters__cards { display: flex; flex-direction: column; gap: 6px; }
+.wbi-filters__drop {
+  display: flex; align-items: center; justify-content: center; height: 34px; border: 1px dashed var(--wbi-border-strong); border-radius: var(--wbi-radius);
+  color: var(--wbi-fg-3); font-size: 12px; background: var(--wbi-bg);
+}
+.wbi-filters__drop.is-over { border-color: var(--wbi-fg); border-style: solid; background: var(--wbi-bg-3); color: var(--wbi-fg); }
+.wbi-filters__badge { font-size: 11px; font-weight: 600; background: var(--wbi-fg); color: #fff; border-radius: 8px; min-width: 16px; padding: 0 4px; text-align: center; }
+
+.wbi-fcard { background: var(--wbi-bg); border: 1px solid var(--wbi-border); border-radius: var(--wbi-radius); }
+.wbi-fcard:hover { border-color: var(--wbi-fg-4); }
+.wbi-fcard.is-filtering { background: var(--wbi-bg-3); border-color: #c8c6c4; }
+.wbi-fcard.is-hidden-vm .wbi-fcard__name { color: var(--wbi-fg-3); }
+.wbi-fcard__header { display: flex; align-items: flex-start; gap: 4px; padding: 6px 4px 6px 10px; min-height: 44px; }
+.wbi-fcard__text { flex: 1; min-width: 0; }
+.wbi-fcard__name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 18px; }
+.wbi-fcard__summary { font-size: 12px; color: var(--wbi-fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 18px; }
+.wbi-fcard.is-filtering .wbi-fcard__summary { color: var(--wbi-fg); }
+.wbi-fcard__icons { display: flex; align-items: center; flex: none; }
+.wbi-fcard__icon {
+  width: 22px; height: 22px; padding: 0; border: 0; border-radius: 2px; background: transparent; color: var(--wbi-fg-2);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.wbi-fcard__icon:hover { background: var(--wbi-pressed); color: var(--wbi-fg); }
+/* lock / eye / eraser / remove appear on hover (or when active) like PBI */
+.wbi-fcard__icons > :not(:last-child):not(.is-on) { visibility: hidden; }
+.wbi-fcard:hover .wbi-fcard__icons > *, .wbi-fcard.is-open .wbi-fcard__icons > * { visibility: visible; }
+.wbi-fcard__lockmark { color: var(--wbi-fg-3); margin-right: 4px; visibility: visible !important; }
+.wbi-fcard__body { display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 10px; }
+.wbi-fcard__row { display: flex; flex-direction: column; gap: 4px; }
+.wbi-fcard__row--between { flex-direction: row; align-items: center; justify-content: space-between; }
+.wbi-fcard__label { font-size: 12px; color: var(--wbi-fg-2); }
+.wbi-fcard__note { font-size: 11px; color: var(--wbi-fg-3); padding: 2px 0; }
+.wbi-fcard__list { max-height: 240px; overflow: auto; display: flex; flex-direction: column; }
+.wbi-fcard__item { display: flex; align-items: center; gap: 6px; min-height: 24px; }
+.wbi-fcard__item .wbi-check { flex: 1; min-width: 0; }
+.wbi-fcard__item .wbi-check__label { min-width: 0; overflow: hidden; }
+.wbi-fcard__value { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wbi-fcard__count { font-size: 11px; color: var(--wbi-fg-3); flex: none; padding-right: 2px; }
+.wbi-fcard__cond { display: flex; flex-direction: column; gap: 4px; }
+.wbi-fcard__cond--inline { flex-direction: row; }
+.wbi-fcard__cond--inline > * { flex: 1; min-width: 0; }
+.wbi-fcard__apply { display: flex; justify-content: flex-end; }
+.wbi-fcard__well {
+  display: flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 6px 0 8px; border: 1px dashed var(--wbi-border-strong);
+  border-radius: var(--wbi-radius); color: var(--wbi-fg-3); background: var(--wbi-bg);
+}
+.wbi-fcard__well.is-filled { border-style: solid; border-color: var(--wbi-border); color: var(--wbi-fg); }
+.wbi-fcard__well.is-over { border-color: var(--wbi-fg); background: var(--wbi-bg-3); }
+.wbi-fcard__wellname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Format ▸ Filter pane / Filter cards and theme (paneStyle.ts) */
+.wbi-filters { background: var(--fp-bg, transparent); color: var(--fp-fg, inherit); font-family: var(--fp-font, inherit); }
+.wbi-filters__title { color: var(--fp-fg, var(--wbi-fg)); }
+.wbi-filters__drop { border-color: var(--fp-border, var(--wbi-border-strong)); background: var(--fp-input, var(--wbi-bg)); }
+.wbi-fcard { background: var(--fc-bg, var(--wbi-bg)); border-color: var(--fc-border, var(--wbi-border)); color: var(--fc-fg, inherit); font-family: var(--fc-font, inherit); }
+.wbi-fcard__name { font-size: var(--fp-header-size, var(--fc-size, 12px)); }
+.wbi-fcard__summary { font-size: var(--fc-size, 12px); }
+.wbi-fcard .wbi-input, .wbi-fcard .wbi-search { background: var(--fc-input, var(--fp-input, revert-layer)); }
+.wbi-fcard.is-filtering { background: var(--fca-bg, var(--wbi-bg-3)); border-color: var(--fca-border, #c8c6c4); color: var(--fca-fg, inherit); font-family: var(--fca-font, var(--fc-font, inherit)); }
+.wbi-fcard.is-filtering .wbi-fcard__summary { font-size: var(--fca-size, var(--fc-size, 12px)); }
+.wbi-fcard .wbi-check__box { accent-color: var(--fp-accent, auto); }

@@ -1,0 +1,49 @@
+/* View ▸ Mobile layout — phone emulator + Page visuals pane (Power BI Desktop look). */
+
+.wbi-mobile { display: flex; flex: 1 1 auto; min-height: 0; min-width: 0; background: #EAEAEA; }
+.wbi-mobile__stage { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 16px 16px 24px; box-sizing: border-box; }
+
+.wbi-mobile__phone { flex: none; display: flex; flex-direction: column; align-items: center; background: #FFFFFF; border: 1px solid #C8C6C4; border-radius: 28px; padding: 12px 12px 8px; box-sizing: content-box; box-shadow: 0 6.4px 14.4px rgba(0, 0, 0, 0.13), 0 1.2px 3.6px rgba(0, 0, 0, 0.11); }
+.wbi-mobile__notch { width: 56px; height: 5px; border-radius: 3px; background: #E1DFDD; margin: 2px 0 10px; flex: none; }
+.wbi-mobile__screen { position: relative; overflow-x: hidden; overflow-y: scroll; background: #FFFFFF; border: 1px solid #E1DFDD; box-sizing: content-box; }
+.wbi-mobile__screen::-webkit-scrollbar { width: 8px; }
+.wbi-mobile__screen::-webkit-scrollbar-thumb { background: #C8C6C4; border-radius: 4px; }
+.wbi-mobile__screen::-webkit-scrollbar-track { background: #FAF9F8; }
+.wbi-mobile__canvas-outer { position: relative; overflow: hidden; }
+.wbi-mobile__canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; background: #FFFFFF; }
+.wbi-mobile__grid {
+  position: absolute; inset: 0; pointer-events: auto;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.07) 1px, transparent 1px);
+}
+.wbi-mobile__canvas .wbi-vc:hover > .wbi-vc-box { outline: 1px dashed #A19F9D; outline-offset: -1px; }
+.wbi-mobile__drophint { position: absolute; border: 1px dashed #0078D4; background: rgba(0, 120, 212, 0.08); box-sizing: border-box; pointer-events: none; z-index: 2147482000; }
+.wbi-mobile__hidden { position: absolute; display: flex; align-items: center; justify-content: center; gap: 4px; border: 1px dashed #A19F9D; color: #8A8886; font-size: 11px; background: rgba(243, 242, 241, 0.6); box-sizing: border-box; }
+.wbi-mobile__remove { position: absolute; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 50%; border: 1px solid #605E5C; background: #FFFFFF; color: #252423; cursor: pointer; pointer-events: auto; box-sizing: border-box; }
+.wbi-mobile__remove:hover { background: #F3F2F1; }
+.wbi-mobile__hint { position: absolute; left: 16px; right: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; font-size: 12px; line-height: 18px; color: #605E5C; pointer-events: none; }
+
+.wbi-mobile__controls { display: flex; gap: 2px; margin-top: 6px; flex: none; }
+.wbi-mobile__ctl { width: 28px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: transparent; color: #605E5C; font-size: 16px; cursor: pointer; }
+.wbi-mobile__ctl:hover { background: #F3F2F1; color: #252423; }
+.wbi-mobile__ctl.is-on { background: #EDEBE9; color: #252423; }
+
+.wbi-mobile__pane { width: 250px; }
+.wbi-mobile__pane-actions { display: flex; align-items: center; gap: 4px; padding: 0 10px 8px 14px; flex: none; }
+.wbi-mobile__spacer { flex: 1; }
+.wbi-mobile__filter { height: 24px; font: inherit; font-size: 12px; border: 1px solid #C8C6C4; border-radius: 2px; background: #FFFFFF; color: #252423; padding: 0 4px; }
+.wbi-mobile__list { list-style: none; margin: 0; padding: 0 6px 12px; display: flex; flex-direction: column; gap: 2px; }
+.wbi-mobile__item { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 1px solid transparent; border-radius: 4px; cursor: grab; font-size: 12px; color: #252423; background: #FFFFFF; }
+.wbi-mobile__item:hover { background: #F3F2F1; }
+.wbi-mobile__item.is-selected { border-color: #605E5C; }
+.wbi-mobile__item.is-placed .wbi-mobile__name { color: #605E5C; }
+.wbi-mobile__thumb { width: 28px; height: 28px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E1DFDD; border-radius: 2px; background: #FAF9F8; }
+.wbi-mobile__thumb svg { width: 20px; height: 20px; }
+.wbi-mobile__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbi-mobile__used { color: #107C10; font-size: 14px; flex: none; }
+.wbi-mobile__eye { color: #605E5C; font-size: 14px; display: inline-flex; flex: none; }
+
+/* web / mobile layout switcher (bottom-right of the report view, like PBI) */
+.wbi-layoutswitch { position: absolute; right: 12px; bottom: 6px; z-index: 20; display: flex; gap: 0; background: #FFFFFF; border: 1px solid #E1DFDD; border-radius: 4px; overflow: hidden; }
+.wbi-layoutswitch button { width: 28px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #605E5C; font-size: 14px; cursor: pointer; padding: 0; }
+.wbi-layoutswitch button:hover { background: #F3F2F1; }
+.wbi-layoutswitch button.is-on { background: #EDEBE9; color: #252423; }

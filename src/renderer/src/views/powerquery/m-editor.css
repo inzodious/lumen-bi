@@ -1,0 +1,47 @@
+/* Power Query M editor (CodeMirror) — Power BI Advanced Editor / formula bar look */
+.wbi-pq-me { min-width: 0; background: #fff; }
+.wbi-pq-me .cm-editor { height: 100%; font-size: 13px; background: #fff; }
+.wbi-pq-me .cm-editor.cm-focused { outline: none; }
+.wbi-pq-me .cm-scroller { font-family: Consolas, 'Cascadia Mono', 'Cascadia Code', 'DejaVu Sans Mono', 'Liberation Mono', monospace; line-height: 18px; }
+.wbi-pq-me .cm-content { padding: 4px 0; caret-color: #000; }
+.wbi-pq-me .cm-line { padding: 0 6px; }
+.wbi-pq-me .cm-gutters { background: #fff; border-right: 0; color: #2B91AF; }
+.wbi-pq-me .cm-lineNumbers .cm-gutterElement { padding: 0 8px 0 10px; min-width: 32px; }
+.wbi-pq-me .cm-activeLine { background: transparent; }
+.wbi-pq-me .cm-activeLineGutter { background: transparent; color: #0B216F; }
+.wbi-pq-me .cm-matchingBracket { background: #DBDBDB; outline: 1px solid #B9B9B9; color: inherit !important; }
+.wbi-pq-me .cm-nonmatchingBracket { color: #C4314B !important; }
+.wbi-pq-me .cm-selectionBackground, .wbi-pq-me .cm-focused .cm-selectionBackground { background: #ADD6FF !important; }
+.wbi-pq-me .cm-selectionMatch { background: #E8F0FB; }
+.wbi-pq-me .cm-placeholder { color: #A19F9D; }
+.wbi-pq-me .cm-highlightSpace { background-image: radial-gradient(circle at 50% 55%, #B3B3B3 11%, transparent 5%); }
+.wbi-pq-me .cm-highlightTab { background-size: auto 100%; opacity: 0.5; }
+.wbi-pq-me .cm-lintRange-error { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='m0 3 l2 -2 l1 0 l2 2 l1 0' stroke='%23E51400' fill='none' stroke-width='.9'/%3E%3C/svg%3E"); }
+.wbi-pq-me .cm-gutter-lint { width: 12px; }
+.wbi-pq-me .cm-gutter-lint .cm-gutterElement { padding: 0; }
+
+/* formula bar (single-line) */
+.wbi-pq-me--single .cm-editor { font-size: 13px; }
+.wbi-pq-me--single .cm-scroller { line-height: 20px; }
+.wbi-pq-me--single .cm-content { padding: 2px 0; }
+.wbi-pq-me--single .cm-line { padding: 0 4px; }
+
+/* completion icons specific to M */
+.cm-completionIcon-constant::after { content: 'π' !important; color: #605E5C; }
+.cm-completionIcon-type::after { content: 'T' !important; color: #605E5C; font-family: Georgia, serif; }
+
+/* Advanced Editor dialog */
+.wbi-pq-adv { min-width: 560px; min-height: 360px; max-width: 96vw; max-height: 94vh; resize: both; overflow: hidden; display: flex; flex-direction: column; }
+.wbi-pq-adv .wbi-modal__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 0; }
+.wbi-pq-adv__bar { display: flex; align-items: center; justify-content: flex-end; height: 28px; flex: none; }
+.wbi-pq-adv__opts { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px; border: 0; border-radius: var(--wbi-radius); background: transparent; color: var(--wbi-fg-2); font-size: 12px; }
+.wbi-pq-adv__opts:hover, .wbi-pq-adv__opts.is-open { background: var(--wbi-hover); }
+.wbi-pq-adv__editor { flex: 1; min-height: 0; border: 1px solid var(--wbi-border); display: flex; flex-direction: column; }
+.wbi-pq-adv__editor .wbi-pq-me { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wbi-pq-adv__editor .cm-editor { flex: 1; min-height: 0; }
+.wbi-pq-adv__status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--wbi-fg-2); min-width: 0; }
+.wbi-pq-adv__status-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbi-pq-adv__ok { color: #107C10; flex: none; }
+.wbi-pq-adv__warn { color: #C19C00; flex: none; }
+
+.wbi-pq-adv .wbi-modal__footer-left { min-width: 0; }

@@ -1,0 +1,15 @@
+/* Get data ▸ connector dialogs (PostgreSQL, Firestore, S3, shares, templates) */
+.wbi-gd-section { font-size: 13px; font-weight: 600; color: var(--wbi-fg); margin-top: 2px; }
+.wbi-gd-ok { font-size: 12px; color: #107c10; }
+.wbi-gd-code { font-family: 'Cascadia Mono', 'DejaVu Sans Mono', Consolas, monospace; font-size: 12px; }
+.wbi-gd-shares { height: 260px; overflow: auto; border: 1px solid var(--wbi-border); background: var(--wbi-bg); }
+.wbi-gd-share { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--wbi-border-light); cursor: default; }
+.wbi-gd-share:hover { background: var(--wbi-hover); }
+.wbi-gd-share.is-selected { background: var(--wbi-checked); }
+.wbi-gd-share.is-off { color: var(--wbi-fg-3); }
+.wbi-gd-share__icon { display: inline-flex; color: var(--wbi-fg-2); flex: none; }
+.wbi-gd-share__text { display: flex; flex-direction: column; min-width: 0; }
+.wbi-gd-share__name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wbi-gd-share__sub { font-size: 11px; color: var(--wbi-fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wbi-grow { flex: 1; min-width: 0; }
+.wbi-gd-footer-link { font-size: 12px; }

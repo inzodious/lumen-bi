@@ -1,0 +1,16 @@
+/* Selection / Bookmarks / Sync slicers / Performance analyzer panes share these list styles. */
+.wbi-sel__pivot { padding: 0 8px; flex: none; }
+.wbi-sel__toolbar { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; flex: none; }
+.wbi-sel__spacer { flex: 1; }
+.wbi-sel__list { display: flex; flex-direction: column; padding: 2px 0 12px; overflow: auto; }
+.wbi-sel__row { display: flex; align-items: center; gap: 4px; height: 30px; padding-right: 6px; font-size: 12px; cursor: default; }
+.wbi-sel__row:hover { background: var(--wbi-bg-2); }
+.wbi-sel__row.is-selected { background: var(--wbi-selected-bg); }
+.wbi-sel__row.is-hidden .wbi-sel__name { color: var(--wbi-fg-4); }
+.wbi-sel__row.is-drop { box-shadow: inset 0 2px 0 var(--wbi-fg); }
+.wbi-sel__chev { width: 16px; display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--wbi-fg-2); }
+.wbi-sel__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbi-sel__input { flex: 1; min-width: 0; height: 22px; border: 1px solid var(--wbi-fg); border-radius: 2px; padding: 0 4px; font-size: 12px; user-select: text; }
+.wbi-sel__eye { width: 26px; height: 26px; border: 0; background: transparent; border-radius: var(--wbi-radius); display: inline-flex; align-items: center; justify-content: center; color: var(--wbi-fg-2); flex: none; }
+.wbi-sel__eye:hover { background: var(--wbi-checked); color: var(--wbi-fg); }
+.wbi-sel__num { width: 28px; text-align: right; padding-right: 8px; color: var(--wbi-fg-3); flex: none; }

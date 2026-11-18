@@ -1,0 +1,74 @@
+/* Model view (Power BI Desktop look) */
+.wbi-mv { display: flex; flex-direction: column; height: 100%; min-height: 0; background: #fff; }
+.wbi-mv__empty { display: grid; place-items: center; height: 100%; color: #605e5c; font-size: 14px; }
+.wbi-mv__main { flex: 1; min-height: 0; display: flex; }
+.wbi-mv__canvaswrap { position: relative; flex: 1; min-width: 0; }
+.wbi-mv__canvas { position: absolute; inset: 0; overflow: hidden; background: #f0f0f0; cursor: default; user-select: none; }
+.wbi-mv__canvas.is-linking { cursor: crosshair; }
+.wbi-mv__world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.wbi-mv__edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.wbi-mv__hint { position: absolute; inset: 0; display: grid; place-items: center; color: #605e5c; font-size: 14px; pointer-events: none; }
+
+/* table card */
+.wbi-mv-card { position: absolute; display: flex; flex-direction: column; background: #fff; border: 1px solid #c8c6c4; border-radius: 4px; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08), 0 .3px .9px rgba(0,0,0,.06); overflow: hidden; }
+.wbi-mv-card.is-related { border-color: #8a8886; }
+.wbi-mv-card.is-selected { border: 2px solid #252423; box-shadow: 0 3.2px 7.2px rgba(0,0,0,.16); }
+.wbi-mv-card.is-dimmed { opacity: .45; }
+.wbi-mv-card__header { flex: none; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 4px 0 10px; border-bottom: 1px solid #e1dfdd; background: #fff; cursor: move; border-top: 4px solid #e8e6e4; }
+.wbi-mv-card.is-selected .wbi-mv-card__header { border-top-color: #f2c811; }
+.wbi-mv-card__title { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; color: #252423; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbi-mv-card.is-hidden .wbi-mv-card__title { color: #8a8886; }
+.wbi-mv-card__hid { color: #8a8886; flex: none; }
+.wbi-mv-card__btn { flex: none; width: 24px; height: 24px; border: 0; background: transparent; border-radius: 2px; display: grid; place-items: center; color: #605e5c; padding: 0; visibility: hidden; }
+.wbi-mv-card:hover .wbi-mv-card__btn, .wbi-mv-card.is-selected .wbi-mv-card__btn { visibility: visible; }
+.wbi-mv-card__btn:hover { background: #f3f2f1; }
+.wbi-mv-card__body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 0 4px; }
+.wbi-mv-card__sep { height: 1px; background: #edebe9; margin: 3px 10px; }
+.wbi-mv-card__empty { color: #a19f9d; padding: 4px 10px; font-size: 12px; }
+.wbi-mv-card__resize { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.wbi-mv-field { height: 24px; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 12px; font-size: 12px; color: #252423; cursor: default; }
+.wbi-mv-field:hover { background: #f3f2f1; }
+.wbi-mv-field.is-selected { background: #e1dfdd; }
+.wbi-mv-field.is-highlighted { background: #fff4ce; font-weight: 600; }
+.wbi-mv-field.is-hidden .wbi-mv-field__name { color: #a19f9d; }
+.wbi-mv-field__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbi-mv-field__hid { flex: none; color: #a19f9d; font-size: 14px; }
+
+/* relationship lines */
+.wbi-mv-edge { pointer-events: auto; cursor: pointer; }
+.wbi-mv-edge__hit { stroke: transparent; stroke-width: 12; fill: none; }
+.wbi-mv-edge__line { stroke: #8a8886; stroke-width: 1.5; fill: none; }
+.wbi-mv-edge.is-inactive .wbi-mv-edge__line { stroke-dasharray: 6 4; }
+.wbi-mv-edge.is-active .wbi-mv-edge__line { stroke: #252423; stroke-width: 2.5; }
+.wbi-mv-edge__card { font-size: 13px; font-weight: 600; fill: #605e5c; text-anchor: middle; dominant-baseline: central; font-family: 'Segoe UI', 'Open Sans', sans-serif; }
+.wbi-mv-edge.is-active .wbi-mv-edge__card { fill: #252423; }
+.wbi-mv-edge__dir path { fill: #8a8886; }
+.wbi-mv-edge.is-active .wbi-mv-edge__dir path { fill: #252423; }
+.wbi-mv-link { stroke: #252423; stroke-width: 1.5; stroke-dasharray: 4 3; }
+
+/* overlays */
+.wbi-mv__zoom { position: absolute; right: 12px; bottom: 10px; display: flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #e1dfdd; border-radius: 4px; padding: 2px 6px; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08); }
+.wbi-mv__zoom button { width: 24px; height: 24px; border: 0; background: transparent; display: grid; place-items: center; color: #252423; border-radius: 2px; padding: 0; }
+.wbi-mv__zoom button:hover { background: #f3f2f1; }
+.wbi-mv__zoom input[type=range] { width: 100px; accent-color: #252423; }
+.wbi-mv__zoompct { min-width: 38px; text-align: right; font-size: 12px; color: #252423; }
+.wbi-mv__minimap { position: absolute; left: 12px; bottom: 10px; background: rgba(255,255,255,.92); border: 1px solid #e1dfdd; border-radius: 4px; cursor: pointer; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08); }
+.wbi-mv__mmcard { fill: #c8c6c4; }
+.wbi-mv__mmview { fill: rgba(242,200,17,.12); stroke: #252423; stroke-width: 1; }
+
+/* properties */
+.wbi-mv__props { flex: none; width: 280px; border-left: 1px solid #e1dfdd; background: #fff; display: flex; flex-direction: column; min-height: 0; }
+.wbi-mv__propshead { display: flex; align-items: center; justify-content: space-between; height: 40px; padding: 0 8px 0 14px; font-size: 14px; font-weight: 600; flex: none; }
+.wbi-mv__propsbody { flex: 1; overflow: auto; padding: 0 12px 12px; }
+.wbi-mv__propsopen { flex: none; width: 32px; border: 0; border-left: 1px solid #e1dfdd; background: #fff; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 10px; color: #252423; }
+.wbi-mv__propsopen span { writing-mode: vertical-rl; font-size: 13px; font-weight: 600; }
+
+/* layout tabs */
+.wbi-mv__tabs { flex: none; display: flex; align-items: stretch; height: 32px; background: #fff; border-top: 1px solid #e1dfdd; padding-left: 8px; gap: 2px; }
+.wbi-mv__tab { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 0 12px; font: inherit; font-size: 12px; color: #605e5c; border-bottom: 3px solid transparent; }
+.wbi-mv__tab:hover { background: #f3f2f1; }
+.wbi-mv__tab.is-active { color: #252423; font-weight: 600; border-bottom-color: #f2c811; }
+.wbi-mv__tabx { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 2px; }
+.wbi-mv__tabx:hover { background: #e1dfdd; }
+.wbi-mv__tabadd { padding: 0 8px; }
+.wbi-mv__addtable { width: 200px; display: flex; align-items: center; margin-left: 12px; }

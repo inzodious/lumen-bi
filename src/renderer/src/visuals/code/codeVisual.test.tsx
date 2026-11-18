@@ -50,6 +50,7 @@ describe('code visual: registration and format', () => {
     const j = cloneDeep(barlist)
     j.visual.objects.lumenParams = [{ properties: { title: { expr: { Literal: { Value: "'Revenue'" } } }, accent: { solid: { color: { expr: { Literal: { Value: "'#E66C37'" } } } } } } }]
     expect(readCodeFormat(j, theme).params).toEqual({ title: 'Revenue', accent: '#E66C37' })
+    expect(readCodeFormat(j, theme).paramTypes).toEqual({ title: 'text', accent: 'color' })
     // an automatic (empty) colour is left out so the CSS fallback applies
     expect(readCodeFormat(barlist, theme).params).toEqual({ title: '' })
   })
@@ -216,5 +217,13 @@ describe('code visual: sanitising and CSS checks', () => {
     ])
     // position: fixed is allowed: the frame clips everything to the visual's box (see the isolation e2e)
     expect(checkCss('.cover { position: fixed; inset: 0; z-index: 99999; }')).toEqual([])
+  })
+})
+
+describe('code visual: parameters from a theme', () => {
+  it('a theme sets a parameter for every code visual (visualStyles of the type)', async () => {
+    const { resolveTheme: rt } = await import('@core/report/theme')
+    const themed = rt(undefined, { name: 'T', visualStyles: { [CODE_VISUAL_TYPE]: { '*': { lumenParams: [{ title: 'From theme', accent: { solid: { color: '#123456' } } }] } } } } as any)
+    expect(readCodeFormat(barlist, themed).params).toEqual({ title: 'From theme', accent: '#123456' })
   })
 })

@@ -11,7 +11,7 @@ import { identityKey, type DataPointIdentity } from '@core/report/sq'
 import type { ResolvedTheme } from '@core/report/theme'
 import { uniqueNames } from '@core/codevisual/naming'
 import { FORMAT_OBJECT, PARAMS_OBJECT, normaliseParam, readParamDefs } from '@core/codevisual/model'
-import type { CellType, CodeCell, CodeColumn, CodeData, CodeRow, DrillInfo, ThemeInfo } from '@core/codevisual/types'
+import type { CellType, CodeCell, CodeColumn, CodeData, CodeRow, DrillInfo, ParamDef, ThemeInfo } from '@core/codevisual/types'
 import type { VisualHostContext } from '../contract'
 import { FormatReader } from '../common/fmtProps'
 import { expandParameters, getProjections, labelOf, sortSpecs, valueId, type Projection } from '../common/query'
@@ -32,6 +32,7 @@ export interface CodeFormat {
   rowLimit: number
   rowTooltips: boolean
   params: Record<string, string | number | boolean>
+  paramTypes: Record<string, ParamDef['type']>
 }
 
 /** Every property the renderer reads, with its default (also run by `formatDefaults`). */
@@ -39,7 +40,9 @@ export function readCodeFormat(visualJson: any, theme: ResolvedTheme): CodeForma
   const f = new FormatReader(visualJson, theme)
   const ov = f.str(FORMAT_OBJECT, 'overflow', 'hidden')
   const params: Record<string, string | number | boolean> = {}
+  const paramTypes: Record<string, ParamDef['type']> = {}
   for (const p of readParamDefs(visualJson)) {
+    paramTypes[p.name] = p.type
     if (p.type === 'color') {
       // an automatic colour (empty) is left out: the code's own fallback (a theme colour) applies
       const c = f.color(PARAMS_OBJECT, p.name, String(p.default))
@@ -54,7 +57,8 @@ export function readCodeFormat(visualJson: any, theme: ResolvedTheme): CodeForma
     defaultSort: f.str(FORMAT_OBJECT, 'defaultSort', 'value') === 'category' ? 'category' : 'value',
     rowLimit: Math.max(1, Math.min(MAX_ROW_LIMIT, Math.round(f.num(FORMAT_OBJECT, 'rowLimit', DEFAULT_ROW_LIMIT)))),
     rowTooltips: f.bool(FORMAT_OBJECT, 'rowTooltips', true),
-    params
+    params,
+    paramTypes
   }
 }
 
@@ -302,6 +306,7 @@ export function queryCodeData(visualJson: any, ctx: VisualHostContext, fmt: Code
     hasSelection,
     drill,
     params: fmt.params,
+    paramTypes: fmt.paramTypes,
     warnings
   }
   return {

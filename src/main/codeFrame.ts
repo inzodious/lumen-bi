@@ -25,7 +25,7 @@ export const CODE_FRAME_CSP = [
   `script-src ${CODE_FRAME_SCHEME}: 'unsafe-eval'`,
   "style-src 'unsafe-inline'",
   'img-src data: blob:',
-  'font-src data:',
+  `font-src ${CODE_FRAME_SCHEME}: data:`,
   "connect-src 'none'",
   "media-src 'none'",
   "frame-src 'none'",
@@ -41,6 +41,7 @@ const FILES: Record<string, string> = {
   '/frame.js': 'text/javascript; charset=utf-8',
   '/react.js': 'text/javascript; charset=utf-8'
 }
+const FONT = /^\/fonts\/[a-z-]+\.woff2$/
 
 /** Call before `app.whenReady()`. */
 export function registerCodeFrameScheme(): void {
@@ -55,7 +56,8 @@ export function handleCodeFrameScheme(rendererDir: string): void {
     const url = new URL(req.url)
     // `code` hosts the frames of template-only visuals; `jsx-<id>` one frame with author JavaScript each, so it gets a
     // renderer process of its own (a different site) and a runaway script there blocks nothing else
-    const type = url.host === 'code' || /^jsx-[a-z0-9]{6,32}$/.test(url.host) ? FILES[url.pathname] : undefined
+    const hostOk = url.host === 'code' || /^jsx-[a-z0-9]{6,32}$/.test(url.host)
+    const type = !hostOk ? undefined : FONT.test(url.pathname) ? 'font/woff2' : FILES[url.pathname]
     if (!type || req.method !== 'GET') return new Response('Not found', { status: 404, headers: { 'content-security-policy': CODE_FRAME_CSP } })
     let body = cache.get(url.pathname)
     if (!body) {
@@ -72,8 +74,10 @@ export function handleCodeFrameScheme(rendererDir: string): void {
         'content-type': type,
         'content-security-policy': CODE_FRAME_CSP,
         'x-content-type-options': 'nosniff',
-        'cache-control': 'no-store',
-        'cross-origin-resource-policy': 'cross-origin'
+        'cache-control': type === 'font/woff2' ? 'public, max-age=31536000, immutable' : 'no-store',
+        'cross-origin-resource-policy': 'cross-origin',
+        // fonts load in CORS mode from the frame's opaque origin
+        ...(type === 'font/woff2' ? { 'access-control-allow-origin': '*' } : {})
       }
     })
   })

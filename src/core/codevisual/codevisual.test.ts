@@ -158,7 +158,9 @@ describe('css variables', () => {
     expect(r0['--highlight-pct-of-max']).toBe('0.5')
     expect(r0['--category-text']).toBe('"A"')
     expect(rowVars(d.rows[1], d, st)['--pct-of-max']).toBe('-0.333333333')
-    expect(paramVars({ accent: '#ff0000', title: 'Hi "x"', size: 3, on: true })).toEqual({ '--param-accent': '#ff0000', '--param-title': '"Hi \\"x\\""', '--param-size': '3', '--param-on': '1' })
+    expect(paramVars({ accent: '#ff0000', title: 'Hi "x"', size: 3, on: true }, { accent: 'color', title: 'text' })).toEqual({ '--param-accent': '#ff0000', '--param-title': '"Hi \\"x\\""', '--param-size': '3', '--param-on': '1' })
+    // a text parameter that looks like a colour name stays text; an invalid colour is left out
+    expect(paramVars({ title: 'Revenue', c: 'red;x' }, { title: 'text', c: 'color' })).toEqual({ '--param-title': '"Revenue"' })
   })
 })
 

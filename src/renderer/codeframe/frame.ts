@@ -11,23 +11,12 @@ import { PROTOCOL, validateHostMessage, type ErrorPhase, type FrameMessage, type
 import type { CodeData, CodeRow } from '@core/codevisual/types'
 import { formatValue } from '@core/format/format'
 import fontRules from '../src/assets/fonts/selawik/selawik.css?raw'
-import selawkl from '../src/assets/fonts/selawik/selawkl.woff2?inline'
-import selawksl from '../src/assets/fonts/selawik/selawksl.woff2?inline'
-import selawk from '../src/assets/fonts/selawik/selawk.woff2?inline'
-import selawksb from '../src/assets/fonts/selawik/selawksb.woff2?inline'
-import selawkb from '../src/assets/fonts/selawik/selawkb.woff2?inline'
-import lumenSemibold from '../src/assets/fonts/selawik/lumensans-semibold.woff2?inline'
 
-/** The report's Segoe UI stand-in faces (the app's selawik.css, each font file embedded once as a data: URI). */
-const FONT_FILES: Record<string, string> = {
-  'selawkl.woff2': selawkl,
-  'selawksl.woff2': selawksl,
-  'selawk.woff2': selawk,
-  'selawksb.woff2': selawksb,
-  'selawkb.woff2': selawkb,
-  'lumensans-semibold.woff2': lumenSemibold
-}
-const fontCss = fontRules.replace(/url\('\.\/([\w.-]+)'\)/g, (m, f: string) => (FONT_FILES[f] ? `url('${FONT_FILES[f]}')` : m))
+/**
+ * The report's Segoe UI stand-in faces (the app's selawik.css). The font files are served next to the frame by the
+ * main process (lumen-frame://<host>/fonts/…, cached by the browser), so each frame does not parse them again.
+ */
+const fontCss = fontRules.replace(/url\('\.\/([\w.-]+\.woff2)'\)/g, (_m, f: string) => `url('fonts/${f}')`)
 
 type ReactNS = typeof import('react')
 type ReactDOMClientNS = typeof import('react-dom/client')

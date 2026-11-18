@@ -162,6 +162,8 @@ export function CodeVisual({ visual, pageName, width, height, ctx, onStatus }: V
   const boxRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<CodeFrameHost | null>(null)
   const [rendered, setRendered] = useState(false)
+  /** sequence number of the last render the frame finished drawing (tests and captures wait on it) */
+  const [drawn, setDrawn] = useState(0)
   const seq = useRef(0)
   const live = useRef({ ctx, q: data as CodeQuery | undefined, name: visual.name })
   live.current = { ctx, q: data, name: visual.name }
@@ -178,6 +180,7 @@ export function CodeVisual({ visual, pageName, width, height, ctx, onStatus }: V
       case 'rendered':
         setRendered(true)
         setFrameError(null)
+        setDrawn(m.seq)
         return
       case 'error':
         if (m.seq !== seq.current && m.phase !== 'promise' && m.phase !== 'runtime') return
@@ -326,7 +329,7 @@ export function CodeVisual({ visual, pageName, width, height, ctx, onStatus }: V
 
   const noCode = !src.html.trim() && !src.jsx.trim()
   return (
-    <div className="wbi-codevisual" style={{ width, height }} data-code-state={error ? 'error' : rendered ? 'rendered' : 'loading'} data-code-mode={src.jsx ? 'jsx' : 'html'}>
+    <div className="wbi-codevisual" style={{ width, height }} data-code-state={error ? 'error' : rendered ? 'rendered' : 'loading'} data-code-drawn={drawn} data-code-mode={src.jsx ? 'jsx' : 'html'}>
       <div ref={boxRef} className="wbi-codevisual__box" style={{ visibility: error ? 'hidden' : undefined }} />
       {editing && !error && (
         <div

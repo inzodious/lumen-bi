@@ -69,6 +69,7 @@ async function clickInFrame(page: Page, visual: string, selector: string, opts: 
     return { x: b.left, y: b.top, w: b.width, h: b.height }
   })
   const iframe = page.locator(`.wbi-page [data-visual="${visual}"] iframe.wbi-codevisual__frame`)
+  await expect.poll(async () => (await iframe.boundingBox()) !== null || (await page.locator(`.wbi-page [data-visual="${visual}"] .wbi-codevisual`).getAttribute('data-code-state'))).toBe(true)
   const fb = (await iframe.boundingBox())!
   const inner = await iframe.evaluate((el) => (el as HTMLElement).offsetWidth)
   const scale = fb.width / inner
@@ -187,6 +188,27 @@ describe('code visual', () => {
     await expect.poll(() => frameStyle(frame, '.bl__fill', 'background-color')).toBe('rgb(214, 69, 84)')
   })
 
+  it('restyles from the Format pane: the Parameters card the code declares', async () => {
+    const { page } = lumen()
+    const frame = frameOf(page, cv)
+    await page.locator(`.wbi-page [data-visual="${cv}"]`).click({ position: { x: 20, y: 20 } })
+    // the Build pane offers the editor and the templates for a selected code visual
+    await page.getByRole('tab', { name: 'Build visual' }).click()
+    await expect.poll(() => page.locator('.wbi-viz__codeactions').getByRole('button', { name: 'Edit code' }).count()).toBe(1)
+    await page.getByRole('tab', { name: 'Format visual' }).click()
+    await page.locator('.wbi-fmt__pivot').getByRole('tab', { name: 'Visual' }).click()
+    const card = page.locator('.wbi-fmt__cards .wbi-card').filter({ has: page.locator('.wbi-card__title', { hasText: /^Parameters$/ }) })
+    if (!(await card.locator('[data-prop="title"]').count())) await card.locator('.wbi-card__header').click()
+    const box = card.locator('[data-prop="title"] input')
+    await box.fill('Revenue')
+    await box.press('Enter')
+    await expect.poll(() => frame.locator('.bl__title').innerText()).toBe('Revenue')
+    // the --param-title variable reaches the CSS too
+    expect(await frame.locator('#lumen-root').evaluate((el) => getComputedStyle(el).getPropertyValue('--param-title'))).toBe('"Revenue"')
+    await page.locator('.wbi-titlebar').getByRole('button', { name: /^Undo/ }).click()
+    await expect.poll(() => frame.locator('.bl__title').innerText()).toBe('Total Sales')
+  })
+
   it('switches layout with a container query when the visual is resized', async () => {
     const { page } = lumen()
     const frame = frameOf(page, cv)
@@ -296,7 +318,11 @@ describe('code visual', () => {
     expect(await frame.locator('.bl__path').count()).toBe(0)
     // header icons: turn on drill mode, then a click on a row drills
     const header = page.locator(`.wbi-vh[data-visual-header="${cv}"]`)
-    const hover = () => page.locator(`.wbi-page [data-visual="${cv}"]`).hover({ position: { x: 30, y: 30 } })
+    // re-enter the visual (a row tooltip under the pointer can take the hover away from the container)
+    const hover = async () => {
+      await page.mouse.move(2, 400)
+      await page.locator(`.wbi-page [data-visual="${cv}"]`).hover({ position: { x: 30, y: 30 } })
+    }
     // the header re-renders while the visual updates: click it by position
     const headerClick = async (name: string) => {
       const btn = header.getByRole('button', { name, exact: true })

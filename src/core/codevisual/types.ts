@@ -98,6 +98,8 @@ export interface CodeData {
   hasSelection: boolean
   drill: DrillInfo
   params: Record<string, string | number | boolean>
+  /** the declared type of each parameter (decides its CSS form: colour, number, string, 1 / 0) */
+  paramTypes?: Record<string, ParamDef['type']>
   warnings: string[]
 }
 

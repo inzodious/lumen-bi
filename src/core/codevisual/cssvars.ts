@@ -105,13 +105,17 @@ export function fontStack(families: string): string {
   return list.join(', ')
 }
 
-export function paramVars(params: Record<string, string | number | boolean>): Record<string, string> {
+export function paramVars(params: Record<string, string | number | boolean>, types: Record<string, string> = {}): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(params)) {
     const name = `--param-${cssName(k)}`
-    if (typeof v === 'boolean') out[name] = v ? '1' : '0'
-    else if (typeof v === 'number') out[name] = cssNumber(v) ?? '0'
-    else out[name] = cssColor(v) ?? cssString(v)
+    const type = types[k] ?? (typeof v === 'boolean' ? 'toggle' : typeof v === 'number' ? 'number' : 'text')
+    if (type === 'toggle') out[name] = v === true || v === 1 || v === 'true' ? '1' : '0'
+    else if (type === 'number') out[name] = cssNumber(Number(v)) ?? '0'
+    else if (type === 'color') {
+      const c = cssColor(v)
+      if (c) out[name] = c
+    } else out[name] = cssString(String(v))
   }
   return out
 }
@@ -130,7 +134,7 @@ export function dataVars(data: CodeData): Record<string, string> {
 export function rootVars(data: CodeData, theme: ThemeInfo, size: { width: number; height: number }): Record<string, string> {
   return {
     ...themeVars(theme),
-    ...paramVars(data.params),
+    ...paramVars(data.params, data.paramTypes),
     ...dataVars(data),
     '--width': `${cssNumber(size.width) ?? 0}px`,
     '--height': `${cssNumber(size.height) ?? 0}px`

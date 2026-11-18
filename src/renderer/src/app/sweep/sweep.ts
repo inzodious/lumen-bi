@@ -23,7 +23,7 @@ import { orderedPages, pageInfo, visualTypeOf, isGroup, isEffectivelyHidden, isS
 import { liveContext } from '../../report/host'
 import { probeVisual, CARD_TYPES, type VisualProbe } from './probe'
 import { slicerItems } from './slicerItems'
-import { auditPageSelections, type PageSelectionAudit } from './selectionAudit'
+import { auditPageSelections, checkEntityVisuals, type EntityCheck, type PageSelectionAudit } from './selectionAudit'
 import { BLOCK_CACHE_GLOBAL } from '@shared/cacheGuard'
 import { holdBusy, isBusy } from '../readiness'
 
@@ -71,6 +71,11 @@ export interface SweepPage {
   consoleErrors: string[]
   /** `selections=1`: selection audit of the page (trials capped at 40 in the file) */
   selections?: PageSelectionAudit
+  /**
+   * `selections=1`: exhaustive entity check (selectionAudit.ts `checkEntityVisuals`): per table / matrix grouped by one
+   * sliced dimension and per list slicer on it, members offered / listed and how many single selections empty it
+   */
+  entities?: EntityCheck[]
 }
 
 export interface SweepReport {
@@ -90,6 +95,11 @@ export interface SweepReport {
   totals: Record<string, number>
   /** `selections=1`: audit totals over the pages (see selectionAudit.ts) */
   selectionTotals?: { slicers: number; selections: number; emptied: number; emptiedSelections: number; emptiedVisuals: number; cappedPages: number; ms: number }
+  /**
+   * `selections=1`: entity-check totals over the pages: entity-level visuals, (visual, slicer) pairs, members offered /
+   * listed (saved state, that slicer at "All"), single selections tried and those that empty the visual
+   */
+  entityTotals?: { visuals: number; pairs: number; offered: number; listed: number; singles: number; emptying: number; ms: number }
   error?: string
   /** page being rendered when report.json was last written (set while a page renders: a hang leaves it behind) */
   inProgress?: string
@@ -376,6 +386,7 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
         visuals.push(sv)
       }
       let selections: PageSelectionAudit | undefined
+      let entities: EntityCheck[] | undefined
       if (params.get('selections') === '1' && engine) {
         // engine level, under the saved state of the page (a seeded, capped sample of each slicer's items)
         try {
@@ -392,6 +403,23 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
         } catch (e) {
           consoleBuf.push(`[selections] ${e instanceof Error ? e.message : String(e)}`)
         }
+        // every member of each slicer on the dimension of an entity-level table (up to 500), one at a time
+        try {
+          const t0 = performance.now()
+          entities = checkEntityVisuals(engine, report, page, { cap: 500 })
+          const t = (rep.entityTotals ??= { visuals: 0, pairs: 0, offered: 0, listed: 0, singles: 0, emptying: 0, ms: 0 })
+          t.visuals += new Set(entities.map((c) => c.visual)).size
+          t.pairs += entities.length
+          for (const c of entities) {
+            t.offered += c.offered
+            t.listed += c.listed
+            t.singles += c.singles
+            t.emptying += c.emptying
+          }
+          t.ms += Math.round(performance.now() - t0)
+        } catch (e) {
+          consoleBuf.push(`[entities] ${e instanceof Error ? e.message : String(e)}`)
+        }
       }
       rep.pages.push({
         name: page.name,
@@ -407,7 +435,8 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
         visuals,
         counts: countStates(visuals),
         consoleErrors: [...new Set(consoleBuf)].slice(0, 40),
-        selections
+        selections,
+        entities
       })
       for (const [k, n] of Object.entries(countStates(visuals))) rep.totals[k] = (rep.totals[k] ?? 0) + n
       rep.inProgress = undefined

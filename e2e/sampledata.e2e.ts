@@ -381,4 +381,102 @@ describe('a report filled with sample data is interactive', () => {
       await settle(page)
     }
   })
+
+  /**
+   * Every item of a virtualized list (a slicer popup's listbox, a table's body), read by scrolling it to the end. Each
+   * step waits for the list to render the new window (two animation frames) before reading it.
+   */
+  async function scrollCollect(page: Page, scroller: string, read: 'options' | 'tableRows'): Promise<string[]> {
+    return page.evaluate(
+      async ({ scroller, read }) => {
+        const el = document.querySelector<HTMLElement>(scroller)
+        if (!el) return []
+        const frames = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+        const seen = new Map<number, string>()
+        const grab = () => {
+          if (read === 'options') {
+            for (const o of el.querySelectorAll<HTMLElement>('[role="option"]')) {
+              const top = Math.round(o.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop)
+              seen.set(top, o.innerText.trim())
+            }
+          } else {
+            const body = el.firstElementChild?.children[1]
+            for (const row of Array.from(body?.children ?? []) as HTMLElement[]) {
+              const m = /translateY\(([\d.]+)px\)/.exec(row.style.transform)
+              if (m) seen.set(Math.round(Number(m[1])), (row.firstElementChild as HTMLElement | null)?.innerText.trim() ?? '')
+            }
+          }
+        }
+        let stable = 0
+        for (let step = 0; step < 2000 && stable < 3; step++) {
+          await frames()
+          grab()
+          const before = el.scrollTop
+          const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 1
+          el.scrollTop = before + Math.max(20, el.clientHeight * 0.7)
+          stable = atEnd ? stable + 1 : 0
+        }
+        el.scrollTop = 0
+        return [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([, t]) => t)
+      },
+      { scroller, read }
+    )
+  }
+
+  /** Pick one item of a dropdown slicer by its position in the (virtualized) list. */
+  async function pickByIndex(page: Page, name: string, index: number, label: string): Promise<void> {
+    await slicer(page, name).getByRole('combobox').click()
+    await popup(page).waitFor()
+    const option = popup(page).getByRole('option', { name: label, exact: true })
+    await page.evaluate(
+      async ({ index }) => {
+        const list = document.querySelector<HTMLElement>('.wbi-slicer-popup [role="listbox"]')
+        const first = list?.querySelector<HTMLElement>('[role="option"]')
+        if (!list || !first) return
+        list.scrollTop = Math.max(0, index * first.getBoundingClientRect().height - list.clientHeight / 2)
+        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+      },
+      { index }
+    )
+    await option.waitFor()
+    await option.click()
+    await page.keyboard.press('Escape')
+  }
+
+  it('a measure that only counts flagged accounts: the table lists every account offered and keeps the row of each one picked', async () => {
+    const { page } = lumen()
+    await goToPage(page, 'Account list')
+    const table = await visualByTitle(page, 'Counted amount by account')
+    await untilVisualText(page, table, hasNumber)
+    await settle(page)
+    // the flag the measure filters on is not shown anywhere: every generated account holds the literal
+    const flags = await columnSample(page, 'accounts', 'counted')
+    expect(new Set(flags)).toEqual(new Set(['count_this_account']))
+    // the accounts the slicer offers (the whole virtualized list) …
+    await slicer(page, 'slicerAccount3').getByRole('combobox').click()
+    await popup(page).waitFor()
+    const options = await scrollCollect(page, '.wbi-slicer-popup [role="listbox"]', 'options')
+    const offset = options[0] === 'Select all' ? 1 : 0
+    const offered = options.slice(offset)
+    await page.keyboard.press('Escape')
+    expect(offered.length).toBeGreaterThan(100)
+    // … are exactly the accounts the table lists with nothing selected
+    const listed = await scrollCollect(page, `.wbi-page [data-visual="${table}"] .wbi-table-scroll`, 'tableRows')
+    expect(listed.length).toBe(offered.length)
+    expect(new Set(listed)).toEqual(new Set(offered))
+    // each of 24 accounts spread over the list (first and last included) keeps exactly its own row
+    const picks = [...new Set(Array.from({ length: 24 }, (_, k) => Math.round((k * (offered.length - 1)) / 23)))]
+    expect(picks[0]).toBe(0)
+    expect(picks[picks.length - 1]).toBe(offered.length - 1)
+    let previous = ''
+    for (const i of picks) {
+      const name = offered[i]
+      await pickByIndex(page, 'slicerAccount3', i + offset, name)
+      // the table shows that account's row, alone, with an amount
+      const text = await untilVisualText(page, table, (t) => t !== previous && t.includes(name) && hasNumber(t))
+      await expect.poll(() => scrollCollect(page, `.wbi-page [data-visual="${table}"] .wbi-table-scroll`, 'tableRows'), { message: name }).toEqual([name])
+      previous = text
+      await settle(page)
+    }
+  })
 })

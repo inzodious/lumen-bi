@@ -24,6 +24,14 @@
  * accumulated through nested measure references, report + page + slicer + visual filters around the
  * measures a visual shows). The generator seeds rows that satisfy each conjunction at once.
  *
+ * Besides the domains, every literal condition is recorded with its operator, polarity, site and use (`MinedCondition`:
+ * `=` / IN / ISBLANK / comparisons / text search, negated by `<>`, NOT IN, NOT ( … ) and report Not filters; inside a
+ * measure, calculated column / table, calculation item, role, report filter, slicer selection, bookmark or conditional
+ * formatting; as a row filter or as a branch test), traced through VAR bindings, KEEPFILTERS, TREATAS, FILTER,
+ * CALCULATE(TABLE), IF and SWITCH. ./synthetic-conditions.ts turns them into value distributions. Not traced: conditions
+ * in expressions the tolerant parser rejects, conditions reached only through measure references inside a filter
+ * argument, and conditions on calculated columns (not pushed back to their sources with their polarity).
+ *
  * Calculated columns: values mined for a calculated column are pushed back to the data columns it is
  * computed from (`COALESCE(CALCULATE(MAX(t[c])), "N/A")`, `SWITCH(t[c], "a", "A", ...)` inverted,
  * `SWITCH(TRUE(), t[c] = "x", "X", ...)` / `IF(...)` conditions of the branch producing the value).
@@ -36,7 +44,7 @@ import type { ProjectDocument } from '../project'
 import { decodeLiteral } from '../report/literal'
 import { makeDate } from '../model/data'
 import { literalOf, literalTableOf, tokenizeDax, tryParseDax, type DaxNode, type LiteralTable } from './synthetic-dax'
-import { propagateLineage } from './synthetic-lineage'
+import { modelLineage, propagateLineage } from './synthetic-lineage'
 
 export type MinedValue = string | number | boolean | Date
 
@@ -61,6 +69,42 @@ export interface MineResult {
   domains: Map<string, MinedDomain>
   conjunctions: Conjunction[]
   implications: Implication[]
+  /** every literal condition with its operator, polarity and where it is used (see MinedCondition) */
+  conditions: MinedCondition[]
+}
+
+/**
+ * Operator of a mined condition: `=` (one literal), `IN` (a list), `ISBLANK`, a comparison, or `CONTAINS` (CONTAINSSTRING,
+ * SEARCH / FIND, report Contains / StartsWith / EndsWith). The negations (`<>`, `NOT IN`, `NOT ISBLANK`, does not contain)
+ * are the same operators with `polarity: 'negative'`.
+ */
+export type CondOp = '=' | 'IN' | 'ISBLANK' | '<' | '<=' | '>' | '>=' | 'CONTAINS'
+
+/**
+ * Where a condition is written: a measure (also KPI, detail-rows and format-string expressions of measures), a
+ * calculation item, a calculated column, a calculated table, a role (RLS), a report / page / visual filter, a slicer's
+ * saved selection, a bookmark, or a conditional-formatting rule.
+ */
+export type CondSite = 'measure' | 'calcItem' | 'calcColumn' | 'calcTable' | 'rls' | 'filter' | 'slicer' | 'bookmark' | 'format'
+
+/**
+ * A literal condition on a column, as the definitions use it.
+ *  - `use: 'filter'`: the condition restricts the rows a computation sees (a CALCULATE / CALCULATETABLE filter argument,
+ *    a FILTER predicate, TREATAS, KEEPFILTERS, a report filter, a slicer selection, a role filter);
+ *  - `use: 'test'`: a branch condition (IF / SWITCH), a comparison computed as a value, a conditional-formatting rule.
+ * `polarity: 'negative'` for `<>`, NOT IN, NOT ISBLANK, NOT CONTAINSSTRING and report exclude (Not) filters; a
+ * condition under NOT ( … ) flips. `source` names the measure / column / table / visual it comes from (model and
+ * report object names; kept in memory only).
+ */
+export interface MinedCondition {
+  table: string
+  column: string
+  op: CondOp
+  polarity: 'positive' | 'negative'
+  values: MinedValue[]
+  site: CondSite
+  use: 'filter' | 'test'
+  source?: string
 }
 
 export interface MinedDomain {
@@ -103,6 +147,12 @@ interface Cond {
 }
 
 const MAX_CONJUNCTIONS = 600
+const MAX_CONDITIONS = 20000
+
+/** `BLANK()` */
+function isBlankCall(n: DaxNode | null): boolean {
+  return !!n && n.k === 'call' && n.name === 'BLANK' && n.args.filter(Boolean).length === 0
+}
 
 class ModelIndex {
   readonly tables = new Map<string, TableDef>()
@@ -669,6 +719,290 @@ class Miner {
       default:
         return
     }
+  }
+
+  // --- conditions with polarity and site ---------------------------------------------------------
+
+  /** condition key → condition (deduplicated) */
+  readonly conditions = new Map<string, MinedCondition>()
+  private condSite: CondSite = 'measure'
+  private condSource = ''
+
+  private addCondition(ref: ColRef, op: CondOp, values: MinedValue[], negative: boolean, use: 'filter' | 'test'): void {
+    if (this.conditions.size >= MAX_CONDITIONS) return
+    const vals = values.filter((v) => v !== null && v !== undefined)
+    const key = [
+      domainKey(ref.table.name, ref.column.name).toLowerCase(),
+      op,
+      negative ? '-' : '+',
+      use,
+      this.condSite,
+      this.condSource.toLowerCase(),
+      vals.map((v) => (v instanceof Date ? 'd' + v.getTime() : typeof v === 'string' ? 's' + v.toLowerCase() : typeof v + String(v))).sort().join('|')
+    ].join('\u0001')
+    if (this.conditions.has(key)) return
+    this.conditions.set(key, {
+      table: ref.table.name,
+      column: ref.column.name,
+      op,
+      polarity: negative ? 'negative' : 'positive',
+      values: vals,
+      site: this.condSite,
+      use,
+      ...(this.condSource ? { source: this.condSource } : {})
+    })
+  }
+
+  /** Record the literal conditions of one expression (see MinedCondition). Expressions the parser rejects are not traced. */
+  scanConditions(expr: string | undefined, home: TableDef | undefined, site: CondSite, source: string): void {
+    if (!expr || !expr.trim()) return
+    const ast = tryParseDax(expr)
+    if (!ast) return
+    this.condSite = site
+    this.condSource = source
+    this.cv(ast, new Map(), home, [], 'value', false, 0)
+  }
+
+  /**
+   * Condition walker. `ctx`: `filter` — the expression restricts rows (CALCULATE / FILTER argument); `test` — a branch
+   * condition; `value` — anywhere else (a comparison there is a test computed as a value). `neg`: under NOT ( … ).
+   */
+  private cv(n: DaxNode | null, env: Env, home: TableDef | undefined, rowTables: TableDef[], ctx: 'filter' | 'test' | 'value', neg: boolean, depth: number): void {
+    if (!n || depth > 300) return
+    const use = ctx === 'filter' ? 'filter' : 'test'
+    switch (n.k) {
+      case 'var': {
+        const inner: Env = new Map(env)
+        for (const d of n.defs) {
+          this.cv(d.e, inner, home, rowTables, 'value', false, depth + 1)
+          inner.set(d.name.toLowerCase(), d.e)
+        }
+        this.cv(n.ret, inner, home, rowTables, ctx, neg, depth + 1)
+        return
+      }
+      case 'id': {
+        // a variable used as a condition: its definition is the condition (traced through VAR bindings)
+        if (ctx === 'value') return
+        const bound = env.get(n.name.toLowerCase())
+        if (bound) this.cv(bound, env, home, rowTables, ctx, neg, depth + 1)
+        return
+      }
+      case 'un':
+        if (n.op === 'NOT') this.cv(n.e, env, home, rowTables, ctx === 'value' ? 'test' : ctx, !neg, depth + 1)
+        else this.cv(n.e, env, home, rowTables, ctx, neg, depth + 1)
+        return
+      case 'bin': {
+        const op = n.op
+        if (op === '&&' || op === '||') {
+          // a disjunction does not require either side (and NOT (a && b) is one): its parts are tests
+          const conj = (op === '&&') !== neg
+          const inner = ctx === 'filter' && !conj ? 'test' : ctx === 'value' ? 'test' : ctx
+          this.cv(n.l, env, home, rowTables, inner, neg, depth + 1)
+          this.cv(n.r, env, home, rowTables, inner, neg, depth + 1)
+          return
+        }
+        if (op === '=' || op === '==' || op === '<>') {
+          const flip = op === '<>' ? !neg : neg
+          const lc = this.colOf(n.l, env, home, rowTables)
+          const rc = this.colOf(n.r, env, home, rowTables)
+          const blankL = isBlankCall(n.l)
+          const blankR = isBlankCall(n.r)
+          if (lc && blankR) this.addCondition(lc, 'ISBLANK', [], flip, use)
+          else if (rc && blankL) this.addCondition(rc, 'ISBLANK', [], flip, use)
+          else {
+            const rv = this.litOf(n.r, env)
+            const lv = this.litOf(n.l, env)
+            if (lc && rv !== undefined) this.addCondition(lc, '=', [rv], flip, use)
+            else if (rc && lv !== undefined) this.addCondition(rc, '=', [lv], flip, use)
+          }
+          this.cv(n.l, env, home, rowTables, 'value', false, depth + 1)
+          this.cv(n.r, env, home, rowTables, 'value', false, depth + 1)
+          return
+        }
+        if (op === '<' || op === '>' || op === '<=' || op === '>=') {
+          const lc = this.colOf(n.l, env, home, rowTables)
+          const rv = this.litOf(n.r, env)
+          const rc = this.colOf(n.r, env, home, rowTables)
+          const lv = this.litOf(n.l, env)
+          const mirror: Record<string, CondOp> = { '<': '>', '>': '<', '<=': '>=', '>=': '<=' }
+          if (lc && rv !== undefined && typeof rv !== 'boolean') this.addCondition(lc, op as CondOp, [rv], neg, use)
+          else if (rc && lv !== undefined && typeof lv !== 'boolean') this.addCondition(rc, mirror[op], [lv], neg, use)
+          this.cv(n.l, env, home, rowTables, 'value', false, depth + 1)
+          this.cv(n.r, env, home, rowTables, 'value', false, depth + 1)
+          return
+        }
+        if (op === 'IN') {
+          const lc = this.colOf(n.l, env, home, rowTables)
+          const rows = lc ? this.listOf(n.r, env) : undefined
+          if (lc && rows) {
+            const vals = rows.map((r) => r[0]).filter((x): x is MinedValue => x !== undefined)
+            if (vals.length) this.addCondition(lc, vals.length === 1 ? '=' : 'IN', vals, neg, use)
+          }
+          this.cv(n.l, env, home, rowTables, 'value', false, depth + 1)
+          this.cv(n.r, env, home, rowTables, 'value', false, depth + 1)
+          return
+        }
+        this.cv(n.l, env, home, rowTables, 'value', false, depth + 1)
+        this.cv(n.r, env, home, rowTables, 'value', false, depth + 1)
+        return
+      }
+      case 'list':
+      case 'tuple':
+        for (const it of n.items) this.cv(it, env, home, rowTables, 'value', false, depth + 1)
+        return
+      case 'call': {
+        const a = n.args
+        switch (n.name) {
+          case 'CALCULATE':
+          case 'CALCULATETABLE':
+            this.cv(a[0] ?? null, env, home, rowTables, 'value', false, depth + 1)
+            for (let i = 1; i < a.length; i++) this.cv(a[i] ?? null, env, home, [], 'filter', false, depth + 1)
+            return
+          case 'FILTER': {
+            const t = this.tableOf(a[0] ?? null, env)
+            this.cv(a[0] ?? null, env, home, rowTables, ctx === 'filter' ? 'filter' : 'value', false, depth + 1)
+            this.cv(a[1] ?? null, env, home, t ? [...rowTables, t] : rowTables, 'filter', false, depth + 1)
+            return
+          }
+          case 'KEEPFILTERS':
+            this.cv(a[0] ?? null, env, home, rowTables, ctx, neg, depth + 1)
+            return
+          case 'NOT':
+            this.cv(a[0] ?? null, env, home, rowTables, ctx === 'value' ? 'test' : ctx, !neg, depth + 1)
+            return
+          case 'TREATAS': {
+            const rows = this.listOf(a[0] ?? null, env)
+            if (rows) {
+              a.slice(1).forEach((x, i) => {
+                const c = this.colOf(x, env, home, rowTables)
+                const vals = rows.map((r) => r[i]).filter((v): v is MinedValue => v !== undefined)
+                if (c && vals.length) this.addCondition(c, vals.length === 1 ? '=' : 'IN', vals, false, 'filter')
+              })
+            }
+            for (const x of a) this.cv(x, env, home, rowTables, 'value', false, depth + 1)
+            return
+          }
+          case 'ISBLANK': {
+            const c = this.colOf(a[0] ?? null, env, home, rowTables)
+            if (c) this.addCondition(c, 'ISBLANK', [], neg, use)
+            this.cv(a[0] ?? null, env, home, rowTables, 'value', false, depth + 1)
+            return
+          }
+          case 'CONTAINSSTRING':
+          case 'CONTAINSSTRINGEXACT':
+          case 'SEARCH':
+          case 'FIND': {
+            const search = n.name === 'SEARCH' || n.name === 'FIND'
+            const c = this.colOf(a[search ? 1 : 0] ?? null, env, home, rowTables)
+            const v = this.litOf(a[search ? 0 : 1] ?? null, env)
+            if (c && typeof v === 'string' && v.trim()) this.addCondition(c, 'CONTAINS', [v], neg, search ? 'test' : use)
+            for (const x of a) this.cv(x, env, home, rowTables, 'value', false, depth + 1)
+            return
+          }
+          case 'IF':
+          case 'IF.EAGER':
+            this.cv(a[0] ?? null, env, home, rowTables, 'test', false, depth + 1)
+            for (let i = 1; i < a.length; i++) this.cv(a[i] ?? null, env, home, rowTables, ctx === 'filter' ? 'test' : 'value', false, depth + 1)
+            return
+          case 'SWITCH': {
+            if (literalOf(a[0] ?? null) === true) {
+              for (let i = 1; i < a.length; i++) {
+                const isCond = i % 2 === 1 && i + 1 < a.length
+                this.cv(a[i] ?? null, env, home, rowTables, isCond ? 'test' : 'value', false, depth + 1)
+              }
+              return
+            }
+            const subject = this.colOf(a[0] ?? null, env, home, rowTables)
+            if (subject) {
+              for (let i = 1; i + 1 < a.length; i += 2) {
+                const v = this.litOf(a[i] ?? null, env)
+                if (v !== undefined) this.addCondition(subject, '=', [v], false, 'test')
+              }
+            }
+            for (const x of a) this.cv(x, env, home, rowTables, 'value', false, depth + 1)
+            return
+          }
+          default:
+            break
+        }
+        if (ROW_CONTEXT_FNS.has(n.name) && a.length > 1) {
+          const t = this.tableOf(n.name === 'TOPN' ? (a[1] ?? null) : (a[0] ?? null), env)
+          const inner = t ? [...rowTables, t] : rowTables
+          a.forEach((x, i) => this.cv(x, env, home, i === 0 ? rowTables : inner, 'value', false, depth + 1))
+        } else for (const x of a) this.cv(x, env, home, rowTables, 'value', false, depth + 1)
+        return
+      }
+      default:
+        return
+    }
+  }
+
+  /** Conditions of report SQ definitions (filters, slicer selections, bookmarks, conditional formatting). */
+  scanReportConditions(node: unknown, site: CondSite, source: string): void {
+    this.condSite = site
+    this.condSource = source
+    this.sqConds(node, {}, false, site === 'format' ? 'test' : 'filter', 0)
+  }
+
+  private sqConds(node: unknown, aliases: Record<string, string>, neg: boolean, use: 'filter' | 'test', depth: number): void {
+    if (!node || typeof node !== 'object' || depth > 80) return
+    if (Array.isArray(node)) {
+      for (const x of node) this.sqConds(x, aliases, neg, use, depth + 1)
+      return
+    }
+    const o = node as Record<string, any>
+    let scope = aliases
+    if (Array.isArray(o.From)) {
+      scope = { ...aliases }
+      for (const f of o.From) if (f && typeof f.Name === 'string' && typeof f.Entity === 'string') scope[f.Name] = f.Entity
+    }
+    if (o.Not && typeof o.Not === 'object') {
+      this.sqConds(o.Not.Expression, scope, !neg, use, depth + 1)
+      return
+    }
+    if (o.Or && typeof o.Or === 'object') {
+      const inner = neg ? use : 'test'
+      this.sqConds(o.Or.Left, scope, neg, inner, depth + 1)
+      this.sqConds(o.Or.Right, scope, neg, inner, depth + 1)
+      return
+    }
+    if (o.And && typeof o.And === 'object') {
+      const inner = neg ? 'test' : use
+      this.sqConds(o.And.Left, scope, neg, inner, depth + 1)
+      this.sqConds(o.And.Right, scope, neg, inner, depth + 1)
+      return
+    }
+    if (o.In && typeof o.In === 'object' && Array.isArray(o.In.Expressions) && Array.isArray(o.In.Values)) {
+      const cols = o.In.Expressions.map((e: any) => this.sqColumn(e, scope))
+      cols.forEach((c: ColRef | undefined, i: number) => {
+        if (!c) return
+        const vals = (o.In.Values as any[]).map((t) => (Array.isArray(t) ? this.sqLiteral(t[i]) : undefined)).filter((v): v is MinedValue => v !== undefined)
+        const hasNull = (o.In.Values as any[]).some((t) => Array.isArray(t) && t[i]?.Literal && decodeLiteral(t[i].Literal.Value) === null)
+        if (vals.length) this.addCondition(c, vals.length === 1 ? '=' : 'IN', vals, neg, use)
+        if (hasNull) this.addCondition(c, 'ISBLANK', [], neg, use)
+      })
+      return
+    }
+    if (o.Comparison && typeof o.Comparison === 'object') {
+      const kind = o.Comparison.ComparisonKind ?? 0
+      const ops: CondOp[] = ['=', '>', '>=', '<=', '<']
+      const lc = this.sqColumn(o.Comparison.Left, scope)
+      const rv = this.sqLiteral(o.Comparison.Right)
+      const isNull = o.Comparison.Right?.Literal && decodeLiteral(o.Comparison.Right.Literal.Value) === null
+      if (lc && isNull && kind === 0) this.addCondition(lc, 'ISBLANK', [], neg, use)
+      else if (lc && rv !== undefined && ops[kind]) this.addCondition(lc, ops[kind], [rv], neg, use)
+      return
+    }
+    for (const kind of ['Contains', 'StartsWith', 'EndsWith']) {
+      const cond = o[kind]
+      if (cond && typeof cond === 'object') {
+        const c = this.sqColumn(cond.Left, scope)
+        const v = this.sqLiteral(cond.Right)
+        if (c && typeof v === 'string' && v.trim()) this.addCondition(c, 'CONTAINS', [v], neg, use)
+        return
+      }
+    }
+    for (const v of Object.values(o)) if (v && typeof v === 'object') this.sqConds(v, scope, neg, use, depth + 1)
   }
 
   // --- report SQ ------------------------------------------------------------------------------
@@ -1303,6 +1637,51 @@ export function mineValueDomains(project: Pick<ProjectDocument, 'model' | 'repor
 export function mineModel(project: Pick<ProjectDocument, 'model' | 'report'>, opts: MineOptions = {}): MineResult {
   const model = project.model
   const miner = new Miner(model)
+  // conditions with polarity and site (what each literal is used for: see MinedCondition)
+  for (const t of model.tables) {
+    for (const m of t.measures) {
+      for (const e of [m.expression, m.formatStringDefinition?.expression, m.detailRowsDefinition, m.kpi?.targetExpression, m.kpi?.statusExpression, m.kpi?.trendExpression]) miner.scanConditions(e, t, 'measure', m.name)
+    }
+    for (const c of t.columns) if (c.kind === 'calculated') miner.scanConditions(c.expression, t, 'calcColumn', `${t.name}[${c.name}]`)
+    for (const p of t.partitions) if (p.sourceType === 'calculated' && !/\bNAMEOF\s*\(/i.test(p.expression ?? '')) miner.scanConditions(p.expression, t, 'calcTable', t.name)
+    const cg = t.calculationGroup
+    if (cg) {
+      for (const it of cg.items) miner.scanConditions(it.expression, t, 'calcItem', it.name)
+      miner.scanConditions(cg.noSelectionExpression, t, 'calcItem', t.name)
+      miner.scanConditions(cg.multipleOrEmptySelectionExpression, t, 'calcItem', t.name)
+    }
+  }
+  for (const role of model.roles ?? []) {
+    for (const tp of role.tablePermissions) {
+      const home = model.tables.find((t) => t.name.toLowerCase() === tp.table.toLowerCase())
+      miner.scanConditions(tp.filterExpression, home, 'rls', role.name)
+    }
+  }
+  if (opts.report !== false && project.report) {
+    const r = project.report
+    const filterCards = (json: any): unknown => json?.filterConfig
+    miner.scanReportConditions(filterCards(r.report), 'filter', 'report')
+    for (const p of r.pages) {
+      miner.scanReportConditions(filterCards(p.json), 'filter', p.name)
+      for (const v of p.visuals) {
+        const vis = v.json?.visual
+        miner.scanReportConditions(filterCards(v.json), 'filter', v.name)
+        miner.scanReportConditions(vis?.query?.Where, 'filter', v.name)
+        const general = Array.isArray(vis?.objects?.general) ? vis.objects.general : []
+        for (const g of general) miner.scanReportConditions(g?.properties?.filter, 'slicer', v.name)
+        // conditional formatting: rules anywhere else in the formatting objects
+        const { general: _general, ...rest } = vis?.objects ?? {}
+        void _general
+        miner.scanReportConditions(rest, 'format', v.name)
+        miner.scanReportConditions(vis?.visualContainerObjects, 'format', v.name)
+      }
+    }
+    for (const b of r.bookmarks ?? []) miner.scanReportConditions(b.json, 'bookmark', b.name ?? 'bookmark')
+    for (const ent of (r.reportExtensions as any)?.entities ?? []) {
+      const home = model.tables.find((t) => t.name.toLowerCase() === String(ent?.name ?? '').toLowerCase())
+      for (const m of ent?.measures ?? []) if (typeof m?.expression === 'string') miner.scanConditions(m.expression, home, 'measure', String(m.name ?? ''))
+    }
+  }
   for (const t of model.tables) {
     for (const m of t.measures) {
       miner.scanDax(m.expression, t)
@@ -1362,9 +1741,30 @@ export function mineModel(project: Pick<ProjectDocument, 'model' | 'report'>, op
   for (const conds of miner.conjunctions.values()) {
     conjunctions.push({ conds: conds.map((c) => ({ table: c.ref.table.name, column: c.ref.column.name, values: c.values })) })
   }
-  const result: MineResult = { domains: miner.domains, conjunctions, implications: [...miner.implications.values()] }
+  const result: MineResult = { domains: miner.domains, conjunctions, implications: [...miner.implications.values()], conditions: [...miner.conditions.values()] }
   // what was mined for calculated tables (UNION / SELECTCOLUMNS / FILTER over imported tables) also applies to
   // the imported columns those tables are computed from — the only ones the generator writes
   propagateLineage(model, result, domainKey)
+  result.conditions.push(...conditionsThroughLineage(model, result.conditions))
   return result
+}
+
+/**
+ * Conditions on columns of calculated tables that combine imported ones (UNION / SELECTCOLUMNS / FILTER…, see
+ * ./synthetic-lineage.ts) also hold on the imported columns they are copied from (a scaled copy is not followed).
+ */
+function conditionsThroughLineage(model: SemanticModel, conds: MinedCondition[]): MinedCondition[] {
+  const lineage = modelLineage(model)
+  if (!lineage.size) return []
+  const out: MinedCondition[] = []
+  for (const c of conds) {
+    for (const b of lineage.get(c.table.toLowerCase()) ?? []) {
+      const lc = b.columns.get(c.column.toLowerCase())
+      if (!lc?.source || lc.scale) continue
+      const t = model.tables.find((x) => x.name.toLowerCase() === b.table.toLowerCase())
+      const col = t?.columns.find((x) => x.name.toLowerCase() === lc.source!.toLowerCase())
+      if (t && col) out.push({ ...c, table: t.name, column: col.name })
+    }
+  }
+  return out
 }

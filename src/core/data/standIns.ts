@@ -33,16 +33,30 @@ function valueKey(v: Scalar): string {
 
 /**
  * Choose stand-ins for the withheld literals of one generated column: its distinct non-blank values ranked by
- * frequency (ties: first row first) or, with `rowWeight` (1 + how many fact rows reference the row), the referenced
- * values closest to the top decile's weight first, so a pinned page shows a busy (not the busiest) member, skipping values that are themselves literals of the definitions (`avoid`, value keys),
- * assigned to the literals in order (cycled when the column has fewer values). Undefined when the column is empty.
+ * frequency (ties: first row first) or, with `rowWeight` (1 + how many fact rows reference the row), by that weight among
+ * the referenced values, so a pinned page shows a busy member, skipping values that are themselves literals of the definitions (`avoid`, value keys),
+ * assigned to the literals in order (cycled when the column has fewer values). With `rowOk`, only rows it accepts are
+ * candidates (rows meeting the conditions the measures require on the table), when there are any. Undefined when the
+ * column is empty.
  */
-export function chooseStandIns(table: string, column: string, data: TableData, literals: Scalar[], avoid: ReadonlySet<string> = new Set(), rowWeight?: ArrayLike<number>): LiteralStandIn | undefined {
+export function chooseStandIns(
+  table: string,
+  column: string,
+  data: TableData,
+  literals: Scalar[],
+  avoid: ReadonlySet<string> = new Set(),
+  rowWeight?: ArrayLike<number>,
+  rowOk?: (row: number) => boolean
+): LiteralStandIn | undefined {
   const col = data.columns.find((c) => c.name === column)
   if (!col || !literals.length) return undefined
+  // rows that satisfy the conditions the report's measures put on this table (when any row does): a pinned member is not
+  // one the measures exclude
+  const okRows = rowOk && col.values.some((_, i) => rowOk(i)) ? rowOk : undefined
   const counts = new Map<string, { v: Scalar; n: number; first: number }>()
   col.values.forEach((v, i) => {
     if (v === null || v === undefined || v === '' || v instanceof Uint8Array) return
+    if (okRows && !okRows(i)) return
     const k = valueKey(v)
     if (avoid.has(k)) return
     const w = rowWeight ? rowWeight[i] ?? 0 : 1
@@ -53,13 +67,10 @@ export function chooseStandIns(table: string, column: string, data: TableData, l
   let ranked = [...counts.values()].sort((a, b) => b.n - a.n || a.first - b.first)
   if (!ranked.length) return undefined
   if (rowWeight) {
-    // a busy but not extreme member (the top decile's edge): a pinned page has rows across its other filters (periods,
-    // categories), without the single busiest member's volume
+    // the busiest referenced members first: a page pinned to one member breaks it down by period and category, and only a
+    // busy member keeps every period populated (a report pins a member because it matters; such members are rarely small)
     const referenced = ranked.filter((e) => e.n > 1)
-    if (referenced.length) {
-      const target = referenced[Math.floor(referenced.length / 10)].n
-      ranked = referenced.sort((a, b) => Math.abs(a.n - target) - Math.abs(b.n - target) || a.first - b.first)
-    }
+    if (referenced.length) ranked = referenced
   }
   const values = new Map<string, Scalar>()
   let i = 0

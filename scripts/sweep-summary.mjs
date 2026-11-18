@@ -34,12 +34,19 @@ for (const { name, r } of reports) {
   if (r.cacheBlocked === false) console.log('   !! cache guard was OFF')
   const st = r.selectionTotals
   if (st) console.log(`   selections: ${st.selections} on ${st.slicers} slicer(s); ${st.emptiedSelections} emptied ${st.emptied} visual(s) that had data (${st.emptiedVisuals} distinct)${st.cappedPages ? `; ${st.cappedPages} page(s) capped` : ''}`)
+  const et = r.entityTotals
+  if (et) console.log(`   entity check: ${et.visuals} entity-level visual(s); ${et.listed}/${et.offered} offered members listed; ${et.emptying} of ${et.singles} single selections empty one`)
   if (r.inProgress) console.log(`   !! did not finish: stuck rendering page ${r.inProgress} (renderer hang or timeout)`)
   for (const d of r.diagnostics ?? []) if (d.level !== 'info') console.log(`   diag ${d.level}: ${one(d.message, 200)}`)
   for (const p of r.pages) {
     const flagsTxt = [p.kind !== 'normal' ? p.kind : '', p.hidden ? 'hidden' : '', p.readyTimedOut ? 'READY-TIMEOUT' : '', p.renderMs > 5000 ? `slow ${p.renderMs} ms` : ''].filter(Boolean).join(', ')
     console.log(` - ${p.displayName}${flagsTxt ? ` (${flagsTxt})` : ''}  ${JSON.stringify(p.counts)}`)
     for (const c of p.consoleErrors ?? []) console.log(`     console: ${one(c, 220)}`)
+    for (const c of p.entities ?? []) {
+      if (c.listed === c.offered && !c.emptying && !c.error) continue
+      const v = p.visuals.find((x) => x.name === c.visual)
+      console.log(`     entity ${v ? `${v.visualType}${v.title ? ` "${one(v.title, 40)}"` : ''}` : c.visual} by slicer ${c.slicer}: ${c.listed}/${c.offered} listed, ${c.emptying}/${c.singles} single selections empty it${c.error ? `; error ${one(c.error, 120)}` : ''}`)
+    }
     for (const t of p.selections?.trials ?? []) {
       const names = t.emptied.map((n) => p.visuals.find((v) => v.name === n)).map((v, i) => (v ? `${v.visualType}${v.title ? ` "${one(v.title, 40)}"` : ''}` : t.emptied[i]))
       console.log(`     selection ${one(t.item, 40)} (slicer ${t.slicer}) empties ${names.join(', ')}`)

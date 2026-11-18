@@ -179,11 +179,14 @@ describe('choosing stand-ins', () => {
     const pick = (lits: Scalar[], avoid?: Set<string>, w?: number[]) => [...chooseStandIns('t', 'n', data, lits, avoid, w)!.values.values()]
     expect(pick(['x'])).toEqual(['B'])
     expect(pick(['x'], undefined, [1, 0, 9, 0])).toEqual(['C'])
-    // with fact references: a member at the top decile's edge, not the single busiest; unreferenced members last
+    // with fact references: the busiest members first; unreferenced members last
     const names = Array.from({ length: 20 }, (_, i) => `M${i}`)
     const weights = names.map((_, i) => (i === 19 ? 1 : 100 - i * 5))
     const many = { rowCount: 20, columns: [{ name: 'n', type: 'string' as const, values: names }] }
-    expect([...chooseStandIns('t', 'n', many, ['x', 'y'], undefined, weights)!.values.values()]).toEqual(['M1', 'M0'])
+    expect([...chooseStandIns('t', 'n', many, ['x', 'y'], undefined, weights)!.values.values()]).toEqual(['M0', 'M1'])
+    // with a row filter: only rows it accepts (when any does)
+    expect([...chooseStandIns('t', 'n', many, ['x'], undefined, weights, (r) => r >= 5)!.values.values()]).toEqual(['M5'])
+    expect([...chooseStandIns('t', 'n', many, ['x'], undefined, weights, () => false)!.values.values()]).toEqual(['M0'])
     expect(pick(['x', 'y'], new Set(['sb']))).toEqual(['A', 'C'])
     expect(pick(['x', 'y', 'z', 'w'])).toEqual(['B', 'A', 'C', 'B'])
     expect(chooseStandIns('t', 'n', { rowCount: 1, columns: [{ name: 'n', type: 'string', values: [null] }] }, ['x'])).toBeUndefined()

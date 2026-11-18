@@ -14,7 +14,9 @@
 #   --selections      selection audit: per page, a seeded sample of each slicer's items (first, middle, last + 3
 #                     pseudo-random; all when ≤ 8) applied one at a time on the saved state; counts the visuals that
 #                     had data and lose it (report.json pages[].selections; summary.tsv sel_* columns). Capped at 60
-#                     selections / 60 s per page
+#                     selections / 60 s per page. Plus the exhaustive entity check: every table / matrix grouped by one
+#                     sliced dimension must list every member the slicers on it offer, and keep its row when each (up to
+#                     500) is selected alone (report.json pages[].entities; summary.tsv entity_* columns)
 #   --dax 'EVALUATE …' run a DAX query in the app after loading (repeatable; results in report.json .dax)
 #
 # Always runs with WBI_BLOCK_CACHE=1: PBIP `.pbi/cache.abf` files are never decoded (the renderer refuses
@@ -60,7 +62,7 @@ enc() { node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$1"
 
 mkdir -p "$OUT"
 SUMMARY="$OUT/summary.tsv"
-printf "report\tpages\tvisuals\tok\terror\tnodata\tloading\tunsupported\tempty\tblank\topen_ms\terror_msg\tnoitems\tselections\tsel_emptied\tsel_emptied_selections\n" > "$SUMMARY"
+printf "report\tpages\tvisuals\tok\terror\tnodata\tloading\tunsupported\tempty\tblank\topen_ms\terror_msg\tnoitems\tselections\tsel_emptied\tsel_emptied_selections\tentity_visuals\tentity_offered\tentity_listed\tentity_singles\tentity_emptying\tentity_emptying_share\n" > "$SUMMARY"
 for T in "${TARGETS[@]}"; do
   NAME="$(basename "$T")"; NAME="${NAME%.*}"
   DIR="$OUT/$NAME"; rm -rf "$DIR"; mkdir -p "$DIR"
@@ -81,9 +83,12 @@ for T in "${TARGETS[@]}"; do
     const row = [name, r.pages.length, n, t.ok || 0, t.error || 0, t.nodata || 0, t["loading-stuck"] || 0, t.unsupported || 0, t.empty || 0, t.blank || 0, r.openMs ?? "", (r.error || (r.inProgress ? "stuck on page " + r.inProgress : "")).replace(/\s+/g, " "), t.noitems || 0]
     const st = r.selectionTotals
     row.push(st ? st.selections : "", st ? st.emptied : "", st ? st.emptiedSelections : "")
+    const et = r.entityTotals
+    row.push(et ? et.visuals : "", et ? et.offered : "", et ? et.listed : "", et ? et.singles : "", et ? et.emptying : "", et ? (et.singles ? (et.emptying / et.singles).toFixed(4) : "0") : "")
     fs.appendFileSync(sum, row.join("\t") + "\n")
     console.log(`${name}: ${r.pages.length} page(s) in ${secs}s  ${JSON.stringify(t)}${r.error ? "  ERROR " + r.error : ""}${r.inProgress ? "  STUCK on page " + r.inProgress : ""}${r.cacheBlocked === false ? "  (cache guard OFF!)" : ""}`)
     if (st) console.log(`  selections: ${st.selections} on ${st.slicers} slicer(s), ${st.emptiedSelections} emptied ${st.emptied} visual(s) that had data${st.cappedPages ? ` (${st.cappedPages} page(s) capped)` : ""}`)
+    if (et) console.log(`  entity check: ${et.visuals} entity-level visual(s); ${et.listed}/${et.offered} offered members listed; ${et.emptying} of ${et.singles} single selections empty one`)
   ' "$DIR" "$NAME" "$(( $(date +%s) - START ))" "$SUMMARY"
 done
 echo "summary: $SUMMARY"

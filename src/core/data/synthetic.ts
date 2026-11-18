@@ -15,6 +15,11 @@
  *    counts, durations, rates, scores, flags, dates with created ≤ modified ordering...);
  *  - value domains mined from DAX and report filters (see ./synthetic-mine.ts) dominate the columns
  *    they refer to, so measures such as CALCULATE(SUM(f[amount]), f[stage] = "Won") are non-blank;
+ *  - condition-aware (./synthetic-conditions.ts): how each literal is used (operator, polarity, measure / filter / test)
+ *    decides its share — a flag only measures filter on holds for every row, a shown column keeps a spread with the
+ *    required literal dominant, exclusion-only literals and sentinels ("null", "none", "n/a") stay rare or absent;
+ *    `SyntheticResult.decisions` lists each column's rule. Ids and codes typed as text are sized to their name, the
+ *    width a table shows them at and the shape of their literals (idWriter);
  *  - report-aware: mined date literals (slicers, filters, DAX DATE()) extend the calendar and get a
  *    realistic number of fact rows; mined *conjunctions* (one CALCULATE's filters, nested measure
  *    filters, report + page + slicer + visual filters around a visual's measures) are seeded so enough
@@ -73,9 +78,11 @@ import {
   mineModel,
   type Conjunction,
   type Implication,
+  type MinedCondition,
   type MinedDomain
 } from './synthetic-mine'
 import { decodeEnterDataTable, isEnterDataPartition } from './synthetic-enterdata'
+import { columnWidths, decideColumns, idWriter, isSentinel, type ColumnDecision } from './synthetic-conditions'
 import { modelLineage, type LineageBranch } from './synthetic-lineage'
 import { mineSliceable, type SliceableField } from './synthetic-slices'
 import { layoutCoverage, layoutSnapshot, type CoverStats, type PeriodBucket } from './synthetic-coverage'
@@ -116,7 +123,8 @@ import {
   type CalendarContext
 } from './synthetic-values'
 
-export { mineValueDomains, mineModel, domainKey, type MinedDomain, type MinedValue, type MineOptions, type Conjunction, type Implication, type MineResult } from './synthetic-mine'
+export { mineValueDomains, mineModel, domainKey, type MinedDomain, type MinedValue, type MineOptions, type Conjunction, type Implication, type MineResult, type MinedCondition } from './synthetic-mine'
+export { type ColumnDecision, type DecisionRule } from './synthetic-conditions'
 
 export interface SyntheticOptions {
   /** PRNG seed (default 1). Same seed + same model → identical data. */
@@ -165,6 +173,8 @@ export interface SyntheticOptions {
    * period the report's date slicers select (./synthetic-coverage.ts).
    */
   coverageRows?: number
+  /** pre-computed literal conditions with polarity and site (default: mineModel(project).conditions; [] when only `domains` is given) */
+  conditions?: MinedCondition[]
 }
 
 /** Default coverage budget per fact table (rows); see SyntheticOptions.coverageRows. */
@@ -225,6 +235,11 @@ export interface SyntheticResult {
    * `kind: 'snapshot'`: a periodic snapshot laid out as one row per entity (`columns[0]`) per snapshot day.
    */
   coverage: Array<{ table: string; kind: 'events' | 'snapshot'; grain: string; columns: string[] } & CoverStats>
+  /**
+   * How the literals of each column with literal conditions were distributed (./synthetic-conditions.ts): the rule
+   * applied, the conditions seen and the share of rows each literal got. Withheld literals are not listed.
+   */
+  decisions: ColumnDecision[]
 }
 
 /** A relationship as the generator sees it: calculated-table ends are replaced by the columns they are computed from. */
@@ -294,7 +309,8 @@ interface Component {
   style: StringStyle
   /** label generator for 'label' style */
   label?: (k: number) => string
-  codePrefix: string
+  /** writer of generated code-style keys (n = 1, 2…), sized to the evidence (see idWriter) */
+  code: (n: number) => string
   values: Scalar[]
   seen: Set<string>
   next: number
@@ -472,6 +488,8 @@ const NUMERIC_TEXT_TOKENS = new Set([
   'count', 'number', 'num', 'qty', 'quantity', 'duration', 'days', 'hours', 'minutes', 'seconds', 'probability', 'pct', 'percent',
   'percentage', 'population', 'employees', 'eligible', 'headcount', 'amount', 'revenue', 'score', 'age'
 ])
+/** words that make a `*_name` column another name of the same entity */
+const NAME_VARIANT_TOKENS = new Set(['display', 'legal', 'short', 'long', 'full', 'alt', 'alternate', 'alias', 'common', 'official', 'trading', 'dba', 'friendly', 'preferred', 'nick', 'known', 'report', 'reporting', 'formal', 'registered', 'business', 'public'])
 const FLAG_TOKENS = new Set(['is', 'has', 'flag', 'active', 'enabled', 'deleted', 'billable', 'valid', 'primary', 'exclude', 'excluded', 'hide', 'hidden', 'needs', 'show', 'can', 'should', 'was', 'did', 'billed', 'onsite', 'archived', 'approved', 'verified', 'required', 'renewed', 'optout', 'dynamic'])
 
 export function columnSemantics(col: ColumnDef, table: TableDef): ColumnSemantics {
@@ -559,6 +577,12 @@ export function columnSemantics(col: ColumnDef, table: TableDef): ColumnSemantic
       if (PERSON_ENTITY.has(ent)) return { sem: 'person', toks }
       if (ORG_ENTITY.has(ent)) return { sem: 'company', toks }
       return { sem: 'entityName', toks }
+    }
+    // another name of the row's own entity (`display_name`, `legal_name`, an abbreviation such as `dba_name`) on a person /
+    // organisation table: a name like the main one, not "Display 3"
+    if (has('name') && other.length && other.every((x) => NAME_VARIANT_TOKENS.has(x) || (x.length <= 3 && /^[a-z]+$/.test(x) && !CATEGORICAL_TOKENS.has(x) && !FLAG_TOKENS.has(x)))) {
+      if (PERSON_ENTITY.has(ent)) return { sem: 'person', toks }
+      if (ORG_ENTITY.has(ent)) return { sem: 'company', toks }
     }
     if (other.some((x) => PERSON_TOKENS.has(x)) && !other.some((x) => ORG_TOKENS.has(x) && !PERSON_TOKENS.has(x))) return { sem: 'person', toks }
     if (other.some((x) => ORG_TOKENS.has(x))) return { sem: 'company', toks }
@@ -686,6 +710,9 @@ class SyntheticGenerator {
   readonly domains: Map<string, MinedDomain>
   readonly conjunctions: Conjunction[]
   readonly implications: Implication[]
+  readonly conditions: MinedCondition[]
+  /** value distribution per column with literal conditions (lower-case `table[column]`), see decide() */
+  private decisions = new Map<string, ColumnDecision>()
   /** generated tables so far (dimensions are generated before facts) */
   private readonly generated = new Map<string, TableData>()
   /** relationship edges many-side member → one-side member */
@@ -712,6 +739,8 @@ class SyntheticGenerator {
   private readonly reuseIdentifying: boolean
   readonly sliceable: SliceableField[]
   readonly coverage: SyntheticResult['coverage'] = []
+  /** narrowest table / matrix width each column is shown at (lower-case `table[column]` → px) */
+  private readonly widths: Map<string, number>
 
   constructor(
     readonly project: ProjectDocument,
@@ -732,11 +761,13 @@ class SyntheticGenerator {
       this.domains = opts.domains
       this.conjunctions = opts.conjunctions ?? []
       this.implications = opts.implications ?? []
+      this.conditions = opts.conditions ?? []
     } else {
       const mined = mineModel(project)
       this.domains = mined.domains
       this.conjunctions = opts.conjunctions ?? mined.conjunctions
       this.implications = opts.implications ?? mined.implications
+      this.conditions = opts.conditions ?? mined.conditions
     }
     // calendar: whole years, default (years) ending this year, extended to cover every mined date
     const defaultStart = makeDate(y - years + 1, 1, 1)
@@ -754,6 +785,7 @@ class SyntheticGenerator {
     this.todayIdx = dayDiff(this.calStart, this.today)
     this.windowStart = dayDiff(this.calStart, defaultStart)
     this.sliceable = opts.sliceable ?? mineSliceable(project)
+    this.widths = columnWidths(project)
     this.cal = { today: this.today, fiscalStartMonth: Math.min(12, Math.max(1, Math.round(opts.fiscalYearStartMonth ?? 7))), weekEndDow: this.minedWeekEndDow() }
     this.buildTrend()
     this.lineage = modelLineage(this.model)
@@ -1203,7 +1235,7 @@ class SyntheticGenerator {
       kind,
       style,
       label,
-      codePrefix: (ent.replace(/[^a-z]/gi, '').slice(0, 3) || 'KEY').toUpperCase(),
+      code: this.idWriterFor(ms.map((m) => ({ table: m.table, col: m.col })), ent, Math.max(100, ...(ones.length ? ones : ms).map((m) => m.plan?.rows ?? 0))),
       values: [],
       seen: new Set(),
       next: 1,
@@ -1257,6 +1289,23 @@ class SyntheticGenerator {
     return comp
   }
 
+  /**
+   * Id / code writer for text columns (see idWriter in ./synthetic-conditions.ts): the shape of their mined literals, an
+   * id-like name, the width a table shows them at.
+   */
+  private idWriterFor(cols: Array<{ table: TableDef; col: ColumnDef }>, prefix: string, count: number): (n: number) => string {
+    const widths = cols.map((c) => this.widths.get(keyOf(c.table.name, c.col.name))).filter((w): w is number => w !== undefined)
+    const literals = cols.flatMap((c) => (this.domains.get(domainKey(c.table.name, c.col.name))?.values ?? []).filter((v): v is string => typeof v === 'string'))
+    return idWriter({
+      names: cols.map((c) => c.col.name),
+      prefix,
+      count,
+      widthPx: widths.length ? Math.min(...widths) : undefined,
+      literals,
+      salt: hash32(cols.map((c) => keyOf(c.table.name, c.col.name)).join('|'), this.seed)
+    })
+  }
+
   private noteWithheld(table: string, column: string, v: Scalar): void {
     const k = domainKey(table, column)
     let e = this.withheldLiterals.get(k)
@@ -1278,7 +1327,10 @@ class SyntheticGenerator {
       const table = data.tables.get(w.table)
       if (!table || !rewritten.has(w.table.toLowerCase())) continue
       const avoid = new Set((this.domains.get(domainKey(w.table, w.column))?.values ?? []).map((v) => valueKey(v)))
-      const s = chooseStandIns(w.table, w.column, table, w.values, avoid, this.referenceWeights(w.table, table))
+      const required = this.requiredRows(w.table, table)
+      const covered = this.fullyCoveredRows(w.table, table)
+      const rowOk = required && covered ? (r: number) => required(r) && covered(r) : (required ?? covered)
+      const s = chooseStandIns(w.table, w.column, table, w.values, avoid, this.referenceWeights(w.table, table), rowOk)
       if (!s) continue
       fresh.push(s)
       out.push({ table: w.table, column: w.column, literals: s.values.size })
@@ -1286,6 +1338,59 @@ class SyntheticGenerator {
     data.literalStandIns = [...kept, ...fresh]
     if (!data.literalStandIns.length) delete data.literalStandIns
     return out
+  }
+
+  /**
+   * Rows of a dimension whose key has coverage rows in every covered period of the facts that reference it (the members
+   * covered most, see planCoverage): a page pinned to a stand-in then has data in every period, older ones included.
+   * Undefined when no covered fact references the table.
+   */
+  private fullyCoveredRows(tableName: string, table: TableData): ((row: number) => boolean) | undefined {
+    const counts = new Map<number, Map<number, number>>()
+    for (const plan of this.plans.values()) {
+      const cover = plan.cover
+      if (!cover || cover.snapshotEntity) continue
+      for (const [colName, laid] of cover.members) {
+        const link = this.compOf.get(keyOf(plan.def.name, colName))
+        if (!link) continue
+        const m = counts.get(link.comp.id) ?? new Map<number, number>()
+        for (let r = cover.from; r < laid.length; r++) if (laid[r] >= 0) m.set(laid[r], (m.get(laid[r]) ?? 0) + 1)
+        counts.set(link.comp.id, m)
+      }
+    }
+    if (!counts.size) return undefined
+    for (const c of table.columns) {
+      const link = this.compOf.get(keyOf(tableName, c.name))
+      const m = link && counts.get(link.comp.id)
+      if (!link || !m || !link.member.one || !m.size) continue
+      const index = new Map<string, number>()
+      link.comp.values.forEach((v, i) => index.set(valueKey(v), i))
+      const max = Math.max(...m.values())
+      const values = c.values
+      return (row) => {
+        const v = values[row]
+        const i = v === null || v === undefined ? undefined : index.get(valueKey(coerceTo(v, link.comp.kind === 'int' ? 'int64' : link.comp.kind === 'bool' ? 'boolean' : 'string') ?? v))
+        return i !== undefined && (m.get(i) ?? 0) >= max
+      }
+    }
+    return undefined
+  }
+
+  /**
+   * Rows of a generated table that hold, in every column with a requirement (./synthetic-conditions.ts), a literal the
+   * measures need: a stand-in is picked among them so a pinned member is not one the measures leave out.
+   */
+  private requiredRows(tableName: string, table: TableData): ((row: number) => boolean) | undefined {
+    const checks: Array<{ values: Scalar[]; keys: Set<string> }> = []
+    for (const d of this.decisions.values()) {
+      if (d.table.toLowerCase() !== tableName.toLowerCase() || d.rule === 'spread') continue
+      const col = table.columns.find((c) => c.name.toLowerCase() === d.column.toLowerCase())
+      const req = d.shares.filter((s) => s.why === 'required').map((s) => coerceTo(s.value as Scalar, col?.type as DataType))
+      if (!col || !req.length) continue
+      checks.push({ values: col.values, keys: new Set(req.filter((v): v is Exclude<Scalar, undefined> => v !== undefined && v !== null).map(valueKey)) })
+    }
+    if (!checks.length) return undefined
+    return (row) => checks.every((c) => c.values[row] !== null && c.keys.has(valueKey(c.values[row])))
   }
 
   /**
@@ -1343,7 +1448,7 @@ class SyntheticGenerator {
       } else if (comp.style === 'label' && comp.label) {
         v = comp.label(comp.next++ - 1)
       } else {
-        v = `${comp.codePrefix}-${pad(comp.next++, 5)}`
+        v = comp.code(comp.next++)
       }
       const k = valueKey(v)
       if (comp.seen.has(k)) continue
@@ -1785,6 +1890,31 @@ class SyntheticGenerator {
   }
 
   // --- generation -----------------------------------------------------------------------------
+
+  /**
+   * Value distributions from the literal conditions (./synthetic-conditions.ts), for the columns this run writes.
+   * Literals the privacy gate withholds are left out (filters on them read a stand-in instead).
+   */
+  decide(): ColumnDecision[] {
+    const generated = new Set<string>()
+    const defs = new Map<string, { table: TableDef; col: ColumnDef }>()
+    for (const p of this.plans.values()) {
+      if (p.fixed || p.role === 'date' || p.role === 'measure') continue
+      for (const c of p.cols) {
+        const k = keyOf(p.def.name, c.name)
+        generated.add(k)
+        defs.set(k, { table: p.def, col: c })
+      }
+    }
+    this.decisions = decideColumns(this.project, this.conditions, {
+      generated,
+      allowed: (t, c, v) => {
+        const d = defs.get(keyOf(t, c))
+        return !!d && this.literalAllowed(d.table, d.col, v)
+      }
+    })
+    return [...this.decisions.values()]
+  }
 
   generate(): string[] {
     const out: string[] = []
@@ -2381,32 +2511,73 @@ class SyntheticGenerator {
         uniqMined.push(v)
       }
     }
+    // condition-aware distribution (./synthetic-conditions.ts): required literals dominate, sentinels and exclusions stay rare
+    const decision = ordinal || type === 'dateTime' ? undefined : this.decisions.get(key)
+    const coerced = (v: Scalar): Scalar | undefined => {
+      const c = coerceTo(v, type)
+      return c === undefined || c === null || (typeof c === 'string' && c === '') || !usable(c) ? undefined : c
+    }
+    const fixedShares: Array<{ v: Scalar; share: number }> = []
+    /** literals that must not appear in this column (only negative conditions use them, or untested sentinels) */
+    const banned = new Set<string>()
+    if (decision) {
+      for (const sh of decision.shares) {
+        const v = coerced(sh.value as Scalar)
+        if (v !== undefined && sh.share > 0 && !fixedShares.some((f) => valueKey(f.v) === valueKey(v))) fixedShares.push({ v, share: sh.share })
+      }
+      for (const a of decision.absent) {
+        const v = coerceTo(a as Scalar, type)
+        if (v !== undefined && v !== null) banned.add(valueKey(v))
+      }
+    }
+    // measures needing different labels of one satisfaction scale (Satisfied / Neutral / Dissatisfied): the survey-skewed
+    // picker below already keeps each of them well represented
+    if (decision?.rule === 'split' && type === 'string' && fixedShares.length > 1 && sentimentRanks(fixedShares.map((f) => f.v))) fixedShares.length = 0
+    const fixedKeys = new Set(fixedShares.map((f) => valueKey(f.v)))
+    const pool = decision ? uniqMined.filter((v) => !fixedKeys.has(valueKey(v)) && !banned.has(valueKey(v)) && !(typeof v === 'string' && isSentinel(v))) : uniqMined
+    // measures needing several values of a shown category column (and no other literal to fill the rest): those values
+    // are the column's whole domain, no invented filler
+    if (decision?.rule === 'split' && type === 'string' && !pool.length && fixedShares.length > 1) {
+      const sum = fixedShares.reduce((a, f) => a + f.share, 0)
+      for (const f of fixedShares) f.share /= sum
+    }
+    const categorical =
+      type === 'string'
+        ? (mined?.linked.length ?? 0) > 0 || !isFreeForm(sem.sem) || sem.toks.some((t) => CATEGORICAL_TOKENS.has(t) && t !== 'name')
+        : ['flag', 'order', 'datePart', 'score', 'nps', 'idCode', 'sortDesc'].includes(sem.sem) || (pool.every((v) => typeof v === 'number' && Number.isInteger(v) && Math.abs(v) < 1000) && sem.sem === 'generic')
     let gen = base
-    if (uniqMined.length && !ordinal && type !== 'boolean' && type !== 'dateTime') {
-      const linkedOnly = mined && mined.linked.length > 0
-      const categorical =
-        type === 'string'
-          ? linkedOnly || !isFreeForm(sem.sem) || sem.toks.some((t) => CATEGORICAL_TOKENS.has(t) && t !== 'name')
-          : ['flag', 'order', 'datePart', 'score', 'nps', 'idCode', 'sortDesc'].includes(sem.sem) || uniqMined.every((v) => typeof v === 'number' && Number.isInteger(v) && Math.abs(v) < 1000) && sem.sem === 'generic'
+    if (pool.length && !ordinal && type !== 'boolean' && type !== 'dateTime' && (!decision || decision.rule === 'spread' || fixedShares.reduce((a, f) => a + f.share, 0) < 1)) {
       let share: number
-      if (type === 'string') share = categorical ? (uniqMined.length === 1 ? 0.65 : 1) : 0.7
+      if (type === 'string') share = categorical ? (pool.length === 1 ? 0.65 : 1) : 0.7
       else share = categorical ? 0.75 : 0.1
-      const order = rng.shuffle(uniqMined.map((_, i) => i))
-      const w = new Float64Array(uniqMined.length)
-      const zw = zipfWeights(uniqMined.length, 0.5)
+      const order = rng.shuffle(pool.map((_, i) => i))
+      const w = new Float64Array(pool.length)
+      const zw = zipfWeights(pool.length, 0.5)
       for (let rank = 0; rank < order.length; rank++) w[order[rank]] = zw[rank]
       const sampler = new WeightedSampler(w)
-      const perRowDim = (plan.role === 'dim' || plan.role === 'single') && rows <= uniqMined.length * 2
-      const sentiment = type === 'string' && categorical ? sentimentRanks(uniqMined) : undefined
-      if (share >= 1 && perRowDim) {
+      const perRowDim = (plan.role === 'dim' || plan.role === 'single') && rows <= pool.length * 2
+      const sentiment = type === 'string' && categorical ? sentimentRanks(pool) : undefined
+      if (share >= 1 && perRowDim && !fixedShares.length) {
         // small dimension keyed by the mined labels: one row per value (cycled), in a stable shuffled order
-        gen = (r) => uniqMined[order[r % order.length]]
+        gen = (r) => pool[order[r % order.length]]
       } else if (sentiment) {
         // answer labels of a satisfaction scale (Promoter / Passive / Detractor, Satisfied / Dissatisfied…):
         // mostly positive, like real survey data, and in line with the row's other ratings
         const pick = this.sentimentPicker(sentiment, h, rng)
-        gen = (r) => uniqMined[pick(r)]
-      } else gen = share >= 1 ? () => uniqMined[sampler.draw(rng)] : (r) => (rng.next() < share ? uniqMined[sampler.draw(rng)] : base(r))
+        gen = (r) => pool[pick(r)]
+      } else gen = share >= 1 ? () => pool[sampler.draw(rng)] : (r) => (rng.next() < share ? pool[sampler.draw(rng)] : base(r))
+    }
+    if (fixedShares.length) {
+      const rest = gen
+      gen = (r) => {
+        const u = rng.next()
+        let acc = 0
+        for (const f of fixedShares) {
+          acc += f.share
+          if (u < acc) return f.v
+        }
+        return rest(r)
+      }
     }
     for (let r = 0; r < rows; r++) out[r] = gen(r)
     const skippedContains = identifying ? (mined?.contains.length ?? 0) : 0
@@ -2423,14 +2594,22 @@ class SyntheticGenerator {
         out[r] = v
       }
     }
+    // a literal kept out of the column (exclusion-only or an untested sentinel) never appears by coincidence either
+    if (banned.size) {
+      for (let r = 0; r < rows; r++) {
+        let v = out[r]
+        for (let k = 1; k <= 8 && v !== null && banned.has(valueKey(v)); k++) v = gen((r + k * 7919) % rows)
+        if (v !== null && banned.has(valueKey(v))) v = type === 'boolean' ? !(v as boolean) : null
+        out[r] = v
+      }
+    }
     if (mined?.lookupKey && plan.role !== 'fact' && type !== 'boolean') makeUnique(out, type === 'string' ? uniquePool(sem) : [])
     // CONTAINSSTRING / SEARCH targets: embed the searched text in a share of the values
     if (type === 'string' && mined?.contains.length && !skippedContains) {
       for (let r = 0; r < rows; r++) {
         if (rng.next() < 0.2) {
           const lit = mined.contains[rng.int(0, mined.contains.length - 1)]
-          const v = out[r]
-          out[r] = v === null || v === '' ? lit : `${v} - ${lit}`
+          out[r] = embedSearched(out[r], lit, r)
         }
       }
       this.ensureContains(out, mined.contains, rng)
@@ -2439,6 +2618,9 @@ class SyntheticGenerator {
       const active = Math.max(1, this.todayIdx - this.windowStart + 1)
       const k = Math.max(1, Math.min(Math.round((1.5 * rows) / active), Math.floor(rows / (4 * Math.max(1, uniqMined.length)))))
       this.addNeeds(col, uniqMined, plan.role === 'fact' ? Math.max(3, k) : 1)
+    } else if (decision) {
+      // every literal with a share appears; an all-rows column holds nothing else
+      this.addNeeds(col, [...fixedShares.map((f) => f.v), ...(decision.rule === 'all-rows' ? [] : pool)])
     } else this.addNeeds(col, uniqMined)
     return out
   }
@@ -2540,7 +2722,7 @@ class SyntheticGenerator {
       const l = s.toLowerCase()
       if (out.some((v) => typeof v === 'string' && v.toLowerCase().includes(l))) continue
       const r = rng.int(0, rows - 1)
-      out[r] = typeof out[r] === 'string' && out[r] ? `${out[r]} - ${s}` : s
+      out[r] = embedSearched(out[r], s, r)
     }
   }
 
@@ -2708,7 +2890,10 @@ class SyntheticGenerator {
         return () => (rng.next() < p ? 'Yes' : 'No')
       }
       case 'idSeq':
-        if (type === 'string') return (r) => `${ent.slice(0, 3).toUpperCase() || 'ID'}-${pad(r + 1, 5)}`
+        if (type === 'string') {
+          const write = this.idWriterFor([{ table: plan.def, col }], ent, rows)
+          return (r) => write(r + 1)
+        }
         return (r) => r + 1
       case 'idCode': {
         const refToks = toks.filter((t) => !['id', 'key', 'code', 'number', 'no', 'num', 'sk', 'fk', 'ext', 'external'].includes(t))
@@ -2730,7 +2915,8 @@ class SyntheticGenerator {
         const base = 1000 + (hash32(col.name, this.seed) % 9000)
         if (numeric) return unique ? (r) => base * 10 + r * 3 + 1 : () => pick.draw(rng) + 1
         if (s.toks.includes('oid') || s.toks.includes('guid')) return unique ? (r) => guidFrom(hash32(plan.def.name + col.name, this.seed), r) : () => guidFrom(hash32(col.name, this.seed), pick.draw(rng))
-        return unique ? (r) => `${prefix}-${pad(base + r, 6)}` : () => `${prefix}-${pad(pick.draw(rng) + 1, 5)}`
+        const write = this.idWriterFor([{ table: plan.def, col }], prefix, unique ? rows : card)
+        return unique ? (r) => write(r + 1) : () => write(pick.draw(rng) + 1)
       }
       case 'guid':
         return perRow ? (r) => guidFrom(hash32(plan.def.name + col.name, this.seed), r) : () => guidFrom(hash32(col.name, this.seed), rng.int(0, Math.max(0, Math.min(rows, 500) - 1)))
@@ -2950,6 +3136,18 @@ class SyntheticGenerator {
 }
 
 /** A stride coprime with n, for visiting rows in a scattered but deterministic order. */
+/**
+ * A value that contains a searched text (CONTAINSSTRING / SEARCH / report Contains): a word is appended ("Plan B - Gold"),
+ * a separator joins the value to a short number ("Plan B-2", as when the text is split on it), never doubled.
+ */
+function embedSearched(v: Scalar, lit: string, r: number): Scalar {
+  const base = typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v)
+  if (!base) return lit
+  if (base.toLowerCase().includes(lit.toLowerCase())) return base
+  if (!/[A-Za-z0-9]/.test(lit)) return `${base}${lit.trim() || lit}${(r % 9) + 1}`
+  return `${base} - ${lit}`
+}
+
 function strideFor(n: number): number {
   if (n <= 2) return 1
   for (const p of [7919, 104729, 1299709, 15485863, 982451653]) if (n % p !== 0) return p % n || 1
@@ -3130,7 +3328,8 @@ export function generateSyntheticData(project: ProjectDocument, opts: SyntheticO
   gen.buildComponents()
   gen.resolveSizes()
   gen.planCoverage()
+  const decisions = gen.decide()
   const tables = gen.generate()
   const standIns = gen.standIns(tables)
-  return { tables, skipped: gen.skipped, seed: gen.seed, withheld: gen.withheld, standIns, coverage: gen.coverage }
+  return { tables, skipped: gen.skipped, seed: gen.seed, withheld: gen.withheld, standIns, coverage: gen.coverage, decisions }
 }

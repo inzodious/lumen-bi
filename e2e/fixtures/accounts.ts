@@ -9,6 +9,10 @@
  * Page 2 ("By account"): a quarter slicer saved to the previous quarter, an account slicer, and a table of account
  * names with the Amount measure (rows whose measure is blank are dropped, as in Power BI): picking any account under
  * the saved quarter must leave the table with rows (sample data covers every account in every quarter).
+ *
+ * Page 3 ("Account list"): an account slicer and a table of accounts with a measure that only counts accounts whose
+ * `counted` flag (a column no visual shows) holds a literal. Sample data must make the flag hold for every account, so
+ * the table lists every account the slicer offers and keeps the row of any account picked alone.
  */
 import { join } from 'node:path'
 import { saveProject } from '../../src/core/io/open'
@@ -35,10 +39,13 @@ const rel = (from: string, to: string): RelationshipDef => {
 
 export function accountsModel(): SemanticModel {
   const calendar = imported('calendar', [col('date', 'dateTime', { isKey: true, formatString: 'Short Date' }), col('year', 'int64'), col('year_quarter', 'string')], { dataCategory: 'Time' })
-  const accounts = imported('accounts', [col('account_id', 'string'), col('account_name', 'string'), col('segment', 'string'), col('active', 'boolean')])
+  const accounts = imported('accounts', [col('account_id', 'string'), col('account_name', 'string'), col('segment', 'string'), col('active', 'boolean'), col('counted', 'string')])
   accounts.columns.push({ name: 'status_label', dataType: 'string', kind: 'calculated', expression: 'IF ( accounts[active] = FALSE (), "Inactive", "Active" )', summarizeBy: 'none' })
   const visits = imported('visits', [col('visit_id', 'string'), col('account_id', 'string'), col('visit_date', 'dateTime'), col('amount', 'double')], {
-    measures: [{ name: 'Amount', expression: 'SUM ( visits[amount] )', formatString: '#,0' }]
+    measures: [
+      { name: 'Amount', expression: 'SUM ( visits[amount] )', formatString: '#,0' },
+      { name: 'Counted amount', expression: 'CALCULATE ( [Amount], FILTER ( accounts, accounts[counted] = "count_this_account" ) )', formatString: '#,0' }
+    ]
   })
   const invoices = imported('invoices', [col('invoice_id', 'string'), col('account_id', 'string'), col('invoice_date', 'dateTime'), col('total', 'double')])
   return {
@@ -103,6 +110,19 @@ export async function writeAccountsProject(dir: string): Promise<string> {
     ]
   } as (typeof report.pages)[number])
   report.pagesMeta.pageOrder.push('ByAccount')
+  report.pages.push({
+    name: 'AccountList',
+    json: { name: 'AccountList', displayName: 'Account list', displayOption: 'FitToPage', height: 720, width: 1280 },
+    visuals: [
+      dropdown('slicerAccount3', 20, 'accounts', 'account_name', 'Account'),
+      visual('tableAccounts', 320, 20, 520, 640, {
+        visualType: 'tableEx',
+        query: { queryState: { Values: { projections: [proj('accounts', 'account_name'), proj('accounts', 'segment'), proj('visits', 'Counted amount', true)] } } },
+        visualContainerObjects: { title: [{ properties: { show: lit('true'), text: lit("'Counted amount by account'") } }] }
+      })
+    ]
+  } as (typeof report.pages)[number])
+  report.pagesMeta.pageOrder.push('AccountList')
   const project: ProjectDocument = { id: 'accounts', name: 'Accounts', source: { kind: 'new' }, model: accountsModel(), data: emptyDataStore(), report, diagnostics: [], dirty: false }
   const target = join(dir, 'Accounts.pbip')
   await saveProject(project, target, nodeFs, { format: 'pbip' })

@@ -10,7 +10,7 @@ import type { ProjectDocument } from '@core/project'
 import type { ReportDocument } from '@core/report/types'
 import { createEngine } from '@core/engine/engine'
 import { generateSyntheticData } from '@core/data/synthetic'
-import { auditPageSelections, pickItems } from '../selectionAudit'
+import { auditPageSelections, checkEntityVisuals, entityVisuals, pickItems } from '../selectionAudit'
 
 const col = (name: string, dataType: DataType): ColumnDef => ({ name, dataType, kind: 'data', sourceColumn: name })
 const imported = (name: string, columns: ColumnDef[], extra: Partial<TableDef> = {}): TableDef => ({
@@ -117,5 +117,65 @@ describe('selection audit', () => {
     // the member picks keep the table populated; only quarters after today (no events yet) may empty it
     expect(dense.trials.filter((t) => t.slicer === 'member')).toEqual([])
     expect(dense.selections).toBe(sparse.selections)
+  })
+})
+
+/**
+ * Exhaustive entity check: a table grouped by the member dimension, with a measure that only counts members whose
+ * (never shown) flag holds a literal, must list every member the member slicer offers, and keep its row when each is
+ * selected alone. The check itself must notice when the data breaks that.
+ */
+function flagged(): ProjectDocument {
+  const p = project()
+  const members = p.model.tables.find((t) => t.name === 'dim_member')!
+  members.columns.push(col('counted_flag', 'string'))
+  p.model.tables.find((t) => t.name === 'fact_events')!.measures.push({
+    name: 'Counted amount',
+    expression: 'CALCULATE ( SUM ( fact_events[amount] ), FILTER ( dim_member, dim_member[counted_flag] = "count_me" ) )'
+  })
+  const page = p.report!.pages[0]
+  const t = page.visuals.find((v) => v.name === 'table')!
+  t.json.visual.query.queryState.Values.projections[1] = { field: { Measure: { Expression: { SourceRef: { Entity: 'fact_events' } }, Property: 'Counted amount' } }, queryRef: 'c' }
+  return p
+}
+
+describe('entity check', () => {
+  it('finds the entity-level table and its member slicer', () => {
+    const p = flagged()
+    generateSyntheticData(p, { seed: 42, today: makeDate(2026, 11, 17), factRows: 1500, dimRows: 300 })
+    const engine = createEngine(p.model, p.data)
+    engine.processCalculated()
+    const ev = entityVisuals(engine, p.report!.pages[0])
+    expect(ev.map((e) => [e.visual.name, e.dimension, e.slicers.map((s) => s.slicer.name)])).toEqual([['table', 'dim_member', ['member']]])
+  })
+
+  it('every member the slicer offers is listed and keeps its row alone (flag-conditioned measure)', () => {
+    const p = flagged()
+    generateSyntheticData(p, { seed: 42, today: makeDate(2026, 11, 17), factRows: 1500, dimRows: 300 })
+    const engine = createEngine(p.model, p.data)
+    engine.processCalculated()
+    const [c] = checkEntityVisuals(engine, p.report!, p.report!.pages[0])
+    expect(c.offered).toBe(300)
+    expect(c.listed).toBe(c.offered)
+    expect(c.listedAll).toBe(c.offeredAll)
+    expect(c.singles).toBe(300)
+    expect(c.emptying).toBe(0)
+  })
+
+  it('fails on a deliberately broken model', () => {
+    const p = flagged()
+    generateSyntheticData(p, { seed: 42, today: makeDate(2026, 11, 17), factRows: 1500, dimRows: 300 })
+    // break it: a third of the members lose the flag the measure filters on
+    const flag = p.data.tables.get('dim_member')!.columns.find((c) => c.name === 'counted_flag')!
+    flag.values = flag.values.map((v, i) => (i % 3 === 0 ? 'other' : v))
+    const engine = createEngine(p.model, p.data)
+    engine.processCalculated()
+    const [c] = checkEntityVisuals(engine, p.report!, p.report!.pages[0], { cap: 60 })
+    expect(c.offered).toBe(300)
+    expect(c.listed).toBe(200)
+    expect(c.singles).toBe(60)
+    expect(c.capped).toBe(true)
+    expect(c.emptying).toBeGreaterThanOrEqual(15)
+    expect(c.examples.length).toBeGreaterThan(0)
   })
 })

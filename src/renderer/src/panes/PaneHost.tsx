@@ -16,6 +16,8 @@ import { SelectionPane } from './selection/SelectionPane'
 import { BookmarksPane } from './bookmarks/BookmarksPane'
 import { SyncSlicersPane } from './syncslicers/SyncSlicersPane'
 import { PerformancePane } from './performance/PerformancePane'
+// names the user action of each Performance analyzer entry; recording can run while the pane is closed
+import './performance/tracking'
 
 const SWITCHER: Array<{ id: PaneId; label: string; icon: ReactElement }> = [
   { id: 'filters', label: 'Filters', icon: <Filter20Regular /> },

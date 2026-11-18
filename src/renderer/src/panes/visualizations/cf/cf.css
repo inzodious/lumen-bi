@@ -37,6 +37,8 @@
 /* Format pane: fx button + applied chip */
 .wbi-fx-wrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .wbi-fx-wrap > :first-child { flex: 1; min-width: 0; }
+/* a color swatch keeps its size: the fx button sits right next to it (PBI) */
+.wbi-fx-wrap > .wbi-color-btn:first-child { flex: none; }
 .wbi-fx-btn {
   flex: none; height: 24px; min-width: 24px; padding: 0 4px; border: 1px solid transparent; border-radius: var(--wbi-radius);
   background: transparent; color: var(--wbi-fg-2); font: italic 600 12px/1 'Segoe UI', sans-serif; display: inline-flex; align-items: center; justify-content: center;

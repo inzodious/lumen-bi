@@ -45,10 +45,12 @@ export function PaneFrame(p: PaneFrameProps) {
   }
   const min = p.minWidth ?? 180
   const max = p.maxWidth ?? 520
+  // a width saved by an older version (or with other limits) never renders outside the pane's limits
+  const width = Math.max(min, Math.min(max, state.width))
   const startResize = (e: React.PointerEvent) => {
     e.preventDefault()
     const x0 = e.clientX
-    const w0 = state.width
+    const w0 = width
     const move = (ev: PointerEvent) => setPane(p.id, { width: Math.max(min, Math.min(max, w0 + (x0 - ev.clientX))) })
     const up = () => {
       window.removeEventListener('pointermove', move)
@@ -60,7 +62,7 @@ export function PaneFrame(p: PaneFrameProps) {
     window.addEventListener('pointerup', up)
   }
   return (
-    <section className={cx('wbi-pane', p.className)} style={{ width: state.width }} data-pane={p.id} aria-label={p.title}>
+    <section className={cx('wbi-pane', p.className)} style={{ width }} data-pane={p.id} aria-label={p.title}>
       <div className="wbi-pane__grip" onPointerDown={startResize} />
       <header className="wbi-pane__header">
         <h2 className="wbi-pane__title">{p.title}</h2>

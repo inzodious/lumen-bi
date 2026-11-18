@@ -23,7 +23,17 @@ export interface PerfEntry {
   page?: string
   /** what triggered it (e.g. 'Refreshed visual', 'Changed a slicer') */
   action?: string
+  /** entries of one user action share this id (the pane groups them under one header) */
+  actionId?: number
+  /** unique, increasing id (assigned by logPerf) */
+  id?: number
+  /** visualType */
+  type?: string
+  /** header-only entry without a visual (e.g. 'Recording started') */
+  marker?: boolean
 }
+
+let nextPerfId = 1
 
 export type PaneId = 'filters' | 'visualizations' | 'data' | 'selection' | 'bookmarks' | 'syncSlicers' | 'performance'
 
@@ -106,7 +116,7 @@ function loadPanes(): Record<PaneId, PaneState> {
     selection: { open: false, collapsed: false, width: 240 },
     bookmarks: { open: false, collapsed: false, width: 240 },
     syncSlicers: { open: false, collapsed: false, width: 240 },
-    performance: { open: false, collapsed: false, width: 300 }
+    performance: { open: false, collapsed: false, width: 320 }
   }
   try {
     const saved = JSON.parse(localStorage.getItem('lumen.panes') ?? 'null')
@@ -147,7 +157,7 @@ export interface ShellState {
   setFormatTab(t: ShellState['formatTab']): void
   setStartScreen(v: boolean): void
   setPerfRecording(v: boolean): void
-  logPerf(entry: Omit<PerfEntry, 'at'>): void
+  logPerf(entry: Omit<PerfEntry, 'at' | 'id'>): void
   clearPerf(): void
 }
 
@@ -196,6 +206,6 @@ export const useShell = create<ShellState>()((set, get) => ({
   setFormatTab: (formatTab) => set({ formatTab }),
   setStartScreen: (startScreen) => set({ startScreen }),
   setPerfRecording: (perfRecording) => set({ perfRecording }),
-  logPerf: (entry) => get().perfRecording && set({ perfLog: [...get().perfLog.slice(-499), { ...entry, at: Date.now() }] }),
+  logPerf: (entry) => get().perfRecording && set({ perfLog: [...get().perfLog.slice(-499), { ...entry, at: Date.now(), id: nextPerfId++ }] }),
   clearPerf: () => set({ perfLog: [] })
 }))

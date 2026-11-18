@@ -43,26 +43,74 @@
 .wbi-viz__drill { display: flex; flex-direction: column; padding-bottom: 12px; }
 .wbi-viz__drill > .wbi-fmt__row { padding: 4px 12px; }
 
-/* Format tab */
-.wbi-fmt { display: flex; flex-direction: column; min-height: 0; }
+/*
+ * Format tab. Every control is sized by the pane (min-width: 0 down the tree), 24px tall, and nothing is allowed to
+ * overflow at the narrowest pane width: sliders shrink, the font family / size row wraps, labels wrap.
+ */
+.wbi-fmt { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .wbi-fmt__pivot { padding: 0 8px; }
 .wbi-fmt__search { padding: 8px 12px; }
-.wbi-fmt__cards { display: flex; flex-direction: column; }
+.wbi-fmt__cards { display: flex; flex-direction: column; min-width: 0; }
 .wbi-fmt__sub { display: flex; flex-direction: column; margin: -4px -12px -12px -26px; }
-.wbi-fmt__row { display: flex; flex-direction: column; gap: 4px; }
-.wbi-fmt__row.is-inline { flex-direction: row; align-items: center; justify-content: space-between; }
-.wbi-fmt__label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--wbi-fg); min-height: 18px; }
-.wbi-fmt__reset { width: 18px; height: 18px; border: 0; padding: 0; background: transparent; color: var(--wbi-fg-3); border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; }
+.wbi-viz__body .wbi-card__header { min-width: 0; }
+.wbi-viz__body .wbi-card__title { min-width: 0; overflow-wrap: anywhere; padding: 4px 0; line-height: 16px; }
+.wbi-viz__body .wbi-card__chevron, .wbi-viz__body .wbi-card__header > .wbi-toggle { flex: none; }
+.wbi-viz__body .wbi-card__body { min-width: 0; }
+.wbi-fmt__row { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wbi-fmt__row.is-inline { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; }
+.wbi-fmt__row.is-inline > .wbi-fmt__label { flex: 1; }
+.wbi-fmt__row.is-inline > .wbi-fmt__editor, .wbi-fmt__row.is-inline > .wbi-toggle { flex: none; }
+.wbi-fmt__label { display: flex; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; color: var(--wbi-fg); min-height: 18px; min-width: 0; }
+.wbi-fmt__label > span { min-width: 0; overflow-wrap: anywhere; }
+.wbi-fmt__reset { flex: none; width: 18px; height: 18px; border: 0; padding: 0; background: transparent; color: var(--wbi-fg-3); border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; }
 .wbi-fmt__reset:hover { background: var(--wbi-hover); color: var(--wbi-fg); }
+.wbi-fmt__resetall { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; height: 24px; margin-left: -4px; padding: 0 6px 0 4px; border: 0; border-radius: 2px; background: transparent; color: var(--wbi-fg-2); font-size: 12px; white-space: nowrap; }
+.wbi-fmt__resetall:hover { background: var(--wbi-hover); color: var(--wbi-fg); }
 .wbi-fmt__editor { min-width: 0; }
 .wbi-fmt__editor > .wbi-dropdown, .wbi-fmt__editor > div { width: 100%; }
 .wbi-fmt__row.is-inline .wbi-fmt__editor > div { width: auto; }
-.wbi-fmt__align { display: inline-flex; gap: 2px; }
-.wbi-fmt__alignbtn { width: 28px; height: 26px; border: 1px solid transparent; border-radius: var(--wbi-radius); background: transparent; display: inline-flex; align-items: center; justify-content: center; }
-.wbi-fmt__alignbtn:hover { background: var(--wbi-hover); }
-.wbi-fmt__alignbtn.is-on { background: var(--wbi-checked); border-color: var(--wbi-fg-3); }
-.wbi-fmt__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wbi-fmt__editor > .wbi-fmt__seg { width: auto; }
+.wbi-viz__body .wbi-dropdown__placeholder, .wbi-spin input::placeholder { color: var(--wbi-fg-4); opacity: 1; }
+.wbi-fmt__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .wbi-fmt__bound { font-size: 12px; color: var(--wbi-fg-3); font-style: italic; }
+.wbi-fmt__browse { max-width: 100%; justify-content: flex-start; font-weight: 400; }
+.wbi-fmt__browse > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* color: PBI's compact swatch dropdown (not a full-width box), with the fx button right next to it */
+.wbi-fmt__editor .wbi-color-btn { flex: none; height: 24px; padding: 0 4px; gap: 4px; }
+.wbi-fmt__editor .wbi-color-btn__swatch { width: 28px; height: 14px; }
+
+/* numeric spin box: value · unit · stacked up/down arrows */
+.wbi-spin { padding-right: 0; gap: 2px; }
+.wbi-spin input { width: 0; }
+.wbi-spin__unit { flex: none; color: var(--wbi-fg-3); font-size: 12px; }
+.wbi-spin__btns { flex: none; align-self: stretch; display: flex; flex-direction: column; width: 16px; margin-left: 2px; }
+.wbi-spin__btns button { flex: 1; min-height: 0; padding: 0; border: 0; background: transparent; color: var(--wbi-fg-2); display: flex; align-items: center; justify-content: center; }
+.wbi-spin__btns button:first-child { border-top-right-radius: 3px; }
+.wbi-spin__btns button:last-child { border-bottom-right-radius: 3px; }
+.wbi-spin__btns button svg { color: inherit; }
+.wbi-spin__btns button:hover:not(:disabled) { background: var(--wbi-hover); color: var(--wbi-fg); }
+.wbi-spin__btns button:active:not(:disabled) { background: var(--wbi-pressed); }
+.wbi-spin__btns button:disabled { color: var(--wbi-fg-disabled); }
+
+/* percent: spin box, then the slider (PBI order); the track shrinks with the pane, the number box never does */
+.wbi-fslider { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.wbi-fslider__num { flex: 0 0 64px; }
+.wbi-fslider input[type='range'] { flex: 1 1 0; min-width: 0; width: 0; height: 16px; margin: 0; -webkit-appearance: none; appearance: none; background: transparent; outline-offset: 2px; }
+.wbi-fslider input[type='range']::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--wbi-fg-2) var(--wbi-pct, 0%), #c8c6c4 var(--wbi-pct, 0%)); }
+.wbi-fslider input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%; background: var(--wbi-bg); border: 2px solid var(--wbi-fg-2); }
+.wbi-fslider input[type='range']:hover::-webkit-slider-thumb { border-color: var(--wbi-fg); }
+
+/* icon button groups: alignment (one of) and B / I / U (independent) */
+.wbi-fmt__seg { display: inline-flex; gap: 2px; }
+.wbi-fmt__segbtn { flex: none; width: 28px; height: 24px; padding: 0; border: 1px solid transparent; border-radius: var(--wbi-radius); background: transparent; color: var(--wbi-fg-2); display: inline-flex; align-items: center; justify-content: center; }
+.wbi-fmt__segbtn:hover { background: var(--wbi-hover); color: var(--wbi-fg); }
+.wbi-fmt__segbtn.is-on { background: var(--wbi-checked); border-color: var(--wbi-fg-3); color: var(--wbi-fg); }
+
+/* font family + size share a row; the size drops below the family when the pane is too narrow for both */
+.wbi-fmt__font { display: flex; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
+.wbi-fmt__font > .wbi-fmt__editor { flex: 1 1 96px; }
+.wbi-fmt__font > .wbi-fmt__fontsize { flex: 0 0 64px; }
 
 /* Format pane in View ▸ Mobile layout: mobile-only formatting notice */
 .wbi-fmt__mobile { display: flex; flex-direction: column; gap: 4px; margin: 6px 12px 2px; padding: 6px 8px; background: #F3F2F1; border-left: 3px solid #F2C811; font-size: 12px; color: #252423; }

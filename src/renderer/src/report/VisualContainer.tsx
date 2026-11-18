@@ -26,7 +26,7 @@ import { useInteraction } from '../state/interaction'
 import { resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
 import { useCanvasEnv } from './canvasEnv'
 import { lastMenuRequest, registerLiveContext, useVisualHost } from './host'
-import { meters } from './perf'
+import { PerfMark, useVisualPerf } from './perf'
 import { applyBoundContainerColors } from './containerCF'
 import { brokenFields, removeBrokenFields, reportMeasureKeys, type BrokenField } from './brokenFields'
 
@@ -168,11 +168,6 @@ const VALUE_ROLES = ['Y', 'Values', 'Y2', 'Size', 'Value', 'Fields', 'Data', 'Me
 const CATEGORY_ROLES = ['Category', 'Axis', 'Rows', 'Series', 'Legend', 'Columns', 'X', 'Details', 'Location']
 
 /** PBI auto title: "<values> by <categories>" (e.g. "Total Sales by Category and Region"). */
-function titleForPerf(visualJson: any, ctx: VisualHostContext, chrome: ChromeSpec): string {
-  const t = chrome.title.text ?? autoTitle(visualJson, ctx)
-  return t || visualTypeOf({ name: '', json: visualJson })
-}
-
 export function autoTitle(visualJson: any, ctx: VisualHostContext | null): string {
   const fields = visualFields(visualJson)
   const name = (f: { expr: any; displayName?: string }) => f.displayName ?? ctx?.engine.describeField(f.expr)?.displayName ?? (f.expr?.Measure?.Property ?? f.expr?.Column?.Property ?? f.expr?.HierarchyLevel?.Level ?? f.expr?.Aggregation?.Expression?.Column?.Property ?? '')
@@ -333,46 +328,13 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     }
   })
 
-  // Performance analyzer: time from a new host context (new filters / data / drill…) to the next paint
-  const perfStart = useRef<{ ctx: VisualHostContext | null; t0: number }>({ ctx: null, t0: 0 })
-  if (ctx && perfStart.current.ctx !== ctx) {
-    perfStart.current = { ctx, t0: performance.now() }
-    const m = meters.get(ctx)
-    if (m) {
-      m.queryMs = 0
-      m.queries = []
-    }
-  }
-  useEffect(() => {
-    if (!ctx || !env.interactive || !useShell.getState().perfRecording || !canRenderVisual) return
-    const start = perfStart.current
-    if (start.ctx !== ctx) return
-    let cancelled = false
-    requestAnimationFrame(() =>
-      setTimeout(() => {
-        if (cancelled) return
-        const m = meters.get(ctx)
-        const total = performance.now() - start.t0
-        // query = engine time inside the visual; display = everything else up to the next paint (React render, layout,
-        // SVG/canvas drawing). PBI's "Other" (waiting on other visuals) has no equivalent here: queries run synchronously.
-        const query = Math.min(total, m?.queryMs ?? 0)
-        const render = total - query
-        useShell.getState().logPerf({
-          visual: visual.name,
-          title: titleForPerf(visual.json, ctx, chrome),
-          ms: total,
-          query,
-          render,
-          queries: m?.queries.slice(),
-          page: env.pageName
-        })
-      }, 0)
-    )
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, canRenderVisual])
+  // Performance analyzer (report/perf.ts): one entry per (re)load of this visual while recording
+  useVisualPerf(ctx, env.interactive && canRenderVisual, visual.json?.visual, () => ({
+    visual: visual.name,
+    title: (chrome.title.text ?? autoTitle(visual.json, ctx)) || def?.displayName || type,
+    type,
+    page: env.pageName
+  }))
 
   const titleText = chrome.title.show ? (chrome.title.boundExpr ? evalBoundText(chrome.title.boundExpr, ctx) : (chrome.title.text ?? generatedTitle(visual.json, ctx))) : undefined
   const subText = chrome.subTitle.show ? (chrome.subTitle.boundExpr ? evalBoundText(chrome.subTitle.boundExpr, ctx) : chrome.subTitle.text) : undefined
@@ -486,7 +448,9 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
             />
           ) : canRenderVisual ? (
             <VisualErrorBoundary visualType={type} resetKey={visual.json}>
+              <PerfMark ctx={ctx} edge="start" />
               <VisualContent def={def} visual={visual} pageName={env.pageName} width={size!.w} height={size!.h} ctx={ctx} />
+              <PerfMark ctx={ctx} edge="end" />
             </VisualErrorBoundary>
           ) : null}
         </div>

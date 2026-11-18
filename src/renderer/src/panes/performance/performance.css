@@ -1,15 +1,41 @@
-.wbi-perf__head { display: flex; align-items: center; height: 28px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--wbi-border-light); font-size: 12px; font-weight: 600; color: var(--wbi-fg-2); flex: none; }
-.wbi-perf__name { flex: 1; }
-.wbi-perf__sort { border: 0; background: transparent; font-weight: 600; font-size: 12px; color: var(--wbi-fg-2); padding: 2px 4px; border-radius: 2px; }
-.wbi-perf__sort:hover, .wbi-perf__sort.is-on { background: var(--wbi-hover); color: var(--wbi-fg); }
-.wbi-perf__ms { width: 64px; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
-.wbi-perf__detail { padding: 2px 12px 8px 34px; display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
-.wbi-perf__bar { height: 6px; background: var(--wbi-bg-3); border-radius: 3px; overflow: hidden; }
-.wbi-perf__bar span { display: block; height: 100%; background: #117865; }
-.wbi-perf__bar { display: flex; }
-.wbi-perf__bar span.is-query, .wbi-perf__split i.is-query { background: #E8A33D; }
-.wbi-perf__bar span.is-render, .wbi-perf__split i.is-render { background: #117865; }
-.wbi-perf__split { display: flex; gap: 12px; color: var(--wbi-fg-2); }
-.wbi-perf__split i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
-.wbi-perf__copy { align-self: flex-start; border: 0; background: transparent; color: #0F6CBD; font-size: 11px; padding: 0; cursor: pointer; }
+/*
+ * Performance analyzer pane (PBI Desktop layout: Start recording · Refresh visuals · Stop / Clear · Export).
+ * Buttons never shrink: the toolbar wraps instead, so nothing is clipped or overlaps at any pane width. When the pane is
+ * wide enough for the first three buttons, a line break after "Stop" gives PBI's two rows; narrower, the five simply flow.
+ */
+.wbi-perf { flex: 1; min-height: 0; display: flex; flex-direction: column; container-type: inline-size; }
+.wbi-perf__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 0 8px 6px; flex: none; }
+.wbi-perf__break { display: none; flex-basis: 100%; height: 0; }
+@container (min-width: 318px) { .wbi-perf__break { display: block; } }
+.wbi-perf__btn {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; height: 28px; padding: 0 6px; border: 0; border-radius: var(--wbi-radius);
+  background: transparent; color: var(--wbi-fg); font-size: 12px; white-space: nowrap;
+}
+.wbi-perf__btn svg { flex: none; color: var(--wbi-fg-2); }
+.wbi-perf__btn:hover:not(:disabled) { background: var(--wbi-hover); }
+.wbi-perf__btn:active:not(:disabled) { background: var(--wbi-pressed); }
+.wbi-perf__btn:disabled, .wbi-perf__btn:disabled svg { color: var(--wbi-fg-disabled); }
+.wbi-perf__btn:focus-visible, .wbi-perf__sort:focus-visible, .wbi-perf__row:focus-visible, .wbi-perf__copy:focus-visible { outline: 1px solid var(--wbi-fg); outline-offset: -1px; }
+/* recording: the record glyph turns red (also while the button itself is disabled) */
+.wbi-perf__btn svg.wbi-perf__rec, .wbi-perf__btn:disabled svg.wbi-perf__rec { color: #c50f1f; }
+
+.wbi-perf__head { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px 0 10px; border-top: 1px solid var(--wbi-border-light); border-bottom: 1px solid var(--wbi-border-light); flex: none; }
+.wbi-perf__sort { display: inline-flex; align-items: center; gap: 4px; flex: none; height: 24px; padding: 0 4px; border: 0; border-radius: 2px; background: transparent; font-size: 12px; font-weight: 600; color: var(--wbi-fg-2); white-space: nowrap; }
+.wbi-perf__sort--name { margin-right: auto; }
+.wbi-perf__sort:hover, .wbi-perf__sort.is-on { color: var(--wbi-fg); }
+.wbi-perf__sort:hover { background: var(--wbi-hover); }
+
+.wbi-perf__list { flex: 1; min-height: 0; overflow: auto; padding: 2px 0 12px; font-size: 12px; }
+.wbi-perf__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbi-perf__ms { flex: none; min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+.wbi-perf__action { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 4px 12px 0 14px; font-weight: 600; color: var(--wbi-fg); }
+.wbi-perf__when { flex: none; font-weight: 400; font-size: 11px; color: var(--wbi-fg-3); font-variant-numeric: tabular-nums; }
+.wbi-perf__row { display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 12px 0 8px; cursor: default; }
+.wbi-perf__row.is-grouped { padding-left: 16px; }
+.wbi-perf__row:hover { background: var(--wbi-bg-2); }
+.wbi-perf__chev { width: 16px; display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--wbi-fg-2); }
+.wbi-perf__detail { display: flex; flex-direction: column; padding: 0 12px 4px 28px; }
+.wbi-perf__detail.is-grouped { padding-left: 36px; }
+.wbi-perf__part { display: flex; align-items: center; gap: 8px; height: 24px; color: var(--wbi-fg-2); }
+.wbi-perf__copy { align-self: flex-start; height: 24px; border: 0; background: transparent; color: var(--wbi-link); font-size: 12px; padding: 0; cursor: pointer; }
 .wbi-perf__copy:hover { text-decoration: underline; }

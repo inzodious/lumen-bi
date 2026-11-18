@@ -38,6 +38,7 @@
 .wbi-input--multiline { height: auto; padding: 6px 8px; align-items: stretch; }
 .wbi-input--multiline textarea { resize: vertical; min-height: 56px; font-family: inherit; }
 .wbi-input--small { height: 24px; }
+.wbi-input--small.wbi-input--multiline { height: auto; }
 .wbi-input svg { color: var(--wbi-fg-3); flex: none; }
 .wbi-search { border-color: var(--wbi-border); }
 
@@ -103,16 +104,21 @@
 
 /* ---------- Slider ---------- */
 .wbi-slider { display: flex; align-items: center; gap: 8px; }
-.wbi-slider input[type='range'] { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: var(--wbi-border); outline: none; }
+.wbi-slider input[type='range'] { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: var(--wbi-border); outline: none; }
 .wbi-slider input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--wbi-bg); border: 2px solid var(--wbi-fg-2); }
 .wbi-slider input[type='range']:hover::-webkit-slider-thumb { border-color: var(--wbi-fg); }
-.wbi-slider__value { width: 44px; }
+/* wide enough for "100" plus a unit; never squeezed by the track */
+.wbi-slider__value { width: 58px; flex: none; }
 
 /* ---------- Color picker ---------- */
 .wbi-color-btn { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 4px 0 4px; border: 1px solid var(--wbi-border-input); border-radius: var(--wbi-radius); background: var(--wbi-bg); }
 .wbi-color-btn:hover { border-color: var(--wbi-fg-2); }
-.wbi-color-btn__swatch { width: 28px; height: 18px; border: 1px solid rgba(0,0,0,.15); border-radius: 2px; }
-.wbi-color-btn__swatch.is-empty { background: linear-gradient(to top right, transparent calc(50% - 1px), #d13438 calc(50% - 1px), #d13438 calc(50% + 1px), transparent calc(50% + 1px)), #fff; }
+.wbi-color-btn__swatch { width: 28px; height: 18px; border: 1px solid rgba(0,0,0,.15); border-radius: 2px; flex: none; }
+/* no color set: white swatch with a thin red diagonal (PBI / Office "no color"), drawn as SVG so the line is anti-aliased at any size */
+.wbi-color-btn__swatch.is-empty {
+  border-color: #a19f9d;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 14' preserveAspectRatio='none'%3E%3Cline x1='0' y1='14' x2='28' y2='0' stroke='%23d13438' stroke-width='1.25' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
 .wbi-colorpop { padding: 12px; width: 252px; }
 .wbi-colorpop__title { font-size: 12px; font-weight: 600; margin: 0 0 6px; }
 .wbi-colorpop__grid { display: grid; grid-template-columns: repeat(10, 20px); gap: 3px; }

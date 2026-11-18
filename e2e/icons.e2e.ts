@@ -1,7 +1,8 @@
 /**
- * Built-in icons: Insert ▸ Icon opens the picker (search, keyboard, IconPark tri-colour with three colours), the icon
- * lands on the canvas as an image visual; a card's callout image takes an icon through its Image source; Save As
- * PBIP writes the baked SVGs + the Lumen_Icon annotation, and after reopening the icons are still editable.
+ * Built-in icons (React components of Lucide via react-icons, and Fluent Color): Insert ▸ Icon opens the picker
+ * (search, keyboard, Lucide colour + stroke width), the icon lands on the canvas as an image visual centred in view;
+ * a Fluent Color icon too; a card's callout image takes an icon through its Image source without clipping the card's
+ * label; Save As PBIP writes the pictures + the Lumen_Icon annotation, and after reopening the icons are still editable.
  * `LUMEN_E2E_SHOTS=<dir>` additionally saves screenshots of the picker, the canvas and the Format pane.
  */
 import { describe, expect, it } from 'vitest'
@@ -58,7 +59,7 @@ async function openFormatCard(page: Page, title: RegExp): Promise<Locator> {
 describe('built-in icons', () => {
   const lumen = useLumen({ route: { sample: '1' } })
 
-  it('insert an icon, restyle the tri-colour set, put an icon on a card, save, reopen and edit again', async () => {
+  it('insert Lucide and Fluent Color icons, style them, put an icon on a card, save, reopen and edit again', async () => {
     const { page, app, tmp } = lumen()
     const imagesBefore = await visualsOfType(page, 'image')
 
@@ -74,58 +75,91 @@ describe('built-in icons', () => {
     await page.locator('.wbi-ribbon').getByRole('button', { name: 'Image options', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Icon…' }).click()
     await dlg.waitFor()
-    // curated category is the default view and lists business icons
+    // two sets; the curated category is the default view and lists business icons
+    await expect(dlg.getByRole('tab').allInnerTexts()).resolves.toEqual(['Lucide', 'Fluent Color'])
+    await dlg.getByRole('tab', { name: /^Lucide/ }).click()
     await expect.poll(() => dlg.locator('.wbi-iconpicker__cell').count()).toBeGreaterThan(20)
-    await shot(page, 'picker-curated', dlg)
+    await shot(page, 'picker-lucide-curated', dlg)
 
-    // IconPark (the multi-colour set), search
-    await dlg.getByRole('tab', { name: /^IconPark/ }).click()
-    await dlg.getByPlaceholder('Search icons').fill('wallet')
-    // the set tabs count matches across libraries
-    await expect.poll(() => dlg.getByRole('tab', { name: /^Tabler \(\d+\)$/ }).count()).toBe(1)
-    const wallet = dlg.locator('[data-icon="iconpark:wallet"]')
-    await wallet.click()
-    await expect(dlg.locator('.wbi-iconpicker__name').innerText()).resolves.toBe('Wallet')
-
+    // search (the tab labels count the matches in both sets)
+    await dlg.getByPlaceholder('Search icons').fill('trending up')
+    await expect.poll(() => dlg.getByRole('tab', { name: /^Fluent Color \(\d+\)$/ }).count()).toBe(1)
+    const trend = dlg.locator('[data-icon="lucide:trending-up"]')
+    await trend.click()
+    await expect(dlg.locator('.wbi-iconpicker__name').innerText()).resolves.toBe('Trending up')
     // keyboard: arrows move the selection, back again
     await page.keyboard.press('ArrowRight')
-    await expect.poll(() => dlg.locator('.wbi-iconpicker__name').innerText()).not.toBe('Wallet')
+    await expect.poll(() => dlg.locator('.wbi-iconpicker__name').innerText()).not.toBe('Trending up')
     await page.keyboard.press('ArrowLeft')
-    await expect.poll(() => dlg.locator('.wbi-iconpicker__name').innerText()).toBe('Wallet')
-    await expect(wallet.getAttribute('aria-selected')).resolves.toBe('true')
-    await expect(wallet.getAttribute('aria-label')).resolves.toBe('Wallet, IconPark')
+    await expect.poll(() => dlg.locator('.wbi-iconpicker__name').innerText()).toBe('Trending up')
+    await expect(trend.getAttribute('aria-selected')).resolves.toBe('true')
+    await expect(trend.getAttribute('aria-label')).resolves.toBe('Trending up, Lucide')
+    // the picked component is drawn in the grid and both previews
+    expect(await dlg.locator('.wbi-iconpicker__tile svg svg').count()).toBe(2)
 
-    // variant: Two-tone (two colours), then the Tri-color style with its three colours
-    await dlg.getByRole('radio', { name: 'Two-tone' }).click()
-    await expect.poll(() => dlg.locator('.wbi-iconpicker__colors .wbi-color-btn').count()).toBe(2)
-    await dlg.getByRole('radio', { name: 'Tri-color' }).click()
-    await expect.poll(() => dlg.locator('.wbi-iconpicker__colors .wbi-color-btn').count()).toBe(3)
-    await pickThemeColor(page, dlg, 'Primary (fill)', 'Theme color 3')
-    await pickThemeColor(page, dlg, 'Secondary (accent)', 'Theme color 5')
-    await pickThemeColor(page, dlg, 'Line', 'Black')
-    await shot(page, 'picker-tricolor', dlg)
+    // Lucide: a theme colour and a stroke width (no style chips any more)
+    expect(await dlg.getByRole('radio').count()).toBe(0)
+    await pickThemeColor(page, dlg, 'Color', 'Theme color 3')
+    const slider = dlg.locator('.wbi-iconpicker__stroke input[type="range"]')
+    await slider.focus()
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('ArrowLeft')
+    await shot(page, 'picker-lucide-styled', dlg)
     // Enter on the focused grid chooses the icon
-    await wallet.focus()
+    await trend.focus()
     await page.keyboard.press('Enter')
     await expect.poll(() => dlg.count()).toBe(0)
 
-    // ---- on the canvas: a new image visual drawn from the icon library, with the three colours
+    // ---- on the canvas: a new image visual drawn by the Lucide component, in the theme colour, centred in view
     await expect.poll(async () => (await visualsOfType(page, 'image')).length).toBe(imagesBefore.length + 1)
-    const iconVisual = (await visualsOfType(page, 'image')).find((n) => !imagesBefore.includes(n))!
-    const vc = page.locator(`.wbi-page [data-visual="${iconVisual}"]`)
-    await vc.locator('.wbi-image-icon[data-icon="iconpark:wallet"] svg').waitFor()
+    const lucideVisual = (await visualsOfType(page, 'image')).find((n) => !imagesBefore.includes(n))!
+    const vc = page.locator(`.wbi-page [data-visual="${lucideVisual}"]`)
+    await vc.locator('.wbi-image-icon[data-icon="lucide:trending-up"] svg svg').waitFor()
     const theme = await lumenEval(page, (l) => l.useApp.getState().theme.dataColors.slice(0, 4))
-    const svgColors = await vc.locator('.wbi-image-icon svg').evaluate((el) => [...new Set([...el.querySelectorAll('[fill],[stroke]')].flatMap((n) => [n.getAttribute('fill'), n.getAttribute('stroke')]))])
-    // Theme color 3 = dataColors[2], Theme color 5 = dataColors[4], Black = foreground
-    expect(svgColors).toContain(theme[2].toUpperCase())
-    expect(svgColors).toContain('#252423')
-    let b = await bindings(page, iconVisual)
+    const drawn = await vc.locator('.wbi-image-icon svg svg').evaluate((el) => ({ color: getComputedStyle(el).color, stroke: el.getAttribute('stroke'), width: el.getAttribute('stroke-width') }))
+    const hex = (c: string) => '#' + (c.match(/\d+/g) ?? []).slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('').toUpperCase()
+    // Theme color 3 = ThemeDataColor 4 = dataColors[2]
+    expect(hex(drawn.color)).toBe(theme[2].toUpperCase())
+    expect(drawn.stroke).toBe('currentColor')
+    expect(Number(drawn.width)).toBeLessThan(2)
+    let b = await bindings(page, lucideVisual)
     expect(b).toHaveLength(1)
-    expect(b[0].icon).toMatchObject({ set: 'iconpark', name: 'wallet', variant: 'multi-color', colors: ['theme:4', 'theme:6', 'theme:1'] })
+    expect(b[0].icon).toMatchObject({ set: 'lucide', name: 'trending-up', color: 'theme:4' })
+    expect(b[0].icon.strokeWidth).toBeLessThan(2)
+    // placed in the middle of the visible page, not over the header at the top-left
+    const pos = await lumenEval(page, (l, n) => l.useApp.getState().project!.report!.pages.flatMap((p) => p.visuals).find((v) => v.name === n)!.json.position, lucideVisual)
+    expect(pos.x).toBeGreaterThan(200)
+    expect(pos.y).toBeGreaterThan(150)
     await settle(page)
-    await shot(page, 'canvas-icon')
+    await shot(page, 'canvas-lucide')
 
-    // ---- a card's callout image: Image source ▸ Icon
+    // ---- a Fluent Color icon (fixed artwork: no colour controls)
+    await page.locator('.wbi-ribbon').getByRole('button', { name: 'Icon', exact: true }).click()
+    await dlg.waitFor()
+    await dlg.getByRole('tab', { name: /^Fluent Color/ }).click()
+    await dlg.locator('.wbi-iconpicker__cat', { hasText: /^Charts/ }).click()
+    const pie = dlg.locator('[data-icon="fluent-color:data-pie"]')
+    await pie.click()
+    expect(await dlg.locator('.wbi-iconpicker__colors').count()).toBe(0)
+    expect(await dlg.locator('.wbi-iconpicker__stroke').count()).toBe(0)
+    await expect(dlg.locator('.wbi-iconpicker__note').innerText()).resolves.toContain('keep their own colors')
+    await shot(page, 'picker-fluent', dlg)
+    await pie.dblclick()
+    await expect.poll(() => dlg.count()).toBe(0)
+    await expect.poll(async () => (await visualsOfType(page, 'image')).length).toBe(imagesBefore.length + 2)
+    const fluentVisual = (await visualsOfType(page, 'image')).find((n) => !imagesBefore.includes(n) && n !== lucideVisual)!
+    const fc = page.locator(`.wbi-page [data-visual="${fluentVisual}"] .wbi-image-icon[data-icon="fluent-color:data-pie"]`)
+    await fc.locator('linearGradient').first().waitFor({ state: 'attached' })
+    // its gradient ids are scoped to this instance and resolve inside it
+    const ids = await fc.evaluate((el) => ({ ids: [...el.querySelectorAll('[id]')].map((n) => n.id), refs: [...el.querySelectorAll('[fill^="url("]')].map((n) => n.getAttribute('fill')!.slice(5, -1)) }))
+    expect(ids.refs.length).toBeGreaterThan(0)
+    for (const r of ids.refs) expect(ids.ids).toContain(r)
+    expect(ids.ids.every((id) => !id.startsWith('ic_fluent'))).toBe(true)
+    // the second insert does not land exactly on the first
+    const pos2 = await lumenEval(page, (l, n) => l.useApp.getState().project!.report!.pages.flatMap((p) => p.visuals).find((v) => v.name === n)!.json.position, fluentVisual)
+    expect(`${pos2.x},${pos2.y}`).not.toBe(`${pos.x},${pos.y}`)
+
+    // ---- a card's callout image: Image source ▸ Icon; the card's label stays inside the card
     const [card] = await visualsOfType(page, 'cardVisual')
     const cardEl = page.locator(`.wbi-page [data-visual="${card}"]`)
     await cardEl.locator('.wbi-card-value').first().click()
@@ -137,28 +171,43 @@ describe('built-in icons', () => {
     await page.locator('.wbi-menu[role="listbox"]').getByRole('option', { name: 'Icon' }).click()
     const pick = page.getByRole('dialog', { name: 'Choose an icon' })
     await pick.waitFor()
-    await pick.getByRole('tab', { name: /^Tabler/ }).click()
-    await pick.getByPlaceholder('Search icons').fill('trending up')
-    await pick.locator('[data-icon="tabler:trending-up"]').dblclick()
+    await pick.getByRole('tab', { name: /^Lucide/ }).click()
+    await pick.getByPlaceholder('Search icons').fill('wallet')
+    await pick.locator('[data-icon="lucide:wallet"]').dblclick()
     await expect.poll(() => pick.count()).toBe(0)
     await expect.poll(async () => (await bindings(page, card)).length).toBe(1)
     await cardEl.locator('.wbi-card-image img[src^="data:image/svg+xml;base64,"]').first().waitFor()
     // the Format pane shows the icon rows instead of the URL
-    await expect(callout.locator('[data-prop="lumenIcon"]').innerText()).resolves.toContain('Trending up')
+    await expect(callout.locator('[data-prop="lumenIcon"]').innerText()).resolves.toContain('Wallet')
     expect(await callout.locator('[data-prop="imageUrl"]').count()).toBe(0)
     await settle(page)
+    const labelInside = async () => {
+      const tile = await cardEl.locator('.wbi-card-tile').first().boundingBox()
+      const label = await cardEl.locator('.wbi-card-label').first().boundingBox()
+      return !!tile && !!label && label.y >= tile.y - 0.5 && label.y + label.height <= tile.y + tile.height + 0.5 && label.x >= tile.x - 0.5
+    }
+    expect(await labelInside()).toBe(true)
+    // above the text: the image gives way, the label is still not cut off
+    await callout.locator('[data-prop="position"] .wbi-dropdown').click()
+    await page.locator('.wbi-menu[role="listbox"]').getByRole('option', { name: 'Top' }).click()
+    await settle(page)
+    expect(await labelInside()).toBe(true)
     await shot(page, 'card-icon')
 
-    // ---- Save As PBIP: baked SVG resource + annotation on disk
+    // ---- Save As PBIP: pictures (from the components) + annotation on disk
     const target = join(tmp, 'icons', 'Icons.pbip')
     await stubSaveDialog(app, target)
     await fileMenu(page, 'Save as')
     await page.getByRole('button', { name: /Power BI project \(\.pbip\)/ }).click()
     const resDir = join(tmp, 'icons', 'Icons.Report', 'StaticResources', 'RegisteredResources')
-    await untilNode(() => existsSync(resDir) && readdirSync(resDir).some((f) => f.endsWith('.svg')), 30_000, 'baked SVG')
+    await untilNode(() => existsSync(resDir) && readdirSync(resDir).filter((f) => f.endsWith('.svg')).length >= 2, 30_000, 'baked SVGs')
     await expect.poll(() => lumenEval(page, (l) => l.useApp.getState().project!.dirty)).toBe(false)
-    const svgFile = readdirSync(resDir).find((f) => f.startsWith('LumenIcon_iconpark_wallet_'))!
-    expect(readFileSync(join(resDir, svgFile), 'utf8')).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/)
+    const lucideFile = readdirSync(resDir).find((f) => f.startsWith('LumenIcon_lucide_trending-up_'))!
+    const lucideSvg = readFileSync(join(resDir, lucideFile), 'utf8')
+    expect(lucideSvg).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" width="256" height="256"/)
+    expect(lucideSvg).toContain(`color:${theme[2].toUpperCase()}`)
+    const fluentFile = readdirSync(resDir).find((f) => f.startsWith('LumenIcon_fluent-color_data-pie_'))!
+    expect(readFileSync(join(resDir, fluentFile), 'utf8')).toMatch(/<linearGradient id="lumen-ic_fluent_data_pie_20_color__a"/)
     const pageDirs = join(tmp, 'icons', 'Icons.Report', 'definition', 'pages')
     const visualJson = (name: string) => {
       for (const p of readdirSync(pageDirs)) {
@@ -167,32 +216,34 @@ describe('built-in icons', () => {
       }
       return undefined
     }
-    const saved = visualJson(iconVisual)
-    expect(saved.visual.objects.general[0].properties.imageUrl.expr.ResourcePackageItem.ItemName).toBe(svgFile)
-    expect(saved.annotations.find((a: any) => a.name === 'Lumen_Icon')).toBeTruthy()
+    const saved = visualJson(lucideVisual)
+    expect(saved.visual.objects.general[0].properties.imageUrl.expr.ResourcePackageItem.ItemName).toBe(lucideFile)
+    expect(JSON.parse(saved.annotations.find((a: any) => a.name === 'Lumen_Icon').value).icons[0].icon).toMatchObject({ set: 'lucide', name: 'trending-up', color: 'theme:4' })
     const savedCard = visualJson(card)
     expect(savedCard.visual.objects.image[0].properties.imageUrl.expr.Literal.Value).toMatch(/^'data:image\/svg\+xml;base64,/)
 
     // ---- reopen: still icons, still editable
     await openFile(page, target)
     await waitIdle(page)
-    const vc2 = page.locator(`.wbi-page [data-visual="${iconVisual}"]`)
-    await vc2.locator('.wbi-image-icon[data-icon="iconpark:wallet"] svg').waitFor()
-    await vc2.click()
-    await expect.poll(() => lumenEval(page, (l) => l.useApp.getState().selectedVisuals)).toEqual([iconVisual])
+    const vc2 = page.locator(`.wbi-page [data-visual="${lucideVisual}"]`)
+    await vc2.locator('.wbi-image-icon[data-icon="lucide:trending-up"] svg svg').waitFor()
+    await page.locator(`.wbi-page [data-visual="${fluentVisual}"] .wbi-image-icon[data-icon="fluent-color:data-pie"] svg svg`).waitFor()
+    // the Fluent icon was inserted 20 px down-right of it: click the uncovered corner
+    await vc2.click({ position: { x: 6, y: 6 } })
+    await expect.poll(() => lumenEval(page, (l) => l.useApp.getState().selectedVisuals)).toEqual([lucideVisual])
     const imgCard = await openFormatCard(page, /^Image$/)
     await expect(imgCard.locator('[data-prop="lumenIconSource"] .wbi-dropdown').innerText()).resolves.toContain('Icon')
-    await expect(imgCard.locator('[data-prop="lumenIcon"]').innerText()).resolves.toContain('Wallet')
+    await expect(imgCard.locator('[data-prop="lumenIcon"]').innerText()).resolves.toContain('Trending up')
     await shot(page, 'format-pane-icon')
-    // change the style after reopening: Outline (one colour)
-    await imgCard.getByRole('radio', { name: 'Outline' }).click()
-    await expect.poll(async () => (await bindings(page, iconVisual))[0]?.icon.variant).toBe('outline')
-    b = await bindings(page, iconVisual)
-    expect(b[0].icon.colors).toEqual(['theme:4'])
+    // change the colour after reopening: Black (the theme foreground)
+    await pickThemeColor(page, imgCard, 'Color', 'Black')
+    await expect.poll(async () => (await bindings(page, lucideVisual))[0]?.icon.color).toBe('theme:1')
     // the card icon is an icon again too
-    await expect.poll(async () => (await bindings(page, card))[0]?.icon.name).toBe('trending-up')
+    await expect.poll(async () => (await bindings(page, card))[0]?.icon.name).toBe('wallet')
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
-    await expect.poll(async () => (await bindings(page, iconVisual))[0]?.icon.variant).toBe('multi-color')
+    await expect.poll(async () => (await bindings(page, lucideVisual))[0]?.icon.color).toBe('theme:4')
+    b = await bindings(page, fluentVisual)
+    expect(b[0].icon).toEqual({ set: 'fluent-color', name: 'data-pie' })
     expect(await lumenEval(page, (l) => l.errors)).toEqual([])
   })
 })

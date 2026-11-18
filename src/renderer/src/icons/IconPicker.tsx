@@ -1,6 +1,6 @@
 /**
- * Icon picker: choose an icon from the built-in libraries (Fluent UI, Phosphor, Tabler, IconPark), its
- * variant (weight / theme), colours (one to three slots, theme colours or hex) and stroke weight.
+ * Icon picker: choose an icon from the built-in sets (Lucide, Fluent Color), with the Lucide colour (theme colour or
+ * hex) and stroke width. Fluent Color icons are fixed artwork (no colour controls).
  *
  * Reusable: `openIconPicker({ initial })` resolves with the chosen IconRef (or null). Used by Insert ▸ Icon,
  * the image visual and the card image slots (Format pane, IconSourceRows). Hosted once by DialogsHost.
@@ -11,15 +11,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ClockRegular, GridRegular, BriefcaseRegular, TagRegular } from '@fluentui/react-icons'
-import { BUSINESS_GROUPS, ICON_SETS, curatedAll, curatedIcons, getLoadedIconSet, listIcons, loadIconSets, searchIcons, setCategories, variantsOf } from '@core/icons/registry'
-import { buildIconSvg } from '@core/icons/svg'
-import { iconKey, iconTitle, refVariant, resolveIconColors, slotColors, themeColor, withVariant } from '@core/icons/ref'
-import { ICON_SET_IDS, type IconRef, type IconSetData, type IconSetId } from '@core/icons/types'
+import { ClockRegular, GridRegular, BriefcaseRegular } from '@fluentui/react-icons'
+import { BUSINESS_GROUPS, curatedAll, curatedIcons, curatedInGroupOrder } from '@core/icons/curated'
+import { ICON_SETS } from '@core/icons/sets'
+import { iconColorValue, iconKey, iconTitle, refStrokeWidth, resolveRefColor, themeColor } from '@core/icons/ref'
+import { ICON_SET_IDS, type IconRef, type IconSetId } from '@core/icons/types'
 import type { ResolvedTheme } from '@core/report/theme'
 import { useApp } from '../state/store'
 import { Button, ColorPicker, Modal, Pivot, SearchBox, Slider, Spinner, cx } from '../app/ui'
 import { useIconSet } from './useIconSet'
+import { getLoadedIconSet, loadIconSets, searchIcons } from './registry'
+import { IconGlyph } from './IconGlyph'
 import { pushRecentIcon, readRecentIcons } from './recent'
 import './icons.css'
 
@@ -65,14 +67,16 @@ export function IconPickerHost() {
 const CELL = 48
 const LAST_SET_KEY = 'lumen.iconPicker.set'
 
-type Category = 'recent' | 'curated' | `curated:${string}` | 'all' | `cat:${string}`
+type Category = 'recent' | 'curated' | `curated:${string}` | 'all'
+/** The style part of a reference (what the controls edit), per set. */
+type IconStyle = Omit<IconRef, 'name'>
 
 function lastSet(): IconSetId {
   try {
     const v = localStorage.getItem(LAST_SET_KEY)
-    return (ICON_SET_IDS as readonly string[]).includes(v ?? '') ? (v as IconSetId) : 'fluent'
+    return (ICON_SET_IDS as readonly string[]).includes(v ?? '') ? (v as IconSetId) : 'lucide'
   } catch {
-    return 'fluent'
+    return 'lucide'
   }
 }
 
@@ -82,10 +86,6 @@ function rememberSet(set: IconSetId): void {
   } catch {
     /* ignore */
   }
-}
-
-function defaultRef(set: IconSetId): Omit<IconRef, 'name'> {
-  return { set, variant: ICON_SETS[set].defaultVariant }
 }
 
 interface DialogProps {
@@ -98,10 +98,10 @@ interface DialogProps {
 function IconPickerDialog({ initial, title, confirmLabel, onDone }: DialogProps) {
   const theme = useApp((s) => s.theme)
   const [set, setSet] = useState<IconSetId>(initial?.set ?? lastSet())
-  // style per set (variant, colours, stroke), so switching tabs back and forth keeps each set's choice
-  const [styles, setStyles] = useState<Record<IconSetId, Omit<IconRef, 'name'>>>(() => {
-    const s = Object.fromEntries(ICON_SET_IDS.map((id) => [id, defaultRef(id)])) as Record<IconSetId, Omit<IconRef, 'name'>>
-    if (initial) s[initial.set] = { set: initial.set, variant: initial.variant, colors: initial.colors, strokeWidth: initial.strokeWidth, padding: initial.padding }
+  // style per set, so switching tabs back and forth keeps each set's choice
+  const [styles, setStyles] = useState<Record<IconSetId, IconStyle>>(() => {
+    const s = Object.fromEntries(ICON_SET_IDS.map((id) => [id, { set: id }])) as Record<IconSetId, IconStyle>
+    if (initial) s[initial.set] = { set: initial.set, color: initial.color, strokeWidth: initial.strokeWidth, padding: initial.padding }
     return s
   })
   const [name, setName] = useState<string | undefined>(initial?.name)
@@ -110,11 +110,10 @@ function IconPickerDialog({ initial, title, confirmLabel, onDone }: DialogProps)
   const recent = useMemo(() => readRecentIcons(), [])
   const style = styles[set]
   const data = useIconSet(set)
-  const variant = refVariant({ ...style, name: '' })
-  // an icon is only offered in the styles it is drawn in (e.g. not every Fluent icon has a Color version)
-  const current: IconRef | undefined = name && (!data || variantsOf(data, name).includes(style.variant)) ? { ...style, name } : undefined
+  const current: IconRef | undefined = name && (!data || data.components.has(name)) ? { ...style, name } : undefined
+  const spec = ICON_SETS[set]
 
-  // a search looks in every library: load them all once the user types
+  // a search looks in every set (the tab labels show the counts): load them all once the user types
   const [allLoaded, setAllLoaded] = useState(false)
   useEffect(() => {
     if (!query || allLoaded) return
@@ -123,30 +122,22 @@ function IconPickerDialog({ initial, title, confirmLabel, onDone }: DialogProps)
 
   useEffect(() => rememberSet(set), [set])
 
-  const setStyle = (patch: Partial<Omit<IconRef, 'name'>>) => setStyles((s) => ({ ...s, [set]: { ...s[set], ...patch } }))
+  const setStyle = (patch: Partial<IconStyle>) => setStyles((s) => ({ ...s, [set]: { ...s[set], ...patch } }))
   const changeSet = (next: IconSetId) => {
-    // colours carry over slot by slot to the other library
-    setStyles((s) => ({ ...s, [next]: { ...s[next], colors: s[next].colors ?? styles[set].colors } }))
     setSet(next)
-    if (name && !getLoadedIconSet(next)?.icons[name]) setName(undefined)
-    if (category.startsWith('cat:')) setCategory('curated')
+    if (name && !getLoadedIconSet(next)?.components.has(name)) setName(undefined)
   }
 
   // the icons of the grid
   const items: IconRef[] = useMemo(() => {
     if (category === 'recent' && !query) return recent
     if (!data) return []
-    let names: string[]
-    if (query) names = searchIcons(data, query, { variant: style.variant })
-    else if (category === 'all') names = listIcons(data, style.variant).map((i) => i.name)
-    else if (category === 'curated') names = curatedAll(data)
-    else if (category.startsWith('curated:')) names = curatedIcons(data)[category.slice('curated:'.length)] ?? []
-    else if (category.startsWith('cat:')) names = setCategories(data).find((c) => c.id === category)?.names ?? []
+    let names: readonly string[]
+    if (query) names = searchIcons(data, query)
+    else if (category === 'all') names = data.names
+    else if (category === 'curated') names = curatedInGroupOrder(data.names)
+    else if (category.startsWith('curated:')) names = curatedIcons(data.names)[category.slice('curated:'.length)] ?? []
     else names = []
-    if (!query && style.variant) {
-      const avail = (n: string) => variantsOf(data, n).includes(style.variant)
-      names = names.filter(avail)
-    }
     return names.map((n) => ({ ...style, name: n }))
   }, [category, query, data, style, recent])
 
@@ -155,22 +146,24 @@ function IconPickerDialog({ initial, title, confirmLabel, onDone }: DialogProps)
     const out: Partial<Record<IconSetId, number>> = {}
     for (const id of ICON_SET_IDS) {
       const d = getLoadedIconSet(id)
-      if (d) out[id] = searchIcons(d, query, { variant: styles[id].variant }).length
+      if (d) out[id] = searchIcons(d, query).length
     }
     return out
-  }, [query, styles, allLoaded])
+    // allLoaded: recount once every set is in
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, allLoaded])
 
   const choose = (ref: IconRef | undefined) => {
     if (ref) onDone(ref)
   }
   const pickItem = (ref: IconRef) => {
     if (ref.set !== set) setSet(ref.set)
-    setStyles((s) => ({ ...s, [ref.set]: { set: ref.set, variant: ref.variant, colors: ref.colors, strokeWidth: ref.strokeWidth, padding: ref.padding } }))
+    setStyles((s) => ({ ...s, [ref.set]: { set: ref.set, color: ref.color, strokeWidth: ref.strokeWidth, padding: ref.padding } }))
     setName(ref.name)
   }
 
-  const groups = data ? curatedIcons(data) : undefined
-  const setCats = data ? setCategories(data) : []
+  const groups = data ? curatedIcons(data.names) : undefined
+  const curatedCount = data ? curatedAll(data.names).length : undefined
 
   return (
     <Modal
@@ -182,7 +175,7 @@ function IconPickerDialog({ initial, title, confirmLabel, onDone }: DialogProps)
       bodyClassName="wbi-iconpicker__body"
       footerLeft={
         <span className="wbi-iconpicker__credit">
-          {ICON_SETS[set].label} icons · {ICON_SETS[set].author} · {ICON_SETS[set].license} licence
+          {spec.label} icons · {spec.author} · {spec.license} licence
         </span>
       }
       footer={
@@ -217,23 +210,21 @@ function IconPickerDialog({ initial, title, confirmLabel, onDone }: DialogProps)
       <div className="wbi-iconpicker__main">
         <nav className="wbi-iconpicker__cats" aria-label="Icon categories">
           <CatButton cur={category} id="recent" disabled={!!query} icon={<ClockRegular />} label={`Recently used (${recent.length})`} onPick={setCategory} />
-          <CatButton cur={category} id="curated" disabled={!!query} icon={<BriefcaseRegular />} label="Business & dashboards" onPick={setCategory} />
-          {BUSINESS_GROUPS.map((g) => (
-            <CatButton key={g.id} cur={category} id={`curated:${g.id}`} disabled={!!query} label={`${g.label}${groups ? ` (${groups[g.id].length})` : ''}`} onPick={setCategory} indent />
-          ))}
-          <CatButton cur={category} id="all" disabled={!!query} icon={<GridRegular />} label={`All ${ICON_SETS[set].label} icons`} onPick={setCategory} />
-          {setCats.length > 0 && <div className="wbi-iconpicker__catgroup">{ICON_SETS[set].label} categories</div>}
-          {setCats.map((c) => (
-            <CatButton key={c.id} cur={category} id={c.id as Category} disabled={!!query} icon={<TagRegular />} label={`${c.label} (${c.names.length})`} onPick={setCategory} indent />
-          ))}
+          <CatButton cur={category} id="curated" disabled={!!query} icon={<BriefcaseRegular />} label={`Business & dashboards${curatedCount !== undefined ? ` (${curatedCount})` : ''}`} onPick={setCategory} />
+          {BUSINESS_GROUPS.map((g) => {
+            const n = groups?.[g.id].length
+            if (n === 0) return null
+            return <CatButton key={g.id} cur={category} id={`curated:${g.id}`} disabled={!!query} label={`${g.label}${n !== undefined ? ` (${n})` : ''}`} onPick={setCategory} indent />
+          })}
+          <CatButton cur={category} id="all" disabled={!!query} icon={<GridRegular />} label={`All ${spec.label} icons${data ? ` (${data.names.length.toLocaleString()})` : ''}`} onPick={setCategory} />
         </nav>
         <div className="wbi-iconpicker__gridwrap">
           {!data && category !== 'recent' ? (
             <div className="wbi-iconpicker__empty">
-              <Spinner label={`Loading ${ICON_SETS[set].label} icons…`} />
+              <Spinner label={`Loading ${spec.label} icons…`} />
             </div>
           ) : items.length === 0 ? (
-            <div className="wbi-iconpicker__empty">{query ? `No ${ICON_SETS[set].label} icons match “${query}” in the ${variant.label} style.` : category === 'recent' ? 'Icons you insert show up here.' : 'No icons in this category.'}</div>
+            <div className="wbi-iconpicker__empty">{query ? `No ${spec.label} icons match “${query}”.` : category === 'recent' ? 'Icons you insert show up here.' : 'No icons in this category.'}</div>
           ) : (
             <IconGrid items={items} selected={current} theme={theme} onSelect={pickItem} onChoose={(r) => choose(r)} />
           )}
@@ -243,8 +234,8 @@ function IconPickerDialog({ initial, title, confirmLabel, onDone }: DialogProps)
           <div className="wbi-iconpicker__name" aria-live="polite">
             {current ? iconTitle(current.name) : 'Select an icon'}
           </div>
-          <div className="wbi-iconpicker__sub">{current ? `${ICON_SETS[set].label} · ${variant.label}` : `${data ? Object.keys(data.icons).length.toLocaleString() : '…'} ${ICON_SETS[set].label} icons`}</div>
-          <StyleControls set={set} style={style} name={name} data={data} theme={theme} onChange={setStyle} />
+          <div className="wbi-iconpicker__sub">{current ? spec.label : `${data ? data.names.length.toLocaleString() : '…'} ${spec.label} icons`}</div>
+          <StyleControls style={style} theme={theme} onChange={setStyle} />
         </aside>
       </div>
     </Modal>
@@ -260,58 +251,30 @@ function CatButton({ cur, id, label, icon, onPick, indent, disabled }: { cur: Ca
   )
 }
 
-/** Variant, colours and stroke weight of the current style. */
-export function StyleControls({ set, style, name, data, theme, onChange, compact }: { set: IconSetId; style: Omit<IconRef, 'name'>; name?: string; data?: IconSetData; theme: ResolvedTheme; onChange(patch: Partial<IconRef>): void; compact?: boolean }) {
-  const spec = refVariant({ ...style, name: '' })
-  const avail = name && data ? variantsOf(data, name) : undefined
-  const hex = resolveIconColors({ ...style, name: '' }, theme)
-  const stored = slotColors({ ...style, name: '' })
+/** Colour and stroke width of a single-colour set; a note for fixed-colour sets. */
+export function StyleControls({ style, theme, onChange, compact }: { style: IconStyle; theme: ResolvedTheme; onChange(patch: Partial<IconRef>): void; compact?: boolean }) {
+  const spec = ICON_SETS[style.set]
+  const probe: IconRef = { ...style, name: '' }
   return (
     <div className={cx('wbi-iconpicker__controls', compact && 'is-compact')}>
-      <div className="wbi-iconpicker__label" id={`ivar-${set}`}>
-        Style
-      </div>
-      <div className="wbi-iconpicker__variants" role="radiogroup" aria-labelledby={`ivar-${set}`}>
-        {ICON_SETS[set].variants.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            role="radio"
-            aria-checked={v.id === spec.id}
-            className={cx('wbi-iconpicker__chip', v.id === spec.id && 'is-on')}
-            disabled={!!avail && !avail.includes(v.id)}
-            title={avail && !avail.includes(v.id) ? `${v.label}: not drawn for this icon` : v.label}
-            onClick={() => onChange(withVariant({ ...style, name: name ?? '' }, v.id))}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
-      {spec.slots.length > 0 && (
+      {spec.colorable ? (
         <div className="wbi-iconpicker__colors">
-          {spec.slots.map((s, i) => (
-            <ColorPicker
-              key={`${spec.id}-${i}`}
-              label={s.label}
-              value={hex[i]}
-              themeColors={theme}
-              onChange={(h, t) => {
-                const colors = [...(style.colors ?? [])]
-                while (colors.length < spec.slots.length) colors.push(null)
-                colors[i] = t ? themeColor(t.colorId, t.percent) : h.toUpperCase()
-                onChange({ colors })
-              }}
-              onReset={typeof stored[i] === 'string' && style.colors?.[i] ? () => onChange({ colors: (style.colors ?? []).map((c, j) => (j === i ? null : c)) }) : undefined}
-              emptyTitle="Default"
-            />
-          ))}
+          <ColorPicker
+            label="Color"
+            value={resolveRefColor(probe, theme)}
+            themeColors={theme}
+            onChange={(h, t) => onChange({ color: t ? themeColor(t.colorId, t.percent) : h.toUpperCase() })}
+            onReset={style.color && style.color !== iconColorValue({ set: style.set, name: '' }) ? () => onChange({ color: undefined }) : undefined}
+            emptyTitle="Default"
+          />
         </div>
+      ) : (
+        <div className="wbi-muted wbi-iconpicker__note">{spec.label} icons keep their own colors.</div>
       )}
-      {spec.slots.length === 0 && <div className="wbi-muted wbi-iconpicker__note">This style uses the icon's own colors.</div>}
       {spec.stroke && (
         <div className="wbi-iconpicker__stroke">
-          <div className="wbi-iconpicker__label">Stroke weight</div>
-          <Slider value={style.strokeWidth ?? spec.stroke.default} min={spec.stroke.min} max={spec.stroke.max} step={spec.stroke.step} onChange={(w) => onChange({ strokeWidth: w })} />
+          <div className="wbi-iconpicker__label">Stroke width</div>
+          <Slider value={refStrokeWidth(probe) ?? spec.stroke.default} min={spec.stroke.min} max={spec.stroke.max} step={spec.stroke.step} onChange={(w) => onChange({ strokeWidth: w })} />
         </div>
       )}
     </div>
@@ -319,18 +282,13 @@ export function StyleControls({ set, style, name, data, theme, onChange, compact
 }
 
 function Preview({ icon, theme }: { icon?: IconRef; theme: ResolvedTheme }) {
-  const data = useIconSet(icon?.set)
-  const svg = (prefix: string) => (icon && data ? buildIconSvg(data, icon, theme, { size: '100%', idPrefix: prefix }) : undefined)
   return (
     <div className="wbi-iconpicker__preview" aria-hidden="true">
-      {(['light', 'dark'] as const).map((bg) => {
-        const s = svg(`pv-${bg}-`)
-        return (
-          <div key={bg} className={cx('wbi-iconpicker__tile', `is-${bg}`)} title={bg === 'light' ? 'On a light background' : 'On a dark background'}>
-            {s ? <span className="wbi-iconpicker__tileglyph" dangerouslySetInnerHTML={{ __html: s }} /> : null}
-          </div>
-        )
-      })}
+      {(['light', 'dark'] as const).map((bg) => (
+        <div key={bg} className={cx('wbi-iconpicker__tile', `is-${bg}`)} title={bg === 'light' ? 'On a light background' : 'On a dark background'}>
+          {icon ? <IconGlyph icon={icon} theme={theme} size={64} /> : null}
+        </div>
+      ))}
     </div>
   )
 }
@@ -403,7 +361,21 @@ function IconGrid({ items, selected, theme, onSelect, onChoose }: { items: IconR
           <div key={row.key} role="row" aria-rowindex={row.index + 1} className="wbi-iconpicker__row" style={{ transform: `translateY(${row.start}px)`, height: CELL }}>
             {items.slice(row.index * cols, row.index * cols + cols).map((it, c) => {
               const i = row.index * cols + c
-              return <Cell key={iconKey(it) + it.set} item={it} index={i} theme={theme} on={iconKey(it) === selKey} tabbable={i === active} onClick={() => { setActive(i); onSelect(it) }} onDouble={() => onChoose(it)} />
+              return (
+                <Cell
+                  key={iconKey(it)}
+                  item={it}
+                  index={i}
+                  theme={theme}
+                  on={iconKey(it) === selKey}
+                  tabbable={i === active}
+                  onClick={() => {
+                    setActive(i)
+                    onSelect(it)
+                  }}
+                  onDouble={() => onChoose(it)}
+                />
+              )
             })}
           </div>
         ))}
@@ -413,15 +385,13 @@ function IconGrid({ items, selected, theme, onSelect, onChoose }: { items: IconR
 }
 
 function Cell({ item, index, theme, on, tabbable, onClick, onDouble }: { item: IconRef; index: number; theme: ResolvedTheme; on: boolean; tabbable: boolean; onClick(): void; onDouble(): void }) {
-  const data = useIconSet(item.set)
-  const svg = data ? buildIconSvg(data, item, theme, { size: '100%', idPrefix: `g${index}-` }) : undefined
   const label = `${iconTitle(item.name)}, ${ICON_SETS[item.set].label}`
   return (
     <button
       type="button"
       role="gridcell"
       data-i={index}
-      data-icon={`${item.set}:${item.name}`}
+      data-icon={iconKey(item)}
       aria-label={label}
       aria-selected={on}
       title={iconTitle(item.name)}
@@ -430,7 +400,7 @@ function Cell({ item, index, theme, on, tabbable, onClick, onDouble }: { item: I
       onClick={onClick}
       onDoubleClick={onDouble}
     >
-      <span className="wbi-iconpicker__glyph" dangerouslySetInnerHTML={svg ? { __html: svg } : undefined} />
+      <IconGlyph icon={item} theme={theme} size={28} className="wbi-iconpicker__glyph" />
     </button>
   )
 }

@@ -1,10 +1,10 @@
 /**
- * Icons in reports: baking an icon into a visual the way Power BI stores images, plus the editable Lumen
- * reference kept beside it.
+ * Icons in reports: storing an icon's picture in a visual the way Power BI stores images, plus the editable Lumen
+ * reference kept beside it. Pure: the picture itself (an SVG document) is produced by the renderer from the icon
+ * library's React component (renderer/src/icons/picture.ts) and handed in here as a string.
  *
- * Power BI knows nothing about Lumen's icons, so every icon is **baked** to an SVG and stored in the form
- * Power BI itself uses for that visual's image (a report saved by Lumen opens in Power BI Desktop and shows
- * the same picture there):
+ * Power BI knows nothing about Lumen's icons, so every icon is **baked**: its picture is stored in the form Power BI
+ * itself uses for that visual's image (a report saved by Lumen opens in Power BI Desktop and shows the same picture):
  *
  *   image visual         form 'resource': the SVG becomes a registered resource
  *                        (StaticResources/RegisteredResources/<item>.svg, listed in report.json
@@ -22,29 +22,28 @@
  * The editable reference lives in the visual's `annotations` (visualContainer schema: an array of
  * `{ name, value }` strings that Power BI preserves and ignores), name `Lumen_Icon`, value a JSON string:
  *
- *   { "version": 1, "icons": [ { "slot": { "object": "general", "property": "imageUrl", "form": "resource" },
- *       "icon": { "set": "tabler", "name": "chart-bar", "variant": "outline", "colors": ["theme:2"] },
+ *   { "version": 2, "icons": [ { "slot": { "object": "general", "property": "imageUrl", "form": "resource" },
+ *       "icon": { "set": "lucide", "name": "chart-column", "color": "theme:1" },
  *       "bake": "<fingerprint of the baked bytes / data URI>", "resource": "<item name>" } ] }
  *
  * On open (and before every save) a binding whose image no longer matches its fingerprint — the image was
  * changed in Power BI, or by an image edit in Lumen — is stale: the image wins and the binding is dropped
- * (pruneStaleIcons). Bindings that use theme colours are re-baked when the theme changes (rebakeIcons).
+ * (pruneStaleIcons). So is a binding to a set Lumen no longer offers (REMOVED_ICON_SET_IDS): its picture stays as
+ * a plain image. Bindings that use theme colours are re-baked when the theme changes (rebakeIcons).
  */
 import type { ReportDocument } from '../report/types'
 import type { ObjectEntry, Selector } from '../report/props'
 import { decodeLiteral } from '../report/literal'
-import type { ResolvedTheme } from '../report/theme'
 import { bytesToBase64, findResource } from '../pbir/resources'
 import { fingerprint } from './hash'
 import { parseIconRef, serializeIconRef, usesThemeColors } from './ref'
-import { buildIconSvg } from './svg'
-import type { IconRef, IconSetData, IconSetId } from './types'
+import { REMOVED_ICON_SET_IDS, type IconRef, type IconSetId } from './types'
 
 export const ICON_ANNOTATION = 'Lumen_Icon'
 /** Item names of baked icon resources start with this (only those are ever deleted by Lumen). */
 export const ICON_RESOURCE_PREFIX = 'LumenIcon_'
 const RESOURCE_DIR = 'StaticResources/RegisteredResources/'
-/** Intrinsic size written into baked SVGs (they scale: every slot fits the image into its box). */
+/** Intrinsic size of baked pictures (they scale: every slot fits the image into its box). */
 export const BAKE_SIZE = 256
 
 export interface IconSlot {
@@ -128,8 +127,14 @@ function literalString(raw: any): string | undefined {
 // Annotation
 // ---------------------------------------------------------------------------------------------
 
-/** Icon bindings stored on a visual (invalid entries are skipped). */
-export function readIconBindings(visualJson: any): IconBinding[] {
+/** An annotation entry: a usable binding, a binding to a removed set, or something unreadable. */
+interface RawBinding {
+  binding?: IconBinding
+  /** the entry references a set Lumen no longer offers */
+  removedSet?: string
+}
+
+function readRawBindings(visualJson: any): RawBinding[] {
   const ann = (Array.isArray(visualJson?.annotations) ? visualJson.annotations : []).find((a: any) => a?.name === ICON_ANNOTATION)
   if (!ann || typeof ann.value !== 'string') return []
   let parsed: any
@@ -138,15 +143,28 @@ export function readIconBindings(visualJson: any): IconBinding[] {
   } catch {
     return []
   }
-  const out: IconBinding[] = []
+  const out: RawBinding[] = []
   for (const b of Array.isArray(parsed?.icons) ? parsed.icons : []) {
+    const set = b?.icon?.set
+    if (typeof set === 'string' && REMOVED_ICON_SET_IDS.includes(set)) {
+      out.push({ removedSet: set })
+      continue
+    }
     const icon = parseIconRef(b?.icon)
     const s = b?.slot
-    if (!icon || !s || typeof s.object !== 'string' || typeof s.property !== 'string' || (s.form !== 'resource' && s.form !== 'dataUri') || typeof b.bake !== 'string') continue
+    if (!icon || !s || typeof s.object !== 'string' || typeof s.property !== 'string' || (s.form !== 'resource' && s.form !== 'dataUri') || typeof b.bake !== 'string') {
+      out.push({})
+      continue
+    }
     const slot: IconSlot = { object: s.object, property: s.property, form: s.form, ...(s.selector && typeof s.selector === 'object' ? { selector: s.selector } : {}) }
-    out.push({ slot, icon, bake: b.bake, ...(typeof b.resource === 'string' ? { resource: b.resource } : {}) })
+    out.push({ binding: { slot, icon, bake: b.bake, ...(typeof b.resource === 'string' ? { resource: b.resource } : {}) } })
   }
   return out
+}
+
+/** Icon bindings stored on a visual (invalid entries and references to removed sets are skipped). */
+export function readIconBindings(visualJson: any): IconBinding[] {
+  return readRawBindings(visualJson).flatMap((r) => (r.binding ? [r.binding] : []))
 }
 
 /** Write (or remove, when empty) the visual's `Lumen_Icon` annotation; other annotations are kept in place. Mutates. */
@@ -160,7 +178,7 @@ export function writeIconBindings(visualJson: any, bindings: IconBinding[]): voi
     return
   }
   const value = JSON.stringify({
-    version: 1,
+    version: 2,
     icons: bindings.map((b) => ({ slot: { object: b.slot.object, property: b.slot.property, form: b.slot.form, ...(b.slot.selector ? { selector: b.slot.selector } : {}) }, icon: serializeIconRef(b.icon), bake: b.bake, ...(b.resource ? { resource: b.resource } : {}) }))
   })
   if (i >= 0) list[i] = { name: ICON_ANNOTATION, value }
@@ -209,11 +227,6 @@ export function activeIcon(report: ReportDocument, visualJson: any, slot: Pick<I
 // ---------------------------------------------------------------------------------------------
 // Baking
 // ---------------------------------------------------------------------------------------------
-
-/** The SVG baked for a reference (colours resolved through the theme). */
-export function bakedSvg(data: IconSetData, ref: IconRef, theme: ResolvedTheme): string | undefined {
-  return buildIconSvg(data, ref, theme, { size: BAKE_SIZE })
-}
 
 function svgBytes(svg: string): Uint8Array {
   return new TextEncoder().encode(svg)
@@ -295,12 +308,10 @@ function writeResourceImage(report: ReportDocument, visualJson: any, svg: string
 }
 
 /**
- * Bake `ref` into `slot` of a visual (mutates the report draft): writes the image Power BI reads and the
- * Lumen binding next to it. Returns false when the set has no such icon.
+ * Bake `ref` into `slot` of a visual (mutates the report draft): stores `svg` (the icon's picture, a standalone SVG
+ * document rendered from the icon component) where Power BI reads the image, and the Lumen binding next to it.
  */
-export function bakeIcon(report: ReportDocument, visualJson: any, slot: IconSlot, ref: IconRef, data: IconSetData, theme: ResolvedTheme): boolean {
-  const svg = bakedSvg(data, ref, theme)
-  if (!svg) return false
+export function bakeIcon(report: ReportDocument, visualJson: any, slot: IconSlot, ref: IconRef, svg: string): void {
   const bindings = readIconBindings(visualJson)
   const key = slotKey(slot)
   const prev = bindings.find((b) => slotKey(b.slot) === key)
@@ -320,7 +331,11 @@ export function bakeIcon(report: ReportDocument, visualJson: any, slot: IconSlot
   }
   writeIconBindings(visualJson, [...bindings.filter((b) => b !== prev), binding])
   if (prev?.resource && prev.resource !== binding.resource) releaseIconResource(report, prev.resource)
-  return true
+}
+
+/** Fingerprint `svg` would get in `slot` (to tell whether a re-bake changes anything). */
+export function bakeFingerprint(slot: Pick<IconSlot, 'form'>, svg: string): string {
+  return slot.form === 'resource' ? fingerprint(svgBytes(svg)) : fingerprint(svgDataUriOf(svg))
 }
 
 /** Turn an icon slot back into a plain image slot: drop the binding (the baked image stays, as an ordinary image). */
@@ -370,48 +385,60 @@ export function hasIconBindings(report: ReportDocument): boolean {
   return false
 }
 
+export interface IconPruneResult {
+  /** bindings whose picture was replaced outside Lumen */
+  stale: number
+  /** bindings to sets Lumen no longer offers (their pictures stay, as plain images) */
+  removed: number
+  /** those sets' ids (sorted) */
+  removedSets: string[]
+}
+
 /**
- * Drop bindings whose image no longer matches (changed in Power BI, or replaced by an image edit): the image
- * wins. Mutates; returns the number of bindings dropped.
+ * Drop bindings whose image no longer matches (changed in Power BI, or replaced by an image edit): the image wins.
+ * Also drops bindings to sets Lumen no longer offers, keeping their pictures as plain images. Mutates.
  */
-export function pruneStaleIcons(report: ReportDocument): number {
-  let dropped = 0
+export function pruneStaleIcons(report: ReportDocument): IconPruneResult {
+  const res: IconPruneResult = { stale: 0, removed: 0, removedSets: [] }
   for (const v of visualsOf(report)) {
-    const all = readIconBindings(v.json)
-    if (!all.length) {
+    const raw = readRawBindings(v.json)
+    const all = raw.flatMap((r) => (r.binding ? [r.binding] : []))
+    const removed = raw.filter((r) => r.removedSet)
+    if (!all.length && !removed.length) {
       // an unreadable annotation is left alone (another tool's future version may own it)
       continue
     }
     const keep = all.filter((b) => isBindingCurrent(report, v.json, b))
-    if (keep.length !== all.length) {
-      dropped += all.length - keep.length
+    if (keep.length !== all.length || removed.length) {
+      res.stale += all.length - keep.length
+      res.removed += removed.length
+      for (const r of removed) if (!res.removedSets.includes(r.removedSet!)) res.removedSets.push(r.removedSet!)
       writeIconBindings(v.json, keep)
     }
   }
-  return dropped
+  res.removedSets.sort()
+  return res
 }
 
 /**
- * Re-bake every current binding whose SVG under `theme` differs from what is stored (theme colours changed).
- * `getSet` returns loaded set data (bindings of sets not loaded are skipped and counted in `missing`).
- * Mutates; returns how many were re-baked.
+ * Re-bake every current binding that uses theme colours and whose picture under the current theme differs from what
+ * is stored. `render(ref)` returns the icon's picture (renderer/src/icons/picture.ts, colours resolved through the
+ * theme), undefined when the icon's set is not loaded yet (counted in `missing`), or null when it cannot be drawn
+ * (unknown icon: the stored picture stays). Mutates; returns how many were re-baked.
  */
-export function rebakeIcons(report: ReportDocument, theme: ResolvedTheme, getSet: (set: IconSetId) => IconSetData | undefined): { rebaked: number; missing: Set<IconSetId> } {
+export function rebakeIcons(report: ReportDocument, render: (ref: IconRef) => string | null | undefined): { rebaked: number; missing: Set<IconSetId> } {
   const missing = new Set<IconSetId>()
   let rebaked = 0
   for (const v of visualsOf(report)) {
     for (const b of readIconBindings(v.json)) {
       if (!usesThemeColors(b.icon) || !isBindingCurrent(report, v.json, b)) continue
-      const data = getSet(b.icon.set)
-      if (!data) {
+      const svg = render(b.icon)
+      if (svg === undefined) {
         missing.add(b.icon.set)
         continue
       }
-      const svg = bakedSvg(data, b.icon, theme)
-      if (!svg) continue
-      const fp = b.slot.form === 'resource' ? fingerprint(svgBytes(svg)) : fingerprint(svgDataUriOf(svg))
-      if (fp === b.bake) continue
-      bakeIcon(report, v.json, b.slot, b.icon, data, theme)
+      if (svg === null || bakeFingerprint(b.slot, svg) === b.bake) continue
+      bakeIcon(report, v.json, b.slot, b.icon, svg)
       rebaked++
     }
   }

@@ -1,13 +1,14 @@
 /**
- * Icon references: parse / serialise, colour values (literal hex or report theme colours), resolution
- * of a reference's colours through the report theme (so an icon follows a theme change).
+ * Icon references: parse / serialise, colour values (literal hex or report theme colours), resolution of a
+ * reference's colour through the report theme (so an icon follows a theme change), names and keys.
  */
-import { shadeColor, themeDataColor, type ResolvedTheme } from '../report/theme'
-import { ICON_SETS, variantSpec } from './sets'
-import { isIconSetId, type IconColor, type IconRef, type VariantSpec } from './types'
+import { themeDataColor, type ResolvedTheme } from '../report/theme'
+import { ICON_SETS } from './sets'
+import { isIconSetId, type IconColor, type IconRef } from './types'
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
 const THEME = /^theme:(\d+)(?::(-?\d*\.?\d+))?$/
+const NAME = /^[a-z0-9][a-z0-9-]*$/
 
 export interface ThemeColorParts {
   colorId: number
@@ -35,83 +36,87 @@ export function normHex(hex: string): string {
   return `#${h.slice(0, 6).toUpperCase()}`
 }
 
-/** A stored colour → hex through the theme (theme colours need one; without it the base theme's palette is assumed by the caller). */
+/** A stored colour → hex through the theme. */
 export function resolveIconColor(c: IconColor, theme: ResolvedTheme): string {
   const t = themeColorParts(c)
   if (t) return normHex(themeDataColor(theme, t.colorId, t.percent))
   return HEX.test(c) ? normHex(c) : '#000000'
 }
 
-/** The variant of a reference, falling back to the set's default (unknown variant). */
-export function refVariant(ref: IconRef): VariantSpec {
-  return variantSpec(ref.set, ref.variant) ?? variantSpec(ref.set, ICON_SETS[ref.set].defaultVariant)!
+/** The stored colour of a reference (its own, else the set's default); undefined for fixed-colour sets. */
+export function iconColorValue(ref: IconRef): IconColor | undefined {
+  const spec = ICON_SETS[ref.set]
+  if (!spec.colorable) return undefined
+  return ref.color && isIconColor(ref.color) ? ref.color : spec.defaultColor
 }
 
-/** The stored colour of each slot (null = default) — the colour value, before theme resolution. */
-export function slotColors(ref: IconRef): Array<IconColor | { derive: number; percent: number }> {
-  return refVariant(ref).slots.map((s, i) => {
-    const c = ref.colors?.[i]
-    return typeof c === 'string' && isIconColor(c) ? c : s.default
-  })
+/** The hex colour a single-colour icon is drawn in (undefined for fixed-colour sets). */
+export function resolveRefColor(ref: IconRef, theme: ResolvedTheme): string | undefined {
+  const c = iconColorValue(ref)
+  return c ? resolveIconColor(c, theme) : undefined
 }
 
-/** Hex colour of every colour slot of the reference's variant (defaults and derived slots applied). */
-export function resolveIconColors(ref: IconRef, theme: ResolvedTheme): string[] {
-  const vals = slotColors(ref)
-  const out: string[] = vals.map((v) => (typeof v === 'string' ? resolveIconColor(v, theme) : ''))
-  vals.forEach((v, i) => {
-    if (typeof v !== 'string') out[i] = normHex(shadeColor(out[v.derive] || '#000000', v.percent))
-  })
-  return out
+/** The stroke width a reference is drawn with (undefined for sets without strokes). */
+export function refStrokeWidth(ref: IconRef): number | undefined {
+  const s = ICON_SETS[ref.set].stroke
+  if (!s) return undefined
+  const w = ref.strokeWidth
+  return typeof w === 'number' && Number.isFinite(w) ? Math.max(s.min, Math.min(s.max, w)) : s.default
 }
 
-/** Theme colour ids a reference depends on (for theme-change re-bakes). */
+/** Does the reference's picture depend on the report theme (theme colour, own or default)? */
 export function usesThemeColors(ref: IconRef): boolean {
-  return slotColors(ref).some((v) => typeof v !== 'string' || themeColorParts(v) !== undefined)
+  const c = iconColorValue(ref)
+  return !!c && themeColorParts(c) !== undefined
 }
 
-/** Compact id used for keys, recents and tests: `set:name@variant`. */
-export function iconKey(ref: Pick<IconRef, 'set' | 'name' | 'variant'>): string {
-  return `${ref.set}:${ref.name}@${ref.variant}`
+/** Compact id used for keys, recents and tests: `set:name`. */
+export function iconKey(ref: Pick<IconRef, 'set' | 'name'>): string {
+  return `${ref.set}:${ref.name}`
 }
 
-/** Validate + normalise an untrusted reference (from a file). Returns undefined when it is not one. */
+/** Validate + normalise an untrusted reference (from a file). Returns undefined when it is not one of the current sets. */
 export function parseIconRef(v: unknown): IconRef | undefined {
   if (!v || typeof v !== 'object') return undefined
   const o = v as Record<string, unknown>
-  if (!isIconSetId(o['set']) || typeof o['name'] !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(o['name'])) return undefined
-  const ref: IconRef = { set: o['set'], name: o['name'], variant: typeof o['variant'] === 'string' ? o['variant'] : ICON_SETS[o['set']].defaultVariant }
-  if (!variantSpec(ref.set, ref.variant)) ref.variant = ICON_SETS[ref.set].defaultVariant
-  if (Array.isArray(o['colors'])) ref.colors = o['colors'].map((c) => (isIconColor(c) ? c : null))
-  if (typeof o['strokeWidth'] === 'number' && Number.isFinite(o['strokeWidth']) && o['strokeWidth'] > 0) ref.strokeWidth = o['strokeWidth']
+  if (!isIconSetId(o['set']) || typeof o['name'] !== 'string' || !NAME.test(o['name'])) return undefined
+  const ref: IconRef = { set: o['set'], name: o['name'] }
+  const spec = ICON_SETS[ref.set]
+  if (spec.colorable && isIconColor(o['color'])) ref.color = o['color']
+  if (spec.stroke && typeof o['strokeWidth'] === 'number' && Number.isFinite(o['strokeWidth']) && o['strokeWidth'] > 0) ref.strokeWidth = o['strokeWidth']
   if (typeof o['padding'] === 'number' && Number.isFinite(o['padding'])) ref.padding = Math.max(0, Math.min(40, o['padding']))
   return ref
 }
 
-/** Canonical JSON-able form (stable key order, defaults dropped). */
+/** Canonical JSON-able form (stable key order; what does not apply to the set and defaults are dropped). */
 export function serializeIconRef(ref: IconRef): IconRef {
-  const out: IconRef = { set: ref.set, name: ref.name, variant: ref.variant }
-  const slots = refVariant(ref).slots.length
-  const colors = (ref.colors ?? []).slice(0, slots).map((c) => (c && isIconColor(c) ? c : null))
-  while (colors.length && colors[colors.length - 1] === null) colors.pop()
-  if (colors.length) out.colors = colors
-  const stroke = refVariant(ref).stroke
-  if (stroke && ref.strokeWidth !== undefined && ref.strokeWidth !== stroke.default) out.strokeWidth = ref.strokeWidth
+  const spec = ICON_SETS[ref.set]
+  const out: IconRef = { set: ref.set, name: ref.name }
+  if (spec.colorable && ref.color && isIconColor(ref.color)) out.color = ref.color
+  if (spec.stroke && ref.strokeWidth !== undefined && ref.strokeWidth !== spec.stroke.default) out.strokeWidth = ref.strokeWidth
   if (ref.padding) out.padding = ref.padding
   return out
-}
-
-/** A reference with another variant: colours carried over slot by slot, stroke kept when the new variant has strokes. */
-export function withVariant(ref: IconRef, variant: string): IconRef {
-  const next: IconRef = { ...ref, variant }
-  const spec = variantSpec(ref.set, variant)
-  if (!spec?.stroke) delete next.strokeWidth
-  if (ref.colors) next.colors = ref.colors.slice(0, spec?.slots.length ?? 0)
-  return next
 }
 
 /** Readable name: `chart-bar-vertical` → `Chart bar vertical`. */
 export function iconTitle(name: string): string {
   const s = name.replace(/-/g, ' ')
   return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+/**
+ * Icon name of a component export: library prefix / suffix removed, PascalCase → kebab-case, digits as their own
+ * token (`LuChartBar` → `chart-bar`, `LuArrowDown01` → `arrow-down-01`, `DataBarVerticalAscendingColor` →
+ * `data-bar-vertical-ascending`). Names are stable as long as the library keeps its export names.
+ */
+export function componentIconName(exportName: string, prefix = '', suffix = ''): string {
+  let s = exportName
+  if (prefix && s.startsWith(prefix)) s = s.slice(prefix.length)
+  if (suffix && s.endsWith(suffix)) s = s.slice(0, -suffix.length)
+  return s
+    .replace(/([a-z])([A-Z])/g, '$1-$2')
+    .replace(/([A-Za-z])([0-9])/g, '$1-$2')
+    .replace(/([0-9])([A-Za-z])/g, '$1-$2')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
+    .toLowerCase()
 }

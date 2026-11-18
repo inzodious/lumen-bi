@@ -42,9 +42,11 @@ function stripExt(name: string): string {
 function project(name: string, source: ProjectSource, model: SemanticModel, data: DataStore, report: ReportDocument | undefined, diagnostics: Diagnostic[]): ProjectDocument {
   const doc: ProjectDocument = { id: newId(), name, source, model, data, diagnostics, dirty: false }
   if (report) {
-    // Lumen icons whose baked image was replaced outside Lumen (e.g. in Power BI): the image wins (docs/ICONS.md)
-    const stale = pruneStaleIcons(report)
+    // Lumen icons whose baked image was replaced outside Lumen (e.g. in Power BI): the image wins; icons of sets
+    // Lumen no longer offers keep their picture as a plain image (docs/ICONS.md)
+    const { stale, removed, removedSets } = pruneStaleIcons(report)
     if (stale) diagnostics.push({ level: 'info', message: `${stale} icon${stale === 1 ? '' : 's'} replaced by another image outside Lumen now show as plain images.` })
+    if (removed) diagnostics.push({ level: 'info', message: `${removed} icon${removed === 1 ? '' : 's'} from an icon set Lumen no longer offers (${removedSets.join(', ')}) now show${removed === 1 ? 's' : ''} as ${removed === 1 ? 'a plain image' : 'plain images'}; pick a new icon to edit ${removed === 1 ? 'it' : 'them'} again.` })
     doc.report = report
   }
   return doc

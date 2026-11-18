@@ -24,7 +24,8 @@ import { APP_NAME } from './brand'
 import { openModelingDialog } from '../dialogs/modeling'
 import { defaultThemeFor, setReportTheme } from './themes'
 import { IMAGE_VISUAL_SLOT, bakeIcon } from '@core/icons/bake'
-import { loadIconSet, variantsOf } from '@core/icons/registry'
+import { loadIconPicture, renderIconPicture } from '../icons/picture'
+import { centredPlacement, visiblePageRect } from './insertPlacement'
 import { openIconPicker } from '../icons/IconPicker'
 import { rebakeIconsBeforeSave } from '../icons/actions'
 
@@ -501,22 +502,26 @@ export async function insertImage(): Promise<void> {
 }
 
 /**
- * Insert ▸ Icon: pick an icon from the built-in libraries and add it as an image visual. The icon is baked to an
- * SVG image resource (what Power BI shows) with an editable Lumen reference beside it (core/icons/bake.ts).
+ * Insert ▸ Icon: pick an icon from the built-in sets and add it as an image visual, centred on the visible part of the
+ * canvas (insertPlacement.ts). The icon's picture is stored as an SVG image resource (what Power BI shows) with an
+ * editable Lumen reference beside it (core/icons/bake.ts).
  */
 export async function insertIcon(): Promise<void> {
   const ref = await openIconPicker({ title: 'Insert icon', confirmLabel: 'Insert' })
   if (!ref) return
-  const data = await loadIconSet(ref.set)
-  if (!variantsOf(data, ref.name).includes(ref.variant)) return
+  if (!(await loadIconPicture(ref, useApp.getState().theme))) return
   ensureReport()
   let created: string | undefined
   useApp.getState().mutateReport('Insert icon', (r) => {
     const page = activePageDoc(r)
     if (!page) return
-    created = addVisual(page, 'image', placement(r, 96, 96), {})
+    const pw = Number(page.json?.width ?? 1280)
+    const ph = Number(page.json?.height ?? 720)
+    const at = centredPlacement({ width: pw, height: ph }, visiblePageRect(page.name, pw), 96, 96, page.visuals.map((x) => positionOf(x)))
+    created = addVisual(page, 'image', at, {})
     const v = page.visuals.find((x) => x.name === created)
-    if (v) bakeIcon(r, v.json, IMAGE_VISUAL_SLOT, ref, data, useApp.getState().theme)
+    const svg = renderIconPicture(ref, useApp.getState().theme)
+    if (v && svg) bakeIcon(r, v.json, IMAGE_VISUAL_SLOT, ref, svg)
   })
   if (created) useApp.getState().selectVisuals([created])
 }

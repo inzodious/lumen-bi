@@ -1,13 +1,13 @@
 /**
- * React access to the icon registry: a set's data once its lazily imported chunk has loaded.
+ * React access to the icon registry: a set's components once its lazily imported module has loaded.
  * While a set loads, the app counts as busy (readiness), so headless captures and exports wait for icons.
  */
 import { useEffect, useState } from 'react'
-import { getLoadedIconSet, loadIconSet } from '@core/icons/registry'
-import type { IconSetData, IconSetId } from '@core/icons/types'
+import type { IconSetId } from '@core/icons/types'
 import { holdBusy } from '../app/readiness'
+import { getLoadedIconSet, loadIconSet, type LoadedIconSet } from './registry'
 
-export function useIconSet(set: IconSetId | undefined): IconSetData | undefined {
+export function useIconSet(set: IconSetId | undefined): LoadedIconSet | undefined {
   const [, setTick] = useState(0)
   const data = set ? getLoadedIconSet(set) : undefined
   useEffect(() => {

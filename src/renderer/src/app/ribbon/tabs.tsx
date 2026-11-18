@@ -275,7 +275,7 @@ function InsertTab() {
             { label: 'Icon…', onClick: () => void insertIcon() }
           ]}
         />
-        <RibbonButton label="Icon" icon={L(IconsRegular)} onClick={() => void insertIcon()} tooltip="Insert an icon from the built-in libraries (Fluent UI, Phosphor, Tabler, IconPark) as an image." />
+        <RibbonButton label="Icon" icon={L(IconsRegular)} onClick={() => void insertIcon()} tooltip="Insert an icon (Lucide or Fluent Color) as an image." />
       </RibbonGroup>
     </>
   )

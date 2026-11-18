@@ -13,6 +13,7 @@ import { useShell } from './shellState'
 import { openPath, saveAs } from './commands'
 import { exportReport, exportReportWithResult } from '../export'
 import { isBusy } from './readiness'
+import { setVisualIcon } from '../icons/actions'
 
 export interface LumenE2EHooks {
   useApp: typeof useApp
@@ -23,6 +24,8 @@ export interface LumenE2EHooks {
   exportReport: typeof exportReport
   exportReportWithResult: typeof exportReportWithResult
   isBusy: typeof isBusy
+  /** bake a built-in icon into a visual's image slot (icons/actions.ts) */
+  setVisualIcon: typeof setVisualIcon
   /** console errors / uncaught errors seen by the renderer since the hooks were installed */
   errors: string[]
 }
@@ -47,5 +50,5 @@ export function installE2EHooks(): void {
   }
   window.addEventListener('error', (e) => errors.push(`[uncaught] ${e.message}`))
   window.addEventListener('unhandledrejection', (e) => errors.push(`[unhandledrejection] ${String((e as PromiseRejectionEvent).reason)}`))
-  window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, exportReportWithResult, isBusy, errors }
+  window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, exportReportWithResult, isBusy, setVisualIcon, errors }
 }

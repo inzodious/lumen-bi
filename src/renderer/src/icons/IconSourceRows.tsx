@@ -4,14 +4,14 @@
  *   image visual  "Source: Image file | Icon" (+ Browse… for a file, or the icon rows)
  *   card images   the slot's own "Image source" dropdown gains "Icon"; while an icon is shown the URL row is hidden
  *
- * Icon rows: the icon (opens the picker), style (variant), colours, stroke weight, padding, remove.
+ * Icon rows: the icon (opens the picker), colour and stroke width (single-colour sets), padding, remove.
  * Edits bake the icon into the visual (icons/actions.ts → core/icons/bake.ts) in one undo step each.
  */
 import type { ReactNode } from 'react'
 import { DismissRegular, ImageAddRegular } from '@fluentui/react-icons'
 import { activeIcon, imageVisualItem, removeIcon, type IconBinding, type IconSlot } from '@core/icons/bake'
-import { ICON_SETS } from '@core/icons/registry'
-import { iconTitle, refVariant } from '@core/icons/ref'
+import { ICON_SETS } from '@core/icons/sets'
+import { iconTitle } from '@core/icons/ref'
 import type { IconRef } from '@core/icons/types'
 import type { Selector } from '@core/report/props'
 import type { FormatPropDef } from '../visuals/contract'
@@ -23,7 +23,6 @@ import { setRaw } from '../panes/visualizations/objects'
 import type { BagTarget } from '../panes/visualizations/PropEditor'
 import { openIconPicker, StyleControls } from './IconPicker'
 import { IconGlyph } from './IconGlyph'
-import { useIconSet } from './useIconSet'
 import { clearVisualIcon, setVisualIcon } from './actions'
 
 export const ICON_OPTION = '__lumenIcon'
@@ -70,8 +69,6 @@ async function chooseIcon(visual: { pageName: string; visualName: string }, slot
 /** The icon's own rows (shown while the slot holds an icon). */
 function IconRows({ binding, slot, visual, theme }: { binding: IconBinding; slot: IconSlot; visual: { pageName: string; visualName: string }; theme: ReturnType<typeof useApp.getState>['theme'] }) {
   const icon = binding.icon
-  const data = useIconSet(icon.set)
-  const spec = refVariant(icon)
   const key = `icon:${visual.pageName}/${visual.visualName}:${slot.object}`
   const update = (patch: Partial<IconRef>, continuous = false) => void setVisualIcon(visual.pageName, visual.visualName, slot, { ...icon, ...patch }, { label: 'Format icon', coalesce: continuous ? key : undefined })
   return (
@@ -83,18 +80,16 @@ function IconRows({ binding, slot, visual, theme }: { binding: IconBinding; slot
           </span>
           <span className="wbi-iconsrc__text">
             <span className="wbi-iconsrc__title">{iconTitle(icon.name)}</span>
-            <span className="wbi-iconsrc__meta">
-              {ICON_SETS[icon.set].label} · {spec.label}
-            </span>
+            <span className="wbi-iconsrc__meta">{ICON_SETS[icon.set].label}</span>
           </span>
         </button>
       </Row>
-      <StyleControls compact set={icon.set} style={icon} name={icon.name} data={data} theme={theme} onChange={(p) => update(p, 'strokeWidth' in p)} />
+      <StyleControls compact style={icon} theme={theme} onChange={(p) => update(p, 'strokeWidth' in p)} />
       <Row label="Padding (%)" prop="lumenIconPadding">
         <SpinField label="Padding (%)" value={icon.padding ?? 0} min={0} max={40} integer onChange={(n, stepping) => update({ padding: n ?? 0 }, stepping)} />
       </Row>
       <div className="wbi-iconsrc__note">
-        Saved as an SVG image that Power BI shows as is; Lumen keeps the icon editable.{' '}
+        Saved with a picture of the icon that Power BI shows as an image; Lumen keeps the icon editable.{' '}
         <button type="button" className="wbi-link" onClick={() => clearVisualIcon(visual.pageName, visual.visualName, slot)}>
           <DismissRegular fontSize={11} /> Remove icon
         </button>

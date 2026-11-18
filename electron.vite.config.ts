@@ -1,5 +1,5 @@
 import { resolve } from 'node:path'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import { build as viteBuild, type Plugin } from 'vite'
@@ -36,10 +36,12 @@ function codeFramePlugin(): Plugin {
     if (!chunk) throw new Error(`codeframe: no output for ${entry}`)
     return chunk.code as string
   }
-  const files = async (): Promise<Record<string, string>> => ({
+  const fontDir = resolve(import.meta.dirname, 'src/renderer/src/assets/fonts/selawik')
+  const files = async (): Promise<Record<string, string | Uint8Array>> => ({
     'codeframe/frame.html': readFileSync(resolve(dir, 'frame.html'), 'utf8'),
     'codeframe/frame.js': await bundle('frame.ts', 'lumenCodeFrame'),
-    'codeframe/react.js': await bundle('react.ts', 'lumenCodeReact')
+    'codeframe/react.js': await bundle('react.ts', 'lumenCodeReact'),
+    ...Object.fromEntries(readdirSync(fontDir).filter((f) => f.endsWith('.woff2')).map((f) => [`codeframe/fonts/${f}`, new Uint8Array(readFileSync(resolve(fontDir, f)))]))
   })
   let command: 'build' | 'serve' = 'build'
   return {
@@ -54,7 +56,7 @@ function codeFramePlugin(): Plugin {
     async configureServer() {
       const outDir = resolve(import.meta.dirname, 'out/renderer')
       for (const [f, source] of Object.entries(await files())) {
-        mkdirSync(resolve(outDir, 'codeframe'), { recursive: true })
+        mkdirSync(resolve(outDir, f, '..'), { recursive: true })
         writeFileSync(resolve(outDir, f), source)
       }
     }

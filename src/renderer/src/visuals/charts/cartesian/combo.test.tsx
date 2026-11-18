@@ -1,7 +1,7 @@
 /**
- * Line-and-column combo chart defaults matched against a Power BI render: the line labels sit in light boxes, the
- * legend marks the line series with a circle like the columns, and the secondary axis has its own range (its zero is
- * not lined up with the primary zero unless "Align zeros" is on).
+ * Line-and-column combo chart defaults: no label background unless set, the legend marks the line series with a
+ * circle like the columns, and the secondary axis has its own range (its zero is not lined up with the primary zero
+ * unless "Align zeros" is on).
  */
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -9,7 +9,7 @@ import { createMemoryEngine } from '../../common/memoryEngine'
 import { createMockHost } from '../../common/mockHost'
 import { col, msr, props, visualJson } from '../../gallery/registry'
 import { getVisual } from '../../registry'
-import { COMBO_LINE_LABEL_BG_TRANSPARENCY, legendShapeFor } from './CartesianChart'
+import { legendShapeFor } from './CartesianChart'
 import '../index'
 
 const T = 'Visits'
@@ -51,25 +51,18 @@ function tickY(html: string, text: string): number[] {
 }
 
 describe('line and clustered column chart defaults', () => {
-  it('line labels get a light background box by default; column labels do not', () => {
-    const html = render({ labels: [props({ show: true })] })
-    const groups = labelGroups(html)
+  it('no label background by default, on line or column labels', () => {
+    const groups = labelGroups(render({ labels: [props({ show: true })] }))
     const line = groups.filter((g) => /%$/.test(g.text))
     const cols = groups.filter((g) => /^\d+$/.test(g.text))
     expect(line.length).toBeGreaterThan(1)
     expect(cols.length).toBeGreaterThan(0)
-    for (const g of line) {
-      expect(g.rect).toContain(`fill="rgba(255,255,255,${1 - COMBO_LINE_LABEL_BG_TRANSPARENCY / 100})"`)
-      expect(g.rect).toMatch(/stroke="rgba\(255,255,255,0\.9\)"/)
-    }
-    for (const g of cols) expect(g.rect).toBeUndefined()
+    for (const g of groups) expect(g.rect).toBeUndefined()
   })
 
-  it('an explicit label background setting wins over the combo default', () => {
-    const off = labelGroups(render({ labels: [props({ show: true, enableBackground: false })] })).filter((g) => /%$/.test(g.text))
-    expect(off.length).toBeGreaterThan(1)
-    for (const g of off) expect(g.rect).toBeUndefined()
+  it('an explicit label background is drawn as stored', () => {
     const on = labelGroups(render({ labels: [props({ show: true, enableBackground: true, backgroundColor: '#FF0000', backgroundTransparency: 50 })] })).filter((g) => /%$/.test(g.text))
+    expect(on.length).toBeGreaterThan(1)
     for (const g of on) {
       expect(g.rect).toContain('fill="rgba(255,0,0,0.5)"')
       expect(g.rect).not.toContain('stroke=')

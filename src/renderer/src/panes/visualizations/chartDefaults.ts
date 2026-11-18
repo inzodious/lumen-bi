@@ -10,7 +10,7 @@
 import type { Scalar } from '@core/model/data'
 import { decodeValue, makePropContext, rawProp } from '@core/report/props'
 import type { ResolvedTheme } from '@core/report/theme'
-import { CALLOUT_FALLBACK, axisTitleClass, textClass } from '../../visuals/common/fmtProps'
+import { CALLOUT_FALLBACK, axisTitleClass, labelDerivedClass, textClass } from '../../visuals/common/fmtProps'
 import { LINE_LABEL_POSITION_DEFAULT, barLabelPositionDefault } from '../../visuals/charts/cartesian/CartesianChart'
 import { cartesianConfig } from '../../visuals/charts/cartesian/register'
 import { kpiDirection } from '../../visuals/charts/gauge/kpiMath'
@@ -54,11 +54,22 @@ function labelPosition(_theme: ResolvedTheme, visualJson: any): Scalar | undefin
   if (!cfg) return undefined
   const kinds = new Set(['Y', 'Y2'].map((r) => cfg.kindOf(r)))
   if (kinds.size > 1) return undefined
-  return kinds.has('bar') ? barLabelPositionDefault(cfg.stacking) : LINE_LABEL_POSITION_DEFAULT
+  const barSeries = !bound(visualJson, 'Series') && measureCount(visualJson) <= 1 ? 1 : 2
+  return kinds.has('bar') ? barLabelPositionDefault(cfg.stacking, barSeries) : LINE_LABEL_POSITION_DEFAULT
+}
+
+/** Axis label text: `lightLabel` (category axis) / `smallLightLabel` (value axis) classes (CartesianChart). */
+const AXIS_LABELS: ChartDefaultTable = {
+  'categoryAxis.fontSize': (t: ResolvedTheme) => labelDerivedClass(t, 'lightLabel').size,
+  'categoryAxis.fontFamily': (t: ResolvedTheme) => labelDerivedClass(t, 'lightLabel').family,
+  'valueAxis.fontSize': (t: ResolvedTheme) => labelDerivedClass(t, 'smallLightLabel').size,
+  'valueAxis.fontFamily': (t: ResolvedTheme) => labelDerivedClass(t, 'smallLightLabel').family,
+  'labels.fontFamily': (t: ResolvedTheme) => labelDerivedClass(t, 'smallLightLabel').family
 }
 
 const CARTESIAN: ChartDefaultTable = {
   ...AXIS_TITLES,
+  ...AXIS_LABELS,
   'labels.labelPosition': labelPosition,
   'dataPoint.defaultColor': singleSeriesColor,
   'dataPoint.fill': singleSeriesColor

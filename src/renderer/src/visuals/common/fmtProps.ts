@@ -4,7 +4,7 @@
  */
 import { decodeValue, getProp, makePropContext, type PropContext, type Selector } from '@core/report/props'
 import { findEntry, type ScopeField } from './color'
-import type { ResolvedTheme } from '@core/report/theme'
+import { DEFAULT_BASE_THEME, type ResolvedTheme } from '@core/report/theme'
 import { ptToPx, fontWeightOf, type FontSpec } from './text'
 
 export interface TextStyle {
@@ -160,6 +160,28 @@ export function axisTitleDefaults(fmt: FormatReader): { size: number; family: st
 export function axisTitleClass(theme: ResolvedTheme): { size: number; family: string; color: string } {
   const tc = theme.textClasses?.title ?? {}
   return { size: tc.fontSize ?? PBI.axisTitleFontPt, family: tc.fontFace ?? 'DIN', color: tc.color ?? PBI.titleColor }
+}
+
+/**
+ * Default face / size / colour of chart text drawn in a `label`-derived text class (Learn "Create custom report
+ * themes", text-class table): `lightLabel` = category-axis labels, `smallLightLabel` = value-axis labels and data
+ * labels. A derived class overrides only its own properties and inherits the rest from `label`: `lightLabel`
+ * overrides the colour, so it takes the label face and size; `smallLightLabel` overrides colour and size (9pt), so
+ * it takes only the face. With the base theme's label (10pt) Lumen keeps the measured 9pt axis size (VISUAL_DEFAULTS
+ * "Known open questions"); a report theme that sets another label size moves the category axis with it. A theme
+ * that defines the derived class itself wins. Colours stay the structural #605E5C unless the derived class sets one.
+ */
+export function labelDerivedClass(theme: ResolvedTheme, cls: 'lightLabel' | 'smallLightLabel'): { size: number; family: string; color: string } {
+  const label = theme.textClasses?.label ?? {}
+  const own = theme.textClasses?.[cls] ?? {}
+  const baseLabelSize = DEFAULT_BASE_THEME?.textClasses?.label?.fontSize ?? 10
+  const fallbackPt = cls === 'lightLabel' ? PBI.axisFontPt : PBI.dataLabelFontPt
+  const inherited = cls === 'lightLabel' && typeof label.fontSize === 'number' && label.fontSize !== baseLabelSize ? label.fontSize : fallbackPt
+  return {
+    size: own.fontSize ?? inherited,
+    family: own.fontFace ?? label.fontFace ?? PBI.fontFamily,
+    color: own.color ?? PBI.labelColor
+  }
 }
 
 /** Fallback of the `callout` text class (gauge callout value, KPI indicator): classic theme DIN 45pt. */

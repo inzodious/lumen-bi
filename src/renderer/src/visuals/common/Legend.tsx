@@ -64,8 +64,9 @@ export function normalizePosition(p: string): LegendPosition {
 export const isVertical = (p: LegendPosition) => p.startsWith('Left') || p.startsWith('Right')
 
 const MARKER = 8
-// Spacing measured on Power BI renders of Top legends (Segoe UI 10pt): ≈ 3 px from the marker to its text and
-// ≈ 7 px from the end of a text to the next marker.
+// Spacing inferred from Power BI renders of Top legends in two different reports (markers close to their text, items
+// packed tightly): ≈ 3 px from the marker to its text and ≈ 7 px from the end of a text to the next marker. The
+// pixel values come from photographs of the screen, so they are approximate; not documented.
 export const MARKER_GAP = 3
 export const ITEM_GAP = 7
 const ARROW = 14

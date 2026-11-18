@@ -249,6 +249,10 @@ describe('format pane: Visual tab defaults of data visuals', () => {
     await open(pick('clusteredColumnChart'))
     await expect(card('X-axis').locator('[data-prop="titleFontFamily"] .wbi-dropdown__value').innerText()).resolves.toBe(theme.title.fontFace ?? 'DIN')
     await expect(dropdownText('Data labels', 'labelPosition')).resolves.toBe('Auto')
+    // category-axis labels: `lightLabel` class (the theme label size when it isn't the base 10pt, else 9pt)
+    const lightLabelPt = theme.label.fontSize !== undefined && theme.label.fontSize !== 10 ? theme.label.fontSize : 9
+    await expect(spin('X-axis', 'fontSize').inputValue()).resolves.toBe(String(lightLabelPt))
+    await expect(spin('Y-axis', 'fontSize').inputValue()).resolves.toBe('9')
     const auto = await automaticControls(page)
     // what remains automatic is what Power BI computes per render too
     for (const a of auto) expect(a, a).toMatch(/▸ (start|end|labelPrecision|axisType|color|fill|defaultColor|barColor|backgroundColor|labelDisplayUnits)$/)

@@ -140,8 +140,12 @@ describe('format pane renderer defaults (probed / tables)', () => {
     const two = { visual: { visualType: 'clusteredColumnChart', query: { queryState: { Y: { projections: [{ queryRef: 'a' }, { queryRef: 'b' }] } } } } }
     expect(rendererDefault('dataPoint', 'fill', themed, two, false, { type: 'color' })).toBeUndefined()
     expect(rendererDefault('labels', 'labelPosition', theme, col, false)).toBe('Auto')
-    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'columnChart' } }, false)).toBe('InsideCenter')
-    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'lineChart' } }, false)).toBe('Auto')
+    // a stacked chart with one series labels like a clustered one; with a legend field, inside center
+    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'columnChart' } }, false)).toBe('Auto')
+    const legendBound = { visual: { visualType: 'columnChart', query: { queryState: { Series: { projections: [{ field: {} }] } } } } }
+    expect(rendererDefault('labels', 'labelPosition', theme, legendBound, false)).toBe('InsideCenter')
+    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'hundredPercentStackedColumnChart' } }, false)).toBe('InsideCenter')
+    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'lineChart' } }, false)).toBe('Above')
     expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'lineClusteredColumnComboChart' } }, false)).toBeUndefined()
   })
 })

@@ -11,7 +11,7 @@ import { area as d3area, curveCardinal, curveLinear, curveMonotoneX, curveStep, 
 import { scaleLinear } from 'd3-scale'
 import type { VisualProps } from '../../contract'
 import { buildCategorical, pointIdentity, type CategoricalData, type Series } from '../../common/categorical'
-import { FormatReader, PBI, axisTitleDefaults } from '../../common/fmtProps'
+import { FormatReader, PBI, axisTitleDefaults, labelDerivedClass } from '../../common/fmtProps'
 import { Legend, measureLegend, readLegendStyle, isVertical, type LegendItem } from '../../common/Legend'
 import { alignZeroAxes, bandLayout, computeValueAxis, continuousTicks, snapFloat, stackValues, valueToPx, type ValueAxisModel } from '../../common/scale'
 import { ellipsize, fontAttrs, lineHeight, measureText, ptToPx, type FontSpec } from '../../common/text'
@@ -32,10 +32,16 @@ import { decodeValue } from '@core/report/props'
 import { detectAnomalies } from './anomaly'
 import { forecastSeries, readForecastSpecs, FORECAST_DEFAULT_COLOR, type SeriesForecast } from './forecast'
 
-/** Default data-label position of bars (also shown by the Format pane): inside center when stacked, else Auto. */
-export const barLabelPositionDefault = (stacking: CartesianConfig['stacking']): string => (stacking !== 'clustered' ? 'InsideCenter' : 'Auto')
-/** Default data-label position of lines / areas: Auto (see lineLabelPosition.ts). */
-export const LINE_LABEL_POSITION_DEFAULT = 'Auto'
+/**
+ * Default data-label position of bars (also shown by the Format pane): inside center when stacked, else Auto.
+ * A stacked chart drawing a single bar series (no legend field, one measure) labels its bars like a clustered chart:
+ * Auto, outside the end of the bar when there is room, inside the end otherwise. Inferred from Power BI Desktop
+ * renders (two single-series stacked bar charts with no stored position; not documented).
+ */
+export const barLabelPositionDefault = (stacking: CartesianConfig['stacking'], barSeriesCount = 2): string =>
+  stacking === 'clustered' || (stacking === 'stacked' && barSeriesCount === 1) ? 'Auto' : 'InsideCenter'
+/** Default data-label position of lines / areas: above the point (see lineLabelPosition.ts). */
+export const LINE_LABEL_POSITION_DEFAULT = 'Above'
 
 export type SeriesKind = 'bar' | 'line' | 'area'
 
@@ -207,7 +213,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
         // column goes above it if at least a line of space is left (PBI lets it overflow the plot top)
         p = room >= need + 2 || (!insideOk && room >= need / 2) ? 'OutsideEnd' : 'InsideEnd'
       }
-      if (p === 'OutsideEnd' && L.stacked) p = 'InsideEnd'
+      if (p === 'OutsideEnd' && L.stacked && !L.soleStack) p = 'InsideEnd'
       if (vertical) {
         lx = r.x + r.w / 2
         if (p === 'OutsideEnd') {
@@ -318,7 +324,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
         const tw = measureText(text, ls.font)
         const th = lineHeight(ls.font)
         const centreY = (side: LinePlacement) => (side === 'below' ? y + th / 2 + 4 : y - th / 2 - 4)
-        const sides = lineLabelSides(ln.labelPos, labelYs, ci, (side) => centreY(side) - th / 2, th, L.plot.y, L.plot.y + L.plot.h)
+        const sides = lineLabelSides(ln.labelPos, labelYs, ci)
         const visible = vertical && x >= L.plot.x - 1 && x <= L.plot.x + L.plot.w + 1
         let ly = centreY(sides[0])
         let box = { x: x - tw / 2, y: ly - th / 2, w: tw, h: th }
@@ -331,9 +337,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
         if (ok)
           labelNodes.push(
             <g key={`ll${ln.si}-${ci}`} pointerEvents="none">
-              {ls.background ? (
-                <rect x={box.x - 3} y={box.y} width={box.w + 6} height={box.h} rx={ls.backgroundStroke ? 2 : 0} fill={ls.background} stroke={ls.backgroundStroke} strokeWidth={ls.backgroundStroke ? 1 : undefined} />
-              ) : null}
+              {ls.background ? <rect x={box.x - 2} y={box.y} width={box.w + 4} height={box.h} fill={ls.background} /> : null}
               <text x={x} y={ly} dy="0.35em" textAnchor="middle" {...fontAttrs(ls.font)} fill={s.cfColors?.['labels.color']?.[ci] ?? ls.color ?? PBI.dataLabelColor}>
                 {text}
               </text>
@@ -1008,16 +1012,11 @@ export function legendShapeFor(kind: string, markerRendering: string): LegendIte
   return 'circle'
 }
 
-/** transparency (%) of the default label background of combo-chart line series (measured on a Power BI render) */
-export const COMBO_LINE_LABEL_BG_TRANSPARENCY = 30
-
 interface LabelStyle {
   show: boolean
   font: FontSpec
   color?: string
   background?: string
-  /** outline of the background box (combo line labels) */
-  backgroundStroke?: string
   format(v: number, fmtStr?: string): string
 }
 
@@ -1097,6 +1096,8 @@ interface Layout {
   contentLen: number
   viewLen: number
   stacked: boolean
+  /** stacked chart with a single bar series: its labels may go outside the bar end like a clustered chart */
+  soleStack: boolean
   /** explicit axis bounds can push marks outside the plot */
   clipPlot: boolean
   axisFont: FontSpec
@@ -1153,9 +1154,10 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
 
   // ---------------- fonts & axis props
   const catShow = fmt.bool('categoryAxis', 'show', true) && !panel?.hideCategoryAxis
-  const catT = fmt.text('categoryAxis', { color: 'labelColor' }, { size: PBI.axisFontPt, color: PBI.labelColor })
+  // axis label defaults: category axis = `lightLabel`, value axis = `smallLightLabel` text classes (fmtProps)
+  const catT = fmt.text('categoryAxis', { color: 'labelColor' }, labelDerivedClass(fmt.theme, 'lightLabel'))
   const valShow = fmt.bool('valueAxis', 'show', true) && !(responsive && W < 120 && vertical) && !panel?.hideValueAxis
-  const valT = fmt.text('valueAxis', { color: 'labelColor' }, { size: PBI.axisFontPt, color: PBI.labelColor })
+  const valT = fmt.text('valueAxis', { color: 'labelColor' }, labelDerivedClass(fmt.theme, 'smallLightLabel'))
   const secT = fmt.text(y2Obj(fmt, 'secFontSize'), { color: 'secLabelColor', size: 'secFontSize', family: 'secFontFamily', bold: 'secBold', italic: 'secItalic' }, { size: valT.font.size / (4 / 3), color: valT.color, family: valT.font.family })
   const secAxisShow = y2Bool(fmt, 'show', 'secShow', true)
   const catTitleShow = catShow && fmt.bool('categoryAxis', 'showAxisTitle', true) && !small && !panel?.hideTitles
@@ -1514,7 +1516,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   const stacked = cfg.stacking !== 'clustered'
   const barSeries = barIdx.filter((i) => true || !isSec[i])
   const clusterN = stacked ? 1 : barSeries.length
-  const labelPosDefault = barLabelPositionDefault(cfg.stacking)
+  const labelPosDefault = barLabelPositionDefault(cfg.stacking, barSeries.length)
   const zeroPx = (i: number) => vpx(i)(model1.scale === 'log' ? model1.domain[0] : Math.max(Math.min(0, isSec[i] && model2 ? model2.domain[1] : model1.domain[1]), isSec[i] && model2 ? model2.domain[0] : model1.domain[0]))
   barSeries.forEach((si, k) => {
     const s = series[si]
@@ -1664,19 +1666,15 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
     if (hit) return hit
     const show = fmt.bool('labels', 'show', false) && fmt.sBool('labels', 'showSeries', true, s) && fmt.sBool('labels', 'show', true, s)
     const sz = fmt.sNum('labels', 'fontSize', PBI.dataLabelFontPt, s)
-    const fam = fmt.sStr('labels', 'fontFamily', PBI.fontFamily, s)
+    const fam = fmt.sStr('labels', 'fontFamily', labelDerivedClass(fmt.theme, 'smallLightLabel').family, s)
     const bold = fmt.sBool('labels', 'bold', false, s)
     const italic = fmt.sBool('labels', 'italic', false, s)
     const color = fmt.sColor('labels', 'color', s)
-    // Line series of a combo chart get a label background by default (Power BI render of a line-and-clustered-column
-    // chart: the line labels sit in light boxes over the columns, ≈ the plot background at 30–35% transparency with a
-    // lighter edge; measured, not documented). An explicit `enableBackground` (on or off) wins.
-    const si = series.indexOf(s)
-    const comboLine = si >= 0 && kinds[si] !== 'bar' && kinds.some((k) => k === 'bar')
-    const bgExplicit = fmt.seriesRaw('labels', 'enableBackground', s) !== undefined && fmt.seriesRaw('labels', 'enableBackground', s) !== null
-    const bgOn = fmt.sBool('labels', 'enableBackground', false, s) || (comboLine && !bgExplicit)
-    const bgC = fmt.sColor('labels', 'backgroundColor', s) ?? (comboLine ? fmt.theme.background || '#FFFFFF' : '#FFFFFF')
-    const bgT = fmt.sNum('labels', 'backgroundTransparency', comboLine && !bgExplicit ? COMBO_LINE_LABEL_BG_TRANSPARENCY : 90, s)
+    // Label background: off unless set (Power BI's format-pane default). A light box behind combo-chart line labels by
+    // default was tried from a single Power BI render and withdrawn: one visual does not establish a default.
+    const bgOn = fmt.sBool('labels', 'enableBackground', false, s)
+    const bgC = fmt.sColor('labels', 'backgroundColor', s) ?? '#FFFFFF'
+    const bgT = fmt.sNum('labels', 'backgroundTransparency', 90, s)
     const units = fmt.sNum('labels', 'labelDisplayUnits', 0, s)
     const prec = fmt.seriesRaw('labels', 'labelPrecision', s)
     const unit = resolveDisplayUnit(units, maxAbs)
@@ -1685,7 +1683,6 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
       font: { size: ptToPx(sz), family: fam, weight: bold ? 700 : fam.toLowerCase().includes('semibold') ? 600 : 400, italic },
       color,
       background: bgOn ? rgba(bgC, 1 - bgT / 100) : undefined,
-      backgroundStroke: bgOn && comboLine && !bgExplicit ? rgba(bgC, 0.9) : undefined,
       format: (v, f) => formatWithUnits(v, { unit, decimals: typeof prec === 'number' ? prec : undefined, formatString: f ?? s.measure.formatString, format: formatter })
     }
     labelCache.set(s.key, st)
@@ -1995,6 +1992,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
     contentLen,
     viewLen,
     stacked,
+    soleStack: cfg.stacking === 'stacked' && barSeries.length === 1,
     clipPlot: start1 !== undefined || end1 !== undefined || logScale,
     axisFont: valT.font,
     leftReserve,

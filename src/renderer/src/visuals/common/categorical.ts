@@ -13,6 +13,7 @@
 import type { Scalar } from '@core/model/data'
 import type { FieldDescription, SortSpec, SummarizeResult } from '@core/engine/api'
 import { columnExpr, type DataPointIdentity, type SQExpr, fieldKey } from '@core/report/sq'
+import { decodeValue } from '@core/report/props'
 import type { VisualHostContext } from '../contract'
 import { describe, expandParameters, getProjections, labelOf, valueId, type Projection } from './query'
 import { formatScalar } from './units'
@@ -436,11 +437,17 @@ export function buildCategorical(visualJson: any, ctx: VisualHostContext, opts: 
   if (opts.fmt) {
     const fmt = opts.fmt
     const def = defaultFill(fmt.pc)
+    // A `dataPoint.fill` stored without a selector is the colour the format pane shows for a chart drawing one series:
+    // Power BI draws it even when a per-measure `fill` (metadata selector) is stored as well (a Power BI Desktop render
+    // of a single-measure bar chart storing both draws the selector-less colour). With several series (combo charts)
+    // the per-measure fill still wins, and the legacy `defaultColor` always yields to it.
+    const allFill = allSeriesFill(fmt)
     const single = finalSeries.length === 1 || finalSeries.filter((s) => s.role === finalSeries[0].role).length === 1
     for (const s of finalSeries) {
       const idx = s.index
       s.color = s.split ? staticFill(fmt.pc, { fields: s.scope, index: idx }) : staticFill(fmt.pc, { metadata: s.metadata, index: idx })
-      if (def && !s.split && single && !hasExplicitSeriesFill(fmt, s.metadata)) s.color = def
+      if (!s.split && finalSeries.length === 1 && allFill) s.color = allFill
+      else if (def && !s.split && single && !hasExplicitSeriesFill(fmt, s.metadata)) s.color = def
       if (opts.varyColors) s.pointColors = reCats.map((c, ci) => staticFill(fmt.pc, { fields: c.scope, index: ci }))
       else if (single && !s.split && fmt.bool('dataPoint', 'showAllDataPoints', false))
         s.pointColors = reCats.map((c, ci) => (hasPointFill(fmt, c.scope) ? staticFill(fmt.pc, { fields: c.scope, index: ci }) : s.color))
@@ -478,6 +485,13 @@ export function buildCategorical(visualJson: any, ctx: VisualHostContext, opts: 
 
 function hasExplicitSeriesFill(fmt: FormatReader, metadata: string): boolean {
   return (fmt.pc.objects?.dataPoint ?? []).some((e) => e.selector?.metadata === metadata && e.properties && 'fill' in e.properties)
+}
+
+/** The selector-less `dataPoint.fill` of the visual (format pane "All" colour), if stored. */
+function allSeriesFill(fmt: FormatReader): string | undefined {
+  const e = (fmt.pc.objects?.dataPoint ?? []).find((x) => !x.selector && x.properties && 'fill' in x.properties)
+  const v = e ? decodeValue(e.properties.fill, fmt.pc.theme) : undefined
+  return typeof v === 'string' ? v : undefined
 }
 
 function hasPointFill(fmt: FormatReader, scope: ScopeField[]): boolean {

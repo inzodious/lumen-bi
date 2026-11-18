@@ -44,7 +44,6 @@ export interface TableCardProps {
   dimmed: boolean
   onHeaderDown(e: React.MouseEvent): void
   onFieldDown(e: React.MouseEvent, row: CardRow): void
-  onFieldUp(e: React.MouseEvent, row: CardRow): void
   onToggleCollapse(): void
   onMenu(e: React.MouseEvent): void
   onResizeDown(e: React.MouseEvent): void
@@ -77,7 +76,7 @@ export const TableCard = memo(function TableCard(p: TableCardProps) {
             r.kind === 'separator' ? (
               <div key="__sep" className="wbi-mv-card__sep" />
             ) : (
-              <FieldRow key={`${r.kind}:${r.name}`} table={t} row={r} selected={!!p.selectedField && p.selectedField.kind === r.kind && p.selectedField.name === r.name} highlighted={r.kind === 'column' && p.highlighted.has(r.name)} onDown={p.onFieldDown} onUp={p.onFieldUp} onContext={p.onFieldContext} />
+              <FieldRow key={`${r.kind}:${r.name}`} table={t} row={r} selected={!!p.selectedField && p.selectedField.kind === r.kind && p.selectedField.name === r.name} highlighted={r.kind === 'column' && p.highlighted.has(r.name)} onDown={p.onFieldDown} onContext={p.onFieldContext} />
             )
           )}
           {!p.rows.length && <div className="wbi-mv-card__empty">No fields</div>}
@@ -88,7 +87,7 @@ export const TableCard = memo(function TableCard(p: TableCardProps) {
   )
 })
 
-function FieldRow({ table, row, selected, highlighted, onDown, onUp, onContext }: { table: TableDef; row: CardRow; selected: boolean; highlighted: boolean; onDown: TableCardProps['onFieldDown']; onUp: TableCardProps['onFieldUp']; onContext: TableCardProps['onFieldContext'] }) {
+function FieldRow({ table, row, selected, highlighted, onDown, onContext }: { table: TableDef; row: CardRow; selected: boolean; highlighted: boolean; onDown: TableCardProps['onFieldDown']; onContext: TableCardProps['onFieldContext'] }) {
   let icon = null
   let hidden = false
   if (row.kind === 'column') {
@@ -108,9 +107,9 @@ function FieldRow({ table, row, selected, highlighted, onDown, onUp, onContext }
     <div
       className={cx('wbi-mv-field', selected && 'is-selected', highlighted && 'is-highlighted', hidden && 'is-hidden')}
       onMouseDown={(e) => onDown(e, row)}
-      onMouseUp={(e) => onUp(e, row)}
       onContextMenu={(e) => onContext(e, row)}
       data-field={row.name}
+      data-kind={row.kind}
       title={row.name}
     >
       {icon}

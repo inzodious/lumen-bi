@@ -20,6 +20,7 @@ import { readTmsl } from '../tmdl/tmsl'
 import { readPbix, type Diagnostic } from './pbix/container'
 import { readDataModel } from './pbix/datamodel/index'
 import { pbipJson, pbipProjectFiles, readSemanticModelFiles, reportFiles, semanticModelFiles } from './pbip'
+import { LUMEN_LAYOUT_FILE } from './diagramSidecar'
 import { readWbi, writeWbi } from './wbi'
 
 export interface OpenOptions {
@@ -242,7 +243,8 @@ export async function saveProject(project: ProjectDocument, targetPath: string, 
     const format = opts.modelFormat ?? (project.model.extra?.['@pbipFormat'] === 'bim' ? 'bim' : 'tmdl')
     for (const rel of await walk(fs, modelDir)) {
       if (rel in m.files) continue
-      if ((rel.startsWith('definition/') && rel.endsWith('.tmdl')) || (rel === 'model.bim' && format === 'tmdl')) await fs.remove(joinPath(modelDir, rel))
+      // (Lumen's diagram sidecar is removed again once nothing custom is left in the diagram)
+      if ((rel.startsWith('definition/') && rel.endsWith('.tmdl')) || (rel === 'model.bim' && format === 'tmdl') || rel === LUMEN_LAYOUT_FILE) await fs.remove(joinPath(modelDir, rel))
     }
   }
   if (project.report) {

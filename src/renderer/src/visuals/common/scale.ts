@@ -190,6 +190,35 @@ export function niceStep(raw: number): number {
 }
 
 /**
+ * "Align zeros" of a combo chart: both value axes include zero and put it at the same height. The axis whose zero sits
+ * lower (relative to its range) is extended below zero so the zeros line up; ticks keep each axis's step. Log axes are
+ * returned unchanged.
+ */
+export function alignZeroAxes(a: ValueAxisModel, b: ValueAxisModel): [ValueAxisModel, ValueAxisModel] {
+  if (a.scale !== 'linear' || b.scale !== 'linear') return [a, b]
+  const withZero = (m: ValueAxisModel): [number, number] => [Math.min(0, m.domain[0]), Math.max(0, m.domain[1])]
+  const da = withZero(a)
+  const db = withZero(b)
+  // share of each axis below zero
+  const below = (d: [number, number]) => (d[1] - d[0] > 0 ? -d[0] / (d[1] - d[0]) : 0)
+  const r = Math.max(below(da), below(db))
+  const fit = (m: ValueAxisModel, d: [number, number]): ValueAxisModel => {
+    let [lo, hi] = d
+    if (r >= 1) hi = 0
+    else if (below(d) < r) {
+      // extend below zero (or above, when the axis is all below zero) so zero sits at fraction r from the bottom
+      if (hi > 0) lo = (-r * hi) / (1 - r)
+      else hi = (-lo * (1 - r)) / r
+    }
+    const step = m.step > 0 ? m.step : niceStep((hi - lo) / 4)
+    const ticks: number[] = []
+    for (let t = Math.ceil(lo / step - 1e-9) * step; t <= hi + step * 1e-9; t += step) ticks.push(+t.toPrecision(12))
+    return { domain: [lo, hi], ticks, step, scale: 'linear' }
+  }
+  return [fit(a, da), fit(b, db)]
+}
+
+/**
  * Secondary value axis aligned to the primary's gridlines, like Power BI's combo / dual-axis
  * charts: same number of intervals, zero on the same gridline when both axes cross zero (or the
  * secondary must include zero), nice secondary step. Explicit secondary start/end win.

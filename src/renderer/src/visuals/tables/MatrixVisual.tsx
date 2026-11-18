@@ -18,14 +18,14 @@ import type { ContextMenuEntry, VisualProps } from '../contract'
 import { fontStyle, measureText, ptToPx, type FontSpec } from '../common/textStyle'
 import { applyExpansion, isExpanded, setAllExpanded, setLevelExpanded, setNodeExpanded, type ExpansionEdit, type ExpansionLevel, type ExpansionState } from '../common/expansion'
 import { promptDialog } from '../../app/ui'
-import { CellContent, Grid, LinkIcon, ResizeHandle, SortCaret } from './Grid'
+import { CellContent, Grid, HeaderLabel, headerSeparator, LinkIcon, ResizeHandle, SORT_CARET_H } from './Grid'
 import { buildMatrixView, formatLabel, matrixIdentity } from './matrixView'
 import { applySort } from './tableModel'
-import { outlineBorders, scopedWidth, type TotalStyle } from './tableFormat'
+import { headerAlignment, outlineBorders, scopedWidth, type TotalStyle } from './tableFormat'
 import { cellPadX, computeWidths, contentWidth, CELL_PAD_X, maxTextWidth, type WidthInput } from './widths'
 import { clearScopedWidths, resetColumnWidth, scopeSelector, setColumnWidth, totalSelector, visualObjects, type WidthTarget } from './columnWidths'
 import { Message, AUTOSIZE_SAMPLE_ROWS, validWidth } from './TableVisual'
-import type { ColHeaderCell, RowItem } from './matrixModel'
+import { pinnedGrandTotalStart, type ColHeaderCell, type RowItem } from './matrixModel'
 import { copyToClipboard, copyValueText, isCopyKey, toTsv } from './copy'
 import { SPARKLINE_DEFAULT_WIDTH } from './sparklineModel'
 import { isUrl } from './cellModel'
@@ -289,16 +289,30 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
   // ---------------- header ----------------
   const headerLine = Math.ceil(ptToPx(f.header.font.size) * 1.36)
   const headerRowCount = Math.max(1, layout.headerRows.length)
+  const sortEntry = (json?.visual?.query?.sortDefinition?.sort ?? [])[0]
+  const sortKeyOf = (expr: any): 'asc' | 'desc' | undefined =>
+    sortEntry && JSON.stringify(sortEntry.field) === JSON.stringify(expr) ? (sortEntry.direction === 'Descending' ? 'desc' : 'asc') : undefined
+  /** lines a header text takes in a cell `w` px wide (word wrap: up to 3) */
+  const headerLines = (t: string, w: number) => (f.header.wordWrap ? Math.max(1, Math.min(3, Math.ceil(measureText(t, f.header.font) / Math.max(20, w - 2 * CELL_PAD_X)))) : 1)
   const headerRowHeights = Array.from({ length: headerRowCount }, (_, r) => {
-    let lines = 1
-    if (f.header.wordWrap) {
-      for (const cell of layout.headerRows[r] ?? []) {
-        const w = colWidths.slice(rowHeaderCols + cell.start, rowHeaderCols + cell.start + cell.colSpan).reduce((a, b) => a + b, 0) - 2 * CELL_PAD_X
-        const t = headerCellText(cell)
-        lines = Math.max(lines, Math.min(3, Math.ceil(measureText(t, f.header.font) / Math.max(20, w))))
+    let h = headerLine
+    for (const cell of layout.headerRows[r] ?? []) {
+      const w = colWidths.slice(rowHeaderCols + cell.start, rowHeaderCols + cell.start + cell.colSpan).reduce((a, b) => a + b, 0)
+      const v = cell.kind === 'value' ? data.values[cell.valueIndex ?? 0] : undefined
+      // the sort caret takes a line of its own below the text (HeaderLabel)
+      const caret = v && sortKeyOf(v.proj.expr) ? SORT_CARET_H : 0
+      h = Math.max(h, headerLines(headerCellText(cell), w) * headerLine + caret)
+    }
+    // corner cells of the last header row: the row field name(s), with their own sort caret
+    if (r === headerRowCount - 1) {
+      for (let ci = 0; ci < rowHeaderCols; ci++) {
+        const field = stepped ? data.rowFields[0] : data.rowFields[ci]
+        if (!field) continue
+        const caret = sortKeyOf(field.proj.expr) ? SORT_CARET_H : 0
+        h = Math.max(h, headerLines(field.label ?? '', colWidths[ci]) * headerLine + caret)
       }
     }
-    return lines * headerLine + pad * 2
+    return h + pad * 2
   })
   if (!layout.headerRows.length) headerRowHeights[0] = headerLine + pad * 2
   const headerHeight = headerRowHeights.reduce((a, b) => a + b, 0)
@@ -312,8 +326,6 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
     return formatLabel(ctx, cell.label, data.colFields[lvl]?.formatString, data.colFields[lvl]?.dataType)
   }
 
-  const sortEntry = (json?.visual?.query?.sortDefinition?.sort ?? [])[0]
-  const sortKeyOf = (expr: any) => (sortEntry && JSON.stringify(sortEntry.field) === JSON.stringify(expr) ? (sortEntry.direction === 'Descending' ? 'desc' : 'asc') : undefined)
   const toggleSort = (expr: any, numeric: boolean) => {
     const cur = sortKeyOf(expr)
     const direction = cur ? (cur === 'asc' ? 'Descending' : 'Ascending') : numeric ? 'Descending' : 'Ascending'
@@ -344,12 +356,14 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
       const field = stepped ? data.rowFields[0] : data.rowFields[ci]
       const label = stepped ? data.rowFields.map((rf) => rf.label)[0] ?? '' : field?.label ?? ''
       const dir = field ? sortKeyOf(field.proj.expr) : undefined
+      const cornerAlign = f.header.titleAlignment ?? f.header.alignment ?? 'left'
       cornerCells.push(
         <div
           key={`corner${ci}`}
           style={{
             ...headerCellBase(xs[ci], y, colWidths[ci], h),
-            justifyContent: f.header.titleAlignment === 'center' ? 'center' : f.header.titleAlignment === 'right' ? 'flex-end' : 'flex-start',
+            justifyContent: cornerAlign === 'center' ? 'center' : cornerAlign === 'right' ? 'flex-end' : 'flex-start',
+            ...((ci < rowHeaderCols - 1 || layout.leaves.length > 0) && !f.grid.vertical ? headerSeparator(f.header.font.color) : {}),
             cursor: field ? 'pointer' : undefined
           }}
           data-col={rowHeaderTarget(ci).metadata ?? 'cornerColumn'}
@@ -360,8 +374,7 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
             ctx.showContextMenu({ x: e.clientX, y: e.clientY, target: 'header', value: label, selectionText, entries: withFreeze(rowHeaderWidthEntries(ci)) })
           }}
         >
-          <span style={headerTextStyle(f.header.wordWrap)}>{label}</span>
-          {dir ? <SortCaret dir={dir} color={f.header.font.color} /> : null}
+          <HeaderLabel text={label} align={cornerAlign} sort={dir} color={f.header.font.color} textStyle={headerTextStyle(f.header.wordWrap, cornerAlign)} />
           {editable ? (
             <ResizeHandle
               width={colWidths[ci]}
@@ -401,7 +414,9 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
       const v = isValue ? data.values[cell.valueIndex ?? 0] : undefined
       const dir = v ? sortKeyOf(v.proj.expr) : undefined
       const leafCell = !isValue && cell.colSpan === (layout.showValueHeaders ? Math.max(1, data.values.length) : 1) && !cell.canExpand
-      const align = isValue ? f.header.alignment ?? (v?.sparkline ? 'center' : 'right') : cell.kind === 'total' || leafCell ? f.header.alignment ?? 'right' : f.header.titleAlignment ?? f.header.alignment ?? 'left'
+      // value / leaf headers: the header alignment (Auto = left, like Power BI renders); upper column-group levels: the title alignment
+      const align = isValue ? (v?.sparkline && !f.header.alignment ? 'center' : headerAlignment(f, v ? f.columnOverrides.get(v.proj.queryRef) : undefined)) : cell.kind === 'total' || leafCell ? headerAlignment(f) : f.header.titleAlignment ?? f.header.alignment ?? 'left'
+      const lastCol = cell.start + cell.colSpan >= layout.leaves.length
       const isGrand = cell.kind === 'total' && cell.path.length === 0
       const totalStyle: TotalStyle | undefined = cell.kind === 'total' ? (isGrand ? f.columnTotal : f.subTotals.columnStyle) : undefined
       const bold = cell.kind === 'total' || !!cell.isSubtotalLevel
@@ -414,13 +429,16 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
             ...headerCellBase(xs[ci], headerYs[r], w, h),
             ...fontStyle(font),
             background: totalStyle?.applyToHeaders && totalStyle.background ? totalStyle.background : headerBg,
-            alignItems: cell.rowSpan > 1 ? 'flex-start' : 'flex-end',
+            // Power BI top-aligns header text (a one-line header next to wrapped ones sits on the first line)
+            alignItems: 'flex-start',
+            ...(!lastCol && !f.grid.vertical ? headerSeparator(font.color) : {}),
             justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
             gap: 4,
             cursor: isValue || (cell.kind === 'group' && data.values.length === 1) ? 'pointer' : undefined,
             borderBottom: r < headerRowCount - 1 && f.grid.horizontal ? `1px solid ${f.grid.horizontalColor}` : undefined
           }}
           data-col={cell.colSpan === 1 ? leafRef(cell.start) : undefined}
+          data-align={align}
           role="columnheader"
           onClick={(e) => (v ? toggleSort(v.proj.expr, true) : onColumnHeaderClick(e, cell))}
           onContextMenu={(e) => {
@@ -443,9 +461,7 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
               }}
             />
           ) : null}
-          {dir && align === 'right' ? <SortCaret dir={dir} color={f.header.font.color} /> : null}
-          <span style={headerTextStyle(f.header.wordWrap, align)}>{text}</span>
-          {dir && align !== 'right' ? <SortCaret dir={dir} color={f.header.font.color} /> : null}
+          <HeaderLabel text={text} align={align} sort={dir} color={f.header.font.color} textStyle={headerTextStyle(f.header.wordWrap, align)} />
           {editable && cell.colSpan === 1 && cell.start + cell.colSpan <= layout.leaves.length && leafRef(cell.start) && r + cell.rowSpan === headerRowCount ? (
             <ResizeHandle
               width={w}
@@ -476,7 +492,7 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
       height: h,
       padding: `${pad}px ${cellPadX(w)}px`,
       display: 'flex',
-      alignItems: 'flex-end',
+      alignItems: 'flex-start',
       overflow: 'hidden',
       boxSizing: 'border-box',
       ...fontStyle(f.header.font),
@@ -726,6 +742,14 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
     )
   }
 
+  // the row grand total stays pinned to the bottom of the visual while the body scrolls (Power BI)
+  const pinFrom = pinnedGrandTotalStart(layout.items)
+  const gridWidth = Math.max(totalWidth, frozenWidth)
+  const footer =
+    pinFrom < layout.items.length ? (
+      <div data-role="grand-total">{layout.items.slice(pinFrom).map((_, k) => renderRow(pinFrom + k, { position: 'relative', width: gridWidth }, () => undefined))}</div>
+    ) : undefined
+
   return (
     <div
       style={{ width, height, position: 'relative', outline: 'none' }}
@@ -741,13 +765,14 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
       <Grid
         width={width}
         height={height}
-        totalWidth={Math.max(totalWidth, frozenWidth)}
-        rowCount={layout.items.length}
+        totalWidth={gridWidth}
+        rowCount={pinFrom}
         estimateRowHeight={rowH}
         measure={f.values.wordWrap || f.rowHeaders.wordWrap}
         background={f.values.backPrimary}
         bodyStyle={outline(f.values.outline)}
         header={header}
+        footer={footer}
         renderRow={renderRow}
         onNearEnd={data?.hasMore ? loadMore : undefined}
         nearEndThreshold={LOAD_MORE_THRESHOLD}

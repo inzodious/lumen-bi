@@ -246,6 +246,56 @@ describe('tables and matrices', () => {
     await settle(page)
   })
 
+  it('matrix and table headers: left-aligned over numbers, sort caret below the text; the matrix grand total stays pinned to the bottom', async () => {
+    const { page } = lumen()
+    await goToPage(page, 'Products')
+    for (const title of ['Sales and margin by category and year', 'Product details']) {
+      const vc = page.locator(`.wbi-page [data-visual="${await visualByTitle(page, title)}"]`)
+      // Power BI's Auto header alignment is left, also over right-aligned numbers
+      const aligns = await vc.locator('[role="columnheader"][data-align]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.align))
+      expect(aligns.length).toBeGreaterThan(1)
+      expect(new Set(aligns)).toEqual(new Set(['left']))
+    }
+
+    const name = await visualByTitle(page, 'Sales and margin by category and year')
+    const vc = page.locator(`.wbi-page [data-visual="${name}"]`)
+    // sort the rows by clicking the first value header: the caret sits below the header text
+    const valueHeader = vc.locator('[role="columnheader"][data-col][data-align]').nth(1)
+    await valueHeader.click()
+    const caret = vc.locator('[role="columnheader"] [data-sort]').first()
+    await caret.waitFor()
+    const geo = await caret.evaluate((el) => {
+      const text = el.previousElementSibling as HTMLElement
+      return { caretTop: el.getBoundingClientRect().top, textBottom: text.getBoundingClientRect().bottom }
+    })
+    expect(geo.caretTop).toBeGreaterThanOrEqual(geo.textBottom - 1)
+
+    // the grand total row is outside the scrolling body: right below it, at the bottom of the visual, while the rows scroll
+    const pinned = async () =>
+      vc.evaluate((el) => {
+        const s = el.querySelector<HTMLElement>('.wbi-table-scroll')!
+        const total = el.querySelector<HTMLElement>('[data-role="grand-total"]')
+        const grid = s.parentElement!.getBoundingClientRect()
+        const sr = s.getBoundingClientRect()
+        const tr = total?.getBoundingClientRect()
+        return { overflow: s.scrollHeight > s.clientHeight + 1, scrollBottom: sr.bottom, gridBottom: grid.bottom, top: tr?.top ?? NaN, bottom: tr?.bottom ?? NaN, total: total?.innerText ?? '' }
+      })
+    const p0 = await pinned()
+    expect(p0.total).toMatch(/^Total/)
+    expect(p0.overflow).toBe(true)
+    expect(p0.top).toBeCloseTo(p0.scrollBottom, 0)
+    expect(p0.bottom).toBeCloseTo(p0.gridBottom, 0)
+    await vc.evaluate((el) => {
+      const s = el.querySelector<HTMLElement>('.wbi-table-scroll')!
+      s.scrollTop = s.scrollHeight
+    })
+    const p1 = await pinned()
+    expect(p1.top).toBeCloseTo(p0.top, 0)
+    expect(p1.total).toBe(p0.total)
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await settle(page)
+  })
+
   it('hierarchy slicer: Expand ▸ / Collapse ▸ (Selection, Entire level, All), Search and Clear selections from the context menu', async () => {
     const { page } = lumen()
     // a new page with a slicer on Category ▸ Subcategory

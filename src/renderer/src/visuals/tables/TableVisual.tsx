@@ -4,9 +4,9 @@ import { identityKey } from '@core/report/sq'
 import type { ContextMenuEntry, VisualProps } from '../contract'
 import { fontStyle, ptToPx } from '../common/textStyle'
 import { promptDialog } from '../../app/ui'
-import { CellContent, Grid, ResizeHandle, SortCaret } from './Grid'
+import { CellContent, Grid, HeaderLabel, headerSeparator, ResizeHandle } from './Grid'
 import { applySort, buildTableModel, nextSort, type TableColumn } from './tableModel'
-import { outlineBorders } from './tableFormat'
+import { headerAlignment, outlineBorders } from './tableFormat'
 import { cellPadX, computeWidths, contentWidth, CELL_PAD_X, MIN_COLUMN_WIDTH, type WidthInput } from './widths'
 import { resetColumnWidth, setColumnWidth as setWidth, visualObjects } from './columnWidths'
 import type { CellModel } from './cellModel'
@@ -49,7 +49,8 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
         extraTexts: model.total?.[ci]?.text && !c.sparkline ? [{ text: model.total[ci].text, font: f.total.font }] : undefined,
         explicit: f.widthByRef.get(c.queryRef),
         minWidth: c.sparkline ? SPARKLINE_DEFAULT_WIDTH : isImageColumn(c) ? f.grid.imageWidth ?? f.grid.imageHeight : undefined,
-        extra: (c.sort ? 12 : 0) + (c.cf?.icon ? valuePx + 4 : 0)
+        // the sort caret sits below the header text (HeaderLabel): no extra width
+        extra: c.cf?.icon ? valuePx + 4 : 0
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [model]
@@ -119,12 +120,23 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
     <div style={{ display: 'flex', background: f.header.background ?? f.values.backPrimary, ...outline(f.header.outline), ...fontStyle(f.header.font) }}>
       {model.columns.map((c, ci) => {
         const ov = c.override?.styleHeader ? c.override : undefined
-        const align = f.header.alignment ?? c.align
+        const align = c.sparkline && !f.header.alignment ? 'center' : headerAlignment(f, c.override)
+        const last = ci === model.columns.length - 1
         return (
           <div
             key={c.queryRef + ci}
-            style={{ ...cellBase(ci, ci === model.columns.length - 1), background: ov?.backColor, color: ov?.fontColor, cursor: 'pointer', alignItems: 'flex-end', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}
+            style={{
+              ...cellBase(ci, last),
+              ...(!f.grid.vertical && !last ? headerSeparator(f.header.font.color) : {}),
+              background: ov?.backColor,
+              color: ov?.fontColor,
+              cursor: 'pointer',
+              // Power BI top-aligns header text (a one-line header next to wrapped ones sits on the first line)
+              alignItems: 'flex-start',
+              justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'
+            }}
             data-col={c.queryRef}
+            data-align={align}
             role="columnheader"
             onClick={() => onHeaderClick(c)}
             onContextMenu={(e) => {
@@ -133,9 +145,13 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
             }}
             title={c.label}
           >
-            {c.sort && align === 'right' ? <SortCaret dir={c.sort} color={f.header.font.color} /> : null}
-            <span style={f.header.wordWrap ? { whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: align } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.label}</span>
-            {c.sort && align !== 'right' ? <SortCaret dir={c.sort} color={f.header.font.color} /> : null}
+            <HeaderLabel
+              text={c.label}
+              align={align}
+              sort={c.sort}
+              color={ov?.fontColor ?? f.header.font.color}
+              textStyle={f.header.wordWrap ? { whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: align } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            />
             {editable ? (
               <ResizeHandle
                 width={colWidths[ci]}

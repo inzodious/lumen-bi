@@ -13,7 +13,7 @@ import type { VisualProps } from '../../contract'
 import { buildCategorical, pointIdentity, type CategoricalData, type Series } from '../../common/categorical'
 import { FormatReader, PBI, axisTitleDefaults } from '../../common/fmtProps'
 import { Legend, measureLegend, readLegendStyle, isVertical, type LegendItem } from '../../common/Legend'
-import { alignSecondaryAxis, bandLayout, computeValueAxis, continuousTicks, snapFloat, stackValues, valueToPx, type ValueAxisModel } from '../../common/scale'
+import { alignZeroAxes, bandLayout, computeValueAxis, continuousTicks, snapFloat, stackValues, valueToPx, type ValueAxisModel } from '../../common/scale'
 import { ellipsize, fontAttrs, lineHeight, measureText, ptToPx, type FontSpec } from '../../common/text'
 import { contrastText, rgba } from '../../common/color'
 import { formatWithUnits, resolveDisplayUnit, formatDate } from '../../common/units'
@@ -322,7 +322,9 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
         if (visible && tryPlace(box))
           labelNodes.push(
             <g key={`ll${ln.si}-${ci}`} pointerEvents="none">
-              {ls.background ? <rect x={box.x - 2} y={box.y} width={box.w + 4} height={box.h} fill={ls.background} /> : null}
+              {ls.background ? (
+                <rect x={box.x - 3} y={box.y} width={box.w + 6} height={box.h} rx={ls.backgroundStroke ? 2 : 0} fill={ls.background} stroke={ls.backgroundStroke} strokeWidth={ls.backgroundStroke ? 1 : undefined} />
+              ) : null}
               <text x={x} y={ly} dy="0.35em" textAnchor="middle" {...fontAttrs(ls.font)} fill={s.cfColors?.['labels.color']?.[ci] ?? ls.color ?? PBI.dataLabelColor}>
                 {text}
               </text>
@@ -985,11 +987,28 @@ interface ValueAxisRender {
   title?: { text: string; font: FontSpec; color: string; size: number }
 }
 
+/**
+ * Legend marker of a series: `legend.legendMarkerRendering` for line series; the default (markerCircleDefault) is a
+ * circle for every series, line series of combo charts included (Power BI render of a line-and-clustered-column chart:
+ * the line series has the same circle marker as the columns).
+ */
+export function legendShapeFor(kind: string, markerRendering: string): LegendItem['shape'] {
+  if (kind !== 'line') return 'circle'
+  if (markerRendering === 'lineOnly') return 'lineOnly'
+  if (markerRendering === 'lineAndMarker') return 'line'
+  return 'circle'
+}
+
+/** transparency (%) of the default label background of combo-chart line series (measured on a Power BI render) */
+export const COMBO_LINE_LABEL_BG_TRANSPARENCY = 30
+
 interface LabelStyle {
   show: boolean
   font: FontSpec
   color?: string
   background?: string
+  /** outline of the background box (combo line labels) */
+  backgroundStroke?: string
   format(v: number, fmtStr?: string): string
 }
 
@@ -1101,14 +1120,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   if (!data.seriesField) legendStyle.showTitle = legendStyle.showTitle && !!fmt.optStr('legend', 'titleText')
   if (tiny || panel?.hideLegend || !multi) legendStyle.show = false
   const markerRendering = fmt.str('legend', 'legendMarkerRendering', 'markerCircleDefault')
-  const legendShape = (i: number): LegendItem['shape'] => {
-    if (kinds[i] !== 'line') return 'circle'
-    if (markerRendering === 'lineOnly') return 'lineOnly'
-    if (markerRendering === 'lineAndMarker' || markerRendering === 'markerOnly') return markerRendering === 'markerOnly' ? 'circle' : 'line'
-    // default: circles, except line series next to columns in combo charts
-    return kinds.some((k) => k === 'bar') ? 'line' : 'circle'
-  }
-  const legendItems: LegendItem[] = series.map((s, i) => ({ key: s.key, label: s.name, color: s.color, shape: legendShape(i) }))
+  const legendItems: LegendItem[] = series.map((s, i) => ({ key: s.key, label: s.name, color: s.color, shape: legendShapeFor(kinds[i], markerRendering) }))
   const lg = measureLegend(legendStyle, legendItems, W, H)
   let area: Rect = { x: 0, y: 0, w: W, h: H }
   let legendRect: Rect = { x: 0, y: 0, w: 0, h: 0 }
@@ -1297,6 +1309,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   const start1 = percent ? fmt.optNum('valueAxis', 'start') ?? Math.min(0, snapFloat(lo1)) : fmt.optNum('valueAxis', 'start')
   const end1 = percent ? fmt.optNum('valueAxis', 'end') ?? 1 : fmt.optNum('valueAxis', 'end')
   const start2 = fmt.optNum(y2Obj(fmt, 'secStart'), 'secStart')
+  const alignZeros = fmt.bool(y2Obj(fmt, 'alignZeros'), 'alignZeros', false)
   const end2 = fmt.optNum(y2Obj(fmt, 'secEnd'), 'secEnd')
   /** apply the Y zoom window (fractions of the full range) to an axis model */
   const zoomed = (m: ValueAxisModel, wIn: [number, number] | undefined, length: number, spacing: number): ValueAxisModel => {
@@ -1383,10 +1396,16 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
       model1 = zoomed(primaryAxis(plotHGuess, 50), vzoom, plotHGuess, 50)
       labels1 = model1.ticks.map(valueTickFormatter(model1, valFmt1))
       if (anySec) {
-        // PBI aligns the secondary axis to the primary gridlines (same tick count, zero aligned)
+        // The secondary axis gets its own range and ticks (a Power BI render of a combo chart: its labels are not on the
+        // primary gridlines and its zero is not level with the primary zero); "Align zeros" (valueAxis.alignZeros)
+        // extends the axes so both zeros are at the same height (explicit start / end values are kept).
         model2 = secLog
           ? computeValueAxis({ dataMin: lo2, dataMax: hi2, includeZero: z2, start: start2, end: end2, scale: 'log', length: plotHGuess, tickSpacing: 50 })
-          : alignSecondaryAxis(model1, { dataMin: lo2, dataMax: hi2, includeZero: z2, start: start2, end: end2 })
+          : computeValueAxis({ dataMin: lo2, dataMax: hi2, includeZero: z2 || alignZeros, start: start2, end: end2, length: plotHGuess, tickSpacing: 50 })
+        if (alignZeros && start1 == null && end1 == null && start2 == null && end2 == null && !vzoom) {
+          ;[model1, model2] = alignZeroAxes(model1, model2)
+          labels1 = model1.ticks.map(valueTickFormatter(model1, valFmt1))
+        }
         labels2 = model2.ticks.map(valueTickFormatter(model2, valFmt2))
       }
       const lw = valShow ? Math.ceil(maxLabelWidth(labels1, valT.font)) + 8 : 0
@@ -1640,9 +1659,15 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
     const bold = fmt.sBool('labels', 'bold', false, s)
     const italic = fmt.sBool('labels', 'italic', false, s)
     const color = fmt.sColor('labels', 'color', s)
-    const bgOn = fmt.sBool('labels', 'enableBackground', false, s)
-    const bgC = fmt.sColor('labels', 'backgroundColor', s) ?? '#FFFFFF'
-    const bgT = fmt.sNum('labels', 'backgroundTransparency', 90, s)
+    // Line series of a combo chart get a label background by default (Power BI render of a line-and-clustered-column
+    // chart: the line labels sit in light boxes over the columns, ≈ the plot background at 30–35% transparency with a
+    // lighter edge; measured, not documented). An explicit `enableBackground` (on or off) wins.
+    const si = series.indexOf(s)
+    const comboLine = si >= 0 && kinds[si] !== 'bar' && kinds.some((k) => k === 'bar')
+    const bgExplicit = fmt.seriesRaw('labels', 'enableBackground', s) !== undefined && fmt.seriesRaw('labels', 'enableBackground', s) !== null
+    const bgOn = fmt.sBool('labels', 'enableBackground', false, s) || (comboLine && !bgExplicit)
+    const bgC = fmt.sColor('labels', 'backgroundColor', s) ?? (comboLine ? fmt.theme.background || '#FFFFFF' : '#FFFFFF')
+    const bgT = fmt.sNum('labels', 'backgroundTransparency', comboLine && !bgExplicit ? COMBO_LINE_LABEL_BG_TRANSPARENCY : 90, s)
     const units = fmt.sNum('labels', 'labelDisplayUnits', 0, s)
     const prec = fmt.seriesRaw('labels', 'labelPrecision', s)
     const unit = resolveDisplayUnit(units, maxAbs)
@@ -1651,6 +1676,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
       font: { size: ptToPx(sz), family: fam, weight: bold ? 700 : fam.toLowerCase().includes('semibold') ? 600 : 400, italic },
       color,
       background: bgOn ? rgba(bgC, 1 - bgT / 100) : undefined,
+      backgroundStroke: bgOn && comboLine && !bgExplicit ? rgba(bgC, 0.9) : undefined,
       format: (v, f) => formatWithUnits(v, { unit, decimals: typeof prec === 'number' ? prec : undefined, formatString: f ?? s.measure.formatString, format: formatter })
     }
     labelCache.set(s.key, st)

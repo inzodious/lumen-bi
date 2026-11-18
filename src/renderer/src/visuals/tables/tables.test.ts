@@ -2,11 +2,11 @@ import type { QueryEngine, SummarizeRequest } from '@core/engine/api'
 import { columnExpr, fieldKey, measureExpr } from '@core/report/sq'
 import { createMockHost } from '../common/mockHost'
 import { createSampleEngine, proj, S } from '../common/sampleData'
-import { buildMatrixLayout, pathKey, blockKey, type MatrixSpec } from './matrixModel'
+import { buildMatrixLayout, pathKey, blockKey, pinnedGrandTotalStart, type MatrixSpec } from './matrixModel'
 import { buildMatrixView, matrixData } from './matrixView'
 import { readToggled, toggleExpansion } from './matrixQuery'
 import { applySort, buildTableModel, nextSort, tableData } from './tableModel'
-import { readTableFormat } from './tableFormat'
+import { headerAlignment, readTableFormat } from './tableFormat'
 import { resolveTheme } from '@core/report/theme'
 import { resolveIcon } from './cfIcons'
 
@@ -335,5 +335,38 @@ describe('CF icons', () => {
     expect(resolveIcon('checkGreen')!.shape).toBe('check')
     expect(resolveIcon('quarters3')).toMatchObject({ shape: 'quarter', level: 3 })
     expect(resolveIcon('')).toBeUndefined()
+  })
+})
+
+describe('column header alignment (Power BI renders)', () => {
+  const theme = resolveTheme(undefined)
+  const json = (columnFormatting: any[], columnHeaders?: any) => ({
+    visual: { visualType: 'tableEx', objects: { columnFormatting, ...(columnHeaders ? { columnHeaders: [columnHeaders] } : {}) } }
+  })
+  const lit = (v: string) => ({ expr: { Literal: { Value: v } } })
+  it('Auto is left, also over a column whose values are aligned right', () => {
+    const f = readTableFormat(json([{ properties: { alignment: lit("'Right'") }, selector: { metadata: 'm.A' } }]), theme)
+    const ov = f.columnOverrides.get('m.A')!
+    expect(ov.alignment).toBe('right')
+    expect(ov.alignHeader).toBe(false)
+    expect(headerAlignment(f, ov)).toBe('left')
+    expect(headerAlignment(f)).toBe('left')
+  })
+  it('a stored "Apply to header" moves the header with the column; columnHeaders.alignment wins', () => {
+    const f = readTableFormat(json([{ properties: { alignment: lit("'Right'"), styleHeader: lit('true') }, selector: { metadata: 'm.A' } }]), theme)
+    expect(headerAlignment(f, f.columnOverrides.get('m.A'))).toBe('right')
+    const g = readTableFormat(json([{ properties: { alignment: lit("'Right'"), styleHeader: lit('true') }, selector: { metadata: 'm.A' } }], { properties: { alignment: lit("'Center'") } }), theme)
+    expect(headerAlignment(g, g.columnOverrides.get('m.A'))).toBe('center')
+  })
+})
+
+describe('matrix grand total pinning', () => {
+  const it0 = (kind: any, totalKind?: any): any => ({ kind, level: 0, path: [], showValues: true, isTotal: !!totalKind, totalKind })
+  it('pins the trailing grand-total rows (values on rows too), not a matrix that is only its total', () => {
+    expect(pinnedGrandTotalStart([it0('node'), it0('node'), it0('grand', 'grand')])).toBe(2)
+    expect(pinnedGrandTotalStart([it0('node'), it0('grand', 'grand'), it0('value', 'grand'), it0('value', 'grand')])).toBe(1)
+    expect(pinnedGrandTotalStart([it0('node'), it0('subtotal', 'subtotal')])).toBe(2)
+    expect(pinnedGrandTotalStart([it0('grand', 'grand')])).toBe(1)
+    expect(pinnedGrandTotalStart([])).toBe(0)
   })
 })

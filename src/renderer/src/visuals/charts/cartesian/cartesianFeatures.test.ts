@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { highDensitySample } from '../../common/sampling'
-import { alignSecondaryAxis, computeValueAxis, niceStep } from '../../common/scale'
+import { alignSecondaryAxis, alignZeroAxes, computeValueAxis, niceStep } from '../../common/scale'
 import { detectAnomalies, sensitivityToK } from './anomaly'
 import { spreadLabels } from './seriesLabels'
 import { errorBounds, errorTooltip, type ErrorBarSpec } from './errorBars'
@@ -56,6 +56,17 @@ describe('value axis', () => {
     expect(Math.abs(s.ticks[zp])).toBeLessThan(1e-9)
     expect(s.ticks[s.ticks.length - 1]).toBeGreaterThanOrEqual(0.4)
     expect(s.ticks[0]).toBeLessThanOrEqual(-0.05)
+  })
+  it('align zeros: the axis with less room below zero is extended so both zeros are at the same height', () => {
+    const p = computeValueAxis({ dataMin: 0, dataMax: 60, includeZero: true, length: 250 })
+    const s = computeValueAxis({ dataMin: -0.3, dataMax: 0.1, includeZero: true, length: 250 })
+    const [a, b] = alignZeroAxes(p, s)
+    const frac = (d: [number, number]) => -d[0] / (d[1] - d[0])
+    expect(frac(a.domain)).toBeCloseTo(frac(b.domain), 9)
+    expect(b.domain).toEqual(s.domain)
+    expect(a.domain[1]).toBe(p.domain[1])
+    expect(a.ticks).toContain(0)
+    expect(a.ticks[1] - a.ticks[0]).toBeCloseTo(p.step, 9)
   })
   it('secondary axis for a positive line series covers the data', () => {
     const p = computeValueAxis({ dataMin: 0, dataMax: 500000, includeZero: true, length: 200 })

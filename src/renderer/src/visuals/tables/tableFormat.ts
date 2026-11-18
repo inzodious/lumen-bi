@@ -10,8 +10,12 @@
  *  - grid outline (line under the column headers, above table totals, right of matrix row
  *    headers) = `tableAccent`, falling back to `backgroundNeutral`;
  *  - gridlines = `backgroundLight` ("thirdLevelElements: table and matrix grid color");
- *  - tables: alternating rows (`background` / `backgroundLight`) with horizontal gridlines on;
- *    matrices: no banding, no gridlines, no top border on the grand total row;
+ *  - alternating rows (`background` / `backgroundLight`) in tables and matrices (a Power BI render of an
+ *    unformatted matrix bands its rows, row headers included); tables have horizontal gridlines on,
+ *    matrices no gridlines and no top border on the grand total row;
+ *  - column headers are left-aligned unless `columnHeaders.alignment` says otherwise, whatever the values'
+ *    alignment (Power BI renders: left headers over right-aligned numbers, also over columns whose
+ *    "Specific column" alignment is Right);
  *  - row padding 3px — not published by Microsoft; kept from phase 1 (approximation).
  * `grid.textSize` is the legacy "text size" that applies to every region when set.
  */
@@ -52,6 +56,11 @@ export interface ColumnOverride {
   fontColor?: string
   backColor?: string
   alignment?: 'left' | 'center' | 'right'
+  /**
+   * The per-column alignment also moves the header: only when the entry stores "Apply to header" explicitly
+   * (Power BI renders left headers over columns whose stored alignment is Right without it).
+   */
+  alignHeader?: boolean
   displayUnits?: number
   precision?: number
   styleHeader: boolean
@@ -195,6 +204,15 @@ export function outlineOf(v: unknown, fallback: Outline): Outline {
   return known.find((k) => typeof k === 'string' && k.toLowerCase() === s.toLowerCase()) ?? fallback
 }
 
+/**
+ * Alignment of a column header: `columnHeaders.alignment`, else the column's own "Specific column" alignment when it
+ * is stored with "Apply to header", else left (Power BI's Auto for headers — renders show left-aligned headers over
+ * right-aligned numbers in tables and matrices).
+ */
+export function headerAlignment(format: Pick<TableFormat, 'header'>, override?: Pick<ColumnOverride, 'alignment' | 'alignHeader'>): 'left' | 'center' | 'right' {
+  return format.header.alignment ?? (override?.alignHeader ? override.alignment : undefined) ?? 'left'
+}
+
 function align(v: unknown): 'left' | 'center' | 'right' | undefined {
   if (v === undefined || v === null || String(v).toLowerCase() === 'auto') return undefined
   const a = cssAlign(v)
@@ -222,7 +240,7 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
   if (typeof plainValueColor === 'string') valueFont.color = plainValueColor
 
   const backPrimary = getColor(pc, 'values', 'backColorPrimary', getColor(pc, 'values', 'backColor', theme.background))
-  const backSecondary = getColor(pc, 'values', 'backColorSecondary', isMatrix ? backPrimary : theme.backgroundLight)
+  const backSecondary = getColor(pc, 'values', 'backColorSecondary', theme.backgroundLight)
 
   const widthByRef = new Map<string, number>()
   const widthByScope: Array<{ scope: any[]; ref?: string; width: number }> = []
@@ -258,6 +276,7 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
       fontColor: typeof fc === 'string' ? fc : undefined,
       backColor: typeof bc === 'string' ? bc : undefined,
       alignment: align(getProp<any>(pc, 'columnFormatting', 'alignment', undefined, sel)),
+      alignHeader: e.properties?.styleHeader !== undefined && getProp<boolean>(pc, 'columnFormatting', 'styleHeader', true, sel) === true,
       displayUnits: typeof du === 'number' ? du : undefined,
       precision: typeof pr === 'number' ? pr : undefined,
       styleHeader: getProp<boolean>(pc, 'columnFormatting', 'styleHeader', true, sel),

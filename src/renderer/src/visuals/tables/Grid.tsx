@@ -1,8 +1,9 @@
 /**
  * Virtualized grid shell used by the table and matrix visuals: a scroll container with a sticky
- * header block, absolutely positioned (virtualized, dynamically measured) body rows and a
- * sticky footer (totals stay pinned to the bottom of the visual like in Power BI). Frozen
- * left columns are implemented by the caller with `position: sticky; left: …` cells.
+ * header block and absolutely positioned (virtualized, dynamically measured) body rows, and a
+ * footer below it (totals follow the last row, and stay pinned to the bottom of the visual once
+ * the rows scroll, like in Power BI). Frozen left columns are implemented by the caller with
+ * `position: sticky; left: …` cells.
  */
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -10,6 +11,7 @@ import type { CellModel } from './cellModel'
 import { CFIcon } from './cfIcons'
 import { sparklineGeometry, type MarkerShape, type SparkPoint, type SparklineFormat } from './sparklineModel'
 import { MIN_COLUMN_WIDTH } from './widths'
+import { rgba } from '../common/color'
 
 export interface GridProps {
   width: number
@@ -72,7 +74,9 @@ export function Grid(props: GridProps) {
   const rightPx = props.nearRightThresholdPx ?? 400
   const lastViewport = useRef(0)
   const { onViewportWidth } = props
+  const footRef = useRef<HTMLDivElement | null>(null)
   useLayoutEffect(() => {
+    if (footRef.current && scrollRef.current) footRef.current.scrollLeft = scrollRef.current.scrollLeft
     const w = scrollRef.current?.clientWidth ?? 0
     // 0 = not laid out (hidden page, jsdom)
     if (!onViewportWidth || w <= 0 || w === lastViewport.current) return
@@ -87,32 +91,41 @@ export function Grid(props: GridProps) {
       onNearRightEnd()
     }
   }
+  const onScroll = () => {
+    // the footer follows the body horizontally
+    if (footRef.current && scrollRef.current) footRef.current.scrollLeft = scrollRef.current.scrollLeft
+    if (onNearRightEnd) checkRight()
+  }
   return (
-    <div
-      ref={scrollRef}
-      onScroll={onNearRightEnd ? checkRight : undefined}
-      className="wbi-table-scroll"
-      style={{ width: props.width, height: props.height, overflow: 'auto', position: 'relative', background: props.background }}
-    >
+    <div style={{ width: props.width, height: props.height, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: props.background }}>
       <style>{SCROLLBAR_CSS}</style>
-      <div style={{ width: props.totalWidth, minWidth: '100%', position: 'relative' }}>
-        <div style={{ position: 'sticky', top: 0, zIndex: 3, width: props.totalWidth }}>{props.header}</div>
-        <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: props.totalWidth, ...props.bodyStyle }}>
-          {items.map((it) =>
-            props.renderRow(
-              it.index,
-              { position: 'absolute', top: 0, left: 0, width: props.totalWidth, transform: `translateY(${it.start}px)` },
-              (el) => {
-                if (el && props.measure) {
-                  el.dataset.index = String(it.index)
-                  virtualizer.measureElement(el)
+      {/* header + body scroll; the scroller only grows to its content, so the footer follows the last row and is
+          pinned to the bottom once the rows overflow (laid out outside the scroller: a sticky-bottom footer is painted
+          off its layout position at fractional canvas zooms) */}
+      <div ref={scrollRef} onScroll={onScroll} className="wbi-table-scroll" style={{ width: props.width, flex: '0 1 auto', minHeight: 0, overflow: 'auto', position: 'relative' }}>
+        <div style={{ width: props.totalWidth, minWidth: '100%', position: 'relative' }}>
+          <div style={{ position: 'sticky', top: 0, zIndex: 3, width: props.totalWidth }}>{props.header}</div>
+          <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: props.totalWidth, ...props.bodyStyle }}>
+            {items.map((it) =>
+              props.renderRow(
+                it.index,
+                { position: 'absolute', top: 0, left: 0, width: props.totalWidth, transform: `translateY(${it.start}px)` },
+                (el) => {
+                  if (el && props.measure) {
+                    el.dataset.index = String(it.index)
+                    virtualizer.measureElement(el)
+                  }
                 }
-              }
-            )
-          )}
+              )
+            )}
+          </div>
         </div>
-        {props.footer ? <div style={{ position: 'sticky', bottom: 0, zIndex: 3, width: props.totalWidth }}>{props.footer}</div> : null}
       </div>
+      {props.footer ? (
+        <div ref={footRef} className="wbi-table-footer" style={{ width: props.width, flex: '0 0 auto', overflow: 'hidden', position: 'relative' }}>
+          <div style={{ width: props.totalWidth, minWidth: '100%', position: 'relative', zIndex: 3 }}>{props.footer}</div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -263,10 +276,52 @@ export function LinkIcon({ size }: { size: number }) {
   )
 }
 
+/** Height the sort caret adds below a header's text (see HeaderLabel). */
+export const SORT_CARET_H = 7
+
+/**
+ * A column header's text with the sort caret on its own line below it, on the header's alignment side (Power BI
+ * renders: the chevron sits under the start of a left-aligned header, so a sorted single-line header is taller).
+ */
+export function HeaderLabel({
+  text,
+  align,
+  textStyle,
+  sort,
+  color
+}: {
+  text: ReactNode
+  align: 'left' | 'center' | 'right'
+  textStyle: CSSProperties
+  sort?: 'asc' | 'desc'
+  color: string
+}) {
+  const items = align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', alignItems: items, minWidth: 0, maxWidth: '100%' }}>
+      <span style={{ ...textStyle, maxWidth: '100%' }}>{text}</span>
+      {sort ? (
+        <span data-sort={sort} style={{ display: 'flex', height: SORT_CARET_H, alignItems: 'flex-end' }}>
+          <SortCaret dir={sort} color={color} />
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+/**
+ * Thin separator between column-header cells: Power BI renders a faint vertical line between header cells even with
+ * vertical gridlines off (approximation: the header text color at 30% over the header background, 1px, measured on a
+ * Power BI screenshot; not documented).
+ */
+export function headerSeparator(color: string): CSSProperties {
+  return { boxShadow: `inset -1px 0 0 ${rgba(color, 0.3)}` }
+}
+
 /** Sort direction caret shown in a sorted column header (PBI shows a small chevron). */
 export function SortCaret({ dir, color }: { dir: 'asc' | 'desc'; color: string }) {
   return (
-    <svg width="8" height="6" viewBox="0 0 8 6" style={{ flex: '0 0 auto', margin: '0 2px' }}>
+    <svg width="8" height="6" viewBox="0 0 8 6" style={{ flex: '0 0 auto', margin: '0 2px', display: 'block' }}>
       <path d={dir === 'asc' ? 'M0.5 5 L4 1.2 L7.5 5' : 'M0.5 1 L4 4.8 L7.5 1'} fill="none" stroke={color} strokeWidth="1.1" />
     </svg>
   )

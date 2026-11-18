@@ -354,3 +354,13 @@ export function buildMatrixLayout(spec: MatrixSpec): MatrixLayout {
 
 /** Compare helper re-export for callers that sort node labels. */
 export { compareScalars }
+
+/**
+ * Index of the first row of the trailing row grand total (its value rows too, with values on rows), or `items.length`
+ * when there is none to pin. A matrix that is nothing but its grand total keeps it in the body.
+ */
+export function pinnedGrandTotalStart(items: RowItem[]): number {
+  let i = items.length
+  while (i > 0 && items[i - 1].totalKind === 'grand') i--
+  return i === 0 ? items.length : i
+}

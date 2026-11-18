@@ -7,7 +7,7 @@
  * the "no color" swatch.
  *
  * The tables below mirror the fallbacks of the code that draws the thing (report/chrome.ts for the container cards,
- * visuals/elements for shapes and buttons); effective.test.ts checks the container ones against resolveChrome so they
+ * visuals/elements for shapes and buttons); propModel.test.ts checks the container ones against resolveChrome so they
  * cannot drift apart silently. Visuals without a table rely on their card definitions' `default`.
  */
 import type { Scalar } from '@core/model/data'
@@ -15,12 +15,10 @@ import type { ResolvedTheme } from '@core/report/theme'
 import { getVisual } from '../../visuals/registry'
 import { SHAPE_DEFAULTS, shapeDefaultFill } from '../../visuals/elements/Shape'
 import { BUTTON_DEFAULTS } from '../../visuals/elements/ActionButton'
+import { DEFAULT_PADDING, DEFAULT_VERTICAL_SPACING, ELEMENT_PADDING, TITLE_ON_BY_DEFAULT } from '../../report/chrome'
 
 type DefaultValue = Scalar | undefined
 type DefaultTable = Record<string, DefaultValue | ((theme: ResolvedTheme) => DefaultValue)>
-
-/** Visual types whose container title is on by default — same rule as report/chrome.ts (TITLE_ON_BY_DEFAULT). */
-const TITLE_ON_BY_DEFAULT = /Chart$|^map$|^filledMap$|^azureMap$|^shapeMap$|^scatterChart$|^treemap$|^funnel$|^gauge$|^waterfallChart$|^kpi$|^decompositionTreeVisual$|^keyDriversVisual$|^qnaVisual$|^scriptVisual$|^pythonVisual$/
 
 /** Is the container title shown when `title.show` is unset? (VisualContainer: registered non-chart visuals default to off.) */
 export function titleOnByDefault(visualType: string): boolean {
@@ -67,11 +65,14 @@ export function containerDefault(object: string, prop: string, theme: ResolvedTh
       return 10
     case 'dropShadow.angle':
       return 45
+    // data visuals: 0 / 5 / 5 / 5; elements (text box, shape, image, buttons…): 5 all around — as VisualContainer resolves them
     case 'padding.top':
     case 'padding.bottom':
     case 'padding.left':
     case 'padding.right':
-      return 5
+      return (getVisual(visualType)?.category === 'element' ? ELEMENT_PADDING : DEFAULT_PADDING)[prop as keyof typeof DEFAULT_PADDING]
+    case 'spacing.verticalSpacing':
+      return DEFAULT_VERTICAL_SPACING
     case 'visualHeader.foreground':
       return '#252423'
     default:

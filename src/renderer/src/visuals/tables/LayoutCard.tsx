@@ -16,8 +16,9 @@ import { decodeLiteral } from '@core/report/literal'
 import { getProp, type ObjectsBag } from '@core/report/props'
 import type { VisualDocument } from '@core/report/types'
 import { useApp } from '../../state/store'
-import { CollapsibleCard, Dropdown, NumberField, Toggle } from '../../app/ui'
+import { CollapsibleCard, Dropdown, Toggle } from '../../app/ui'
 import { matchesSearch, type BagTarget } from '../../panes/visualizations/PropEditor'
+import { SpinField } from '../../panes/visualizations/controls'
 import { nativeName, roleProjections } from '../../panes/visualizations/wells'
 import { readTableFormat, scopeTotalKey } from './tableFormat'
 import { steppedHeaderWidth } from './MatrixVisual'
@@ -85,22 +86,28 @@ export function TableLayoutCard({ visual, target, search }: { visual: VisualDocu
   const f = readTableFormat({ visual: { visualType: type, objects: target.bag ?? {} } }, target.theme)
   const { rows, scoped } = customWidthRows(visual.json, target.bag, target.theme)
   const hasColumnFields = isMatrix && roleProjections(visual.json, 'Columns').length > 0
-  const edit = (fn: (bag: ObjectsBag) => void) =>
-    useApp.getState().mutateReport(target.label, (r) => {
-      const bag = target.locate(r)
-      if (!bag) return
-      for (const o of ['columnHeaders', 'columnWidth', 'rowHeaders']) target.beforeWrite?.(r, bag, o)
-      fn(bag)
-    })
+  // `coalesce`: a burst of spin-arrow clicks on one width box is a single undo step (like the other Format pane boxes)
+  const edit = (fn: (bag: ObjectsBag) => void, coalesce?: string) =>
+    useApp.getState().mutateReport(
+      target.label,
+      (r) => {
+        const bag = target.locate(r)
+        if (!bag) return
+        for (const o of ['columnHeaders', 'columnWidth', 'rowHeaders']) target.beforeWrite?.(r, bag, o)
+        fn(bag)
+      },
+      coalesce ? { coalesce: `fmt:${target.cf?.visualName ?? target.label}:layout:${coalesce}` } : undefined
+    )
+  // the Format pane's shared spin box (controls.tsx), so these rows look and behave like every other numeric property
   const widthInput = (row: WidthRow) => (
-    <NumberField
-      size="small"
+    <SpinField
+      label={`${row.label} width`}
       value={row.width === undefined ? undefined : Math.round(row.width * 100) / 100}
       placeholder="(auto)"
       min={0}
       max={2000}
-      suffix={<span className="wbi-muted">px</span>}
-      onChange={(n) => edit((bag) => (n === undefined ? resetColumnWidth(bag, row.target) : setColumnWidth(bag, row.target, n)))}
+      unit="px"
+      onChange={(n, stepping) => edit((bag) => (n === undefined ? resetColumnWidth(bag, row.target) : setColumnWidth(bag, row.target, n)), stepping ? row.key : undefined)}
     />
   )
   const list = (items: WidthRow[]) =>
@@ -146,15 +153,15 @@ export function TableLayoutCard({ visual, target, search }: { visual: VisualDocu
                 <span>Default width</span>
               </div>
               <div className="wbi-fmt__editor">
-                <NumberField
-                  size="small"
+                <SpinField
+                  label="Default width"
                   value={f.sizing.defaultWidth}
                   // legacy "Auto-size width: off" files have no default: columns without a custom width keep their content width
                   placeholder={f.sizing.legacyManual ? '(content)' : String(DEFAULT_FIXED_WIDTH)}
                   min={1}
                   max={2000}
-                  suffix={<span className="wbi-muted">px</span>}
-                  onChange={(n) => edit((bag) => setDefaultWidth(bag, n))}
+                  unit="px"
+                  onChange={(n, stepping) => edit((bag) => setDefaultWidth(bag, n), stepping ? 'default' : undefined)}
                 />
               </div>
             </div>

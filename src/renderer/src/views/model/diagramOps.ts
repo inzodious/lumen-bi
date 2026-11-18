@@ -8,10 +8,10 @@ import { translateRoute } from './routing'
 
 /**
  * Built-in line style, used when neither the relationship, nor its layout, nor the user's preference
- * (diagramPrefs) says otherwise: straight lines, as the diagram drew them before line styles existed
- * (a project without the sidecar looks the same as before).
+ * (diagramPrefs) says otherwise: curved lines. A layout that stores a style (e.g. "straight") and a
+ * per-user preferred default still win over it.
  */
-export const DEFAULT_LINE_STYLE: LineStyle = 'straight'
+export const DEFAULT_LINE_STYLE: LineStyle = 'curved'
 
 export function groupOf(d: LumenDiagram, table: string): GroupDef | undefined {
   return d.groups?.find((g) => g.tables.some((m) => m.name === table))

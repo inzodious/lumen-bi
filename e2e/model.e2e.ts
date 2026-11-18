@@ -95,7 +95,8 @@ describe('model view: editable relationship lines', () => {
     const index = await grabbableEdge(page)
     const edge = page.locator('.wbi-mv-edge').nth(index)
     const rel = (await edge.getAttribute('data-rel'))!
-    expect(await edge.getAttribute('data-style')).toBe('straight')
+    // built-in default: curved lines (a project without the sidecar stores no style)
+    expect(await edge.getAttribute('data-style')).toBe('curved')
     const depth = await undoDepth(page)
 
     // hover highlights the line
@@ -117,7 +118,7 @@ describe('model view: editable relationship lines', () => {
     expect(afterBend.diagrams[0].routes![rel].waypoints).toHaveLength(1)
     expect(await undoDepth(page)).toBe(depth + 1)
     expect(await dirty(page)).toBe(true)
-    await shot(page, 'line-bent-straight')
+    await shot(page, 'line-bent-curved')
 
     // undo removes the pinch point (and the sidecar: nothing custom is left), redo brings it back
     await page.keyboard.press('Control+Z')
@@ -128,12 +129,22 @@ describe('model view: editable relationship lines', () => {
     expect(await sidecar(page)).toEqual(afterBend)
 
     // the line style applies to every line of the layout and is undoable too
+    await toolbar(page).getByRole('button', { name: 'Straight lines' }).click()
+    await expect.poll(() => page.locator('.wbi-mv-edge[data-style="straight"]').count()).toBe(rels)
+    expect(await edge.locator('.wbi-mv-edge__line').getAttribute('d')).not.toMatch(/ C/)
+    expect((await sidecar(page))!.diagrams[0].lineStyle).toBe('straight')
+    await shot(page, 'line-bent-straight')
+    await page.keyboard.press('Control+Z')
+    await expect.poll(() => page.locator('.wbi-mv-edge[data-style="curved"]').count()).toBe(rels)
+    await page.keyboard.press('Control+Y')
+    await expect.poll(() => page.locator('.wbi-mv-edge[data-style="straight"]').count()).toBe(rels)
+    // back to curved: the built-in default is not stored
     await toolbar(page).getByRole('button', { name: 'Curved lines' }).click()
     await expect.poll(() => page.locator('.wbi-mv-edge[data-style="curved"]').count()).toBe(rels)
     const d = await edge.locator('.wbi-mv-edge__line').getAttribute('d')
     expect(d).toMatch(/ C/)
     expect((d!.match(/ C/g) ?? []).length).toBe(2) // two Bézier segments meeting in the pinch point
-    expect((await sidecar(page))!.diagrams[0].lineStyle).toBe('curved')
+    expect((await sidecar(page))!.diagrams[0].lineStyle).toBeUndefined()
     // markers are still there in the curved style
     expect(await edge.locator('.wbi-mv-edge__card').count()).toBe(2)
     expect(await edge.locator('.wbi-mv-edge__dir path').count()).toBeGreaterThan(0)
@@ -155,8 +166,9 @@ describe('model view: editable relationship lines', () => {
     await toolbar(page).getByRole('button', { name: 'Orthogonal lines' }).click()
     await expect.poll(() => page.locator('.wbi-mv-edge[data-style="orthogonal"]').count()).toBe(rels)
     await shot(page, 'line-orthogonal')
-    await toolbar(page).getByRole('button', { name: 'Curved lines' }).click()
-    await expect.poll(() => page.locator('.wbi-mv-edge[data-style="curved"]').count()).toBe(rels)
+    // leave a stored, non-default layout style for the save / reopen check below
+    await toolbar(page).getByRole('button', { name: 'Straight lines' }).click()
+    await expect.poll(() => page.locator('.wbi-mv-edge[data-style="straight"]').count()).toBe(rels)
 
     // double-click a pinch point to remove it
     const second = await box(page, '.wbi-mv-wp[data-index="1"] .wbi-mv-wp__dot')
@@ -175,7 +187,8 @@ describe('model view: editable relationship lines', () => {
     await toModelView(page)
     expect(await sidecar(page)).toEqual(expected)
     const reopened = page.locator(`.wbi-mv-edge[data-rel="${rel}"]`)
-    expect(await reopened.getAttribute('data-style')).toBe('curved')
+    expect(await reopened.getAttribute('data-style')).toBe('straight')
+    expect(expected.diagrams[0].lineStyle).toBe('straight')
     expect(await reopened.getAttribute('data-waypoints')).toBe('1')
     expect(await page.locator('.wbi-mv-wp').count()).toBe(1)
     expect(await dirty(page)).toBe(false)
@@ -275,7 +288,7 @@ describe('model view: line ends and reset', () => {
     const p3 = await pointOnEdge(page, index, 0.1)
     await page.mouse.click(p3.x, p3.y, { button: 'right' })
     await page.getByRole('menuitem', { name: 'Reset line' }).click()
-    await expect.poll(() => edge.getAttribute('data-style')).toBe('straight')
+    await expect.poll(() => edge.getAttribute('data-style')).toBe('curved')
     expect(await edge.getAttribute('data-waypoints')).toBe('0')
     expect(await route()).toBeUndefined()
     expect((await sidecar(page))?.diagrams[0]?.routes).toBeUndefined()

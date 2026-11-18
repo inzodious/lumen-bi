@@ -67,22 +67,23 @@ describe('routes and styles', () => {
     expect(d.routes).toBeUndefined()
   })
 
-  it('the built-in default style is not stored; a line override beats the layout default', () => {
+  it('the built-in default style is curved and not stored; a line override beats the layout default', () => {
+    expect(DEFAULT_LINE_STYLE).toBe('curved')
     const d: LumenDiagram = { name: 'A' }
-    expect(effectiveStyle(d, undefined)).toBe(DEFAULT_LINE_STYLE)
-    setLineStyle(d, 'curved')
-    expect(d.lineStyle).toBe('curved')
-    expect(effectiveStyle(d, {})).toBe('curved')
+    expect(effectiveStyle(d, undefined)).toBe('curved')
+    setLineStyle(d, 'straight')
+    expect(d.lineStyle).toBe('straight')
+    expect(effectiveStyle(d, {})).toBe('straight')
     expect(effectiveStyle(d, { style: 'orthogonal' })).toBe('orthogonal')
     setLineStyle(d, DEFAULT_LINE_STYLE)
     expect(d.lineStyle).toBeUndefined()
     // with a preferred default (fallback) the same rule applies relative to it
-    expect(effectiveStyle(d, undefined, 'curved')).toBe('curved')
-    setLineStyle(d, 'curved', 'curved')
+    expect(effectiveStyle(d, undefined, 'straight')).toBe('straight')
+    setLineStyle(d, 'straight', 'straight')
     expect(d.lineStyle).toBeUndefined()
-    setLineStyle(d, DEFAULT_LINE_STYLE, 'curved')
-    expect(d.lineStyle).toBe(DEFAULT_LINE_STYLE)
-    expect(effectiveStyle(d, undefined, 'curved')).toBe(DEFAULT_LINE_STYLE)
+    setLineStyle(d, DEFAULT_LINE_STYLE, 'straight')
+    expect(d.lineStyle).toBe('curved')
+    expect(effectiveStyle(d, undefined, 'straight')).toBe('curved')
   })
 })
 

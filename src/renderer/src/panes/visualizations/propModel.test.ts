@@ -7,6 +7,8 @@ import { layoutProps, propState, type PropSource } from './propModel'
 import { containerDefault, rendererDefault, titleOnByDefault, visualDefault } from './effective'
 import { normalizeNumber, parseNumberInput, stepNumber } from './controls'
 import { SHAPE_DEFAULTS } from '../../visuals/elements/Shape'
+import { getVisual } from '../../visuals/registry'
+import '../../visuals/elements' // registers shape / buttons (category element)
 
 const theme = resolveTheme()
 const lit = (v: string) => ({ expr: { Literal: { Value: v } } })
@@ -59,7 +61,8 @@ describe('format pane effective values', () => {
     for (const visualType of ['clusteredColumnChart', 'tableEx', 'slicer', 'shape']) {
       // everything switched on, nothing else set → the chrome falls back to its defaults
       const json = { visual: { visualType, visualContainerObjects: { title: [{ properties: { show: lit('true') } }], subTitle: [{ properties: { show: lit('true') } }], divider: [{ properties: { show: lit('true') } }], border: [{ properties: { show: lit('true') } }] } } }
-      const chrome = resolveChrome(json, theme)
+      // the options VisualContainer passes (elements keep 5 px padding on every side)
+      const chrome = resolveChrome(json, theme, { element: getVisual(visualType)?.category === 'element' })
       const d = (object: string, prop: string) => containerDefault(object, prop, theme, visualType)
       expect(chrome.title.color).toBe(d('title', 'fontColor'))
       expect(chrome.title.fontSizePx).toBe(ptToPx(d('title', 'fontSize') as number))
@@ -72,6 +75,11 @@ describe('format pane effective values', () => {
       // title on/off when unset (the General ▸ Title toggle)
       expect(resolveChrome({ visual: { visualType } }, theme).title.show).toBe(titleOnByDefault(visualType))
     }
+    // data visuals have no top padding by default, elements 5 px (report/chrome.ts DEFAULT_PADDING / ELEMENT_PADDING)
+    expect(getVisual('shape')?.category).toBe('element')
+    expect(containerDefault('padding', 'top', theme, 'clusteredColumnChart')).toBe(0)
+    expect(containerDefault('padding', 'top', theme, 'shape')).toBe(5)
+    expect(containerDefault('spacing', 'verticalSpacing', theme, 'clusteredColumnChart')).toBe(resolveChrome({ visual: { visualType: 'clusteredColumnChart' } }, theme).spacing.belowTitle)
     // unknown container properties stay automatic
     expect(containerDefault('title', 'background', theme, 'tableEx')).toBeUndefined()
   })

@@ -127,7 +127,7 @@ an untouched model round-trips byte-identically and a project without the file b
   "diagrams": [                                   // one entry per layout tab, matched to diagramLayout.json by name
     {
       "name": "All tables",
-      "lineStyle": "curved",                      // layout default: curved | orthogonal | straight (omitted = default)
+      "lineStyle": "straight",                    // layout default: curved | orthogonal | straight (omitted = the user's preferred default, else curved)
       "routes": {
         "<relationship name>": {
           "style": "orthogonal",                  // per-relationship override

@@ -129,8 +129,8 @@ export interface ChromeSpec {
   lockAspect: boolean
 }
 
-/** Visual types whose container title is on by default (charts / maps). */
-const TITLE_ON_BY_DEFAULT = /Chart$|^map$|^filledMap$|^azureMap$|^shapeMap$|^scatterChart$|^treemap$|^funnel$|^gauge$|^waterfallChart$|^kpi$|^decompositionTreeVisual$|^keyDriversVisual$|^qnaVisual$|^scriptVisual$|^pythonVisual$/
+/** Visual types whose container title is on by default (charts / maps). Also read by the Format pane (effective.ts). */
+export const TITLE_ON_BY_DEFAULT = /Chart$|^map$|^filledMap$|^azureMap$|^shapeMap$|^scatterChart$|^treemap$|^funnel$|^gauge$|^waterfallChart$|^kpi$|^decompositionTreeVisual$|^keyDriversVisual$|^qnaVisual$|^scriptVisual$|^pythonVisual$/
 
 const num = (v: any, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
 const str = (v: any, d: string) => (typeof v === 'string' && v ? v : d)

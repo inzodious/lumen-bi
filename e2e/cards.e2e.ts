@@ -4,7 +4,7 @@
  * follows the Format pane.
  */
 import { describe, expect, it } from 'vitest'
-import type { Locator } from 'playwright'
+import type { Locator } from 'playwright-core'
 import { useLumen, visualsOfType, settle, lumenEval } from './harness'
 
 /** Where the category label sits relative to the value (rendered boxes). */

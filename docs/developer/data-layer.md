@@ -203,6 +203,10 @@ What the generator guarantees:
   items, role filters) and from the report's SQ filters, so a measure such as
   `CALCULATE ( SUM ( f[amount] ), f[stage] = "Won" )` is not blank. Mined date literals extend the calendar.
   `synthetic-dax.ts` is a small tolerant DAX parser used only for this mining.
+- **Condition-aware.** The miner also records each literal *condition* (`MinedCondition`: column, operator `=` / `IN`
+  / `ISBLANK` / comparison / `CONTAINS`, polarity, site, use) and `decideColumns()` in `synthetic-conditions.ts` turns
+  all the conditions on a column into its distribution (`ColumnDecision`, listed in `SyntheticResult.decisions`); see
+  [Condition-aware distributions](#condition-aware-distributions).
 - **Dense where the report is sliced.** `mineSliceable()` in `synthetic-slices.ts` reads the report definition for
   the columns its slicers, filter-pane cards and cross-filtering visuals select on, with their saved selections.
   `layoutCoverage()` / `layoutSnapshot()` in `synthetic-coverage.ts` then add *coverage rows* to each fact table, so
@@ -222,11 +226,61 @@ What the generator guarantees:
 | `factRows` | `20000` | Options > Data load (default 5000) |
 | `replace` | `'empty'` | `'empty'` for Use sample data; `'synthetic'` or `'all'` for Regenerate |
 | `coverageRows` | `40000` (`0` turns coverage off) | not exposed |
+| `conditions` | `mineModel(project).conditions` | not exposed |
 | `sliceable` | `mineSliceable(project)` | not exposed |
 | `identifyingLiterals` | `'never'` | `'reuse'` only when the user allows real values in Options > Data load |
 
 The result lists the tables written, the tables skipped with a reason (`calculated`, `calculationGroup`,
-`measureTable`, `noColumns`, `hasData`, `notRequested`), the seed, and counts of withheld literals.
+`measureTable`, `noColumns`, `hasData`, `notRequested`), the seed, counts of withheld literals, the coverage per fact
+table and the distribution decisions.
+
+### Condition-aware distributions
+
+`mineModel()` returns `conditions: MinedCondition[]`. A condition records where the literal is written (`site`:
+`measure`, `calcItem`, `calcColumn`, `calcTable`, `rls`, `filter`, `slicer`, `bookmark`, `format`), whether it
+restricts rows (`use: 'filter'`: a `CALCULATE` / `CALCULATETABLE` argument, a `FILTER` predicate, `TREATAS`,
+`KEEPFILTERS`, a report filter or slicer selection) or is a branch test (`use: 'test'`: `IF`, `SWITCH`, a comparison
+computed as a value, conditional formatting), and its polarity (`<>`, `NOT IN`, `NOT ( … )`, report `Not` filters are
+negative). The walker follows `VAR` bindings; a disjunction makes its parts tests.
+
+`decideColumns(project, conditions, { allowed, generated })` applies these rules per column, in a stable order:
+
+| Rule | When | Shares |
+|---|---|---|
+| `all-rows` | Positive measure filters on the column agree and the column is not *surfaced* | The required literal on every row |
+| `split` | Measures need different literals (free or surfaced), or also count rows without it | Each needed literal weighted by its conditions, ×3 for measures of entity-level visuals (`entityMeasures()`), at least a tenth each |
+| `dominant` | Surfaced column, one required literal | `DOMINANT_SHARE` (0.85); the rest from the column's other mined values or its ordinary generator |
+| `balanced` | Surfaced, and a report filter excludes the required literal or requires another | `BALANCED_SHARE` (0.6) for the required literal, the rest for the filter's values |
+| `spread` | No measure requirement | The ordinary distribution |
+
+On top of every rule, literals that appear only in negative conditions are `absent` (never written, also not by
+coincidence) from free columns and rare (`RARE_SHARE`, 1.5% each, at most 5% together) in surfaced ones; sentinels
+(`isSentinel()`: `"null"`, `"none"`, `"nan"`, `"n/a"`, `"unknown"`, `"(Blank)"`, empty…) are absent unless a
+positive measure filter requires them (then rare). An `all-rows` column holds nothing but its required literal. *Surfaced* (`surfacedColumns()`) means used in a visual's field wells (tooltips and slicers included), a
+sort definition, a filter card, a relationship, a field parameter, as the sort-by column of a surfaced column, or by
+a surfaced calculated column; conditions and surfacing on calculated tables carry over to their imported sources.
+Without a report every column counts as surfaced. Literals the privacy gate withholds (`allowed`) take no part.
+
+`generateColumn()` applies a decision as fixed shares drawn before the column's ordinary generator; needs (values that
+must appear at least once) exclude absent literals, and an `all-rows` column needs nothing else. `chooseStandIns()`
+takes an optional `rowOk` filter: the generator passes rows that hold every required literal of their table and whose
+key has coverage rows in every covered period (`fullyCoveredRows()`), and picks the busiest of them.
+
+Ids and codes typed as text go through `idWriter()`: the most common shape of the column's mined literals (letters
+replaced by invented ones fixed per column, digits by the counter), else digits of one length for id-like names
+(`id`, `key`, `code`, `number`, `no`…), else a three-letter prefix and a counter; the narrowest `columnWidth` a table
+or matrix of the report gives the column (`columnWidths()`) caps the length.
+
+### Checking the entity-level guarantee
+
+`checkEntityVisuals(engine, report, page, { cap })` in `src/renderer/src/app/sweep/selectionAudit.ts` is the
+evaluation behind the rules above. For each table or matrix whose grouping columns all come from one table that a
+list slicer of the page selects on (`entityVisuals()`), and each such slicer, it compares the members the slicer
+offers (minus members the visual's stored filters remove) with the members the visual lists, under the saved state
+with that slicer at "All" and with every slicer at "All", then selects every member alone (up to `cap`, default 500,
+spread over the list beyond it) and counts the selections that leave the visual empty. The sweep runs it with
+`--selections` (`report.json` `pages[].entities`, `entityTotals`; `summary.tsv` `entity_*` columns), and the tests in
+`selectionAudit.test.ts` include a deliberately broken model it must flag.
 
 ### Privacy: withheld literals and stand-ins
 
@@ -255,6 +309,11 @@ withheld literal stays blank, and the sample-data notice says so.
 - **Sample data is invented.** Numbers from generated rows are not real. The app says so in a notice and with the
   status-bar badge; never present them as real results.
 - **Stand-ins in formulas.** Measures that compare to a withheld literal stay blank (see above).
+- **Conditions not traced.** Expressions the tolerant parser rejects, conditions reached only through a measure
+  referenced inside a filter argument, and conditions on calculated columns (their values are pushed back to their
+  sources, their polarity is not). Comparisons and text searches are recorded but do not shape distributions.
+- **Blank by design.** A measure that is blank for members holding another value of a surfaced column still drops
+  those members (about one in seven under `dominant`), as real data would.
 
 ## Related content
 

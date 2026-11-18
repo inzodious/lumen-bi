@@ -44,12 +44,27 @@ Lumen reads only the model's and the report's *definitions*: tables, columns, da
 - **Deterministic.** The same model and the same seed always give the same rows. Adding a table does not change the values of the others.
 - **Consistent keys.** Columns linked by relationships share their key values: every key on the many side exists on the one side, across snowflakes, inactive and bidirectional relationships too. Every dimension member that facts refer to has fact rows.
 - **Calendars.** Date tables get a contiguous calendar (three years ending on December 31 of the current year by default) with derived columns such as year, month name and quarter, recognized by name. Fact dates follow a trend and a seasonality, dip on weekends, and never lie after today.
-- **Columns by name and type.** Names, e-mail addresses, cities, statuses, amounts, counts, durations, rates, scores and flags get values that look like what their names suggest.
-- **Values your formulas and filters need.** Category values, flags, thresholds and dates that DAX formulas and report filters compare columns to are reused, so a measure such as `CALCULATE ( SUM ( f[amount] ), f[stage] = "Won" )` returns a number. Conditions that appear together (one `CALCULATE`'s filters, a visual's filters with the page and report filters) are seeded so enough rows satisfy all of them at once.
+- **Columns by name and type.** Names, e-mail addresses, cities, statuses, amounts, counts, durations, rates, scores and flags get values that look like what their names suggest. Ids and codes stored as text are kept short: a column named like a number or code (`system_number`, `account_code`, `member_id`) gets digit strings of one length, sized to fit the width a table of the report shows it at; when a formula or filter compares the column to a literal, the literal's shape (length, capitals, separators) is the template, with invented letters and digits. Another name of a person or organisation on its own table (`display_name`, `legal_name`) gets a name like the main one.
+- **Values your formulas and filters need.** Category values, flags, thresholds and dates that DAX formulas and report filters compare columns to are reused, so a measure such as `CALCULATE ( SUM ( f[amount] ), f[stage] = "Won" )` returns a number. Conditions that appear together (one `CALCULATE`'s filters, a visual's filters with the page and report filters) are seeded so enough rows satisfy all of them at once. How often each value appears depends on how the report uses it; see [How formulas and filters shape the values](#how-formulas-and-filters-shape-the-values).
 - **Dense where the report is sliced.** Lumen looks at the fields the report's slicers, filter-pane cards and grouping (cross-filtering) visuals select on. Every member of such a dimension, directly or through a chain of dimensions, gets fact rows in every period of the grain the report's date slicers select (quarter, month, week, year; the whole date range when the report has no date slicer). These *coverage rows* come on top of the ordinary rows, so popular members still have far more rows than the others. Periodic-snapshot facts (one row per entity per snapshot date) list every entity on every snapshot day. See [Coverage limits](#coverage-limits).
 - **Calculated tables** are computed by the DAX engine from the generated tables, and Lumen traces calculated tables that combine imported ones (`UNION`, `SELECTCOLUMNS`, `FILTER`) back to their sources so their keys match too.
 - **Survey-style columns** (ratings, scores, likelihood to recommend) are skewed to the top of their scale and correlated within a row, so net-promoter style measures come out positive and plausible.
 - **Entered data** (tables made with Enter data, and `DATATABLE` calculated tables) keeps its own rows.
+
+### How formulas and filters shape the values
+
+For every literal that a formula or report filter compares a column to, Lumen records how it is used: equal or not equal (`=`, `IN`, `<>`, `NOT IN`), blank tests, comparisons and text searches; and where: a measure's filter, a calculated column or table, a report, page or visual filter (include or exclude), a slicer's saved selection, conditional formatting, or a role. It then decides each column's values from all the conditions on it:
+
+| How the column is used | What the generated rows hold |
+|---|---|
+| Only measures filter on it and no visual, slicer, filter card, tooltip, sort or relationship uses it (a flag such as `include_in_totals = "yes"`) | The value the measures require, on every row. A table that lists one row per member then shows every member. |
+| Measures need different values of a column that is not shown (one counts *Open*, another *Closed*) | Each needed value on a good share of the rows, more for the values that tables listing one row per member need. |
+| The report shows the column, and a measure requires one value | That value on 85% of the rows; the rest keep a plausible spread, so slicers and visuals still show variety. |
+| The report shows the column, a measure requires one value and a report filter excludes it or requires another | 60% hold the measure's value, the rest what the filter keeps, so both the measure and the filtered visuals have data. |
+| A value that only appears in exclusions (`<> "Test"`, a filter excluding it) | Absent from columns the report does not show, rare (1.5%) in shown ones. |
+| Placeholder values such as `"null"`, `"none"`, `"n/a"`, `"unknown"`, `"(Blank)"` | Absent, so a column never shows the text "null" as an ordinary value; rare only when a measure counts the rows that hold one. |
+
+Names and ids that the privacy rule withholds are not part of these decisions; filters on them read a stand-in (see [The privacy rule](#the-privacy-rule-names-and-ids-are-never-copied)), and the stand-in is a member that satisfies the conditions the measures put on its table.
 
 Measure tables and calculation groups get no rows. The fact table size is set by **Approximate fact table rows** (default 5,000).
 
@@ -75,7 +90,7 @@ The budget is fixed; there is no option for it in **Options**. A project that al
 
 A report can mention real people, customers or record ids in its filters and formulas, for example a page filtered to one client. Sample data may be shown to people who must not see those names, so by default Lumen never copies a literal into the generated rows when it is compared to a name-like, id-like or free-text column (people, organisations, e-mail addresses, phone numbers, addresses, ids, GUIDs, notes). If an invented value happens to equal such a literal, it is replaced.
 
-Without more, every visual filtered to that name would be empty. Instead, Lumen picks one generated value of that column as a **stand-in** for each withheld literal (a value with many rows, so the visuals have data) and keeps the pair in memory only:
+Without more, every visual filtered to that name would be empty. Instead, Lumen picks one generated value of that column as a **stand-in** for each withheld literal and keeps the pair in memory only. The stand-in is the busiest member among those that meet the conditions the report's measures put on the table and that have rows in every covered period, so a page pinned to it has data in each period:
 
 - Report, page and visual filters, slicer selections, bookmarks and drill-through filters pinned to the real value read the stand-in. The report definition is not changed.
 - A slicer whose saved selection reads as a stand-in shows the invented value with a **Sample stand-in** marker. Its tooltip says the saved selection is a real name or id kept out of the generated rows.
@@ -113,7 +128,9 @@ To get the same rows again later, set the same **Random seed** in Options and se
 
 ## Considerations and limitations
 
-- **Exercised for this documentation.** The screenshots come from a small invented PBIP project of Lumen's test fixtures (`e2e/fixtures/accounts.ts`). Lumen's end-to-end tests of this feature (fill, regenerate, stand-in slicer, coverage: any account picked under the saved quarter keeps the table populated, `.wbi` round trip) passed on the build documented here. The screenshots were taken before slice coverage was added; the generated values in them may differ from what you see.
+- **Exercised for this documentation.** The screenshots come from a small invented PBIP project of Lumen's test fixtures (`e2e/fixtures/accounts.ts`). Lumen's end-to-end tests of this feature (fill, regenerate, stand-in slicer, coverage: any account picked under the saved quarter keeps the table populated; a table whose measure counts only flagged accounts lists every account the slicer offers and keeps the row of each account picked; `.wbi` round trip) passed on the build documented here. The screenshots were taken before slice coverage and condition-aware values were added; the generated values in them may differ from what you see.
+- A measure that is blank by design for some members (for example one that only counts members with a value in a column the report also shows) leaves those members out of a table, as it would with real data. For shown columns about one member in seven keeps another value.
+- Comparisons (`>`, `<`) and text searches are recorded but do not change how often values appear; conditions written only in measures that another measure's filter argument references, and conditions on calculated columns, are not traced back to the columns they come from.
 - Formulas that compare a column to a withheld name or id stay blank (see above).
 - Calculated date tables (`CALENDAR(…)`, `CALENDARAUTO()`) are not evaluated while generating, so fact dates related to them use the default date range.
 - Key values are shared per group of related tables, so two dimension tables of different sizes in one group nest (the smaller one's keys are a subset of the larger one's) rather than being independent.

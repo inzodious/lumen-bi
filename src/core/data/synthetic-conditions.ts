@@ -14,8 +14,9 @@
  *    dominates (`dominant`, DOMINANT_SHARE = 85%: about one member in seven keeps another value, so slicers and visuals
  *    still show variety). When a filter of the same project excludes that literal or requires another one, both are
  *    kept well represented (`balanced`, 60% / 40%) so measures and filters both leave data.
- *  - Literals that appear only in negative conditions (`<>`, NOT IN, exclude filters) and sentinels (`"null"`, `"none"`,
- *    `"n/a"`, `"unknown"`, `"(Blank)"`…) are never the common value: absent unless something tests for them, then rare.
+ *  - Literals that appear only in negative conditions (`<>`, NOT IN, exclude filters) are never the common value: absent
+ *    from free columns, rare in shown ones. Sentinels (`"null"`, `"none"`, `"n/a"`, `"unknown"`, `"(Blank)"`…) are absent
+ *    unless a measure filters on them (then rare): a column never shows the text "null" as an ordinary value.
  *
  * Decisions are deterministic (they depend only on the definitions) and are listed in `SyntheticResult.decisions`.
  * Only columns with literal conditions get one; others keep the generator's ordinary heuristics.
@@ -342,9 +343,12 @@ export function decideColumns(project: Pick<ProjectDocument, 'model' | 'report'>
     for (const vk of rareOrAbsent) {
       const v = lits.get(vk)!
       if (!ok(v)) continue
-      const tested = positive.has(vk) || sentinelRequired.includes(vk)
-      // all-rows columns have no room; otherwise a literal something tests for (or a shown column's exclusion) stays rare
-      const keep = rule !== 'all-rows' && (tested || (isSurfaced && !isSentinel(v))) && rare + RARE_SHARE <= RARE_TOTAL
+      // a sentinel stays only when a measure filters on it (then rarely): a column never shows "null" / "none" as an
+      // ordinary value; an exclusion-only literal stays rare where it is tested or shown (something to exclude)
+      const keep =
+        rule !== 'all-rows' &&
+        (isSentinel(v) ? sentinelRequired.includes(vk) : positive.has(vk) || isSurfaced) &&
+        rare + RARE_SHARE <= RARE_TOTAL
       if (keep) {
         shares.push({ value: v, share: RARE_SHARE, why: 'rare' })
         rare += RARE_SHARE

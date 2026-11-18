@@ -46,6 +46,12 @@ node scripts/sweep-summary.mjs <outdir> [--cards] [--all] [--json]
   per selection, first 40 trials) and `selectionTotals`; `summary.tsv` → `selections`, `sel_emptied` (selection × visual
   pairs) and `sel_emptied_selections`; `sweep-summary.mjs` lists each emptying selection. Use it with
   `--sample-data --private` to measure whether sample data stays populated under the report's own selections.
+  `--selections` also runs the exhaustive **entity check** (`checkEntityVisuals`): for every table or matrix whose
+  grouping columns all come from one table that a list slicer of the page selects on, and each such slicer, the members
+  the slicer offers versus the members the visual lists (saved state with that slicer at "All", and every slicer at
+  "All"), then every member selected alone (up to 500, spread over the list beyond that) and how many leave the visual
+  empty. Results: `report.json` → `pages[].entities` and `entityTotals`; `summary.tsv` → `entity_visuals`,
+  `entity_offered`, `entity_listed`, `entity_singles`, `entity_emptying`, `entity_emptying_share`.
 * `WBI_TIMEOUT` (ms) bounds each report (default 15 min). `WBI_USE_DESKTOP=1` shows the window on your desktop.
 
 ### What the in-app sweep does (`src/renderer/src/app/sweep/`)

@@ -92,7 +92,9 @@ Most real models import from Fabric SQL endpoints. Order of preference when open
 2. Refresh from source (M engine; SQL Server via tedious with Entra ID (device code, Azure CLI, interactive browser, "default" = the Azure CLI login else device code, or a raw token) or a SQL login — Windows authentication is refused on Linux; files; web; the connectors below).
 3. Synthetic data generated from the schema (keys consistent across relationships — also through
    calculated tables that combine imported ones, `data/synthetic-lineage.ts` —, value domains mined from
-   DAX/filter literals so measures produce non-empty results, survey scores skewed like real ones).
+   DAX/filter literals so measures produce non-empty results, survey scores skewed like real ones). Each literal's
+   use (operator, polarity, measure / filter / test) decides its share (`data/synthetic-conditions.ts`,
+   `SyntheticResult.decisions`): a flag only measures filter on holds for every row, sentinels stay rare.
    Only definitions are read; literals compared to name-like / id-like / free-text columns are never copied
    into the data (`SyntheticOptions.identifyingLiterals`, Options ▸ Data load); filters and saved slicer selections
    pinned to such a literal read a generated stand-in in memory (`data/standIns.ts`, `DataStore.literalStandIns`;

@@ -32,9 +32,9 @@ function valueKey(v: Scalar): string {
 }
 
 /**
- * Choose stand-ins for the withheld literals of one generated column: its distinct non-blank values ranked by weight
- * (the sum of `rowWeight` over the rows holding the value — e.g. how many fact rows reference the row — default 1 per
- * row; ties: first row first), skipping values that are themselves literals of the definitions (`avoid`, value keys),
+ * Choose stand-ins for the withheld literals of one generated column: its distinct non-blank values ranked by
+ * frequency (ties: first row first) or, with `rowWeight` (1 + how many fact rows reference the row), the referenced
+ * values closest to the top decile's weight first, so a pinned page shows a busy (not the busiest) member, skipping values that are themselves literals of the definitions (`avoid`, value keys),
  * assigned to the literals in order (cycled when the column has fewer values). Undefined when the column is empty.
  */
 export function chooseStandIns(table: string, column: string, data: TableData, literals: Scalar[], avoid: ReadonlySet<string> = new Set(), rowWeight?: ArrayLike<number>): LiteralStandIn | undefined {
@@ -50,8 +50,17 @@ export function chooseStandIns(table: string, column: string, data: TableData, l
     if (e) e.n += w
     else counts.set(k, { v, n: w, first: i })
   })
-  const ranked = [...counts.values()].sort((a, b) => b.n - a.n || a.first - b.first)
+  let ranked = [...counts.values()].sort((a, b) => b.n - a.n || a.first - b.first)
   if (!ranked.length) return undefined
+  if (rowWeight) {
+    // a busy but not extreme member (the top decile's edge): a pinned page has rows across its other filters (periods,
+    // categories), without the single busiest member's volume
+    const referenced = ranked.filter((e) => e.n > 1)
+    if (referenced.length) {
+      const target = referenced[Math.floor(referenced.length / 10)].n
+      ranked = referenced.sort((a, b) => Math.abs(a.n - target) - Math.abs(b.n - target) || a.first - b.first)
+    }
+  }
   const values = new Map<string, Scalar>()
   let i = 0
   for (const lit of literals) {

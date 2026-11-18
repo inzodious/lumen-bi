@@ -6,7 +6,7 @@
 
 The cards every visual shows on the **General** tab of the Format pane, generated from `src/renderer/src/panes/visualizations/containerCards.ts`. They format the visual container (PBIR `visualContainerObjects`), not the visual itself. See [Visual titles, borders and backgrounds](../../create-reports/visual-titles-borders-and-backgrounds.md) for how to use them.
 
-The General tab starts with a **Properties** card that is built by the Format pane itself, not from these definitions: **Size** (Height, Width, Lock aspect ratio), **Position** (Horizontal, Vertical), **Padding** (Top, Bottom, Left, Right; container object `padding`, 5 px on each side by default) and **Advanced options** (Responsive, Maintain layer order, plus any visual-specific options listed on the family pages).
+The General tab starts with a **Properties** card that is built by the Format pane itself, not from these definitions: **Size** (Height, Width, Lock aspect ratio), **Position** (Horizontal, Vertical), **Padding** (Top, Bottom, Left, Right; container object `padding`; when unset, visuals use 0 px at the top and 5 px on the other sides, and text boxes, shapes, images and buttons 5 px on every side) and **Advanced options** (Responsive, Maintain layer order, plus any visual-specific options listed on the family pages).
 
 ## Title
 

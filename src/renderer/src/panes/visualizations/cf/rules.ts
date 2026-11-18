@@ -24,6 +24,7 @@ import type { Scalar } from '@core/model/data'
 import { decodeLiteral } from '@core/report/literal'
 import { fieldInfo, SQ_AGG, type SQExpr } from '@core/report/sq'
 import type { Selector } from '@core/report/props'
+import { entryGroupKey } from '@core/report/entries'
 
 // ---------------------------------------------------------------------------------------------
 // Basics
@@ -662,7 +663,8 @@ export function sameTargetSelector(entry: Selector | undefined, base: Selector |
         if (rest.length) o.data = rest
       } else o[k] = v
     }
-    return stableKey(o)
+    // `id: 'default'` names the default instance (core/report/entries.ts)
+    return entryGroupKey(o)
   }
   return strip(entry) === strip(base)
 }

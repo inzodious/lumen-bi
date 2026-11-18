@@ -16,6 +16,7 @@
 import type { Scalar } from '../model/data'
 import { decodeLiteral, encodeLiteral } from './literal'
 import { themeDataColor, type ResolvedTheme } from './theme'
+import { writeEntryProp } from './entries'
 
 export interface Selector {
   /** queryRef of a series/measure (`metadata` selector) */
@@ -173,12 +174,6 @@ export function setObjectProp(visualJson: any, object: string, prop: string, val
   const v = visualJson.visual ?? visualJson.visualGroup
   const key = opts.container ? 'visualContainerObjects' : 'objects'
   v[key] ??= {}
-  const entries: ObjectEntry[] = (v[key][object] ??= [])
-  let entry = entries.find((e) => (opts.selector ? JSON.stringify(e.selector) === JSON.stringify(opts.selector) : !e.selector))
-  if (!entry) {
-    entry = { properties: {}, ...(opts.selector ? { selector: opts.selector } : {}) }
-    entries.push(entry)
-  }
-  if (value === undefined) delete entry.properties[prop]
-  else entry.properties[prop] = literalProp(value)
+  // the entry readers use for this selector (`{ id: 'default' }` ≡ no selector; entries.ts)
+  writeEntryProp(v[key], object, prop, value === undefined ? undefined : literalProp(value), opts.selector)
 }

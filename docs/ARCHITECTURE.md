@@ -38,6 +38,7 @@ you view, edit, model, query and export them with a Power BI Desktop look and fe
 | `src/core/report/sq.ts` | SQ field expressions + filters, `fieldInfo`, `fieldKey`, `DataPointIdentity`, `identitiesToFilter` |
 | `src/core/report/literal.ts` | PBIR literal encode/decode (`'text'`, `12L`, `1.5D`, `datetime'…'`) |
 | `src/core/report/props.ts` | formatting property resolution (visual objects → theme visualStyles → default), `setObjectProp` |
+| `src/core/report/entries.ts` | **which objects-bag entry a property write goes to** — the one rule for every writer (Format pane `setRaw`, conditional formatting, icons, `setObjectProp`): `{ id: 'default' }` ≡ no selector, writes go to the first entry of the selector's group (the one readers use) |
 | `src/core/report/theme.ts` | theme merge (base CY24SU10 + custom), theme colors, shading |
 | `src/core/dax/tabular/` | production DAX engine (columnar, dictionary-encoded); `src/core/dax/*.ts` is the vendored Parity engine kept as a reference/oracle |
 | `src/core/engine/api.ts` | `QueryEngine` — `summarize`, `distinctValues`, `evaluateScalar`, `runDaxQuery`, `validateExpression`, `format`, `processCalculated`, `describeField`, `resolveFieldParameter` |

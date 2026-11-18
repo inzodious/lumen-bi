@@ -4,8 +4,9 @@
  */
 import type { ObjectEntry, ObjectsBag, Selector } from '@core/report/props'
 import { isDataBound } from '@core/report/props'
+import { sameEntryGroup } from '@core/report/entries'
 import type { FormatPropDef } from '../../../visuals/contract'
-import { applyToOf, cfSelector, sameTargetSelector, stableKey, type ApplyTo } from './rules'
+import { applyToOf, cfSelector, sameTargetSelector, type ApplyTo } from './rules'
 
 export type CFKind = 'color' | 'text' | 'icon' | 'webURL' | 'dataBars'
 
@@ -84,7 +85,8 @@ export function cellTarget(pageName: string, visualName: string, queryRef: strin
 
 function entryMatches(t: CFTarget, sel: Selector | undefined): boolean {
   if (t.scoped) return sameTargetSelector(sel, t.baseSelector) && (sel?.data ?? []).some((d: any) => d?.dataViewWildcard)
-  return stableKey(sel && Object.keys(sel).length ? sel : undefined) === stableKey(t.baseSelector)
+  // `{ id: 'default' }` and no selector are the same entry group (core/report/entries.ts)
+  return sameEntryGroup(sel, t.baseSelector)
 }
 
 function isCFValue(t: CFTarget, raw: any): boolean {
@@ -116,7 +118,7 @@ export function writeCF(bag: ObjectsBag, t: CFTarget, raw: any, applyTo: ApplyTo
   }
   if (raw !== undefined) {
     const selector = t.scoped ? cfSelector(t.baseSelector, applyTo) : t.baseSelector
-    let entry = entries.find((e) => stableKey(e.selector && Object.keys(e.selector).length ? e.selector : undefined) === stableKey(selector))
+    let entry = entries.find((e) => sameEntryGroup(e.selector, selector))
     if (!entry) {
       entry = { properties: {}, ...(selector ? { selector } : {}) }
       entries.push(entry)

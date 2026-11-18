@@ -5,58 +5,30 @@
  * Pure (no React) — unit-tested in objects.test.ts.
  */
 import { literalProp, type ObjectEntry, type ObjectsBag, type Selector } from '@core/report/props'
+import { primaryEntry, readEntryProp, writeEntryProp } from '@core/report/entries'
 import type { Scalar } from '@core/model/data'
 
 export type { Selector }
 
-/** JSON with sorted keys at every level (a replacer key list would also drop nested keys like `dataViewWildcard`). */
-function stable(v: unknown): string {
-  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? ''
-  if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`
-  const o = v as Record<string, unknown>
-  return `{${Object.keys(o)
-    .sort()
-    .filter((k) => o[k] !== undefined)
-    .map((k) => `${JSON.stringify(k)}:${stable(o[k])}`)
-    .join(',')}}`
-}
-
-function sameSelector(a: Selector | undefined, b: Selector | undefined): boolean {
-  const norm = (s: Selector | undefined) => (s && Object.keys(s).length ? stable(s) : '')
-  return norm(a) === norm(b)
-}
-
-/** Entry with exactly this selector (undefined = default entry without selector). */
+/**
+ * Entry with this selector, as edits address it: the first entry of the selector's group, where `{ id: 'default' }`
+ * and no selector are the same group (core/report/entries.ts; undefined = the default entry).
+ */
 export function findEntry(bag: ObjectsBag | undefined, object: string, selector?: Selector): ObjectEntry | undefined {
-  return bag?.[object]?.find((e) => sameSelector(e.selector, selector))
+  return primaryEntry(bag, object, selector)
 }
 
-/** Explicitly stored raw value (no theme fallback) or undefined. */
+/** Explicitly stored raw value (no theme fallback) or undefined: what readers see for this selector's group. */
 export function getRaw(bag: ObjectsBag | undefined, object: string, prop: string, selector?: Selector): any {
-  const e = findEntry(bag, object, selector)
-  return e?.properties && prop in e.properties ? e.properties[prop] : undefined
+  return readEntryProp(bag, object, prop, selector)
 }
 
-/** Set (raw value) or clear (undefined) a property; empty entries / objects are removed. Mutates the bag. */
+/**
+ * Set (raw value) or clear (undefined) a property; empty entries / objects are removed. Mutates the bag. Writes go
+ * to the entry the visual reads (core/report/entries.ts `writeEntryProp`, shared with icons and CF).
+ */
 export function setRaw(bag: ObjectsBag, object: string, prop: string, raw: any, selector?: Selector): void {
-  const entries: ObjectEntry[] = (bag[object] ??= [])
-  let entry = entries.find((e) => sameSelector(e.selector, selector))
-  if (raw === undefined) {
-    if (!entry) {
-      if (!entries.length) delete bag[object]
-      return
-    }
-    delete entry.properties[prop]
-    if (!Object.keys(entry.properties).length) entries.splice(entries.indexOf(entry), 1)
-    if (!entries.length) delete bag[object]
-    return
-  }
-  if (!entry) {
-    entry = { properties: {}, ...(selector && Object.keys(selector).length ? { selector } : {}) }
-    entries.push(entry)
-  }
-  entry.properties ??= {}
-  entry.properties[prop] = raw
+  writeEntryProp(bag, object, prop, raw, selector)
 }
 
 /** Wrap a JS value as a PBIR raw property value (colors → solid color literal). */

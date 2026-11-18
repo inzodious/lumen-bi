@@ -19,6 +19,8 @@ import { decodeText, readPbirFiles, readTree, writeFileMap, writePbirFolder, typ
 import { readTmsl } from '../tmdl/tmsl'
 import { readPbix, type Diagnostic } from './pbix/container'
 import { readDataModel } from './pbix/datamodel/index'
+import { movePackageData, rememberPackageData } from './pbix/write/origin'
+import { planPackage, writePackage, type PackagePlan } from './pbix/write/package'
 import { pbipJson, pbipProjectFiles, readSemanticModelFiles, reportFiles, semanticModelFiles } from './pbip'
 import { LUMEN_LAYOUT_FILE } from './diagramSidecar'
 import { readWbi, writeWbi } from './wbi'
@@ -160,6 +162,8 @@ export async function openProject(path: string, fs: FileSystem, opts: OpenOption
     case 'pbit': {
       const bytes = await fs.readFile(path)
       const r = await readPbix(bytes, { onProgress: opts.onProgress, loadData: opts.loadData })
+      // a later .pbix save keeps the embedded data model only while these tables are unchanged (pbix/write/origin.ts)
+      if (r.kind === 'pbix') rememberPackageData(r.data, { path, size: st.size, mtime: st.mtime })
       return project(stripExt(name), { kind: r.kind, path }, r.model, r.data, r.report, r.diagnostics)
     }
     case 'wbi':
@@ -204,8 +208,13 @@ export async function openWbi(bytes: Uint8Array, path: string | undefined, opts:
 }
 
 export interface SaveOptions {
-  /** 'pbip' writes <dir>/<name>.pbip + <name>.Report + <name>.SemanticModel; 'wbi' writes a single bundle with cached data */
-  format: 'pbip' | 'wbi'
+  /**
+   * 'pbip' writes <dir>/<name>.pbip + <name>.Report + <name>.SemanticModel; 'wbi' writes a single bundle with cached data;
+   * 'pbix' / 'pbit' write a Power BI package (pbix/write/package.ts: experimental, not verified in Power BI Desktop)
+   */
+  format: 'pbip' | 'wbi' | 'pbix' | 'pbit'
+  /** report form inside a .pbix / .pbit: Desktop's legacy `Report/Layout` (default) or PBIR `Report/definition/**` */
+  reportFormat?: 'legacy' | 'pbir'
   /** semantic model storage for PBIP (default: TMDL, or model.bim when the model was read from one) */
   modelFormat?: 'tmdl' | 'bim'
 }
@@ -218,6 +227,21 @@ export interface SaveOptions {
  * Returns nothing; `project.source` is updated to the saved location and `dirty` cleared.
  */
 export async function saveProject(project: ProjectDocument, targetPath: string, fs: FileSystem, opts: SaveOptions): Promise<void> {
+  if (opts.format === 'pbix' || opts.format === 'pbit') {
+    const r = await writePackage(opts.format, await packageInput(project, fs), { reportFormat: opts.reportFormat })
+    await fs.mkdirp(dirname(targetPath))
+    await fs.writeFile(targetPath, r.bytes)
+    for (const d of r.diagnostics) project.diagnostics.push({ level: 'warning', message: d })
+    // a template is an export: the document keeps its source. A .pbix becomes the document's file.
+    if (opts.format === 'pbix') {
+      const st = await fs.stat(targetPath)
+      if (st) movePackageData(project.data, { path: targetPath, size: st.size, mtime: st.mtime })
+      project.name = stripExt(basename(targetPath))
+      project.source = { kind: 'pbix', path: targetPath }
+      project.dirty = false
+    }
+    return
+  }
   if (opts.format === 'wbi') {
     const name = /\.wbi$/i.test(targetPath) ? stripExt(basename(targetPath)) : project.name
     const { files } = pbipProjectFiles(name, project.model, project.report, { format: opts.modelFormat })
@@ -275,6 +299,18 @@ export async function saveProject(project: ProjectDocument, targetPath: string, 
     ? { kind: 'pbip', path: joinPath(dir, `${name}.pbip`), reportPath: reportDir, modelPath: live ? undefined : modelDir }
     : { kind: 'semantic-model-folder', path: modelDir, modelPath: modelDir }
   project.dirty = false
+}
+
+async function packageInput(project: ProjectDocument, fs: FileSystem): Promise<{ project: ProjectDocument; source?: Uint8Array; sourceFile?: { path: string; size: number; mtime: number } }> {
+  const path = project.source.kind === 'pbix' ? project.source.path : undefined
+  const st = path ? await fs.stat(path) : null
+  if (!path || !st || st.isDirectory) return { project }
+  return { project, source: await fs.readFile(path), sourceFile: { path, size: st.size, mtime: st.mtime } }
+}
+
+/** How a `.pbix` / `.pbit` save of the project would be written (for the Save dialog). */
+export async function planPackageSave(project: ProjectDocument, format: 'pbix' | 'pbit', fs: FileSystem): Promise<PackagePlan> {
+  return planPackage(format, await packageInput(project, fs))
 }
 
 /** Text of a file inside a project file map (helper for callers/tests). */

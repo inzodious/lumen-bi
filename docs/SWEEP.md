@@ -25,8 +25,10 @@ node scripts/sweep-summary.mjs <outdir> [--cards] [--all] [--json]
 * `--sample-data` fills tables that have no data with synthetic rows (`src/core/data/synthetic.ts`). Use it
   for PBIP projects without a data cache. The sweep reuses every literal of the definitions, including names
   and ids that filters or formulas mention, so visuals pinned to them render. Add `--private` to use the app's
-  default instead (`identifyingLiterals: 'never'`): those literals are never copied into the data and the
-  visuals filtered to them are empty by design.
+  default instead (`identifyingLiterals: 'never'`, the app's default seed and fact-table size): those literals are
+  never copied into the data; filters and saved slicer selections pinned to them read a generated stand-in
+  (`src/core/data/standIns.ts`), formulas that compare to them stay blank. `--app-defaults` uses the app's seed and
+  fact-table size but reuses the literals (compare it with `--private` to count what privacy costs).
 * **`WBI_BLOCK_CACHE=1` is always set.** The main process passes `--wbi-block-cache` to the renderer, and the
   preload exposes `__LUMEN_BLOCK_CACHE_ABF__ = true`, so `openProject` never decodes a PBIP `.pbi/cache.abf`.
   The renderer refuses to open anything if the guard is missing (`report.json` → `cacheBlocked`).
@@ -46,7 +48,9 @@ shown inactive. A hidden window stops painting, which makes `capturePage` return
 3. For each page: activate it, zoom to 100% (or fit when it's larger), wait for canvas readiness
    (`wbiReady`), then wait until no visual says "Loading…" and the DOM has been stable for 3 polls. Then
    capture the page rectangle with `window.wbi.exporter.capturePng`.
-4. Each visual is classified from the DOM as `ok`, `blank` (a card showing "(Blank)"), `error` (error boundary /
+4. Each visual is classified from the DOM as `ok`, `blank` (a card showing "(Blank)"), `noitems` (a slicer that
+   offers nothing to pick: its item count `items` is taken with the slicer's own loaders under the live filter
+   context, `app/sweep/slicerItems.ts`; `summary.tsv` has a trailing `noitems` column), `error` (error boundary /
    "Can't display the visual" / "Something's wrong with one or more fields" + message), `nodata`,
    `loading-stuck`, `unsupported` (placeholder), `empty` (no text and no marks; text inside same-origin
    iframes counts), `hidden` or `not-rendered`. The record also keeps its visible text

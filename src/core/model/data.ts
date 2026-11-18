@@ -42,6 +42,21 @@ export interface DataStore {
    * Valid only while `fromData` / `toData` are the tables' current data objects (a refresh replaces them).
    */
   relationshipKeys?: Map<string, { fromData: TableData; toData: TableData; from: Scalar[]; to: Scalar[] }>
+  /**
+   * Sample data only (data/synthetic.ts with `identifyingLiterals: 'never'`): generated stand-ins for names / ids
+   * that the definitions pin (filters, saved slicer selections) but that were withheld from the generated rows.
+   * In memory only; see data/standIns.ts.
+   */
+  literalStandIns?: LiteralStandIn[]
+}
+
+/** Stand-ins of one generated column (data/standIns.ts). Valid only while `data` is the table's current data. */
+export interface LiteralStandIn {
+  table: string
+  column: string
+  data: TableData
+  /** opaque literal key (`literalKey`) → generated value read in its place */
+  values: Map<string, Scalar>
 }
 
 export function emptyDataStore(): DataStore {

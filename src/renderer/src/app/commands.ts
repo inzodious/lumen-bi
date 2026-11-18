@@ -298,8 +298,13 @@ export function describeSampleRun(project: ProjectDocument, r: SyntheticResult):
   const withheld = named.reduce((n, w) => n + w.literals, 0)
   if (withheld) {
     const where = [...new Set(named.map((w) => `${w.table}[${w.column}]`))]
+    const standIns = (r.standIns ?? []).reduce((n, s) => n + s.literals, 0)
     parts.push(
-      `Privacy: ${withheld} name / id value${withheld === 1 ? '' : 's'} that formulas or report filters mention (${where.slice(0, 3).join(', ')}${where.length > 3 ? '…' : ''}) ${withheld === 1 ? 'was' : 'were'} not copied into the data; visuals or slicers filtered to ${withheld === 1 ? 'it' : 'them'} show no data until that filter is cleared (or allow it in Options ▸ Data load ▸ Sample data).`
+      `Privacy: ${withheld} name / id value${withheld === 1 ? '' : 's'} that formulas or report filters mention (${where.slice(0, 3).join(', ')}${where.length > 3 ? '…' : ''}) ${withheld === 1 ? 'was' : 'were'} not copied into the data.` +
+        (standIns
+          ? ` Filters and saved slicer selections pinned to ${withheld === 1 ? 'it' : 'them'} use an invented stand-in value instead (such slicers are marked "Sample stand-in"); formulas that compare to ${withheld === 1 ? 'it' : 'them'} stay blank.`
+          : ` Visuals or slicers filtered to ${withheld === 1 ? 'it' : 'them'} show no data until that filter is cleared.`) +
+        ' Real values can be allowed in Options ▸ Data load ▸ Sample data.'
     )
   }
   parts.push('All values are invented — refresh from the source for real data.')

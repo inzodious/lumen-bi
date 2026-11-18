@@ -1,5 +1,5 @@
 /**
- * In-app sweep mode: `#/?sweep=<outdir>&open=<path>[&synthetic=1[&private=1]][&blockCache=1][&pages=a,b][&start=0]`
+ * In-app sweep mode: `#/?sweep=<outdir>&open=<path>[&synthetic=1[&private=1|&appDefaults=1]][&blockCache=1][&pages=a,b][&start=0]`
  * (driven by scripts/sweep.sh with WBI_SWEEP=1 so the main process keeps the hidden window alive).
  *
  *  1. refuses to start when `blockCache=1` is requested but the WBI_BLOCK_CACHE guard is not active;
@@ -14,17 +14,21 @@
  *     keeps partial results), then closes the window.
  */
 import { useApp } from '../../state/store'
-import { useShell, PANE_ORDER } from '../shellState'
+import { useShell, PANE_ORDER, DEFAULT_OPTIONS } from '../shellState'
 import { openPath } from '../commands'
 import { generateSyntheticData } from '@core/data/synthetic'
-import { orderedPages, pageInfo, visualTypeOf, isGroup, isEffectivelyHidden, absoluteRect, positionOf } from '../../report/pbir'
+import { orderedPages, pageInfo, visualTypeOf, isGroup, isEffectivelyHidden, isSlicerType, absoluteRect, positionOf } from '../../report/pbir'
 import { liveContext } from '../../report/host'
 import { probeVisual, CARD_TYPES, type VisualProbe } from './probe'
+import { slicerItems } from './slicerItems'
 import { BLOCK_CACHE_GLOBAL } from '@shared/cacheGuard'
 import { holdBusy, isBusy } from '../readiness'
 
-/** `blank`: a card-like visual that renders but shows (Blank) — a data / synthetic-data coverage signal. */
-export type VisualState = 'ok' | 'blank' | 'error' | 'nodata' | 'loading-stuck' | 'unsupported' | 'empty' | 'hidden' | 'not-rendered'
+/**
+ * `blank`: a card-like visual that renders but shows (Blank) — a data / synthetic-data coverage signal.
+ * `noitems`: a slicer that renders but offers nothing to pick (its list / dropdown would say "No values").
+ */
+export type VisualState = 'ok' | 'blank' | 'noitems' | 'error' | 'nodata' | 'loading-stuck' | 'unsupported' | 'empty' | 'hidden' | 'not-rendered'
 
 export interface SweepVisual {
   name: string
@@ -43,6 +47,8 @@ export interface SweepVisual {
   rect?: { x: number; y: number; w: number; h: number }
   /** stacking order from the definition */
   z?: number
+  /** slicers: items offered under the live filter context (the slicer UI's own loaders, see slicerItems.ts) */
+  items?: number
 }
 
 export interface SweepPage {
@@ -255,7 +261,11 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
       // The sweep is a rendering oracle over local files: it reuses every literal of the definitions (also names
       // and ids in filters) so that visuals pinned to them render; `private=1` uses the app's default instead,
       // where such literals are never copied into the data and those visuals are empty by design.
-      const r = generateSyntheticData(app.project, { onlyEmpty: true, identifyingLiterals: params.get('private') === '1' ? 'never' : 'reuse' })
+      // `private=1` (and `appDefaults=1`) also use the app's default seed and fact-table size (Options ▸ Data load), so
+      // the sweep sees the same rows as "Use sample data" in a fresh profile.
+      const priv = params.get('private') === '1'
+      const appSizes = priv || params.get('appDefaults') === '1' ? { seed: DEFAULT_OPTIONS.syntheticSeed, factRows: DEFAULT_OPTIONS.syntheticFactRows } : {}
+      const r = generateSyntheticData(app.project, { onlyEmpty: true, ...appSizes, identifyingLiterals: priv ? 'never' : 'reuse' })
       useApp.getState().dataChanged()
       rep.synthetic = { tables: r.tables.length, ms: Math.round(performance.now() - t1) }
     }
@@ -343,7 +353,16 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
         sv.rect = { x: ar.x, y: ar.y, w: ar.width, h: ar.height }
         sv.z = positionOf(v).z
         if (sv.state === 'ok' && CARD_TYPES.has(type) && /\(Blank\)/.test(sv.text ?? '')) sv.state = 'blank'
-        if (sv.state === 'nodata' || sv.state === 'blank' || sv.state === 'error') {
+        if (sv.state !== 'hidden' && sv.state !== 'not-rendered' && isSlicerType(type)) {
+          const live = liveContext(page.name, v.name)
+          const si = live ? slicerItems(v, live) : undefined
+          if (si) {
+            sv.items = si.items
+            if (si.items === 0 && sv.state === 'ok') sv.state = 'noitems'
+            if (si.error && !sv.message) sv.message = si.error.slice(0, 500)
+          }
+        }
+        if (sv.state === 'nodata' || sv.state === 'blank' || sv.state === 'error' || sv.state === 'noitems') {
           const live = liveContext(page.name, v.name)
           if (live) sv.filters = JSON.stringify(live.filters).slice(0, 4000)
         }

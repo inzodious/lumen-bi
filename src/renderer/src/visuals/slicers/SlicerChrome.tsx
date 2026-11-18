@@ -38,6 +38,7 @@ export const SLICER_CSS = `
 .wbi-slicer-pager:hover:not(:disabled) { background: rgba(0,0,0,0.06); }
 .wbi-slicer-pager:disabled { color: #C8C6C4; cursor: default; }
 .wbi-slicer-pill-x:hover { background: rgba(0,0,0,0.08); color: #252423; }
+.wbi-slicer-standin { position: absolute; right: 24px; top: 2px; z-index: 2; font: 600 10px/14px 'Segoe UI', sans-serif; color: #8A6D00; background: #FFF4CE; border: 1px solid #F2D16B; border-radius: 2px; padding: 0 4px; pointer-events: auto; cursor: help; white-space: nowrap; }
 `
 
 export function SlicerStyle() {
@@ -140,6 +141,19 @@ export function SearchBox({
         style={{ ...fs, color: font.color, border: 0, outline: 0, background: 'transparent', flex: 1, minWidth: 0, padding: 0 }}
       />
     </div>
+  )
+}
+
+/** The text of the stand-in notice (also its tooltip): never names the saved value. */
+export const STANDIN_NOTE =
+  'Sample data: the saved selection is a real name or id that is kept out of the generated rows. It is shown as an invented stand-in value, and the page is filtered to that value. Refresh from the source for real data.'
+
+/** Notice on a slicer whose saved selection reads as a sample-data stand-in (core/data/standIns.ts). */
+export function StandInBadge() {
+  return (
+    <span className="wbi-slicer-standin" role="note" aria-label="Sample stand-in selection" title={STANDIN_NOTE}>
+      Sample stand-in
+    </span>
   )
 }
 

@@ -5,6 +5,7 @@ import { columnExpr, fieldInfo, type SQExpr, type SQFilter } from '@core/report/
 import type { VisualHostContext } from '../contract'
 import { getProjections, labelOf, type Projection } from '../common/query'
 import { persistedFilter } from './filterModel'
+import { hasStandIns, translateFilter } from '@core/data/standIns'
 
 export const BLANK_LABEL = '(Blank)'
 
@@ -14,9 +15,24 @@ export function slicerProjections(visualJson: any): Projection[] {
   return roles.Values ?? roles.Field ?? roles.Category ?? []
 }
 
-/** Current filter of the slicer: runtime/host state first, then the persisted visual.json filter. */
+/**
+ * Current filter of the slicer: runtime/host state first, then the persisted visual.json filter. With sample data,
+ * a saved selection of a name / id that was withheld from the generated rows reads as its generated stand-in
+ * (core/data/standIns.ts), so the slicer shows what the page is filtered to; `standInSelection` tells the UI.
+ */
 export function currentFilter(visualJson: any, ctx: VisualHostContext): SQFilter | undefined {
-  return ctx.slicerFilter ?? persistedFilter(visualJson)
+  return selectionOf(visualJson, ctx).filter
+}
+
+/** Does the slicer's selection hold sample-data stand-ins for saved values (shown with a notice)? */
+export function standInSelection(visualJson: any, ctx: VisualHostContext): boolean {
+  return selectionOf(visualJson, ctx).translated > 0
+}
+
+function selectionOf(visualJson: any, ctx: VisualHostContext): { filter: SQFilter | undefined; translated: number } {
+  const f = ctx.slicerFilter ?? (ctx.slicerCleared ? undefined : persistedFilter(visualJson))
+  if (!f || !hasStandIns(ctx.engine?.data)) return { filter: f, translated: 0 }
+  return translateFilter(f, ctx.engine.data)
 }
 
 export interface ListItem {

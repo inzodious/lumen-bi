@@ -87,6 +87,12 @@ export interface DistinctValuesRequest {
   limit?: number
   /** also return the count of rows/measure per value? */
   withMeasure?: ValueExpr
+  /**
+   * Approximate "values with data": also drop values that do not occur in every fact table reached by the
+   * filters on other tables (small-multiple panels, series order, button-slicer highlights). Default false =
+   * Power BI's slicer list (relationship-propagated filters and visual-level measure filters only).
+   */
+  existsInFacts?: boolean
 }
 
 export interface DaxQueryResultTable {

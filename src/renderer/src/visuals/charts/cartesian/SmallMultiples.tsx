@@ -60,7 +60,7 @@ export function SmallMultiples({ visual, width, height, ctx, config, pie }: Visu
   const q = useVisualQuery(json, ctx, () => {
     const sm = expandParameters(getProjections(json)['Rows'] ?? [], ctx)[0]
     const ref = fieldRef(ctx, sm)
-    const dv = ctx.engine.distinctValues({ column: { kind: 'sq', expr: sm.expr }, filters: ctx.filters, limit: 60 })
+    const dv = ctx.engine.distinctValues({ column: { kind: 'sq', expr: sm.expr }, filters: ctx.filters, limit: 60, existsInFacts: true })
     const panels: Panel[] = []
     const opts = config ? categoricalOptions(config, fmt, readErrorBars(fmt)) : pieQueryOptions(fmt)
     for (const v of dv.values) {

@@ -58,7 +58,8 @@
  * several tables) constrains nothing.
  */
 import type { ColumnDef, DataType, SemanticModel, TableDef } from '../model/types'
-import { makeDate, type ColumnData, type Scalar, type TableData } from '../model/data'
+import { makeDate, type ColumnData, type LiteralStandIn, type Scalar, type TableData } from '../model/data'
+import { chooseStandIns } from './standIns'
 import type { ProjectDocument } from '../project'
 import {
   calculatedTableLiterals,
@@ -187,6 +188,11 @@ export interface SyntheticResult {
    * The literals themselves are deliberately not returned.
    */
   withheld: Array<{ table: string; column: string; literals: number; kind: 'name' | 'id' | 'text' }>
+  /**
+   * Columns whose withheld literals got a generated stand-in (./standIns.ts, `DataStore.literalStandIns`): filters
+   * and saved slicer selections pinned to such a literal read the stand-in instead (counts only).
+   */
+  standIns: Array<{ table: string; column: string; literals: number }>
 }
 
 /** A relationship as the generator sees it: calculated-table ends are replaced by the columns they are computed from. */
@@ -654,6 +660,8 @@ class SyntheticGenerator {
   private readonly sizeFactors = new Map<string, number>()
   readonly skipped: SyntheticResult['skipped'] = []
   readonly withheld: SyntheticResult['withheld'] = []
+  /** the withheld literals themselves, per generated column (`table[column]`): stand-ins are chosen for them after generation */
+  private readonly withheldLiterals = new Map<string, { table: string; column: string; values: Scalar[] }>()
   private readonly reuseIdentifying: boolean
 
   constructor(
@@ -1147,14 +1155,74 @@ class SyntheticGenerator {
         const drop =
           (identifying && !(typeof v === 'string' && isPlaceholderLabel(v)) && !d.linked.includes(v)) ||
           (!this.reuseIdentifying && kind === 'int' && typeof v === 'number' && (v < 0 || v > maxKey))
-        if (drop) dropped++
-        else this.pushValue(comp, v)
+        if (drop) {
+          dropped++
+          if (m.plan) this.noteWithheld(m.table.name, m.col.name, v)
+        } else this.pushValue(comp, v)
       }
       if (dropped && m.plan) this.withheld.push({ table: m.table.name, column: m.col.name, literals: dropped, kind: kind === 'string' && style === 'label' ? 'name' : 'id' })
     }
     comp.minedCount = comp.values.length - comp.fixedCount
     comp.seeded = comp.values.length
     return comp
+  }
+
+  private noteWithheld(table: string, column: string, v: Scalar): void {
+    const k = domainKey(table, column)
+    let e = this.withheldLiterals.get(k)
+    if (!e) this.withheldLiterals.set(k, (e = { table, column, values: [] }))
+    if (!e.values.some((x) => valueKey(x) === valueKey(v))) e.values.push(v)
+  }
+
+  /**
+   * Stand-ins for the withheld literals (./standIns.ts): per column, generated values chosen by frequency, never a
+   * literal of the definitions. Replaces the store's stand-ins of the tables this run wrote.
+   */
+  standIns(written: string[]): SyntheticResult['standIns'] {
+    const data = this.project.data
+    const rewritten = new Set(written.map((t) => t.toLowerCase()))
+    const kept = (data.literalStandIns ?? []).filter((s) => !rewritten.has(s.table.toLowerCase()))
+    const out: SyntheticResult['standIns'] = []
+    const fresh: LiteralStandIn[] = []
+    for (const w of this.withheldLiterals.values()) {
+      const table = data.tables.get(w.table)
+      if (!table || !rewritten.has(w.table.toLowerCase())) continue
+      const avoid = new Set((this.domains.get(domainKey(w.table, w.column))?.values ?? []).map((v) => valueKey(v)))
+      const s = chooseStandIns(w.table, w.column, table, w.values, avoid, this.referenceWeights(w.table, table))
+      if (!s) continue
+      fresh.push(s)
+      out.push({ table: w.table, column: w.column, literals: s.values.size })
+    }
+    data.literalStandIns = [...kept, ...fresh]
+    if (!data.literalStandIns.length) delete data.literalStandIns
+    return out
+  }
+
+  /**
+   * Per row of a generated table: 1 + how many rows of related generated tables reference it (relationships where
+   * it is the "one" side), so a stand-in is a member the facts actually point to. Undefined when nothing does.
+   */
+  private referenceWeights(tableName: string, table: TableData): Float64Array | undefined {
+    const data = this.project.data
+    let w: Float64Array | undefined
+    for (const r of this.model.relationships) {
+      const pairs: Array<[string, string, string, string]> = []
+      if (r.toTable === tableName && r.toCardinality !== 'many') pairs.push([r.toColumn, r.fromTable, r.fromColumn, r.name])
+      if (r.fromTable === tableName && r.fromCardinality === 'one' && r.toCardinality === 'many') pairs.push([r.fromColumn, r.toTable, r.toColumn, r.name])
+      for (const [keyCol, manyTable, manyCol] of pairs) {
+        const keys = table.columns.find((c) => c.name === keyCol)?.values
+        const refs = data.tables.get(manyTable)?.columns.find((c) => c.name === manyCol)?.values
+        if (!keys || !refs) continue
+        const n = new Map<string, number>()
+        for (const v of refs) if (v !== null && v !== undefined) n.set(valueKey(v), (n.get(valueKey(v)) ?? 0) + 1)
+        w ??= new Float64Array(table.rowCount).fill(1)
+        for (let i = 0; i < keys.length; i++) {
+          const k = keys[i]
+          if (k !== null && k !== undefined) w[i] += n.get(valueKey(k)) ?? 0
+        }
+      }
+    }
+    return w
   }
 
   private pushValue(comp: Component, raw: Scalar): void {
@@ -1931,6 +1999,7 @@ class SyntheticGenerator {
       .filter((v) => {
         if (usable(v)) return true
         withheld.add(valueKey(v))
+        this.noteWithheld(plan.def.name, col.name, v)
         return false
       })
       .filter((v) => !scale || (typeof v === 'number' && v >= scale.lo && v <= scale.hi))
@@ -1972,6 +2041,8 @@ class SyntheticGenerator {
     }
     for (let r = 0; r < rows; r++) out[r] = gen(r)
     const skippedContains = identifying ? (mined?.contains.length ?? 0) : 0
+    // a searched text (report Contains filter, CONTAINSSTRING) on an identifying column: also answered by a stand-in
+    if (skippedContains) for (const c of mined!.contains) this.noteWithheld(plan.def.name, col.name, c)
     if (withheld.size || skippedContains) {
       const kind = sem.sem === 'text' ? 'text' : sem.sem === 'idCode' || sem.sem === 'idSeq' || sem.sem === 'guid' ? 'id' : 'name'
       this.withheld.push({ table: plan.def.name, column: col.name, literals: withheld.size + skippedContains, kind })
@@ -2680,5 +2751,6 @@ export function generateSyntheticData(project: ProjectDocument, opts: SyntheticO
   gen.buildComponents()
   gen.resolveSizes()
   const tables = gen.generate()
-  return { tables, skipped: gen.skipped, seed: gen.seed, withheld: gen.withheld }
+  const standIns = gen.standIns(tables)
+  return { tables, skipped: gen.skipped, seed: gen.seed, withheld: gen.withheld, standIns }
 }

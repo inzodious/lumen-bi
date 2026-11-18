@@ -224,6 +224,7 @@ export function useVisualHost(env: HostEnv, visualName: string, filters: SQFilte
       },
       setSlicerFilter: (f) => setSlicerFilter(pageName, visualName, f),
       slicerFilter,
+      slicerCleared: slicerOverlay === null && !!savedSlicer,
       drill,
       setDrill: (next) => setDrill(pageName, visualName, next),
       showTooltip: (req) => {
@@ -251,7 +252,7 @@ export function useVisualHost(env: HostEnv, visualName: string, filters: SQFilte
     }
     meters.set(ctx, meter)
     return ctx
-  }, [engine, theme, mode, filters, highlightFilters, selection, pageSelection, slicerFilter, drill, info, pageName, visualName, interactive])
+  }, [engine, theme, mode, filters, highlightFilters, selection, pageSelection, slicerFilter, slicerOverlay, drill, info, pageName, visualName, interactive])
 }
 
 /** Timestamp of the last visual-originated context menu (so the container doesn't open a second, generic one). */

@@ -9,8 +9,8 @@ import type { VisualProps } from '../contract'
 import { fontStyle, ptToPx, readFont } from '../common/textStyle'
 import { containsFilter, parseContainsFilter } from './filterModel'
 import { DismissIcon, SendIcon } from './icons'
-import { SlicerStyle } from './SlicerChrome'
-import { currentFilter, slicerProjections } from './slicerData'
+import { SlicerStyle, StandInBadge } from './SlicerChrome'
+import { currentFilter, slicerProjections, standInSelection } from './slicerData'
 import { cleanFamily } from './slicerFormat'
 
 export function readTextSlicerFormat(visualJson: any, theme: any) {
@@ -54,6 +54,7 @@ export function TextSlicerVisual({ visual, ctx, height }: VisualProps) {
   return (
     <div className="wbi-slicer-root" style={{ justifyContent: 'flex-start' }}>
       <SlicerStyle />
+      {standInSelection(json, ctx) && <StandInBadge />}
       <style>{`.wbi-textslicer-input::placeholder{color:${fmt.placeholderColor};font-size:${ptToPx(fmt.placeholderSize)}px;opacity:1}`}</style>
       <div
         style={{

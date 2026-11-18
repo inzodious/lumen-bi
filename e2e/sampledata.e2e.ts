@@ -1,13 +1,16 @@
 /**
  * Sample data journeys on a PBIP project without data (e2e/fixtures/survey.ts): fill the model, browse it in
- * Table view, regenerate it, edit an existing relationship, save it as a .wbi bundle and reopen it.
+ * Table view, regenerate it, edit an existing relationship, save it as a .wbi bundle and reopen it. Then a report
+ * filled with sample data is interactive (e2e/fixtures/accounts.ts): dropdown slicers offer items, picking one
+ * filters the page, and a slicer saved to a real-looking name shows a generated stand-in, marked as such.
  */
 import { beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Page } from 'playwright-core'
-import { OUT_DIR, dataPaneRow, lumenEval, openFile, stubSaveDialog, untilNode, useLumen, waitIdle } from './harness'
+import { OUT_DIR, dataPaneRow, lumenEval, openFile, settle, stubSaveDialog, untilNode, untilVisualText, useLumen, visualByTitle, visualText, waitIdle } from './harness'
 import { SURVEY_TABLES as T, writeSurveyProject } from './fixtures/survey'
+import { PINNED_ACCOUNT, writeAccountsProject } from './fixtures/accounts'
 
 const dir = mkdtempSync(join(OUT_DIR, 'survey-'))
 const pbip = join(dir, 'Survey.pbip')
@@ -260,5 +263,97 @@ describe('sample data', () => {
     await view(page, 'Table view')
     await (await dataPaneRow(page, [T.web])).click()
     await expect.poll(async () => Number(await grid(page, T.web).getAttribute('aria-rowcount'))).toBe(rows[T.web])
+  })
+})
+
+const accountsDir = mkdtempSync(join(OUT_DIR, 'accounts-'))
+
+describe('a report filled with sample data is interactive', () => {
+  beforeAll(async () => {
+    await writeAccountsProject(accountsDir)
+  })
+  const lumen = useLumen({ open: join(accountsDir, 'Accounts.pbip') })
+  const slicer = (page: Page, name: string) => page.locator(`.wbi-page [data-visual="${name}"]`)
+  const popup = (page: Page) => page.locator('.wbi-slicer-popup')
+  const hasNumber = (t: string) => /\d{2,}/.test(t)
+  async function clearSlicer(page: Page, name: string): Promise<void> {
+    // the header eraser (the hover header layer above a slicer at the top of the page covers it for pointer clicks)
+    await slicer(page, name).hover()
+    await slicer(page, name).locator('button[title="Clear selections"]').dispatchEvent('click')
+    await settle(page)
+  }
+  async function openDropdown(page: Page, name: string): Promise<string[]> {
+    await slicer(page, name).getByRole('combobox').click()
+    await popup(page).waitFor()
+    await expect.poll(() => popup(page).getByRole('option').count()).toBeGreaterThan(0)
+    return popup(page).getByRole('option').allInnerTexts()
+  }
+
+  it('dropdown slicers offer items and picking one filters the other visuals; a saved real name reads as a marked stand-in', async () => {
+    const { page } = lumen()
+    const notice = page.locator('.wbi-notice', { hasText: 'No data loaded' })
+    await notice.waitFor()
+    await notice.getByRole('button', { name: 'Use sample data' }).click()
+    await waitIdle(page)
+    await settle(page)
+    await expect.poll(() => page.locator('.wbi-toast', { hasText: 'Sample data' }).innerText()).toMatch(/invented stand-in value/)
+
+    // the saved account selection: the real-looking name is not in the data; the slicer shows the stand-in, marked
+    const standIn = await lumenEval(page, (l) => {
+      const s = l.useApp.getState().project!.data.literalStandIns?.find((x) => x.column === 'account_name')
+      return s ? String([...s.values.values()][0]) : null
+    })
+    expect(standIn).toBeTruthy()
+    const account = slicer(page, 'slicerAccount')
+    await expect.poll(() => account.innerText()).toContain(standIn!)
+    expect(await account.innerText()).not.toContain(PINNED_ACCOUNT)
+    const badge = account.getByRole('note', { name: 'Sample stand-in selection' })
+    expect(await badge.count()).toBe(1)
+    expect(await badge.getAttribute('title')).not.toContain(PINNED_ACCOUNT)
+    const table = await visualByTitle(page, 'Amount by segment')
+    const pinned = await untilVisualText(page, table, hasNumber)
+
+    // a quarter on another slicer cuts the facts, and the account list (a dimension shared by two facts) keeps its accounts
+    const quarters = await openDropdown(page, 'slicerQuarter')
+    await popup(page).getByRole('option', { name: quarters[quarters.length - 2], exact: true }).click()
+    await page.keyboard.press('Escape')
+    await untilVisualText(page, table, (t) => t !== pinned && hasNumber(t))
+    await settle(page)
+    const accounts = await openDropdown(page, 'slicerAccount')
+    expect(accounts.length).toBeGreaterThan(10)
+    expect(accounts).not.toContain(PINNED_ACCOUNT)
+    await page.keyboard.press('Escape')
+    await clearSlicer(page, 'slicerQuarter')
+    await untilVisualText(page, table, (t) => t === pinned)
+
+    // pick another account (one with visits): the table changes and still has data; the selection is the user's own, no badge
+    const shown = (await openDropdown(page, 'slicerAccount')).filter((n) => n !== standIn && n !== 'Select all')
+    const other = await lumenEval(
+      page,
+      (l, names) => {
+        const e = l.useApp.getState().engine!
+        const amount = (n: string) => Number(e.evaluateScalar(`CALCULATE ( [Amount], accounts[account_name] = "${n.replace(/"/g, '""')}" )`).value ?? 0)
+        return names.reduce((best, n) => (amount(n) > amount(best) ? n : best))
+      },
+      shown
+    )
+    await popup(page).getByRole('option', { name: other, exact: true }).click()
+    await page.keyboard.press('Escape')
+    const picked = await untilVisualText(page, table, (t) => t !== pinned && hasNumber(t))
+    await settle(page)
+    expect(await badge.count()).toBe(0)
+    expect(await visualText(page, 'slicerAccount')).toContain(other)
+
+    // a calculated-column slicer on the dimension cuts the facts too
+    await clearSlicer(page, 'slicerAccount')
+    const all = await untilVisualText(page, table, (t) => t !== pinned && t !== picked && hasNumber(t))
+    // cleared means cleared: the slicer does not fall back to (and show) the saved selection
+    expect(await badge.count()).toBe(0)
+    expect(await visualText(page, 'slicerAccount')).toMatch(/\bAll\b/)
+    const statuses = await openDropdown(page, 'slicerStatus')
+    expect(statuses).toEqual(expect.arrayContaining(['Active', 'Inactive']))
+    await popup(page).getByRole('option', { name: 'Inactive', exact: true }).click()
+    await page.keyboard.press('Escape')
+    await untilVisualText(page, table, (t) => t !== all && hasNumber(t))
   })
 })

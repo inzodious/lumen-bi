@@ -362,7 +362,7 @@ export function buildCategorical(visualJson: any, ctx: VisualHostContext, opts: 
     // then unsplit measures
     const rank = new Map<string, number>()
     try {
-      const dv = ctx.engine.distinctValues({ column: { kind: 'sq', expr: seriesP.expr }, filters: [...ctx.filters, ...(opts.extraFilters ?? [])] })
+      const dv = ctx.engine.distinctValues({ column: { kind: 'sq', expr: seriesP.expr }, filters: [...ctx.filters, ...(opts.extraFilters ?? [])], existsInFacts: true })
       dv.values.forEach((v, i) => rank.set(keyOf(v), i))
     } catch {
       // keep engine row order

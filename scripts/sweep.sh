@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Render every page of one or more reports headlessly and record per-visual status (see docs/SWEEP.md).
 #
-# Usage: scripts/sweep.sh <file-or-folder> <outdir> [--sample-data] [--pages a,b] [--size WxH] [--no-build]
+# Usage: scripts/sweep.sh <file-or-folder> <outdir> [--sample-data [--private | --app-defaults]] [--pages a,b] [--size WxH] [--no-build]
 #   <file-or-folder>  a .pbix/.pbit/.pbip/.wbi file, a *.Report folder, or a folder searched (depth 4)
 #                     for those; one Electron process per report.
 #   <outdir>          results: <outdir>/<report>/NN-<page>.png + report.json, and <outdir>/summary.tsv
 #   --sample-data     fill tables without data with synthetic sample rows (PBIP corpus without data); names and ids
 #                     that filters / formulas mention are reused so visuals pinned to them render
-#   --private         with --sample-data: the app's default instead — such names / ids are never copied into the
-#                     data (visuals filtered to them are then empty by design)
+#   --private         with --sample-data: the app's default instead (seed, fact-table size and privacy) — such names /
+#                     ids are never copied into the data (generated stand-ins answer filters pinned to them)
+#   --app-defaults    with --sample-data: the app's default seed and fact-table size, but literals are reused
 #   --pages a,b       only these pages (name, display name or 1-based index)
 #   --dax 'EVALUATE …' run a DAX query in the app after loading (repeatable; results in report.json .dax)
 #
@@ -17,13 +18,14 @@
 # newer than src/). Uses a private Xvfb display when available. WBI_TIMEOUT (ms) bounds each report.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-[ $# -ge 2 ] || { sed -n '2,17p' "$0"; exit 2; }
+[ $# -ge 2 ] || { sed -n '2,18p' "$0"; exit 2; }
 SRC="$(realpath -m "$1")"; OUT="$(realpath -m "$2")"; shift 2
-SAMPLE=0; PRIVATE=0; PAGES=""; SIZE="1800x1200"; BUILD=1; DAX=()
+SAMPLE=0; PRIVATE=0; APPDEF=0; PAGES=""; SIZE="1800x1200"; BUILD=1; DAX=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --sample-data) SAMPLE=1 ;;
     --private) PRIVATE=1 ;;
+    --app-defaults) APPDEF=1 ;;
     --pages) PAGES="$2"; shift ;;
     --dax) DAX+=("$2"); shift ;;
     --size) SIZE="$2"; shift ;;
@@ -53,13 +55,14 @@ enc() { node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$1"
 
 mkdir -p "$OUT"
 SUMMARY="$OUT/summary.tsv"
-printf "report\tpages\tvisuals\tok\terror\tnodata\tloading\tunsupported\tempty\tblank\topen_ms\terror_msg\n" > "$SUMMARY"
+printf "report\tpages\tvisuals\tok\terror\tnodata\tloading\tunsupported\tempty\tblank\topen_ms\terror_msg\tnoitems\n" > "$SUMMARY"
 for T in "${TARGETS[@]}"; do
   NAME="$(basename "$T")"; NAME="${NAME%.*}"
   DIR="$OUT/$NAME"; rm -rf "$DIR"; mkdir -p "$DIR"
   ROUTE="#/?start=0&blockCache=1&sweep=$(enc "$DIR")&open=$(enc "$T")"
   [ "$SAMPLE" = 1 ] && ROUTE="$ROUTE&synthetic=1"
   [ "$PRIVATE" = 1 ] && ROUTE="$ROUTE&private=1"
+  [ "$APPDEF" = 1 ] && ROUTE="$ROUTE&appDefaults=1"
   [ -n "$PAGES" ] && ROUTE="$ROUTE&pages=$(enc "$PAGES")"
   for q in "${DAX[@]}"; do ROUTE="$ROUTE&dax=$(enc "$q")"; done
   START=$(date +%s)
@@ -69,7 +72,7 @@ for T in "${TARGETS[@]}"; do
     const fs = require("fs"); const [dir, name, secs, sum] = process.argv.slice(1)
     let r; try { r = JSON.parse(fs.readFileSync(dir + "/report.json", "utf8")) } catch { r = { pages: [], totals: {}, error: "no report.json (crash or timeout; see console.log)" } }
     const t = r.totals || {}; const n = Object.values(t).reduce((a, b) => a + b, 0)
-    const row = [name, r.pages.length, n, t.ok || 0, t.error || 0, t.nodata || 0, t["loading-stuck"] || 0, t.unsupported || 0, t.empty || 0, t.blank || 0, r.openMs ?? "", (r.error || (r.inProgress ? "stuck on page " + r.inProgress : "")).replace(/\s+/g, " ")]
+    const row = [name, r.pages.length, n, t.ok || 0, t.error || 0, t.nodata || 0, t["loading-stuck"] || 0, t.unsupported || 0, t.empty || 0, t.blank || 0, r.openMs ?? "", (r.error || (r.inProgress ? "stuck on page " + r.inProgress : "")).replace(/\s+/g, " "), t.noitems || 0]
     fs.appendFileSync(sum, row.join("\t") + "\n")
     console.log(`${name}: ${r.pages.length} page(s) in ${secs}s  ${JSON.stringify(t)}${r.error ? "  ERROR " + r.error : ""}${r.inProgress ? "  STUCK on page " + r.inProgress : ""}${r.cacheBlocked === false ? "  (cache guard OFF!)" : ""}`)
   ' "$DIR" "$NAME" "$(( $(date +%s) - START ))" "$SUMMARY"

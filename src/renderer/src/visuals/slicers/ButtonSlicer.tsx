@@ -16,8 +16,8 @@ import { ChevronRight } from './icons'
 import { clickItem, clickSelectAll, isEmptySelection, itemSelected, selectAllState, selectOnly, type ListState } from './listLogic'
 import { matchPasted, moveFocus, orderItems } from './listOptions'
 import { applyUpdate } from './ListSlicer'
-import { SlicerMessage, SlicerStyle } from './SlicerChrome'
-import { currentFilter, itemKey, keyFieldFor, loadListItems, slicerProjections } from './slicerData'
+import { SlicerMessage, SlicerStyle, StandInBadge } from './SlicerChrome'
+import { currentFilter, standInSelection, itemKey, keyFieldFor, loadListItems, slicerProjections } from './slicerData'
 import { readSlicerFormat } from './slicerFormat'
 
 const ALL_KEY = '__all__'
@@ -55,7 +55,7 @@ export function ButtonSlicerVisual({ visual, ctx, width, height }: VisualProps) 
   const enabled = useMemo(() => {
     if (!proj || !ctx.highlightFilters?.length) return undefined
     try {
-      const r = ctx.engine.distinctValues({ column: { kind: 'sq', expr: proj.expr }, filters: [...ctx.filters, ...ctx.highlightFilters] })
+      const r = ctx.engine.distinctValues({ column: { kind: 'sq', expr: proj.expr }, filters: [...ctx.filters, ...ctx.highlightFilters], existsInFacts: true })
       return new Set(r.values.map(itemKey))
     } catch {
       return undefined
@@ -184,6 +184,7 @@ export function ButtonSlicerVisual({ visual, ctx, width, height }: VisualProps) 
   return (
     <div className="wbi-slicer-root" tabIndex={0} role="listbox" aria-multiselectable={!fmt.selection.strictSingle} onKeyDown={onKey} onPaste={onPaste} onBlur={() => setFocus(-1)}>
       <SlicerStyle />
+      {standInSelection(json, ctx) && <StandInBadge />}
       <div className={paginate ? undefined : 'wbi-slicer-scroll'} style={{ flex: 1, minHeight: 0, overflowX: paginate || content.w <= inner.w + 1 ? 'hidden' : 'auto', overflowY: paginate || content.h <= inner.h + 1 ? 'hidden' : 'auto', padding: 1 }}>
         <div style={{ position: 'relative', width: content.w, height: content.h }}>{entries.map(renderButton)}</div>
       </div>

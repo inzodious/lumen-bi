@@ -228,10 +228,17 @@ describe('summarize (visual queries)', () => {
 })
 
 describe('distinct values, describeField, validate, format', () => {
-  it('slicer values cross-filter through facts and keep sort order', () => {
+  it('slicer values follow Power BI: same-table and relationship filters narrow them, a sibling dimension does not', () => {
     expect(engine.distinctValues({ column: { table: 'Date', column: 'Month' }, filters: [inF('Date', 'Year', ['2024L'])], limit: 3 }).values).toEqual(['Jan', 'Feb', 'Mar'])
     expect(engine.distinctValues({ column: { table: 'Product', column: 'Category' } }).values).toEqual(['Accessories', 'Bikes', 'Clothing'])
-    expect(engine.distinctValues({ column: { table: 'Product', column: 'Category' }, filters: [inF('Customer', 'Country', ["'DE'"])] }).values).toEqual(['Bikes', 'Clothing'])
+    // SUMMARIZECOLUMNS(Product[Category], <Customer filter>) without a measure: Customer does not filter Product
+    const de = [inF('Customer', 'Country', ["'DE'"])]
+    expect(engine.distinctValues({ column: { table: 'Product', column: 'Category' }, filters: de }).values).toEqual(['Accessories', 'Bikes', 'Clothing'])
+    // a visual-level measure filter on the slicer ("Sales is not blank") keeps only items with data, as in PBI
+    const hasSales = { Version: 2, From: [{ Name: 's', Entity: 'Sales', Type: 0 }], Where: [{ Condition: { Not: { Expression: { Comparison: { ComparisonKind: 0, Left: msr('Sales', 'Sales'), Right: lit('null') } } } } }] }
+    expect(engine.distinctValues({ column: { table: 'Product', column: 'Category' }, filters: [...de, hasSales] }).values).toEqual(['Bikes', 'Clothing'])
+    // opt-in approximation used for small-multiple panels / series order
+    expect(engine.distinctValues({ column: { table: 'Product', column: 'Category' }, filters: de, existsInFacts: true }).values).toEqual(['Bikes', 'Clothing'])
     const w = engine.distinctValues({ column: { table: 'Product', column: 'Category' }, search: 'cl', withMeasure: { kind: 'measure', table: 'Sales', measure: 'Sales' } })
     expect(w).toEqual({ values: ['Clothing'], measures: [28], dataType: 'string' })
   })

@@ -60,6 +60,9 @@ be coordinated — note them prominently in your final report.
   slicer selections, cross-filter selections (`identitiesToFilter`), drill-through and drill-down
   filters are all PBIR SQ filter JSON. The report canvas collects the applicable ones for each visual
   into `ctx.filters`; the engine applies them as CALCULATE filter context.
+* **Slicer items** = `engine.distinctValues`: Power BI's slicer query (SUMMARIZECOLUMNS of the column without a
+  measure), so slicers on two dimensions that share a fact do not filter each other; a visual-level measure filter
+  on the slicer keeps only items with data. `existsInFacts` is an opt-in "has data" approximation for small multiples.
 * **Visual data** = `engine.summarize` with SUMMARIZECOLUMNS semantics (auto-exist, drop rows whose
   values are all blank unless "show items with no data"). Totals/subtotals = extra summarize calls with fewer group-bys.
 * **Field parameters**: projections pointing at a parameter column are expanded with `engine.resolveFieldParameter`.
@@ -85,7 +88,9 @@ Most real models import from Fabric SQL endpoints. Order of preference when open
    calculated tables that combine imported ones, `data/synthetic-lineage.ts` —, value domains mined from
    DAX/filter literals so measures produce non-empty results, survey scores skewed like real ones).
    Only definitions are read; literals compared to name-like / id-like / free-text columns are never copied
-   into the data (`SyntheticOptions.identifyingLiterals`, Options ▸ Data load). "Regenerate sample data"
+   into the data (`SyntheticOptions.identifyingLiterals`, Options ▸ Data load); filters and saved slicer selections
+   pinned to such a literal read a generated stand-in in memory (`data/standIns.ts`, `DataStore.literalStandIns`;
+   slicers show a "Sample stand-in" notice). "Regenerate sample data"
    (status-bar badge, Data pane menu, command search) draws a new seed for the sample tables; a `.wbi`
    bundle keeps the generated rows.
 

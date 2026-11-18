@@ -103,7 +103,7 @@ export function OptionsDialog({ section: initial, onClose }: { section?: string;
               </div>
               <div className="wbi-dlg-help">
                 Every value is invented. Category values, flags, thresholds and dates that your formulas and report filters compare columns to are reused so that filtered measures return data; names, ids, e-mail addresses and free text never are, unless you allow
-                it below.
+                it below: a filter or saved slicer selection pinned to one uses an invented stand-in value instead (marked “Sample stand-in” on slicers).
               </div>
               <Checkbox
                 checked={opts.syntheticReuseIdentifying}

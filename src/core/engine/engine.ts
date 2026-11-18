@@ -5,6 +5,7 @@
  * rows, relationship row maps). SQ filters are translated into engine filters; visuals are SUMMARIZECOLUMNS
  * evaluations. Calculated columns/tables are computed by processCalculated() and written back into the DataStore.
  */
+import { translateFilters } from '../data/standIns'
 import type { DataType, SemanticModel } from '../model/types'
 import type { DataStore, Scalar as DataScalar, TableData } from '../model/data'
 import type { SQExpr, SQFilter } from '../report/sq'
@@ -222,7 +223,8 @@ class TabularEngine implements QueryEngine {
 
   private context(filters: SQFilter[] | undefined, warnings: string[]): { ctx: FilterContext; measureConds: Node[] } {
     const ev = this.evaluator()
-    const tr = this.sq.translate(filters ?? [], this.now(), (sub, outerAliases, done) => this.topN(ev, sub, outerAliases, done))
+    // sample data: pinned names / ids withheld from the generated rows are read as their stand-ins (data/standIns.ts)
+    const tr = this.sq.translate(translateFilters(filters, this.data).filters, this.now(), (sub, outerAliases, done) => this.topN(ev, sub, outerAliases, done))
     warnings.push(...tr.warnings)
     const ctx = new FilterContext(this.dm, { filters: tr.filters, secure: this.rls })
     return { ctx: ctx.with({ shadow: ctx.filters }), measureConds: tr.measureConds }
@@ -495,13 +497,17 @@ class TabularEngine implements QueryEngine {
     this.ensureProcessed()
     const warnings: string[] = []
     const col = this.groupCol(req.column)
-    const { ctx } = this.context(req.filters, warnings)
+    const { ctx, measureConds } = this.context(req.filters, warnings)
     const ev = this.evaluator()
+    // Power BI's slicer query is SUMMARIZECOLUMNS(<column>, <filters>) without a measure: filters on other tables
+    // narrow the list only where relationships carry them to the column's table (visibleCodes). Slicers on two
+    // dimensions that share a fact table do not filter each other, unless a visual-level measure filter says so
+    // (measureConds, below) — PBI's own way to show "only items with data".
     let codes = Array.from(ev.visibleCodes(col, ctx, true))
-    // slicers cross-filter each other through fact tables: keep values that exist in facts filtered by other tables
     const own = new Set(ctx.expandedColumns(col.table).map((c) => c.id))
-    const other = ctx.filters.filter((f) => !(f.kind === 'col' ? own.has(f.col.id) : f.kind === 'tuple' ? f.cols.every((c) => own.has(c.id)) : f.table === col.table))
+    const other = req.existsInFacts ? ctx.filters.filter((f) => !(f.kind === 'col' ? own.has(f.col.id) : f.kind === 'tuple' ? f.cols.every((c) => own.has(c.id)) : f.table === col.table)) : []
     if (other.length) {
+      // opt-in approximation of "has data": keep values that exist in every fact table filtered by other tables
       const fctx = ctx.with({ filters: other })
       for (const F of this.dm.tables) {
         if (F === col.table) continue
@@ -515,6 +521,7 @@ class TabularEngine implements QueryEngine {
         codes = codes.filter((c) => allow[c])
       }
     }
+    if (measureConds.length) codes = codes.filter((c) => this.measureCondsPass(ev, ctx.addFilters([colFilter(col, [c])], false), measureConds, warnings))
     let vals = codes.map((c) => col.dict[c])
     if (req.search) {
       const s = req.search.toLowerCase()

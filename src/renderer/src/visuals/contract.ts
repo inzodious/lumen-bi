@@ -143,6 +143,8 @@ export interface VisualHostContext {
   setSlicerFilter(filter: SQFilter | undefined): void
   /** Slicers only: current filter of this slicer (from runtime state or saved visual.json). */
   slicerFilter?: SQFilter
+  /** Slicers only: the user cleared a saved selection in this session (the saved visual.json filter no longer applies). */
+  slicerCleared?: boolean
   drill: DrillState
   setDrill(next: DrillState): void
   showTooltip(req: TooltipRequest | null): void

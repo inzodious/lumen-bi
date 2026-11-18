@@ -5,8 +5,8 @@ import type { ContextMenuEntry, VisualProps } from '../contract'
 import { ListSlicer, TileSlicer } from './ListSlicer'
 import { RangeSlicer, RelativeSlicer } from './RangeSlicer'
 import { DatePickerSlicer } from './DatePickerSlicer'
-import { SlicerMessage, SlicerStyle } from './SlicerChrome'
-import { currentFilter, headerText, isWhatIfColumn, slicerProjections } from './slicerData'
+import { SlicerMessage, SlicerStyle, StandInBadge } from './SlicerChrome'
+import { currentFilter, headerText, isWhatIfColumn, slicerProjections, standInSelection } from './slicerData'
 import { readSlicerFormat } from './slicerFormat'
 
 export function SlicerVisual({ visual, ctx, width, height }: VisualProps) {
@@ -63,6 +63,7 @@ export function SlicerVisual({ visual, ctx, width, height }: VisualProps) {
       }}
     >
       <SlicerStyle />
+      {standInSelection(json, ctx) && <StandInBadge />}
       {body}
     </div>
   )

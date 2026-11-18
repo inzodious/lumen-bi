@@ -215,6 +215,11 @@ const SPECS: Spec[] = [
   }
 ]
 
+/** The renderer configuration of a cartesian chart type (the Format pane derives a few defaults from it). */
+export function cartesianConfig(type: string): Omit<CartesianConfig, 'icon'> | undefined {
+  return SPECS.find((s) => s.type === type)?.config
+}
+
 export function registerCartesianCharts(): void {
   for (const spec of SPECS) {
     const icon = ICONS[spec.type]

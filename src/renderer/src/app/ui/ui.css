@@ -119,6 +119,8 @@
   border-color: #a19f9d;
   background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 14' preserveAspectRatio='none'%3E%3Cline x1='0' y1='14' x2='28' y2='0' stroke='%23d13438' stroke-width='1.25' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
 }
+/* automatic color (the visual picks it per render): a label in the swatch's place */
+.wbi-color-btn__auto { min-width: 28px; height: 18px; line-height: 18px; font-size: 12px; color: var(--wbi-fg-2); }
 .wbi-colorpop { padding: 12px; width: 252px; }
 .wbi-colorpop__title { font-size: 12px; font-weight: 600; margin: 0 0 6px; }
 .wbi-colorpop__grid { display: grid; grid-template-columns: repeat(10, 20px); gap: 3px; }

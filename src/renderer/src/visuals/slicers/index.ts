@@ -9,6 +9,7 @@ import { ButtonSlicerVisual } from './ButtonSlicer'
 import { currentFilter, headerText, loadHierTuples, slicerProjections, formatItem } from './slicerData'
 import { listGetData } from './ListSlicer'
 import { readSlicerFormat } from './slicerFormat'
+import { readButtonSlicerFormat } from './buttonSlicerModel'
 import { buildHierTree, leafPaths, nodeState, parseContainsFilter, parseRangeFilter, parseRelativeFilter, pathKey, resolveRelativeFilter, selectedLeafKeys, wallClockNow } from './filterModel'
 
 const FONT_PROPS = (size = 'textSize') => [
@@ -338,6 +339,7 @@ const slicer: VisualDefinition = {
   icon: ICON_SLICER,
   roles: [{ name: 'Values', displayName: 'Field', kind: 'grouping', drillable: true }],
   formatCards: SLICER_CARDS,
+  formatDefaults: (json, theme) => readSlicerFormat(json, theme),
   component: SlicerVisual,
   inGallery: true,
   isSlicer: true,
@@ -421,6 +423,10 @@ const buttonSlicer: VisualDefinition = {
     { name: 'Values', displayName: 'Field', kind: 'grouping', max: 1 },
     { name: 'Data', displayName: 'Label', kind: 'measure', max: 1 }
   ],
+  formatDefaults: (json, theme) => {
+    readSlicerFormat(json, theme)
+    readButtonSlicerFormat(json, theme)
+  },
   formatCards: [
     {
       object: 'layout',

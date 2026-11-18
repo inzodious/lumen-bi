@@ -12,7 +12,7 @@ import { getRaw } from './objects'
 export interface PropSource {
   bag: ObjectsBag | undefined
   resolveRaw(object: string, prop: string, selector?: Selector): any
-  defaults?(object: string, prop: string): Scalar | undefined
+  defaults?(object: string, prop: string, def?: Pick<FormatPropDef, 'type' | 'options'>): Scalar | undefined
   theme: ResolvedTheme
 }
 
@@ -26,11 +26,11 @@ export interface PropState {
 }
 
 /** Display state of one property — the *effective* value, so an unset property doesn't show as an empty control. */
-export function propState(def: Pick<FormatPropDef, 'name' | 'default'>, object: string, target: PropSource, selector?: Selector): PropState {
+export function propState(def: Pick<FormatPropDef, 'name' | 'default'> & Partial<Pick<FormatPropDef, 'type' | 'options'>>, object: string, target: PropSource, selector?: Selector): PropState {
   const explicit = getRaw(target.bag, object, def.name, selector) !== undefined
   const raw = target.resolveRaw(object, def.name, selector)
   const decoded = raw === undefined ? undefined : decodeValue(raw, target.theme)
-  const fallback = target.defaults?.(object, def.name) ?? def.default ?? undefined
+  const fallback = target.defaults?.(object, def.name, def.type ? (def as Pick<FormatPropDef, 'type' | 'options'>) : undefined) ?? def.default ?? undefined
   return { explicit, raw, value: decoded === undefined || decoded === null ? fallback : decoded }
 }
 

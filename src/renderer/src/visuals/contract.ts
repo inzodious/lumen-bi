@@ -241,6 +241,12 @@ export interface VisualDefinition {
   getData?(visual: VisualDocument, ctx: VisualHostContext): { columns: string[]; rows: Scalar[][] } | undefined
   /** default size when inserted */
   defaultSize?: { width: number; height: number }
+  /**
+   * Run this visual's format resolution over `visualJson` without data (for visuals whose formatting is resolved by
+   * pure functions). The Format pane calls it under core/report/props `recordFallbacks`, so every property shows the
+   * default the renderer really falls back to (panes/visualizations/effective.ts) without a copied table.
+   */
+  formatDefaults?(visualJson: any, theme: ResolvedTheme): void
 }
 
 /** Convenience: an unknown visual type renders this placeholder. */

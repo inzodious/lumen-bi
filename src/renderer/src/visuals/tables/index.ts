@@ -4,6 +4,7 @@ import type { FormatCardDef, FormatPropDef } from '../contract'
 import { TableVisual } from './TableVisual'
 import { MatrixVisual } from './MatrixVisual'
 import { buildTableModel, tableData, TABLE_ROW_LIMIT } from './tableModel'
+import { tableFormatDefaults } from './tableFormat'
 import { MATRIX_ROW_LIMIT } from './matrixQuery'
 import { buildMatrixView, matrixData } from './matrixView'
 
@@ -113,6 +114,7 @@ const MATRIX_ICON =
 
 registerVisual({
   type: 'tableEx',
+  formatDefaults: tableFormatDefaults,
   aliases: ['table'],
   displayName: 'Table',
   category: 'table',
@@ -148,6 +150,7 @@ registerVisual({
 
 registerVisual({
   type: 'pivotTable',
+  formatDefaults: tableFormatDefaults,
   aliases: ['matrix'],
   displayName: 'Matrix',
   category: 'table',

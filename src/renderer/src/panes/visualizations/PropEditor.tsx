@@ -35,7 +35,7 @@ export interface BagTarget {
    * The value the renderer uses when the property is set nowhere (effective.ts) — shown instead of an empty control.
    * Takes precedence over the card definition's `default`.
    */
-  defaults?(object: string, prop: string): Scalar | undefined
+  defaults?(object: string, prop: string, def?: Pick<FormatPropDef, 'type' | 'options'>): Scalar | undefined
   theme: ResolvedTheme
   /** undo label */
   label: string
@@ -171,7 +171,8 @@ function propEditor({ def, object, target, selector }: PropRowProps): { editor: 
             themeColors={target.theme}
             onChange={(hex, theme) => writeProp(target, object, def.name, theme ? themeColorRaw(theme.colorId, theme.percent) : color(hex), selector)}
             onReset={explicit ? reset : undefined}
-            emptyTitle="Not set: the visual's default color applies"
+            emptyTitle="Automatic: the visual picks this color as it draws (per series, for contrast, or none)"
+            emptyLabel="Auto"
           />
         )
         break
@@ -192,7 +193,8 @@ function propEditor({ def, object, target, selector }: PropRowProps): { editor: 
         break
       }
       case 'alignment': {
-        const cur = String(value ?? 'left').toLowerCase()
+        // unset with no known default: the visual aligns by content (numbers right, text left) → no button is on
+        const cur = value === undefined || value === null ? '' : String(value).toLowerCase()
         editor = (
           <Segmented
             mode="radio"

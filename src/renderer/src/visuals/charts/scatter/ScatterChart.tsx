@@ -67,6 +67,9 @@ function isLog(fmt: FormatReader, object: string): boolean {
   return fmt.bool(object, 'logAxisScale', false) || fmt.str(object, 'axisScale', 'linear') === 'log'
 }
 
+/** Scatter charts draw vertical gridlines by default too (also shown by the Format pane). */
+export const SCATTER_X_GRIDLINES = true
+
 export function ScatterChart({ visual, width, height, ctx }: VisualProps) {
   const json = visual.json
   const fmt = useMemo(() => new FormatReader(json, ctx.theme), [json, ctx.theme])
@@ -225,7 +228,7 @@ function ScatterBody({ name, d, fmt, width, height, ctx, fi, playing, onPlay, on
     dash: gridDash(fmt, object)
   })
   const gy = gridOf('valueAxis', true)
-  const gx = gridOf('categoryAxis', true)
+  const gx = gridOf('categoryAxis', SCATTER_X_GRIDLINES)
   yAxis.model.ticks.forEach((t, i) => {
     const y = Math.round(py(t)) + 0.5
     if (gy.show) nodes.push(<line key={`gy${i}`} x1={plot.x} x2={plot.x + plot.w} y1={y} y2={y} stroke={gy.color} strokeWidth={gy.width} strokeOpacity={gy.opacity} strokeDasharray={gy.dash} />)

@@ -477,7 +477,8 @@ function readShadow(props: CardProps, scope: CardScope, theme: ResolvedTheme): S
     const dist = props.num('shadowCustom', 'shadowDistance', 10, scope)
     const spread = props.num('shadowCustom', 'shadowSpread', 3, scope)
     const preset = props.str('shadowCustom', 'shadowPositionPreset', 'bottomRight', scope)
-    const angle = preset === 'custom' ? props.num('shadowCustom', 'angle', 45, scope) : PRESET_ANGLE[preset] ?? 45
+    const customAngle = props.num('shadowCustom', 'angle', 45, scope)
+    const angle = preset === 'custom' ? customAngle : PRESET_ANGLE[preset] ?? 45
     const rad = (angle * Math.PI) / 180
     const dx = preset === 'center' ? 0 : Math.round(Math.cos(rad) * dist)
     const dy = preset === 'center' ? 0 : Math.round(Math.sin(rad) * dist)
@@ -687,7 +688,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     const fixed = props.bool('image', 'fixedSize', false, s)
     return {
       src,
-      fit: fitOf(props.get<any>('image', 'fit', undefined, s), 'fit'),
+      fit: fitOf(props.get<any>('image', 'fit', 'fit', s), 'fit'),
       radius: readCorners(props, 'image', s, 0),
       opacity: 1 - props.num('image', 'transparency', 0, s) / 100,
       position: sideOf(props.str('image', 'position', 'Left', s), 'left'),
@@ -705,17 +706,18 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     const urlLit = props.get<any>('cardImage', 'imageUrl', undefined, s)
     const bound = boundValue('cardImage', 'imageData', s) ?? boundValue('cardImage', 'imageUrl', s)
     const src = imageSrc(type === 'imageurl' && typeof urlLit === 'string' ? urlLit : bound ?? (typeof urlLit === 'string' ? urlLit : undefined))
-    if (!src) return undefined
-    const fit = fitOf(props.get<any>('cardImage', type === 'imagedata' ? 'imageDataFit' : 'imageUrlFit', undefined, s), 'fit')
-    return {
-      src,
-      fit,
+    // formatting read before the source check, so its defaults are known without a picture (Format pane)
+    const fits = { imageData: fitOf(props.get<any>('cardImage', 'imageDataFit', 'fit', s), 'fit'), imageUrl: fitOf(props.get<any>('cardImage', 'imageUrlFit', 'fit', s), 'fit') }
+    const model: CardImageModel = {
+      src: src ?? '',
+      fit: type === 'imagedata' ? fits.imageData : fits.imageUrl,
       radius: readCorners(props, 'cardImage', s, 0),
       opacity: 1 - props.num('cardImage', 'imageTransparency', 0, s) / 100,
       padding: readPadding(props, 'cardImage', s, 0),
       background: props.bool('cardImage', 'addBackground', false, s) ? withAlpha(props.color('cardImage', 'backgroundFillColor', theme.backgroundLight, s), props.num('cardImage', 'backgroundTransparency', 0, s)) : undefined,
       height: props.num('cardImage', 'imageHeight', 0, s)
     }
+    return src ? model : undefined
   }
 
   const tileStyle = (s: CardScope): TileStyle => {
@@ -726,7 +728,9 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     if (props.bool('fillCustom', 'imageShow', false, s)) {
       const lit = props.get<any>('fillCustom', 'imageUrl', undefined, s)
       const src = imageSrc(boundValue('fillCustom', 'imageData', s) ?? boundValue('fillCustom', 'imageUrl', s) ?? (typeof lit === 'string' ? lit : undefined))
-      if (src) backgroundImage = { src, fit: fitOf(props.get<any>('fillCustom', 'imageFit', undefined, s), 'fill'), opacity: 1 - props.num('fillCustom', 'imageTransparency', 0, s) / 100 }
+      const fit = fitOf(props.get<any>('fillCustom', 'imageFit', 'fill', s), 'fill')
+      const opacity = 1 - props.num('fillCustom', 'imageTransparency', 0, s) / 100
+      if (src) backgroundImage = { src, fit, opacity }
     }
     // GA classic look: 1px outline in the theme's backgroundLight (measured on the Learn screenshot)
     const outlineShow = props.bool('outline', 'show', true, s)
@@ -762,7 +766,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     const s: CardScope = { metadata: f.queryRef }
     const v = vals.get(`v${i}|${f.queryRef}`)
     const raw = v?.value ?? null
-    const units = props.optNum('value', 'labelDisplayUnits', s) ?? 0
+    const units = props.num('value', 'labelDisplayUnits', 0, s)
     const precision = props.optNum('value', 'labelPrecision', s)
     const blankAs = props.get<any>('value', 'showBlankAs', undefined, s)
     const valueText = fmtValue(raw, v, units, precision, props.str('value', 'customFormatString', '', s), typeof blankAs === 'string' && blankAs !== '' ? blankAs : undefined)
@@ -786,6 +790,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     const labelPos = props.str('label', 'position', 'aboveValue', s).toLowerCase()
     const customLabel = props.str('label', 'text', '', s)
     const matchAlign = props.bool('label', 'matchValueAlignment', true, s)
+    const labelAlign = alignOf(props.str('label', 'horizontalAlignment', valueAlign, s), valueAlign)
 
     // ---- reference labels
     const refLabels: RefLabelModel[] = (plan.refs.get(f.queryRef) ?? []).map((r) => {
@@ -795,7 +800,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
       const contentType = props.str('referenceLabelTitle', 'titleContentType', 'fieldName', rs).toLowerCase()
       const customText = props.str('referenceLabelTitle', 'titleText', '', rs)
       const titleText = contentType === 'custom' ? customText : fieldLabel(r.expr) ?? refFieldLabel(r.expr)
-      const vUnits = props.optNum('referenceLabelValue', 'valueDisplayUnits', rs) ?? 0
+      const vUnits = props.num('referenceLabelValue', 'valueDisplayUnits', 0, rs)
       const vPrec = props.optNum('referenceLabelValue', 'valuePrecision', rs)
       const vBlank = props.get<any>('referenceLabelValue', 'showBlankAs', undefined, rs)
       let detail: RefLabelModel['detail']
@@ -808,7 +813,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
           text: fmtValue(
             draw,
             dv,
-            props.optNum('referenceLabelDetail', 'detailDisplayUnits', rs) ?? 0,
+            props.num('referenceLabelDetail', 'detailDisplayUnits', 0, rs),
             props.optNum('referenceLabelDetail', 'detailPrecision', rs),
             props.str('referenceLabelDetail', 'customFormatString', '', rs),
             typeof dBlank === 'string' && dBlank !== '' ? dBlank : undefined
@@ -883,7 +888,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
         text: customLabel || f.label,
         font: labelFont,
         position: labelPos.startsWith('below') ? 'below' : 'above',
-        align: matchAlign ? valueAlign : alignOf(props.str('label', 'horizontalAlignment', valueAlign, s), valueAlign),
+        align: matchAlign ? valueAlign : labelAlign,
         wrap: props.bool('label', 'textWrap', true, s)
       },
       labelGap: props.num('spacing', 'verticalSpacing', 0, s),
@@ -1040,4 +1045,24 @@ export function gridGeometry(L: Pick<CardLayoutModel, 'columns' | 'rows' | 'fixe
     cellHeight: Math.max(1, (h - L.rowGap * (rowsPerPage - 1)) / rowsPerPage),
     overflow
   }
+}
+
+/**
+ * Format resolution without data, for the Format pane's effective values (VisualDefinition.formatDefaults): one
+ * callout with one reference label (title, value, detail) and one category section, so every format reader of the
+ * card runs with its own fallback.
+ */
+export function cardVisualFormatDefaults(visualJson: any, theme: ResolvedTheme): void {
+  const expr: SQExpr = { Measure: { Expression: { SourceRef: { Entity: '_' } }, Property: '_' } } as SQExpr
+  const field: CardFieldInfo = { queryRef: '\u0000probe', expr, label: '', isMeasure: true }
+  const plan: CardQueryPlan = {
+    fields: [field],
+    categories: [field],
+    values: [],
+    refs: new Map([[field.queryRef, [{ id: '\u0000ref', order: 0, valueId: 'ref', expr, detailValueId: 'det', detailExpr: expr }]]]),
+    rules: new Map()
+  }
+  const format: ValueFormatter = (v) => String(v)
+  // one category row (group column only): buildCallouts + readCardLayout + readCategoryLayout
+  buildCategorizedModel(visualJson, theme, format, plan, { columns: [{ kind: 'group' } as SummarizeResult['columns'][number]], rows: [[1]] }, () => '')
 }

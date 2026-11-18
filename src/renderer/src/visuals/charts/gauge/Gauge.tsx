@@ -14,7 +14,7 @@ import { useMemo, type MouseEvent as ReactMouseEvent } from 'react'
 import { area as d3area, line as d3line } from 'd3-shape'
 import type { VisualProps, VisualHostContext } from '../../contract'
 import type { Scalar } from '@core/model/data'
-import { FormatReader, PBI, textClass } from '../../common/fmtProps'
+import { CALLOUT_FALLBACK, FormatReader, PBI, textClass } from '../../common/fmtProps'
 import { getProjections, labelOf, expandParameters, valueId, type Projection } from '../../common/query'
 import { fontAttrs, measureText, ptToPx, fontWeightOf, lineHeight, ellipsize, type FontSpec } from '../../common/text'
 import { conditionalRule, evalConditional, rgba } from '../../common/color'
@@ -121,7 +121,7 @@ export function Gauge({ visual, width, height, ctx }: VisualProps) {
   const a0 = -Math.PI / 2
   const a1 = Math.PI / 2
   const av = gaugeAngle(v, min, max)
-  const callDefault = textClass(ctx.theme, 'callout', { size: 45, family: 'DIN', color: '#252423' })
+  const callDefault = textClass(ctx.theme, 'callout', CALLOUT_FALLBACK)
   const callFam = fmt.str('calloutValue', 'fontFamily', callDefault.family)
   const callText = fmtIn(v, 'calloutValue', g.valueFormat)
   // PBI auto-sizes the callout to the inner radius (calloutValue has no font size)
@@ -265,7 +265,7 @@ export function Kpi({ visual, width, height, ctx }: VisualProps) {
   const unit = resolveDisplayUnit(fmt.optNum('indicator', 'indicatorDisplayUnits') ?? 0, Math.abs(value))
   const prec = fmt.optNum('indicator', 'indicatorPrecision')
   const valueText = formatWithUnits(value, { unit, decimals: prec, formatString: k.format, format: ctx.format })
-  const callout = textClass(ctx.theme, 'callout', { size: 45, family: 'DIN', color: '#252423' })
+  const callout = textClass(ctx.theme, 'callout', CALLOUT_FALLBACK)
   const showTrend = fmt.bool('trendline', 'show', true) && k.trend.filter((x) => x !== null).length > 1
   const trendTransp = fmt.num('trendline', 'transparency', 20)
   const hAlign = fmt.str('indicator', 'horizontalAlignment', 'center')

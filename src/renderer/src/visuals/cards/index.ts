@@ -5,6 +5,8 @@ import type { VisualDocument } from '@core/report/types'
 import type { Scalar } from '@core/model/data'
 import { CardVisualView, computeCardVisual } from './CardVisual'
 import { LegacyCardView, MultiRowCardView, computeLegacyCard, computeMultiRow } from './LegacyCards'
+import { cardVisualFormatDefaults } from './cardVisualModel'
+import { buildLegacyCardModel, multiRowStyle } from './legacyCardModel'
 
 const UNITS: FormatPropDef['options'] = [
   { value: 0, label: 'Auto' },
@@ -463,7 +465,8 @@ export const cardVisualDef: VisualDefinition = {
   component: CardVisualView,
   inGallery: true,
   getData: cardVisualData,
-  defaultSize: { width: 280, height: 160 }
+  defaultSize: { width: 280, height: 160 },
+  formatDefaults: cardVisualFormatDefaults
 }
 
 export const legacyCardDef: VisualDefinition = {
@@ -473,6 +476,7 @@ export const legacyCardDef: VisualDefinition = {
   category: 'card',
   icon: ICON_CARD,
   roles: [{ name: 'Values', displayName: 'Fields', kind: 'both', max: 1 }],
+  formatDefaults: (json, theme) => buildLegacyCardModel(json, theme, (v) => String(v), '', { value: 1 }),
   formatCards: [
     {
       object: 'labels',
@@ -521,6 +525,7 @@ export const multiRowCardDef: VisualDefinition = {
   category: 'card',
   icon: ICON_MULTIROW,
   roles: [{ name: 'Values', displayName: 'Fields', kind: 'both' }],
+  formatDefaults: (json, theme) => multiRowStyle(json, theme),
   formatCards: [
     {
       object: 'dataLabels',

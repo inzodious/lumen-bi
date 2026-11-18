@@ -21,6 +21,9 @@ import { conversionRate, formatPercent, funnelLabelText, normalizeFunnelLabelSty
 /** Bar height as a fraction of the row (PBI leaves a small gap between stages). */
 const BAR_FILL = 0.85
 
+/** Default data-label position (also shown by the Format pane). */
+export const FUNNEL_LABEL_POSITION = 'Auto'
+
 export function Funnel({ visual, width, height, ctx }: VisualProps) {
   const json = visual.json
   const fmt = useMemo(() => new FormatReader(json, ctx.theme), [json, ctx.theme])
@@ -39,7 +42,7 @@ export function Funnel({ visual, width, height, ctx }: VisualProps) {
   const lT = fmt.text('labels', {}, { size: PBI.dataLabelFontPt, color: PBI.dataLabelColor })
   const lcolor = fmt.optStr('labels', 'color')
   const style = normalizeFunnelLabelStyle(fmt.optStr('labels', 'funnelLabelStyle') ?? fmt.optStr('labels', 'labelStyle'))
-  const lpos = fmt.str('labels', 'labelPosition', 'Auto')
+  const lpos = fmt.str('labels', 'labelPosition', FUNNEL_LABEL_POSITION)
   const lbg = fmt.bool('labels', 'enableBackground', false)
   const lbgColor = fmt.color('labels', 'backgroundColor', '#FFFFFF')
   const lbgOp = 1 - fmt.num('labels', 'backgroundTransparency', 90) / 100

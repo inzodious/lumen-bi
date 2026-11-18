@@ -24,6 +24,9 @@ import { refLineNodes } from '../scatter/RefLineLayer'
 import { axisTitleWithUnits } from '../scatter/scatterModel'
 import type { DataPointIdentity } from '@core/report/sq'
 
+/** Default data-label position (also shown by the Format pane). */
+export const WATERFALL_LABEL_POSITION = 'Auto'
+
 export function stepsOf(d: CategoricalData, opts: { maxBreakdowns: number; totals: boolean }): WaterfallStep[] {
   if (d.seriesField && d.levels.length) {
     const split = d.series.filter((s) => s.split)
@@ -136,7 +139,7 @@ export function Waterfall({ visual, width, height, ctx }: VisualProps) {
   const lunit = resolveDisplayUnit(fmt.optNum('labels', 'labelDisplayUnits') ?? 0, Math.max(Math.abs(lo), Math.abs(hi)))
   const lprec = fmt.optNum('labels', 'labelPrecision')
   const lcolor = fmt.optStr('labels', 'color')
-  const lpos = fmt.str('labels', 'labelPosition', 'Auto')
+  const lpos = fmt.str('labels', 'labelPosition', WATERFALL_LABEL_POSITION)
   const lbg = fmt.bool('labels', 'enableBackground', false)
   const lbgColor = fmt.color('labels', 'backgroundColor', '#FFFFFF')
   const lbgOp = 1 - fmt.num('labels', 'backgroundTransparency', 90) / 100

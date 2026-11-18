@@ -2,7 +2,7 @@
 import type { DataRoleDef, FormatCardDef, VisualDefinition, VisualProps } from '../../contract'
 import { registerVisual } from '../../registry'
 import { buildCategorical, categoricalTable } from '../../common/categorical'
-import { FormatReader } from '../../common/fmtProps'
+import { FormatReader, PBI } from '../../common/fmtProps'
 import { ICONS } from '../icons'
 import { dataColorsCard, legendCard } from '../formatCards'
 import { MapChart } from './MapChart'
@@ -85,7 +85,7 @@ const categoryLabelsCard: FormatCardDef = {
   toggle: 'show',
   properties: [
     { name: 'show', displayName: 'Show', type: 'bool', default: false },
-    { name: 'color', displayName: 'Color', type: 'color', default: '#252423' },
+    { name: 'color', displayName: 'Color', type: 'color', default: PBI.dataLabelColor },
     { name: 'fontSize', displayName: 'Text size', type: 'fontSize', default: 9 },
     { name: 'fontFamily', displayName: 'Font', type: 'fontFamily', default: 'Segoe UI' },
     { name: 'enableBackground', displayName: 'Background', type: 'bool', default: true },
@@ -138,7 +138,7 @@ const shapeLabelsCard: FormatCardDef = {
   toggle: 'show',
   properties: [
     { name: 'show', displayName: 'Show', type: 'bool', default: false },
-    { name: 'color', displayName: 'Color', type: 'color', default: '#252423' },
+    { name: 'color', displayName: 'Color', type: 'color', default: PBI.dataLabelColor },
     { name: 'fontSize', displayName: 'Text size', type: 'fontSize', default: 9 }
   ]
 }

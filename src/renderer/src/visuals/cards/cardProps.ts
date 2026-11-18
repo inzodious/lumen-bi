@@ -11,7 +11,7 @@
  *   4. theme visualStyles (via core props) → caller fallback
  */
 import type { Scalar } from '@core/model/data'
-import { decodeValue, isDataBound, rawProp as coreRawProp, makePropContext, type ObjectEntry, type PropContext } from '@core/report/props'
+import { decodeValue, isDataBound, noteFallback, rawProp as coreRawProp, makePropContext, type ObjectEntry, type PropContext } from '@core/report/props'
 import type { ResolvedTheme } from '@core/report/theme'
 import { formatDecimals } from '../common/displayUnits'
 
@@ -99,6 +99,7 @@ export class CardProps {
   }
 
   get<T = any>(object: string, prop: string, fallback: T, scope?: CardScope): T {
+    noteFallback(object, prop, fallback, scope?.metadata ? { metadata: scope.metadata } : undefined)
     const r = this.raw(object, prop, scope)
     if (r === undefined) return fallback
     if (isDataBound(r)) return fallback

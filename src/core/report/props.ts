@@ -106,8 +106,35 @@ export function rawProp(ctx: PropContext, object: string, prop: string, sel?: Se
   return themeProp(ctx.theme, ctx.visualType, object, prop, sel)
 }
 
+/**
+ * Fallback recording. A visual's format resolution passes its default for every property it reads as the
+ * `fallback` argument; while `recordFallbacks` runs, those defaults are reported to a sink. The Format pane uses
+ * this to show the value a visual actually uses for a property that is set nowhere (renderer/…/effective.ts),
+ * straight from the code that draws it instead of from a copied table. Readers with their own resolution
+ * (e.g. the card visual's scoped CardProps) report through `noteFallback`.
+ */
+export type FallbackSink = (object: string, prop: string, fallback: unknown, sel?: Selector) => void
+let fallbackSink: FallbackSink | undefined
+
+/** Run `fn` while reporting every property fallback read through getProp / noteFallback to `sink`. */
+export function recordFallbacks<T>(sink: FallbackSink, fn: () => T): T {
+  const prev = fallbackSink
+  fallbackSink = sink
+  try {
+    return fn()
+  } finally {
+    fallbackSink = prev
+  }
+}
+
+/** Report the default a reader uses for `object.prop` (no-op unless recordFallbacks is running). */
+export function noteFallback(object: string, prop: string, fallback: unknown, sel?: Selector): void {
+  if (fallbackSink && fallback !== undefined && fallback !== null) fallbackSink(object, prop, fallback, sel)
+}
+
 /** Resolve and decode a property. */
 export function getProp<T = any>(ctx: PropContext, object: string, prop: string, fallback: T, sel?: Selector): T {
+  if (fallbackSink) noteFallback(object, prop, fallback, sel)
   const raw = rawProp(ctx, object, prop, sel)
   if (raw === undefined) return fallback
   const v = decodeValue(raw, ctx.theme)

@@ -13,6 +13,7 @@ import type { FormatCardDef, FormatPropDef } from '../../visuals/contract'
 import { useApp } from '../../state/store'
 import { useMobileLayout } from '../../report/mobile/state'
 import { mobileFormatVisual, mobileOverrides, mobileTarget, resetMobileFormatting } from '../../report/mobile/format'
+import { mobileVisualJson } from '../../report/mobile/layout'
 import { useShell } from '../../app/shellState'
 import { absoluteRect, findPage, findVisual, visualTypeOf, type Rect } from '../../report/pbir'
 import * as editOps from '../../report/editOps'
@@ -35,7 +36,7 @@ export function visualTarget(pageName: string, visual: VisualDocument, container
     locate: (r) => visualBag(findVisual(findPage(r, pageName), visual.name)?.json, container, true),
     resolveRaw: (object, prop, sel) => rawProp(pc, object, prop, sel),
     // what the renderer uses when nothing is set: shown instead of an empty control (effective.ts)
-    defaults: (object, prop) => rendererDefault(object, prop, theme, visualTypeOf(visual), container),
+    defaults: (object, prop, def) => rendererDefault(object, prop, theme, visual.json, container, def),
     theme,
     label: 'Format visual',
     cf: { pageName, visualName: visual.name, visualType: visualTypeOf(visual), container }
@@ -98,7 +99,9 @@ function VisualFormat({ page, visual, theme, mobile = false }: { page: PageDocum
   const builtinObjects = new Set(CONTAINER_CARDS.map((c) => c.object))
   const extraGeneral = own.filter((c) => (c.tab === 'general' || c.container) && !(c.container && builtinObjects.has(c.object)))
   // mobile formatting shows the same effective defaults as desktop (the phone canvas uses the same renderers)
-  const mobileWithDefaults = (container: boolean): BagTarget => ({ ...mobileTarget(page.name, visual, container, theme), defaults: (object, prop) => rendererDefault(object, prop, theme, type, container) })
+  // (defaults probed on the merged phone formatting, computed once per render)
+  const mobileJson = mobile ? mobileVisualJson(visual) : undefined
+  const mobileWithDefaults = (container: boolean): BagTarget => ({ ...mobileTarget(page.name, visual, container, theme), defaults: (object, prop, def) => rendererDefault(object, prop, theme, mobileJson, container, def) })
   const vt = mobile ? mobileWithDefaults(false) : visualTarget(page.name, visual, false, theme)
   const ct = mobile ? mobileWithDefaults(true) : visualTarget(page.name, visual, true, theme)
   const overrides = mobile ? mobileOverrides(visual) : []

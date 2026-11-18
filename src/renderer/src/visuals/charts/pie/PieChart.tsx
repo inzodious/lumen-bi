@@ -27,6 +27,13 @@ import { arcPath, composeLabel, labelParts, layoutOutsideLabels, polar, sliceAng
 import type { DataPointIdentity } from '@core/report/sq'
 import { SmallMultiples } from '../cartesian/SmallMultiples'
 
+/** Pie / donut data labels are on by default (also shown by the Format pane). */
+export const PIE_LABELS_SHOWN = true
+/** Default label position: the legacy `labelPosition` when present, else "Prefer outside". */
+export function pieLabelPositionDefault(legacyPos: string | undefined): string {
+  return legacyPos === 'insideOnly' ? 'inside' : legacyPos === 'preferInside' ? 'preferInside' : legacyPos === 'outside' ? 'outside' : 'preferOutside'
+}
+
 export interface Slice {
   key: string
   /** legend label (category) */
@@ -138,10 +145,10 @@ export function PieChart({ visual, width, height, ctx, donut, icon, panel }: Vis
 
   // ---- detail labels
   const total = slices.reduce((a, s) => a + s.value, 0)
-  const showLabels = fmt.bool('labels', 'show', true)
+  const showLabels = fmt.bool('labels', 'show', PIE_LABELS_SHOWN)
   const parts = labelParts(fmt.str('labels', 'labelStyle', 'Data value, percent of total'))
   const legacyPos = fmt.optStr('labels', 'labelPosition')
-  const position = fmt.str('labels', 'position', legacyPos === 'insideOnly' ? 'inside' : legacyPos === 'preferInside' ? 'preferInside' : legacyPos === 'outside' ? 'outside' : 'preferOutside')
+  const position = fmt.str('labels', 'position', pieLabelPositionDefault(legacyPos))
   const overflow = fmt.bool('labels', 'overflow', false)
   const bgMode = fmt.str('labels', 'background', 'off')
   const lsz = fmt.num('labels', 'fontSize', PBI.dataLabelFontPt)

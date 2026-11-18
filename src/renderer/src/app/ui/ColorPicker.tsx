@@ -77,6 +77,8 @@ export interface ColorPickerProps {
   className?: string
   /** tooltip of the swatch when no color is set (default "No color") */
   emptyTitle?: string
+  /** text shown instead of the "no color" swatch when no color is set (e.g. "Auto": the visual picks the color) */
+  emptyLabel?: string
 }
 
 export function ColorPicker(p: ColorPickerProps) {
@@ -93,7 +95,7 @@ export function ColorPicker(p: ColorPickerProps) {
   const cur = p.value?.toUpperCase()
   const button = (
     <button ref={ref} type="button" disabled={p.disabled} className={cx('wbi-color-btn', !p.label && p.className)} onClick={() => setOpen((o) => !o)} aria-label={p.label ?? 'Color'} title={p.value ? p.value.toUpperCase() : (p.emptyTitle ?? 'No color')}>
-      <span className={cx('wbi-color-btn__swatch', !p.value && 'is-empty')} style={p.value ? { background: p.value } : undefined} />
+      {!p.value && p.emptyLabel ? <span className="wbi-color-btn__auto">{p.emptyLabel}</span> : <span className={cx('wbi-color-btn__swatch', !p.value && 'is-empty')} style={p.value ? { background: p.value } : undefined} />}
       <ChevronDownRegular fontSize={12} />
     </button>
   )

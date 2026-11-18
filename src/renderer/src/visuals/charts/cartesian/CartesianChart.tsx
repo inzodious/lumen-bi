@@ -31,6 +31,11 @@ import { decodeValue } from '@core/report/props'
 import { detectAnomalies } from './anomaly'
 import { forecastSeries, readForecastSpecs, FORECAST_DEFAULT_COLOR, type SeriesForecast } from './forecast'
 
+/** Default data-label position of bars (also shown by the Format pane): inside center when stacked, else Auto. */
+export const barLabelPositionDefault = (stacking: CartesianConfig['stacking']): string => (stacking !== 'clustered' ? 'InsideCenter' : 'Auto')
+/** Default data-label position of lines / areas. */
+export const LINE_LABEL_POSITION_DEFAULT = 'Above'
+
 export type SeriesKind = 'bar' | 'line' | 'area'
 
 export interface CartesianConfig {
@@ -1481,7 +1486,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   const stacked = cfg.stacking !== 'clustered'
   const barSeries = barIdx.filter((i) => true || !isSec[i])
   const clusterN = stacked ? 1 : barSeries.length
-  const labelPosDefault = stacked ? 'InsideCenter' : 'Auto'
+  const labelPosDefault = barLabelPositionDefault(cfg.stacking)
   const zeroPx = (i: number) => vpx(i)(model1.scale === 'log' ? model1.domain[0] : Math.max(Math.min(0, isSec[i] && model2 ? model2.domain[1] : model1.domain[1]), isSec[i] && model2 ? model2.domain[0] : model1.domain[0]))
   barSeries.forEach((si, k) => {
     const s = series[si]
@@ -1619,7 +1624,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
       markerSize: Math.max(2, markerSize * 0.6),
       markerColor: fmt.sColor('lineStyles', 'markerColor', s),
       labelEvery,
-      labelPos: fmt.sStr('labels', 'labelPosition', 'Above', s)
+      labelPos: fmt.sStr('labels', 'labelPosition', LINE_LABEL_POSITION_DEFAULT, s)
     })
   })
 

@@ -4,11 +4,11 @@ import { resolveTheme } from '@core/report/theme'
 import type { FormatPropDef } from '../../visuals/contract'
 import { resolveChrome, ptToPx } from '../../report/chrome'
 import { layoutProps, propState, type PropSource } from './propModel'
-import { containerDefault, rendererDefault, titleOnByDefault, visualDefault } from './effective'
+import { asControlValue, containerDefault, probedDefaults, rendererDefault, titleOnByDefault, visualDefault } from './effective'
 import { normalizeNumber, parseNumberInput, stepNumber } from './controls'
 import { SHAPE_DEFAULTS } from '../../visuals/elements/Shape'
 import { getVisual } from '../../visuals/registry'
-import '../../visuals/elements' // registers shape / buttons (category element)
+import '../../visuals' // registers every visual (shapes / buttons are category element)
 
 const theme = resolveTheme()
 const lit = (v: string) => ({ expr: { Literal: { Value: v } } })
@@ -20,7 +20,7 @@ function source(visualJson: any, container: boolean): PropSource {
   return {
     bag: container ? v.visualContainerObjects : v.objects,
     resolveRaw: (object, prop, sel) => rawProp(pc, object, prop, sel),
-    defaults: (object, prop) => rendererDefault(object, prop, theme, v.visualType, container),
+    defaults: (object, prop, def) => rendererDefault(object, prop, theme, visualJson, container, def),
     theme
   }
 }
@@ -82,6 +82,67 @@ describe('format pane effective values', () => {
     expect(containerDefault('spacing', 'verticalSpacing', theme, 'clusteredColumnChart')).toBe(resolveChrome({ visual: { visualType: 'clusteredColumnChart' } }, theme).spacing.belowTitle)
     // unknown container properties stay automatic
     expect(containerDefault('title', 'background', theme, 'tableEx')).toBeUndefined()
+  })
+})
+
+describe('format pane renderer defaults (probed / tables)', () => {
+  const card = (objects?: any) => ({ visual: { visualType: 'cardVisual', ...(objects ? { objects } : {}) } })
+
+  it('card visual: values come from the card model itself, including properties behind an off switch', () => {
+    const src = source(card(), false)
+    // callout value: theme callout class (CY24SU10: DIN 45pt), foreground
+    expect(propState(p('fontFamily', 'fontFamily'), 'value', src).value).toBe(theme.textClasses.callout?.fontFace ?? 'DIN')
+    expect(propState(p('fontColor', 'color'), 'value', src).value).toBe(theme.foreground)
+    // the shadow is off, its color / blur are still known (read with the switch on)
+    expect(propState(p('show', 'bool'), 'shadowCustom', src).value).toBe(false)
+    expect(propState(p('color', 'color'), 'shadowCustom', src).value).toBe('#000000')
+    expect(propState(p('shadowBlur', 'number'), 'shadowCustom', src).value).toBe(10)
+    // a default that depends on another property follows it (rows / columns padding = cell padding)
+    const json = card({ layout: [{ properties: { cellPadding: lit('14D') } }] })
+    expect(propState(p('rowPadding', 'integer'), 'layout', source(json, false)).value).toBe(14)
+  })
+
+  it('probes are cached per visual json and theme; edits (new json) re-probe', () => {
+    const json = card()
+    expect(probedDefaults(json, theme)).toBe(probedDefaults(json, theme))
+    expect(probedDefaults(card(), theme)).not.toBe(probedDefaults(json, theme))
+    expect(probedDefaults({ visual: { visualType: 'clusteredColumnChart' } }, theme)).toBeUndefined()
+  })
+
+  it('table: fonts follow the theme label class; reset (unset) returns to the probed value', () => {
+    const themed = resolveTheme(undefined, { textClasses: { label: { fontSize: 11, color: '#123456' } } })
+    const json = { visual: { visualType: 'tableEx' } }
+    const pc = makePropContext(json, themed)
+    const src: PropSource = { bag: undefined, resolveRaw: (o, n, sel) => rawProp(pc, o, n, sel), defaults: (o, n, d) => rendererDefault(o, n, themed, json, false, d), theme: themed }
+    expect(propState(p('fontSize', 'fontSize'), 'values', src).value).toBe(11)
+    expect(propState(p('fontColorPrimary', 'color'), 'values', src).value).toBe('#123456')
+  })
+
+  it('maps a recorded fallback onto the control (enum option by value or label, numbers, colors)', () => {
+    const outline = { type: 'enum' as const, options: [{ value: 0, label: 'None' }, { value: 4, label: 'Bottom only' }] }
+    expect(asControlValue(outline, 'BottomOnly')).toBe(4)
+    expect(asControlValue(outline, 4)).toBe(4)
+    expect(asControlValue(outline, 'Frame')).toBeUndefined()
+    expect(asControlValue({ type: 'enum', options: [{ value: 'Cards', label: 'Cards' }] }, 'cards')).toBe('Cards')
+    expect(asControlValue({ type: 'fontSize' }, '14pt')).toBe(14)
+    expect(asControlValue({ type: 'color' }, '')).toBeUndefined()
+    expect(asControlValue({ type: 'alignment' }, 'Center')).toBe('center')
+    expect(asControlValue({ type: 'bool' }, 'true')).toBe(true)
+  })
+
+  it('charts: theme-derived defaults and the visual configuration', () => {
+    const themed = resolveTheme(undefined, { dataColors: ['#AA0000', '#00AA00'], textClasses: { title: { fontFace: 'Georgia', fontSize: 14 } } })
+    const col = { visual: { visualType: 'clusteredColumnChart' } }
+    expect(rendererDefault('categoryAxis', 'titleFontFamily', themed, col, false, { type: 'fontFamily' })).toBe('Georgia')
+    expect(rendererDefault('valueAxis', 'titleFontSize', themed, col, false, { type: 'fontSize' })).toBe(14)
+    expect(rendererDefault('dataPoint', 'fill', themed, col, false, { type: 'color' })).toBe('#AA0000')
+    // two measures: each series has its own color, "All" stays automatic
+    const two = { visual: { visualType: 'clusteredColumnChart', query: { queryState: { Y: { projections: [{ queryRef: 'a' }, { queryRef: 'b' }] } } } } }
+    expect(rendererDefault('dataPoint', 'fill', themed, two, false, { type: 'color' })).toBeUndefined()
+    expect(rendererDefault('labels', 'labelPosition', theme, col, false)).toBe('Auto')
+    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'columnChart' } }, false)).toBe('InsideCenter')
+    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'lineChart' } }, false)).toBe('Above')
+    expect(rendererDefault('labels', 'labelPosition', theme, { visual: { visualType: 'lineClusteredColumnComboChart' } }, false)).toBeUndefined()
   })
 })
 

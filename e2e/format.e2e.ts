@@ -1,7 +1,7 @@
 /** Editing: select a visual, change its title text and color in the Format pane, Undo / Redo. */
 import { describe, expect, it } from 'vitest'
 import type { Page } from 'playwright-core'
-import { useLumen, visualByTitle, visualStatuses, settle, lumenEval } from './harness'
+import { useLumen, visualByTitle, visualStatuses, settle, lumenEval, rendererErrors } from './harness'
 
 describe('format pane', () => {
   const lumen = useLumen({ route: { sample: '1' } })
@@ -160,5 +160,118 @@ describe('format pane controls', () => {
     await expandAllCards(page)
     expect(await clippedControls(page)).toEqual([])
     await lumenEval(page, (l, w) => l.useShell.getState().setPane('visualizations', { width: w }), defaultWidth)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Visual tab of data visuals: unset properties show what the visual draws with
+// ---------------------------------------------------------------------------------------------
+
+/** Remove every Visual-tab formatting of a visual (setup: an "empty definition", fields kept). */
+async function clearVisualFormatting(page: Page, name: string): Promise<void> {
+  await lumenEval(page, (l, n) =>
+    l.useApp.getState().mutateReport('Clear formatting', (r) => {
+      for (const p of r.pages) for (const v of p.visuals) if (v.name === n) delete v.json.visual.objects
+    }), name)
+}
+
+/**
+ * Visual-tab controls that show no value: an empty number box, the "Auto" color label or the "no color" swatch, a
+ * dropdown on its placeholder, an alignment group with no button on. Text boxes are left out (empty by design).
+ */
+async function automaticControls(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out: string[] = []
+    const where = (el: Element) => `${el.closest('.wbi-card')?.querySelector('.wbi-card__title')?.textContent ?? '?'} ▸ ${el.closest('[data-prop]')?.getAttribute('data-prop') ?? '?'}`
+    const body = document.querySelector('.wbi-fmt__cards')!
+    for (const el of body.querySelectorAll<HTMLInputElement>('.wbi-spin input')) if (el.value.trim() === '') out.push(where(el))
+    for (const el of body.querySelectorAll('.wbi-color-btn__auto, .wbi-color-btn__swatch.is-empty, .wbi-dropdown__placeholder')) out.push(where(el))
+    for (const el of body.querySelectorAll('.wbi-fmt__seg[role="radiogroup"]')) if (!el.querySelector('[aria-checked="true"]')) out.push(where(el))
+    return [...new Set(out)].sort()
+  })
+}
+
+describe('format pane: Visual tab defaults of data visuals', () => {
+  const lumen = useLumen({ route: { sample: '1' } })
+
+  it('card, column chart, table and slicer show the values they draw with when nothing is set; Reset returns to them', async () => {
+    const { page } = lumen()
+    const statuses = await visualStatuses(page)
+    const pick = (type: string) => statuses.find((v) => v.type === type)!.name
+    const cardsEl = page.locator('.wbi-fmt__cards')
+    const card = (title: string) => cardsEl.locator('.wbi-card').filter({ has: page.locator('.wbi-card__title', { hasText: new RegExp(`^${title}$`) }) }).first()
+    const spin = (title: string, prop: string) => card(title).locator(`[data-prop="${prop}"] .wbi-spin input`).first()
+    const colorOf = (title: string, prop: string) => card(title).locator(`[data-prop="${prop}"] button.wbi-color-btn`).first().getAttribute('title')
+    const dropdownText = (title: string, prop: string) => card(title).locator(`[data-prop="${prop}"] .wbi-dropdown__value`).first().innerText()
+    const open = async (name: string) => {
+      await clearVisualFormatting(page, name)
+      await lumenEval(page, (l, n) => l.useApp.getState().selectVisuals([n]), name)
+      await page.getByRole('tab', { name: 'Format visual' }).click()
+      await page.locator('.wbi-fmt__pivot').getByRole('tab', { name: 'Visual' }).click()
+      await expandAllCards(page)
+    }
+    const theme = await lumenEval(page, (l) => {
+      const t = l.useApp.getState().theme
+      return { callout: t.textClasses.callout ?? {}, title: t.textClasses.title ?? {}, label: t.textClasses.label ?? {}, foreground: t.foreground, data0: t.dataColors[0] }
+    })
+
+    // ---- card visual (~110 controls that used to read "Auto" / empty)
+    await open(pick('cardVisual'))
+    await expect(spin('Callout value', 'fontSize').inputValue()).resolves.toBe(String(theme.callout.fontSize ?? 45))
+    await expect(colorOf('Callout value', 'fontColor')).resolves.toBe(theme.foreground.toUpperCase())
+    // behind a switch that is off: the shadow still shows the values it would draw with
+    await expect(spin('Card shadow', 'shadowBlur').inputValue()).resolves.toBe('10')
+    await expect(spin('Card shadow', 'angle').inputValue()).resolves.toBe('45')
+    await expect(colorOf('Card shadow', 'color')).resolves.toBe('#000000')
+    await expect(dropdownText('Card shadow', 'shadowPositionPreset')).resolves.toBe('bottomRight')
+    expect(await automaticControls(page)).toEqual(
+      [
+        'Callout value ▸ labelPrecision',
+        'Multi-card layout ▸ rowCount',
+        'Reference labels layout ▸ horizontalAlignment',
+        'Reference labels layout ▸ valueArea',
+        'Reference label value ▸ valuePrecision',
+        'Reference label detail ▸ detailPrecision',
+        'Multi-category layout ▸ rowCount',
+        'Multi-category layout ▸ titleOrientation',
+        'Multi-category layout ▸ maxHeaderSize'
+      ].sort()
+    )
+    // Reset returns to exactly the displayed default and clears the property
+    const blur = spin('Card shadow', 'shadowBlur')
+    await blur.press('ArrowUp')
+    await expect(blur.inputValue()).resolves.toBe('11')
+    await card('Card shadow').getByRole('button', { name: 'Reset Blur' }).click()
+    await expect(blur.inputValue()).resolves.toBe('10')
+    await expect(lumenEval(page, (l, n) => l.useApp.getState().project!.report!.pages.flatMap((p) => p.visuals).find((v) => v.name === n)!.json.visual.objects?.shadowCustom ?? null, pick('cardVisual'))).resolves.toBeNull()
+
+    // ---- clustered column chart: theme title class on the axis titles, label position, total color…
+    await open(pick('clusteredColumnChart'))
+    await expect(card('X-axis').locator('[data-prop="titleFontFamily"] .wbi-dropdown__value').innerText()).resolves.toBe(theme.title.fontFace ?? 'DIN')
+    await expect(dropdownText('Data labels', 'labelPosition')).resolves.toBe('Auto')
+    const auto = await automaticControls(page)
+    // what remains automatic is what Power BI computes per render too
+    for (const a of auto) expect(a, a).toMatch(/▸ (start|end|labelPrecision|axisType|color|fill|defaultColor|barColor|backgroundColor|labelDisplayUnits)$/)
+    expect(auto).not.toContain('Y-axis ▸ titleFontSize')
+
+    // ---- table: values follow the theme label class
+    await open(pick('tableEx'))
+    await expect(spin('Values', 'fontSize').inputValue()).resolves.toBe(String(theme.label.fontSize ?? 10))
+    expect(await card('Values').locator('.wbi-color-btn__auto, .wbi-color-btn__swatch.is-empty').count()).toBe(0)
+    for (const a of await automaticControls(page)) expect(a, a).toMatch(/▸ (labelPrecision|imageWidth|backColor|alignment|fontColor|labelDisplayUnits)$|^Specific column/)
+    const valueSize = spin('Values', 'fontSize')
+    const shown = await valueSize.inputValue()
+    await valueSize.press('ArrowUp')
+    await expect(valueSize.inputValue()).resolves.toBe(String(Number(shown) + 1))
+    await card('Values').getByRole('button', { name: /^Reset / }).first().click()
+    await expect(valueSize.inputValue()).resolves.toBe(shown)
+
+    // ---- slicer: header / values fonts and colors
+    await open(pick('slicer'))
+    await expect(spin('Slicer header', 'textSize').inputValue()).resolves.not.toBe('')
+    await expect(spin('Values', 'textSize').inputValue()).resolves.not.toBe('')
+    await expect(colorOf('Values', 'fontColor')).resolves.toMatch(/^#[0-9A-F]{6}$/)
+    for (const a of await automaticControls(page)) expect(a, a).toMatch(/▸ background$/)
+    expect(await rendererErrors(page)).toEqual([])
   })
 })

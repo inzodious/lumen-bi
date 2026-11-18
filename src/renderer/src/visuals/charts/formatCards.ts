@@ -4,6 +4,7 @@
  */
 import type { FormatCardDef, FormatPropDef } from '../contract'
 import { DISPLAY_UNIT_OPTIONS } from '../common/units'
+import { PBI } from '../common/fmtProps'
 
 const FONT_PROPS = (prefix = '', defaults: { size?: number } = {}): FormatPropDef[] => [
   { name: prefix ? `${prefix}FontFamily` : 'fontFamily', displayName: 'Font', type: 'fontFamily', default: 'Segoe UI' },
@@ -273,7 +274,8 @@ export const totalsCard: FormatCardDef = {
   properties: [
     { name: 'show', displayName: 'Show', type: 'bool', default: false },
     ...FONT_PROPS(),
-    { name: 'color', displayName: 'Color', type: 'color', default: '#252423' },
+    // CartesianChart draws stacked totals in the data-label class
+    { name: 'color', displayName: 'Color', type: 'color', default: PBI.dataLabelColor },
     { name: 'labelDisplayUnits', displayName: 'Display units', type: 'displayUnits', options: DISPLAY_UNIT_OPTIONS, default: 0 },
     { name: 'labelPrecision', displayName: 'Value decimal places', type: 'integer', min: 0, max: 15 }
   ]

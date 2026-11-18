@@ -207,8 +207,9 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
   const label = theme.textClasses?.label ?? {}
   const fg = label.color ?? theme.foreground
   const family = label.fontFace ?? 'Segoe UI'
-  const legacySize = getProp<number | undefined>(pc, 'grid', 'textSize', undefined)
-  const baseSize = typeof legacySize === 'number' ? legacySize : typeof label.fontSize === 'number' ? label.fontSize : 10
+  const classSize = typeof label.fontSize === 'number' ? label.fontSize : 10
+  const legacySize = getProp<unknown>(pc, 'grid', 'textSize', classSize)
+  const baseSize = typeof legacySize === 'number' ? legacySize : classSize
 
   // Column headers use the `label` class (regular weight) per Learn's text-class table.
   const headerFont = readFont(pc, 'columnHeaders', { size: baseSize, color: fg, family })
@@ -308,9 +309,9 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
     }
   }
   const pbiTotalLabel = (v: unknown, fallback: string) => (typeof v === 'string' && v.length ? v : fallback)
-  const rowButtonSize = num(getProp<any>(pc, 'rowHeaders', 'expandCollapseButtonsSize', undefined), NaN)
-  const colButtonSize = num(getProp<any>(pc, 'columnHeaders', 'expandCollapseButtonsSize', undefined), NaN)
   const defaultButtonPx = Math.round((rowHeaderFont.size * 96) / 72 * 0.85)
+  const rowButtonSize = num(getProp<any>(pc, 'rowHeaders', 'expandCollapseButtonsSize', defaultButtonPx), NaN)
+  const colButtonSize = num(getProp<any>(pc, 'columnHeaders', 'expandCollapseButtonsSize', defaultButtonPx), NaN)
 
   return {
     pc,
@@ -325,7 +326,8 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
       buttons: {
         show: getProp<boolean>(pc, 'columnHeaders', 'showExpandCollapseButtons', isMatrix) !== false,
         size: Number.isFinite(colButtonSize) ? colButtonSize : defaultButtonPx,
-        color: optColor('columnHeaders', 'expandCollapseButtonsColor')
+        // +/- icons take the header text color unless set
+        color: getColor(pc, 'columnHeaders', 'expandCollapseButtonsColor', headerFont.color)
       },
       autoExpand: getProp<boolean>(pc, 'columnHeaders', 'autoExpand', false) === true,
       urlIcon: getProp<boolean>(pc, 'columnHeaders', 'urlIcon', false) === true
@@ -380,7 +382,7 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
       indentation: num(getProp<any>(pc, 'rowHeaders', 'steppedLayoutIndentation', 10), 10),
       showButtons: getProp<boolean>(pc, 'rowHeaders', 'showExpandCollapseButtons', true),
       buttonSize: Number.isFinite(rowButtonSize) ? rowButtonSize : defaultButtonPx,
-      buttonColor: optColor('rowHeaders', 'expandCollapseButtonsColor'),
+      buttonColor: getColor(pc, 'rowHeaders', 'expandCollapseButtonsColor', rowHeaderFont.color),
       autoExpand: getProp<boolean>(pc, 'rowHeaders', 'autoExpand', false) === true,
       unfrozen: getProp<boolean>(pc, 'rowHeaders', 'unfrozen', false) === true,
       urlIcon: getProp<boolean>(pc, 'rowHeaders', 'urlIcon', false) === true
@@ -503,4 +505,14 @@ function encodeForMatch(v: unknown): string {
     return `datetime'${v.getUTCFullYear()}-${p(v.getUTCMonth() + 1)}-${p(v.getUTCDate())}T${p(v.getUTCHours())}:${p(v.getUTCMinutes())}:${p(v.getUTCSeconds())}'`
   }
   return `'${String(v).replace(/'/g, "''")}'`
+}
+
+/**
+ * Format resolution without data, for the Format pane's effective values (VisualDefinition.formatDefaults). Adds an
+ * empty per-column entry so the "Specific column" readers run too.
+ */
+export function tableFormatDefaults(visualJson: any, theme: ResolvedTheme): void {
+  const v = visualJson?.visual ?? {}
+  const objects = { ...v.objects, columnFormatting: [...(v.objects?.columnFormatting ?? []), { selector: { metadata: '\u0000probe' }, properties: {} }] }
+  readTableFormat({ ...visualJson, visual: { ...v, objects } }, theme)
 }

@@ -153,9 +153,17 @@ export const PBI = {
  * e.g. CY24SU10 = DIN 12pt #252423.
  */
 export function axisTitleDefaults(fmt: FormatReader): { size: number; family: string; color: string } {
-  const tc = fmt.theme.textClasses?.title ?? {}
+  return axisTitleClass(fmt.theme)
+}
+
+/** The axis-title text defaults of a theme (also shown by the Format pane for unset axis titles). */
+export function axisTitleClass(theme: ResolvedTheme): { size: number; family: string; color: string } {
+  const tc = theme.textClasses?.title ?? {}
   return { size: tc.fontSize ?? PBI.axisTitleFontPt, family: tc.fontFace ?? 'DIN', color: tc.color ?? PBI.titleColor }
 }
+
+/** Fallback of the `callout` text class (gauge callout value, KPI indicator): classic theme DIN 45pt. */
+export const CALLOUT_FALLBACK = { size: 45, family: 'DIN', color: '#252423' }
 
 /** Default text style of a theme text class (label / callout / title / header) with fallbacks. */
 export function textClass(theme: ResolvedTheme, name: string, fallback: { size: number; family: string; color: string }): { size: number; family: string; color: string } {

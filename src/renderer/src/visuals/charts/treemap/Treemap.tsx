@@ -46,6 +46,11 @@ interface Group {
 }
 
 /** Groups = categories (Group role, drill-aware); leaves = Details series values per group. */
+/** Is a Details field bound (legend shown by default, one color per detail)? */
+export function treemapHasDetails(visualJson: any): boolean {
+  return ((visualJson?.visual?.query?.queryState?.Details?.projections ?? []) as any[]).length > 0
+}
+
 export function treemapNodes(d: CategoricalData, fmt: FormatReader, hasDetails: boolean): { groups: Group[]; leaves: Leaf[] } {
   const groups: Group[] = []
   const leaves: Leaf[] = []
@@ -79,7 +84,7 @@ export function treemapNodes(d: CategoricalData, fmt: FormatReader, hasDetails: 
 export function Treemap({ visual, width, height, ctx }: VisualProps) {
   const json = visual.json
   const fmt = useMemo(() => new FormatReader(json, ctx.theme), [json, ctx.theme])
-  const hasDetails = ((json?.visual?.query?.queryState?.Details?.projections ?? []) as any[]).length > 0
+  const hasDetails = treemapHasDetails(json)
   const q = useVisualQuery(json, ctx, () =>
     buildCategorical(json, ctx, { categoryRole: 'Group', seriesRole: hasDetails ? 'Details' : undefined, splitRoles: ['Values'], defaultSort: 'measureDesc', applyDefaultSortWhenUnsaved: true, highlight: true, fmt, varyColors: !hasDetails, maxSeries: 2000, maxCategories: 2000 })
   )

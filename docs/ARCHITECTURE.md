@@ -65,6 +65,13 @@ be coordinated — note them prominently in your final report.
 * **Field parameters**: projections pointing at a parameter column are expanded with `engine.resolveFieldParameter`.
 * **Calculation groups**: filters on a calc-group column apply the calc item to measures (SELECTEDMEASURE).
 * **Formatting**: always resolve via `props.ts` so theme `visualStyles` defaults apply exactly like Power BI.
+* **Format pane defaults**: an unset property shows the value the visual draws with (`panes/visualizations/effective.ts`),
+  never a copy of it. Visuals whose formatting is resolved by pure functions implement `VisualDefinition.formatDefaults`;
+  the pane runs it under `props.ts` `recordFallbacks` and shows the fallback each reader passed (a second run with the
+  Visual-tab switches on covers properties read only behind a switch). Charts use `panes/visualizations/chartDefaults.ts`,
+  built on the renderers' exported constants. `effectiveDefaults.test.tsx` renders every gallery fixture with an empty
+  format definition while recording the fallbacks and fails when a control shows anything else. A reader that resolves a
+  default outside `getProp` (e.g. `optStr(...) ?? x`) is invisible to both — pass the default as the fallback instead.
 * **Saving**: PBIR JSON round-trips (we mutate it in place). TMDL is regenerated from `SemanticModel`
   (with preserved `extra`/annotations). PBIX can't be written (proprietary DataModel); "Save" of a PBIX
   offers Save As PBIP or `.wbi` (Lumen bundle = PBIP + cached data).

@@ -1,0 +1,11 @@
+.wbi-codevisual { position: relative; overflow: hidden; }
+.wbi-codevisual__box { position: absolute; inset: 0; }
+.wbi-codevisual__frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: transparent; color-scheme: light; }
+.wbi-codevisual__overlay { position: absolute; inset: 0; background: transparent; }
+.wbi-codevisual__notice { position: absolute; right: 4px; bottom: 2px; font: 10px 'Segoe UI', 'Selawik', sans-serif; color: #605E5C; background: rgba(255, 255, 255, 0.85); padding: 0 4px; border-radius: 2px; pointer-events: none; }
+.wbi-codevisual__error { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px; box-sizing: border-box; text-align: center; font-family: 'Segoe UI', 'Selawik', 'Open Sans', sans-serif; color: #605E5C; overflow: hidden; }
+.wbi-codevisual__error-title { font-size: 12px; font-weight: 600; color: #252423; }
+.wbi-codevisual__error-msg { font-size: 11px; max-width: 360px; word-break: break-word; white-space: pre-wrap; }
+.wbi-codevisual__error-actions { display: flex; gap: 6px; }
+.wbi-codevisual__error-actions button { font: 12px 'Segoe UI', 'Selawik', sans-serif; padding: 3px 10px; border: 1px solid #8A8886; border-radius: 2px; background: #fff; color: #252423; cursor: pointer; }
+.wbi-codevisual__error-actions button:hover { background: #F3F2F1; }

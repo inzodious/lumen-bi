@@ -151,8 +151,8 @@ export interface VisualHostContext {
   showContextMenu(req: ContextMenuRequest): void
   actions: VisualActions
   report: ReportInfo
-  /** Persist a change to the visual JSON (e.g. a sort clicked in a table header, a slicer search). Undoable. */
-  updateVisual(mutator: (visualJson: any) => void): void
+  /** Persist a change to the visual JSON (e.g. a sort clicked in a table header, a slicer search). Undoable; `label` names the undo step (default "Edit visual"). */
+  updateVisual(mutator: (visualJson: any) => void, label?: string): void
 }
 
 export interface VisualProps {
@@ -251,6 +251,11 @@ export interface VisualDefinition {
   icon: string
   roles: DataRoleDef[]
   formatCards: FormatCardDef[]
+  /**
+   * Format cards that depend on the visual's JSON (the code visual's Parameters card, built from the parameters its
+   * code declares). When present, the Format pane uses it instead of `formatCards`.
+   */
+  formatCardsFor?(visualJson: any): FormatCardDef[]
   component: ComponentType<VisualProps>
   /** shown in the visualizations gallery (false for internal/legacy aliases) */
   inGallery?: boolean

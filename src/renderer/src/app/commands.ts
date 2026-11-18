@@ -4,6 +4,8 @@
  * Ribbon buttons, backstage entries, keyboard shortcuts and native menu commands all call these.
  */
 import { nanoid } from 'nanoid'
+import { CODE_OBJECT, CODE_VISUAL_TYPE } from '@core/codevisual/model'
+import { insertCodeVisual } from '../visuals/code/editorHost'
 import { openProject, saveProject } from '@core/io/open'
 import { generateSyntheticData, type SyntheticResult } from '@core/data/synthetic'
 import { emptyModel } from '@core/model/types'
@@ -416,6 +418,11 @@ function ensureReport(): boolean {
 
 /** Insert a visual of the given type on the active page and select it. Returns its name. */
 export function insertVisual(visualType: string, visual: Record<string, any> = {}, size?: { width: number; height: number }, label = 'Insert visual'): string | undefined {
+  // a new code visual starts from a starter template picked first (visuals/code/editorHost.tsx)
+  if (visualType === CODE_VISUAL_TYPE && !visual.objects?.[CODE_OBJECT]) {
+    void insertCodeVisual(visual)
+    return undefined
+  }
   ensureReport()
   const app = useApp.getState()
   let created: string | undefined

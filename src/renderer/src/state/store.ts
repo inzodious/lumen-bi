@@ -150,6 +150,17 @@ const produceReport = (report: ReportDocument, mutator: (r: ReportDocument) => v
     mutator(draft)
   })
 
+/** Report content that depends on the theme and must follow a theme change in the same undo step. */
+export type ThemeFollower = (draft: ReportDocument, theme: ResolvedTheme) => void
+const themeFollowers: ThemeFollower[] = []
+/**
+ * Register a follower: called inside `mutateReport` (on the produced report, same undo step) whenever an edit
+ * changes the report theme. Lumen icons use it to re-bake icons drawn in theme colours (icons/actions.ts).
+ */
+export function onReportThemeChange(fn: ThemeFollower): void {
+  if (!themeFollowers.includes(fn)) themeFollowers.push(fn)
+}
+
 function buildEngine(project: ProjectDocument | null): { engine: QueryEngine | null; engineError?: string } {
   if (!project) return { engine: null }
   try {
@@ -212,10 +223,14 @@ export const useApp = create<AppState>()((set, get) => ({
     if (!project?.report) return
     const now = Date.now()
     const snapshot: Snapshot = { label, report: project.report, model: project.model, coalesce: opts?.coalesce, at: now }
-    const report = produceReport(project.report, mutator)
+    let report = produceReport(project.report, mutator)
     if (report === project.report) return
-    const next = { ...project, report, dirty: true }
+    let next = { ...project, report, dirty: true }
     const theme = report.theme === project.report.theme ? get().theme : themeOf(next)
+    if (theme !== get().theme && themeFollowers.length) {
+      report = produceReport(report, (d) => themeFollowers.forEach((f) => f(d, theme)))
+      next = { ...project, report, dirty: true }
+    }
     const stack = get().undoStack
     const top = stack[stack.length - 1]
     if (opts?.coalesce && top?.coalesce === opts.coalesce && top.at !== undefined && now - top.at < COALESCE_MS && !get().redoStack.length) {

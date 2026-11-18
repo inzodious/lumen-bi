@@ -1,7 +1,9 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
+import { lumenIconData } from './scripts/icons/icon-data-plugin.ts'
 
 export default defineConfig({
+  plugins: [lumenIconData()],
   resolve: {
     alias: {
       '@core': resolve(import.meta.dirname, 'src/core'),

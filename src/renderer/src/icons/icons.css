@@ -1,0 +1,72 @@
+/* Icon picker (IconPicker.tsx): Power BI dialog chrome, Fluent-style lists and chips. */
+.wbi-iconpicker__body { display: flex; flex-direction: column; gap: 8px; padding: 0 24px 0; overflow: hidden; }
+.wbi-iconpicker__top { display: flex; align-items: flex-end; gap: 16px; }
+.wbi-iconpicker__sets { flex: 1; }
+.wbi-iconpicker__search { width: 240px; margin-bottom: 4px; }
+.wbi-iconpicker__main { flex: 1; min-height: 0; display: grid; grid-template-columns: 208px 1fr 232px; gap: 12px; }
+
+.wbi-iconpicker__cats { overflow-y: auto; padding: 4px 4px 8px 0; border-right: 1px solid var(--wbi-border-light); }
+.wbi-iconpicker__cat {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 28px; padding: 0 8px; border: 0; border-radius: var(--wbi-radius);
+  background: transparent; color: var(--wbi-fg); font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+}
+.wbi-iconpicker__cat.is-indent { padding-left: 30px; color: var(--wbi-fg-2); }
+.wbi-iconpicker__cat:hover:not(:disabled) { background: var(--wbi-hover); }
+.wbi-iconpicker__cat.is-active { background: var(--wbi-selected-bg); font-weight: 600; color: var(--wbi-fg); }
+.wbi-iconpicker__cat:disabled { color: var(--wbi-fg-disabled); cursor: default; }
+.wbi-iconpicker__cat:focus-visible { outline: 2px solid var(--wbi-focus); outline-offset: -2px; }
+.wbi-iconpicker__caticon { display: inline-flex; font-size: 16px; color: var(--wbi-fg-3); }
+.wbi-iconpicker__catlabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbi-iconpicker__catgroup { margin: 10px 8px 2px; font-size: 11px; font-weight: 600; color: var(--wbi-fg-3); text-transform: none; }
+
+.wbi-iconpicker__gridwrap { min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--wbi-border-light); border-radius: var(--wbi-radius); background: var(--wbi-bg); }
+.wbi-iconpicker__grid { flex: 1; min-height: 0; overflow-y: auto; padding: 4px; outline: none; }
+.wbi-iconpicker__row { position: absolute; left: 4px; right: 4px; top: 0; display: flex; }
+.wbi-iconpicker__cell {
+  flex: none; width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  border: 1px solid transparent; border-radius: var(--wbi-radius); background: transparent; cursor: pointer; color: var(--wbi-fg);
+}
+.wbi-iconpicker__cell:hover { background: var(--wbi-hover); }
+.wbi-iconpicker__cell.is-on { background: var(--wbi-selected-bg); border-color: var(--wbi-fg-2); }
+.wbi-iconpicker__cell:focus-visible { outline: 2px solid var(--wbi-focus); outline-offset: -2px; }
+.wbi-iconpicker__glyph { display: inline-flex; width: 28px; height: 28px; line-height: 0; pointer-events: none; }
+.wbi-iconpicker__empty { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; color: var(--wbi-fg-3); text-align: center; }
+
+.wbi-iconpicker__side { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; padding-right: 2px; }
+.wbi-iconpicker__preview { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wbi-iconpicker__tile { aspect-ratio: 1; border-radius: var(--wbi-radius); display: flex; align-items: center; justify-content: center; border: 1px solid var(--wbi-border); }
+.wbi-iconpicker__tile.is-light { background: #ffffff; }
+.wbi-iconpicker__tile.is-dark { background: #252423; border-color: #252423; }
+.wbi-iconpicker__tileglyph { display: inline-flex; width: 64px; height: 64px; line-height: 0; }
+.wbi-iconpicker__name { margin-top: 4px; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.wbi-iconpicker__sub { font-size: 12px; color: var(--wbi-fg-3); }
+.wbi-iconpicker__credit { font-size: 11px; color: var(--wbi-fg-3); }
+
+.wbi-iconpicker__controls { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.wbi-iconpicker__label { font-size: 12px; font-weight: 600; color: var(--wbi-fg); }
+.wbi-iconpicker__variants { display: flex; flex-wrap: wrap; gap: 4px; }
+.wbi-iconpicker__chip {
+  height: 24px; padding: 0 8px; border: 1px solid var(--wbi-border-input); border-radius: 12px; background: var(--wbi-bg);
+  font: inherit; font-size: 12px; color: var(--wbi-fg); cursor: pointer;
+}
+.wbi-iconpicker__chip:hover:not(:disabled) { background: var(--wbi-hover); }
+.wbi-iconpicker__chip.is-on { background: var(--wbi-fg); border-color: var(--wbi-fg); color: #ffffff; }
+.wbi-iconpicker__chip:disabled { color: var(--wbi-fg-disabled); border-color: var(--wbi-border); cursor: default; }
+.wbi-iconpicker__chip:focus-visible { outline: 2px solid var(--wbi-focus); outline-offset: 1px; }
+.wbi-iconpicker__colors { display: flex; flex-direction: column; gap: 6px; }
+.wbi-iconpicker__colors .wbi-field { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.wbi-iconpicker__colors .wbi-field > .wbi-color-btn { align-self: center; }
+.wbi-iconpicker__colors .wbi-field__label { font-size: 12px; font-weight: 400; }
+.wbi-iconpicker__note { font-size: 12px; }
+.wbi-iconpicker__stroke .wbi-slider { margin-top: 2px; }
+.wbi-iconpicker__controls.is-compact { margin-top: 0; }
+
+/* Format pane: icon source rows (IconSourceRows.tsx) */
+.wbi-iconsrc { display: flex; flex-direction: column; gap: 8px; }
+.wbi-iconsrc__pick { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 4px 8px; border: 1px solid var(--wbi-border-input); border-radius: var(--wbi-radius); background: var(--wbi-bg); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.wbi-iconsrc__pick:hover { background: var(--wbi-hover); }
+.wbi-iconsrc__thumb { display: inline-flex; width: 28px; height: 28px; flex: none; line-height: 0; }
+.wbi-iconsrc__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wbi-iconsrc__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.wbi-iconsrc__meta { color: var(--wbi-fg-3); font-size: 11px; }
+.wbi-iconsrc__note { font-size: 11px; color: var(--wbi-fg-3); }

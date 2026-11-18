@@ -15,6 +15,7 @@ import { PageSettingsDialog } from './PageSettingsDialog'
 import { ExportDataDialog } from './ExportDataDialog'
 import { ExportPagesDialog } from './ExportPagesDialog'
 import { DataSourceSettings } from '../views/powerquery/dialogs/SourceDialogs'
+import { IconPickerHost } from '../icons/IconPicker'
 
 export function DialogsHost() {
   const dialog = useShell((s) => s.dialog)
@@ -55,6 +56,7 @@ export function DialogsHost() {
       {body}
       <ExportDataDialog />
       <ExportPagesDialog />
+      <IconPickerHost />
     </>
   )
 }

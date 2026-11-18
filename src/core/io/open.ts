@@ -22,6 +22,7 @@ import { readDataModel } from './pbix/datamodel/index'
 import { pbipJson, pbipProjectFiles, readSemanticModelFiles, reportFiles, semanticModelFiles } from './pbip'
 import { LUMEN_LAYOUT_FILE } from './diagramSidecar'
 import { readWbi, writeWbi } from './wbi'
+import { pruneStaleIcons } from '../icons/bake'
 
 export interface OpenOptions {
   /** progress callback (0..1 + message) */
@@ -40,7 +41,12 @@ function stripExt(name: string): string {
 
 function project(name: string, source: ProjectSource, model: SemanticModel, data: DataStore, report: ReportDocument | undefined, diagnostics: Diagnostic[]): ProjectDocument {
   const doc: ProjectDocument = { id: newId(), name, source, model, data, diagnostics, dirty: false }
-  if (report) doc.report = report
+  if (report) {
+    // Lumen icons whose baked image was replaced outside Lumen (e.g. in Power BI): the image wins (docs/ICONS.md)
+    const stale = pruneStaleIcons(report)
+    if (stale) diagnostics.push({ level: 'info', message: `${stale} icon${stale === 1 ? '' : 's'} replaced by another image outside Lumen now show as plain images.` })
+    doc.report = report
+  }
   return doc
 }
 

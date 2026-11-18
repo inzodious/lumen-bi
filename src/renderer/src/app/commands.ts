@@ -23,6 +23,10 @@ import { toast } from './ui/Notify'
 import { APP_NAME } from './brand'
 import { openModelingDialog } from '../dialogs/modeling'
 import { defaultThemeFor, setReportTheme } from './themes'
+import { IMAGE_VISUAL_SLOT, bakeIcon } from '@core/icons/bake'
+import { loadIconSet, variantsOf } from '@core/icons/registry'
+import { openIconPicker } from '../icons/IconPicker'
+import { rebakeIconsBeforeSave } from '../icons/actions'
 
 const host = () => window.wbi
 
@@ -222,6 +226,9 @@ async function doSave(project: ProjectDocument, target: string, format: 'pbip' |
   const app = useApp.getState()
   app.setBusy({ message: `Saving ${basename(target)}…` })
   try {
+    // baked icons match the current theme before they are written (docs/ICONS.md)
+    await rebakeIconsBeforeSave()
+    if (useApp.getState().project?.id === project.id) project = useApp.getState().project!
     await saveProject(project, target, host().fs, { format })
     const name = basename(target).replace(/\.(pbip|wbi)$/i, '')
     useApp.getState().markSaved({ kind: format === 'wbi' ? 'wbi' : 'pbip', path: target }, name)
@@ -484,6 +491,27 @@ export async function insertImage(): Promise<void> {
     created = addVisual(page, 'image', placement(r, 240, 160), {
       objects: { general: [{ properties: { imageUrl: { expr: { ResourcePackageItem: { PackageName: 'RegisteredResources', PackageType: 1, ItemName: itemName } } } } }] }
     })
+  })
+  if (created) useApp.getState().selectVisuals([created])
+}
+
+/**
+ * Insert ▸ Icon: pick an icon from the built-in libraries and add it as an image visual. The icon is baked to an
+ * SVG image resource (what Power BI shows) with an editable Lumen reference beside it (core/icons/bake.ts).
+ */
+export async function insertIcon(): Promise<void> {
+  const ref = await openIconPicker({ title: 'Insert icon', confirmLabel: 'Insert' })
+  if (!ref) return
+  const data = await loadIconSet(ref.set)
+  if (!variantsOf(data, ref.name).includes(ref.variant)) return
+  ensureReport()
+  let created: string | undefined
+  useApp.getState().mutateReport('Insert icon', (r) => {
+    const page = activePageDoc(r)
+    if (!page) return
+    created = addVisual(page, 'image', placement(r, 96, 96), {})
+    const v = page.visuals.find((x) => x.name === created)
+    if (v) bakeIcon(r, v.json, IMAGE_VISUAL_SLOT, ref, data, useApp.getState().theme)
   })
   if (created) useApp.getState().selectVisuals([created])
 }

@@ -370,6 +370,8 @@ export const cardVisualDef: VisualDefinition = {
       properties: [
         { name: 'imageType', displayName: 'Image source', type: 'enum', options: [{ value: 'imageData', label: 'Select from data' }, { value: 'imageUrl', label: 'Image URL' }] },
         { name: 'imageUrl', displayName: 'URL', type: 'text' },
+        // Lumen icons: "Icon" in Image source, baked as an SVG data URI into imageUrl (docs/ICONS.md)
+        { name: 'lumenIcon', displayName: 'Icon', type: 'iconSource', icon: { object: 'image', property: 'imageUrl', form: 'dataUri', typeProp: 'imageType' } },
         { name: 'position', displayName: 'Position', type: 'enum', options: SIDES },
         { name: 'fit', displayName: 'Image fit', type: 'enum', options: FITS },
         { name: 'imageAreaSize', displayName: 'Image area size (%)', type: 'integer', min: 0, max: 100, default: 50 },
@@ -389,6 +391,7 @@ export const cardVisualDef: VisualDefinition = {
       properties: [
         { name: 'imageType', displayName: 'Image source', type: 'enum', options: [{ value: 'imageUrl', label: 'Image URL' }, { value: 'imageData', label: 'Select from data' }] },
         { name: 'imageUrl', displayName: 'URL', type: 'text' },
+        { name: 'lumenIcon', displayName: 'Icon', type: 'iconSource', icon: { object: 'cardImage', property: 'imageUrl', form: 'dataUri', typeProp: 'imageType' } },
         { name: 'imageUrlFit', displayName: 'Image fit', type: 'enum', options: FITS },
         { name: 'imageDataFit', displayName: 'Image fit (data)', type: 'enum', options: FITS },
         { name: 'imageHeight', displayName: 'Image height (px)', type: 'integer', min: 0 },

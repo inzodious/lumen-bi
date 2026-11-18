@@ -76,6 +76,7 @@ export const AUTO_REASONS: Array<{ match: RegExp; reason: string }> = [
   { match: /^(labels|categoryLabels)\.color$/, reason: 'data-label color picked per label (contrast inside, label class outside)' },
   { match: /^(dataPoint\.(fill|defaultColor)|error\.barColor|lineStyles\.(areaColor|markerColor)|anomalyDetection\.confidenceBandColor|markers\.borderColor)$/, reason: 'follows each series / category color' },
   { match: /^goals\.distanceFontColor$/, reason: 'follows the KPI status color' },
+  { match: /\.(lumenIcon|lumenIconSource)$/, reason: 'Lumen icon source (pseudo property, icons/IconSourceRows): no icon until one is chosen' },
   { match: /^(plotArea\.color|smallMultiplesLayout\.backgroundColor|card\.cardBackground|(columnHeaders|rowHeaders|total|rowTotal|columnTotal)\.backColor|blankRows\.blankRowColor|(header|items|searchBox|numericInputStyle|date)\.background)$/, reason: 'no fill drawn unless set' },
   { match: /^columnFormatting\./, reason: 'a specific column inherits the values / header formatting' },
   { match: /^(columnHeaders|rowHeaders|columnFormatting)\.(alignment|titleAlignment)$|^referenceLabelLayout\.horizontalAlignment$/, reason: 'aligned by content (numbers right, text left) / by the layout style' },

@@ -188,6 +188,8 @@ export type FormatPropType =
   | 'alignment'
   | 'displayUnits'
   | 'image'
+  /** Lumen icon source for an image slot (`FormatPropDef.icon`); a pseudo property, never written to PBIR itself */
+  | 'iconSource'
 
 export interface FormatPropDef {
   name: string
@@ -206,6 +208,22 @@ export interface FormatPropDef {
    * Field value fx on another text property; `false` hides the fx button.
    */
   conditional?: boolean
+  /** type 'iconSource': the image slot the icon is baked into (see core/icons/bake.ts, docs/ICONS.md) */
+  icon?: FormatIconSlot
+}
+
+/** Where an `iconSource` row bakes its icon. */
+export interface FormatIconSlot {
+  /** PBIR object + property that hold the image */
+  object: string
+  property: string
+  /** 'resource' = registered SVG resource (image visual), 'dataUri' = SVG data URI in a URL property (cards) */
+  form: 'resource' | 'dataUri'
+  /**
+   * The slot's "Image source" enum property in the same card (cards: `imageType`): its dropdown gains an "Icon"
+   * entry and the URL row is hidden while an icon is shown. Without one, the icon row offers Image / Icon itself.
+   */
+  typeProp?: string
 }
 
 export interface FormatCardDef {

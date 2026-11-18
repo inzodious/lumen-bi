@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { VisualProps } from '../contract'
 import { decodeLiteral } from '@core/report/literal'
+import { IMAGE_VISUAL_SLOT, activeIcon } from '@core/icons/bake'
 import { useAction } from './useAction'
+import { useApp } from '../../state/store'
+import { IconGlyph } from '../../icons/IconGlyph'
 
 export interface ImageSource {
   /** resolved URL (data:, blob:, http(s):, file:) */
@@ -56,11 +59,29 @@ export function objectFit(scaling: ImageSource['scaling']): 'contain' | 'fill' |
   return scaling === 'Fit' ? 'fill' : scaling === 'Fill' ? 'cover' : 'contain'
 }
 
+/** SVG preserveAspectRatio for PBI scaling (same meaning as objectFit). */
+export function aspectFor(scaling: ImageSource['scaling']): string {
+  return scaling === 'Fit' ? 'none' : scaling === 'Fill' ? 'xMidYMid slice' : 'xMidYMid meet'
+}
+
 export function ImageVisual({ visual, width, height, ctx }: VisualProps) {
   const src = readImageSource(visual.json, (ref) => ctx.report.resolveImage(ref))
   const action = useAction(visual.json, ctx)
   const [failed, setFailed] = useState<string | undefined>()
   const broken = !src.url || failed === src.url
+  // A Lumen icon (core/icons/bake.ts): drawn as inline vector SVG from the icon library, the same picture
+  // as the baked resource Power BI shows (kept in step on every icon / theme edit). Only when the stored
+  // image still matches the icon; otherwise the image is shown as any other image.
+  const report = useApp((s) => s.project?.report)
+  const icon = useMemo(() => (report ? activeIcon(report, visual.json, IMAGE_VISUAL_SLOT)?.icon : undefined), [report?.resources, visual.json])
+  if (icon) {
+    const img = !broken ? <img src={src.url} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: objectFit(src.scaling), display: 'block' }} /> : null
+    return (
+      <div className="wbi-image-icon" data-icon={`${icon.set}:${icon.name}`} style={{ width, height, overflow: 'hidden', cursor: action.interactive ? 'pointer' : undefined }} onClick={action.onClick} title={action.interactive ? action.title : undefined}>
+        <IconGlyph icon={icon} theme={ctx.theme} preserveAspectRatio={aspectFor(src.scaling)} title={icon.name.replace(/-/g, ' ')} fallback={img} style={{ display: 'flex' }} />
+      </div>
+    )
+  }
   return (
     <div
       style={{ width, height, overflow: 'hidden', cursor: action.interactive ? 'pointer' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center' }}

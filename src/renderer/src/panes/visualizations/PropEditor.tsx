@@ -21,6 +21,7 @@ import { cfKindFor, findCF, propTarget, type CFContext } from './cf/target'
 import { FxButton, FxChip } from './cf/FxControls'
 import { PercentSlider, Segmented, SpinField } from './controls'
 import { BIU, layoutProps, propState } from './propModel'
+import { IconSourceRows, IconTypeRow, useSlotIcon } from '../../icons/IconSourceRows'
 
 export { layoutProps, propState, type PropLayoutItem, type PropState } from './propModel'
 
@@ -91,7 +92,8 @@ function wrapFor(def: FormatPropDef, v: string | number | boolean): any {
 
 const IMAGE_MIME: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml', bmp: 'image/bmp', webp: 'image/webp' }
 
-async function pickImage(): Promise<((r: ReportDocument) => any) | null> {
+/** File ▸ open an image and register it as a report resource; returns the PBIR ResourcePackageItem writer. */
+export async function pickImage(): Promise<((r: ReportDocument) => any) | null> {
   const paths = await window.wbi.dialog.openFile({ title: 'Open image', filters: [{ name: 'Images', extensions: Object.keys(IMAGE_MIME) }] })
   if (!paths?.[0]) return null
   const bytes = await window.wbi.fs.readFile(paths[0])
@@ -329,13 +331,26 @@ export function PropRows({ defs, object, target, selFor }: { defs: FormatPropDef
   const sel = selFor ?? (() => undefined)
   // conditional formatting lives on single-property rows: keep those apart
   const fx = (d: FormatPropDef) => !!cfKindFor(d, object, target.cf)
+  // Lumen icons (icons/IconSourceRows): an image slot that can hold a built-in icon
+  const iconDef = defs.find((d) => d.type === 'iconSource' && d.icon)
+  const iconOn = !!useSlotIcon(target, iconDef, iconDef ? sel(iconDef) : undefined).binding
+  const row = (d: FormatPropDef) => {
+    if (iconDef && d === iconDef) return <IconSourceRows key={d.name} def={d} target={target} selector={sel(d)} pickImage={pickImage} />
+    if (iconDef?.icon?.typeProp === d.name) {
+      const state = propEditor({ def: d, object, target, selector: sel(d) })
+      return <IconTypeRow key={d.name} typeDef={d} iconDef={iconDef} target={target} selector={sel(iconDef)} value={state.value} onSet={(v) => state.set(v)} />
+    }
+    // the URL row would show the baked data URI: hidden while the slot holds an icon
+    if (iconOn && iconDef?.icon?.property === d.name && iconDef.icon.object === object) return null
+    return <PropRow key={d.name} def={d} object={object} target={target} selector={sel(d)} />
+  }
   return (
     <>
       {layoutProps(defs).map((item) => {
         if (item.kind === 'font' && !fx(item.family) && !fx(item.size)) return <FontRow key={item.family.name} family={item.family} size={item.size} object={object} target={target} selFor={sel} />
         if (item.kind === 'style' && !item.defs.some(fx)) return <StyleRow key={item.defs[0].name} defs={item.defs} object={object} target={target} selFor={sel} />
         const list = item.kind === 'row' ? [item.def] : item.kind === 'font' ? [item.family, item.size] : item.defs
-        return list.map((d) => <PropRow key={d.name} def={d} object={object} target={target} selector={sel(d)} />)
+        return list.map(row)
       })}
     </>
   )

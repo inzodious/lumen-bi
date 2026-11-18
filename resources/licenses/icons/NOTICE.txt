@@ -1,0 +1,16 @@
+Lumen bundles icon artwork from four third-party icon libraries (see docs/ICONS.md and THIRD_PARTY_NOTICES.md).
+The artwork is taken from the Iconify JSON packages of each library (@iconify-json/fluent, @iconify-json/fluent-color,
+@iconify-json/ph, @iconify-json/tabler, @iconify-json/icon-park), which repackage the libraries' own SVG files under
+the libraries' own licences. The licence texts are in this folder.
+
+  Fluent UI System Icons   Copyright (c) 2020 Microsoft Corporation        MIT          fluentui-system-icons.LICENSE.txt
+  Phosphor Icons           Copyright (c) 2023 Phosphor Icons               MIT          phosphor.LICENSE.txt
+  Tabler Icons             Copyright (c) 2020-2026 Paweł Kuna               MIT          tabler-icons.LICENSE.txt
+  IconPark                 Copyright 2019-present Bytedance Inc.            Apache-2.0   iconpark.LICENSE.txt
+
+Modifications (stated as required by section 4(b) of the Apache License 2.0 for IconPark, and applying to every set):
+at build time Lumen converts the SVG bodies into its own data format (scripts/icons/icon-data-plugin.ts,
+src/core/icons/normalize.ts). Fixed colours are replaced by colour placeholders (IconPark's four theme colours, the
+`currentColor` of the other sets, Phosphor's 20 % opacity duotone layer becomes a second colour), stroke widths become
+adjustable, Fluent icons are kept in one size per icon and placed on a 24 px grid. When a user inserts an icon, Lumen
+writes an SVG with the chosen colours, stroke weight and padding into the user's report.

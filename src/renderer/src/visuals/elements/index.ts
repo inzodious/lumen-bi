@@ -156,6 +156,8 @@ registerVisual({
       object: 'imageScaling',
       displayName: 'Image',
       properties: [
+        // Lumen: image file or built-in icon (icons/IconSourceRows; baked into general.imageUrl, docs/ICONS.md)
+        { name: 'lumenIconSource', displayName: 'Source', type: 'iconSource', icon: { object: 'general', property: 'imageUrl', form: 'resource' } },
         p('imageScalingType', 'Image fit', 'enum', {
           options: [
             { value: 'Normal', label: 'Normal' },

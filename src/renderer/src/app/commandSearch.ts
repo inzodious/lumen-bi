@@ -5,7 +5,7 @@ import { createElement, type ReactElement } from 'react'
 import type { FluentIcon } from '@fluentui/react-icons'
 import {
   DocumentAddRegular, FolderOpenRegular, SaveRegular, SaveEditRegular, ArrowSyncRegular, DatabaseArrowRightRegular, TableAddRegular, TableEditRegular,
-  DataBarVerticalAddRegular, TextFieldRegular, SlideAddRegular, ImageRegular, CalculatorRegular, MathFormulaRegular, TableSimpleRegular, OrganizationRegular,
+  DataBarVerticalAddRegular, TextFieldRegular, SlideAddRegular, ImageRegular, IconsRegular, CalculatorRegular, MathFormulaRegular, TableSimpleRegular, OrganizationRegular,
   DocumentPdfRegular, SlideTextRegular, ImageMultipleRegular, CodeRegular, PaintBrushRegular, FilterRegular, BookmarkRegular, LayerRegular, SettingsRegular,
   InfoRegular, BeakerRegular, ArrowUndoRegular, ArrowRedoRegular, ColorRegular, EyeRegular
 } from '@fluentui/react-icons'
@@ -13,7 +13,7 @@ import { useApp } from '../state/store'
 import { useShell } from './shellState'
 import { openExportDialog } from '../export'
 import { importThemeFile } from './themes'
-import { insertImage, insertTextBox, insertVisual, newPage, newReport, openFileDialog, refreshAll, runModelingCommand, save, saveAs, useSampleData, regenerateSampleData, undo, redo, loadSampleProject } from './commands'
+import { insertIcon, insertImage, insertTextBox, insertVisual, newPage, newReport, openFileDialog, refreshAll, runModelingCommand, save, saveAs, useSampleData, regenerateSampleData, undo, redo, loadSampleProject } from './commands'
 
 export interface SearchableCommand {
   id: string
@@ -48,6 +48,7 @@ function commands(): SearchableCommand[] {
     { id: 'visual', label: 'New visual', group: 'Insert', keywords: 'chart', icon: ic(DataBarVerticalAddRegular), run: () => void insertVisual('clusteredColumnChart') },
     { id: 'text', label: 'Text box', group: 'Insert', icon: ic(TextFieldRegular), run: insertTextBox },
     { id: 'image', label: 'Image', group: 'Insert', icon: ic(ImageRegular), run: () => void insertImage() },
+    { id: 'icon', label: 'Icon', group: 'Insert', icon: ic(IconsRegular), run: () => void insertIcon() },
     { id: 'page', label: 'New page', group: 'Insert', icon: ic(SlideAddRegular), run: newPage },
     { id: 'measure', label: 'New measure', group: 'Modeling', keywords: 'dax', icon: ic(CalculatorRegular), run: () => void runModelingCommand('newMeasure') },
     { id: 'column', label: 'New column', group: 'Modeling', keywords: 'calculated dax', icon: ic(MathFormulaRegular), run: () => void runModelingCommand('newColumn') },

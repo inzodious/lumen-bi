@@ -6,7 +6,7 @@
 import type { ReactElement } from 'react'
 import {
   ClipboardPasteRegular, CutRegular, CopyRegular, PaintBrushRegular, DatabaseArrowRightRegular, DocumentTableRegular, DatabaseRegular, TableAddRegular,
-  ArrowSyncRegular, DataBarVerticalAddRegular, TextFieldRegular, CalculatorRegular, CalculatorArrowClockwiseRegular, ShareRegular, SlideAddRegular, ImageRegular,
+  ArrowSyncRegular, DataBarVerticalAddRegular, TextFieldRegular, CalculatorRegular, CalculatorArrowClockwiseRegular, ShareRegular, SlideAddRegular, ImageRegular, IconsRegular,
   ShapesRegular, ButtonRegular, OrganizationRegular, BranchRegular, OptionsRegular, PersonSquareRegular, ColorRegular, PageFitRegular, ArrowAutofitWidthRegular,
   RatioOneToOneRegular, FilterRegular, BookmarkRegular, LayerRegular, TimerRegular, QuestionCircleRegular, InfoRegular, LightbulbRegular, PeopleCommunityRegular,
   BookOpenRegular, ArrowUpRegular, ArrowDownRegular, AlignLeftRegular, GroupRegular, ArrowForwardRegular, PauseRegular, PlayRegular, DataTrendingRegular,
@@ -29,7 +29,7 @@ import { RibbonButton, RibbonGroup, RibbonStack, RibbonGallery } from './Ribbon'
 import type { MenuItem } from '../ui/Menu'
 import { promptDialog } from '../ui/Modal'
 import { BUILTIN_THEMES, ThemeSwatch, applyTheme, currentThemeName, importThemeFile, saveCurrentTheme } from '../themes'
-import { insertButton, insertImage, insertShape, insertTextBox, insertVisual, newPage, refreshAll, runModelingCommand, type ShapeKind, type ButtonKind } from '../commands'
+import { insertButton, insertIcon, insertImage, insertShape, insertTextBox, insertVisual, newPage, refreshAll, runModelingCommand, type ShapeKind, type ButtonKind } from '../commands'
 import { duplicatePage } from '../../report/editOps'
 import { MobileRibbonGroup } from '../../report/mobile'
 import { toggleFormatPainter, useFormatPainter } from '../../report/formatPainter'
@@ -266,7 +266,16 @@ function InsertTab() {
         <RibbonButton label="Text box" icon={L(TextFieldRegular)} onClick={insertTextBox} />
         <RibbonButton label="Buttons" icon={L(ButtonRegular)} menu={BUTTONS.map((b) => ({ label: b.label, onClick: () => insertButton(b.kind) }))} />
         <RibbonButton label="Shapes" icon={L(ShapesRegular)} menu={SHAPES.map((s) => ({ label: s.label, onClick: () => insertShape(s.kind) }))} />
-        <RibbonButton label="Image" icon={L(ImageRegular)} onClick={() => void insertImage()} />
+        <RibbonButton
+          label="Image"
+          icon={L(ImageRegular)}
+          onClick={() => void insertImage()}
+          menu={[
+            { label: 'Image from file…', onClick: () => void insertImage() },
+            { label: 'Icon…', onClick: () => void insertIcon() }
+          ]}
+        />
+        <RibbonButton label="Icon" icon={L(IconsRegular)} onClick={() => void insertIcon()} tooltip="Insert an icon from the built-in libraries (Fluent UI, Phosphor, Tabler, IconPark) as an image." />
       </RibbonGroup>
     </>
   )

@@ -15,6 +15,8 @@ import { Root } from './app/Router'
 import { maybeStartSweep } from './app/sweep/sweep'
 // register the Table/Column/Measure tools contextual ribbon tabs at startup (not only when a modeling view loads)
 import './dialogs/modeling/ribbonTabs'
+// icons: theme-change re-bakes and set preloading (docs/ICONS.md)
+import './icons/actions'
 
 // PBIX DataModel decoding reads metadata.sqlitedb with sql.js; point it at the bundled wasm.
 setSqlJsFactory(() => initSqlJs({ locateFile: () => wasmUrl }))

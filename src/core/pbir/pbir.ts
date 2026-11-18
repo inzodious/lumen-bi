@@ -19,6 +19,7 @@ import { joinPath, walk, type FileSystem } from '../io/fs'
 import { convertLegacyLayout } from './legacy'
 import { makeResource } from './resources'
 import { PBIR_VERSION, SCHEMA } from './schemas'
+import { externalizeCode, internalizeCode } from '../codevisual/storage'
 
 export type FileMap = Record<string, Uint8Array>
 export type OutFileMap = Record<string, Uint8Array | string>
@@ -167,6 +168,8 @@ export function readPbirFiles(files: FileMap, origin: ReportDocument['origin'] =
     if (p.startsWith('StaticResources/')) doc.resources[p] = makeResource(p, bytes)
     else doc.extraFiles[p] = bytes
   }
+  // code visuals: code.html / code.css / code.jsx beside visual.json go back into the visual's JSON
+  internalizeCode(doc.pages, doc.extraFiles, diagnostics)
   doc.theme = resolveThemes(doc, diagnostics)
   return doc
 }
@@ -217,7 +220,10 @@ export function pbirToFiles(doc: ReportDocument): OutFileMap {
     const base = `definition/pages/${p.name}`
     out[`${base}/page.json`] = jsonText(p.json)
     for (const v of p.visuals) {
-      out[`${base}/visuals/${v.name}/visual.json`] = jsonText(v.json)
+      // code visuals: their code goes into files beside visual.json (diff-friendly, see core/codevisual/storage.ts)
+      const code = externalizeCode(v.json)
+      out[`${base}/visuals/${v.name}/visual.json`] = jsonText(code.json)
+      for (const [f, text] of Object.entries(code.files)) out[`${base}/visuals/${v.name}/${f}`] = text
       if (v.mobile !== undefined) out[`${base}/visuals/${v.name}/mobile.json`] = jsonText(v.mobile)
     }
   }

@@ -39,7 +39,7 @@ Open **Data source settings** from:
 
 - the **Data source settings…** link at the bottom of the **Get Data** dialog,
 - **Home > Data source settings** in the Power Query editor,
-- **File > Options > Security > Data source settings…**,
+- **File > Options and settings > Options > Security > Data source settings…**,
 - **Edit credentials…** in the **Refresh** dialog after a sign-in or permission error.
 
 ![The Data source settings dialog listing three data sources of the current file (a PostgreSQL server, a web API and a SQL Server database) with their authentication and the queries that use them, plus Edit Permissions, Clear Permissions and Close buttons.](../images/connect-and-transform/credentials-and-privacy-data-source-settings.png)
@@ -71,7 +71,7 @@ For a web source, the dialog first asks for the level the settings apply to:
 | Amazon S3 / S3-compatible | **Access key** (with optional session token), **Profile**, **Default credential chain**, **Anonymous** |
 | Files, folders, SQLite, DuckDB, lakehouse folders | **Anonymous**: files are read with your system permissions |
 
-For SQL Server, the default method used during refresh when a source has no saved entry is set in **File > Options > Security > Authentication method**.
+For SQL Server, the default method used during refresh when a source has no saved entry is set in **File > Options and settings > Options > Security > Authentication method**.
 
 ## OAuth 2.0 sign-in
 

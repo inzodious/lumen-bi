@@ -57,19 +57,19 @@ Put a second column into the **Field** well to build a hierarchy slicer (for exa
 | To | Do this |
 |---|---|
 | Select one value (list or tile) | Select it. With **Multi-select with CTRL** on (the default), a plain click replaces the selection. |
-| Add or remove a value | Hold **Ctrl** and select it. |
+| Add or remove a value | Hold Ctrl and select it. |
 | Select everything | Select **Select all** (shown when **Show "Select all" option** is on). |
-| Pick a value in a dropdown | Select the box to open the list, then select the value. Press **Esc** to close the list. |
-| Set a range | Type dates or numbers in the two boxes and press **Enter**, or drag the slider handles. |
+| Pick a value in a dropdown | Select the box to open the list, then select the value. Press Esc to close the list. |
+| Set a range | Type dates or numbers in the two boxes and press Enter, or drag the slider handles. |
 | Clear the slicer | Hover over the slicer and select the eraser icon (**Clear selections**) in its header, or right-click the slicer and select **Clear selections**. |
 
 The other visuals on the page update as soon as the selection changes. The selection is saved into the slicer's
 visual definition, so it is kept when you save the report and is restored by [bookmarks](bookmarks.md).
 
 > [!TIP]
-> List and dropdown slicers can be used from the keyboard: **Enter**, **Space** or **Alt+Down arrow** opens a
-> dropdown; **Up** and **Down arrow**, **Home**, **End**, **Page up** and **Page down** move; **Space** or **Enter**
-> selects; **Right** and **Left arrow** expand and collapse hierarchy levels; **Esc** closes.
+> List and dropdown slicers can be used from the keyboard: Enter, Space or Down arrow opens a
+> closed dropdown; Up and Down arrow, Home, End, Page Up and Page Down move; Space or Enter
+> selects; Right and Left arrow expand and collapse hierarchy levels; Esc closes.
 
 Two date or numeric range slicers on the same column keep their own available range: narrowing one does not shrink the
 range the other offers, as in Power BI Desktop.
@@ -146,7 +146,7 @@ this has not been verified, and Power BI will not apply them.
   example, a vertical list slicer still shows **Slider**, **Date inputs** and the date picker cards; they have no
   effect until you switch to a style that uses them. Power BI Desktop shows only the cards of the current style.
 - A slicer filtered to a value that the generated sample data replaced shows a *Sample stand-in* notice; see
-  [Sample data](../get-started/README.md).
+  [Reports without data and sample data](../files-and-compatibility/reports-without-data-and-sample-data.md).
 - [Sync slicers](sync-slicers.md) can share a slicer's selection with other pages.
 - How slicers filter other visuals can be changed only in the report file (`visualInteractions` in the page
   definition); see [Visual interactions](visual-interactions.md).

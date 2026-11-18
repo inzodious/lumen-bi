@@ -1,6 +1,6 @@
 # Refresh data
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 A refresh runs each table's Power Query query again and loads the result into the model. This article covers how to start a refresh, the **Refresh** dialog and its per-table status, what **Cancel** does and does not stop, errors, and what happens to the data you had before.
 
@@ -16,7 +16,7 @@ A refresh runs each table's Power Query query again and loads the result into th
 | Every table | **Home > Refresh**, or search for **Refresh** in the title bar's search box |
 | One table | Right-click the table in the **Data** pane and select **Refresh data**, or select **Refresh** in Table view when the table has no data |
 | Tables whose queries you changed | **Close & Apply** or **Apply** in the Power Query editor |
-| Tables a report opened without | **Refresh from source** in the *No data loaded* notification, or set **File > Options > Global > Data Load > When tables have no data** to **Refresh from the data sources** |
+| Tables a report opened without | **Refresh from source** in the *No data loaded* notification, or set **File > Options and settings > Options > Global > Data Load > When tables have no data** to **Refresh from the data sources** |
 
 ## The Refresh dialog
 

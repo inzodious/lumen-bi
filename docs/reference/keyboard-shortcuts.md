@@ -56,6 +56,15 @@ mobile layout editor is on.
 
 When **Lock objects** is on (**View > Page options**), the arrow keys do nothing.
 
+In the mobile layout editor, with visuals selected on the phone canvas:
+
+| Keys | Action |
+|---|---|
+| Arrow keys | Move the selected visuals by 1 pixel (nothing when the layout is locked) |
+| Shift+Arrow | Move by 20 pixels |
+| Delete or Backspace | Remove the selected visuals from the mobile layout (they stay on the page) |
+| Esc | Clear the selection |
+
 These also work in reading view:
 
 | Keys | Action |

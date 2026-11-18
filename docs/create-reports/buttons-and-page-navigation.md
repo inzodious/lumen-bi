@@ -62,14 +62,14 @@ Country*.
 ### Try it: a page button
 
 1. Select **Insert > Buttons > Right arrow**.
-2. In **Format visual > General > Action**, enter `Customers & Regions` in **Destination page** and press **Enter**.
-3. Hold **Ctrl** and select the button. Lumen opens the **Customers & Regions** page.
+2. In **Format visual > General > Action**, enter `Customers & Regions` in **Destination page** and press Enter.
+3. Hold Ctrl and select the button. Lumen opens the **Customers & Regions** page.
 
 ## Run an action
 
 | Mode | How |
 |---|---|
-| Edit mode | **Ctrl**+click the button. A plain click selects it for editing, as in Power BI Desktop. |
+| Edit mode | Ctrl+click the button. A plain click selects it for editing, as in Power BI Desktop. |
 | Reading view (**View > Reading view**) | Click the button. |
 
 ## Format a button

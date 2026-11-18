@@ -1,8 +1,11 @@
 # Built-in icons
 
+> **Applies to:** Developers
+
 Lumen lets you put an icon on a report without Power BI's workarounds (an image file per icon, an SVG data URI built
-in a DAX measure, a web URL): pick it, colour it, and it renders, exports, saves and reopens, including in Power BI
-Desktop, which sees an ordinary image.
+in a DAX measure, a web URL): pick it, colour it, and it renders, exports, saves and reopens in Lumen. The saved
+report is designed so that Power BI Desktop sees an ordinary image; that has not been verified (see the end of
+[How an icon is saved](#how-an-icon-is-saved)).
 
 The icons are **the React components of icon libraries**, rendered natively on the canvas, in the picker, in the
 Format pane and in exports. Lumen never assembles icon SVG from path data.
@@ -60,10 +63,9 @@ via `preserveAspectRatio`) with the library component nested in it:
 Each set is a separate chunk imported by `loadIconSet()` when the picker shows the set, when a canvas visual draws one
 of its icons, and for the sets a report uses right after it is opened (so theme re-bakes inside an edit are
 synchronous). Loading a set also loads `react-dom/server` (its own chunk), which renders the picture copy. While a set
-loads the app counts as busy (`readiness`), so captures and exports wait. Built renderer, measured against the build
-before this change: initial JS (entry + modulepreloads) 7.78 MB (was 7.80 MB), chunks `lu` 1.08 MB,
-`fluentColor.generated` 0.60 MB, `server.browser` 0.46 MB (unminified), total output 15.9 MB (was 26.5 MB with the
-Iconify data).
+loads the app counts as busy (`readiness`), so captures and exports wait. Sizes of the built renderer (unminified):
+initial JS (entry + modulepreloads) 7.78 MB, chunks `lu` 1.08 MB, `fluentColor.generated` 0.60 MB, `server.browser`
+0.46 MB, total output 15.9 MB.
 
 ## How an icon is saved
 
@@ -87,9 +89,8 @@ only stores the string.
   selector (`core/report/entries.ts`). A data-bound source in that entry (`imageData` from "Select from data", or a
   measure-bound `imageUrl`) is removed so nothing can prefer it over the icon; what the slot held before
   (`imageType`, `imageUrl`, `imageData`) is kept in the binding's `restore` and written back when the icon is removed
-  or the Image source is switched back (also after save and reopen). Icons that the first build put into a stray
-  selector-less entry behind a `{ id: 'default' }` one (where the card never showed them) are moved onto the right
-  entry on open.
+  or the Image source is switched back (also after save and reopen). An icon found in a stray selector-less
+  entry behind a `{ id: 'default' }` one (where the card never shows it) is moved onto the right entry on open.
 * **The reference**: the visual's `annotations` (visualContainer schema: `[{ name, value: string }]`, preserved and
   ignored by Power BI), name `Lumen_Icon`:
 
@@ -106,7 +107,7 @@ one (none, or a series `metadata`); `id: 'default'` is ignored when slots are co
 
 * **On open** a binding whose slot no longer holds what was baked (the picture was replaced in Power BI, or by an
   image edit in Lumen) is stale: the image wins and the binding is dropped. A binding to a set Lumen no longer offers
-  (`fluent`, `phosphor`, `tabler`, `iconpark` from an earlier build) is dropped too and its picture stays as a plain
+  (`fluent`, `phosphor`, `tabler`, `iconpark`) is dropped too and its picture stays as a plain
   image. Both are reported as info diagnostics (`pruneStaleIcons`, `core/io/open.ts`).
 * **Re-bake** happens on every icon edit, inside the same undo step when the report theme changes
   (`onReportThemeChange` in `state/store.ts`; icons with literal colours and Fluent Color icons are left alone), and

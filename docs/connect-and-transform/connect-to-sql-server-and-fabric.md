@@ -56,11 +56,11 @@ With a SQL statement, the query is `Sql.Database("server", "database", [Query="�
 
 When a sign-in needs a device code, Lumen shows a dialog with the code and the verification address, with buttons to copy the code and open the address. Sign in in the browser; the dialog closes by itself when the sign-in completes or fails. Tokens are cached for the session per sign-in method and tenant; **Data source settings** has a button to sign out of Microsoft accounts.
 
-To use a specific tenant, set **Tenant ID (optional)** in **File > Options > Security** (for every SQL source) or in the source's **Edit Permissions** dialog.
+To use a specific tenant, set **Tenant ID (optional)** in **File > Options and settings > Options > Security** (for every SQL source) or in the source's **Edit Permissions** dialog.
 
 ## Refresh uses the stored settings, not the dialog
 
-During a refresh, each SQL source authenticates with, in order: the credentials saved for that server and database in **Data source settings**, then those saved for the server, then the default in **File > Options > Security > Authentication method** (initially **Microsoft Entra ID — default credential chain**).
+During a refresh, each SQL source authenticates with, in order: the credentials saved for that server and database in **Data source settings**, then those saved for the server, then the default in **File > Options and settings > Options > Security > Authentication method** (initially **Microsoft Entra ID — default credential chain**).
 
 > [!IMPORTANT]
 > A user name and password typed in the connection dialog are used to read the Navigator and the first load. They are not saved to **Data source settings** by that dialog, so a later refresh falls back to the default Microsoft account sign-in. Save the login in **Data source settings > Edit Permissions** (choose **Database**) to refresh with it. This is how the code behaves; it was not verified against a server.

@@ -32,7 +32,7 @@ A group of visuals has only the General tab.
 
 1. Expand a card by selecting its name. Cards with an on/off switch in their header (such as **Legend** or **Data
    labels**) turn the whole feature on or off.
-2. Change a property. Changes apply at once and are added to the undo history (**Ctrl+Z**). Dragging a slider or
+2. Change a property. Changes apply at once and are added to the undo history (Ctrl+Z). Dragging a slider or
    holding a spin button counts as one change.
 
 Controls follow Power BI Desktop: color pickers with the theme colors and a custom color, a font list with a size box,
@@ -82,7 +82,7 @@ control; select the chip to edit the rule or **x** to remove it. See [Conditiona
 
 1. Select the visual whose formatting you want to copy.
 2. Select **Home > Format painter**.
-3. Select the visual to format. **Esc** cancels.
+3. Select the visual to format. Esc cancels.
 
 ## Mobile layout formatting
 

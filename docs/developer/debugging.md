@@ -13,8 +13,8 @@ The main window is frameless and has no visible menu, so the developer shortcuts
 
 | Shortcut | Effect | Available |
 |---|---|---|
-| **F12** or **Ctrl+Shift+I** | toggle Chromium's developer tools for the renderer | always, including built and installed runs |
-| **Ctrl+R** | reload the renderer | only under `npm run dev` |
+| F12 or Ctrl+Shift+I | toggle Chromium's developer tools for the renderer | always, including built and installed runs |
+| Ctrl+R | reload the renderer | only under `npm run dev` |
 
 Under `npm run dev`, electron-vite serves the renderer with hot module replacement, so most renderer edits apply
 without a reload. Changes to `src/main` or `src/preload` restart or rebuild those parts; reload the window when a

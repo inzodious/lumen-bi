@@ -29,7 +29,7 @@ The steps use the **Overview** page of the built-in sample.
 
 1. Select the **Bikes** slice of **Sales by category**. The KPI cards show bike figures ($3M total sales instead of
    $6M), the bar and column charts highlight the bike part of each bar, and the **Stores** table is filtered.
-2. Hold **Ctrl** and select another slice to add it to the selection. Ctrl-select a selected point to remove it.
+2. Hold Ctrl and select another slice to add it to the selection. Ctrl-select a selected point to remove it.
 3. To clear the selection, select the same single point again, or select an empty area inside the source visual.
 
 In edit mode, the first click on a visual that is not selected both selects the visual and makes the data point
@@ -71,7 +71,7 @@ file only shows a note.)
 ## Differences from Power BI Desktop
 
 - No **Edit interactions** mode and no report setting for the default interaction (see above).
-- In Power BI Desktop, **Ctrl** also adds to a selection across several visuals; Lumen keeps one source visual at a
+- In Power BI Desktop, Ctrl also adds to a selection across several visuals; Lumen keeps one source visual at a
   time.
 
 ## Related content

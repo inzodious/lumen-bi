@@ -94,7 +94,7 @@ fields show the carried values.
 
 ![The drill-through target page: a back arrow button at the top left and a Total Sales card showing $2M for the United States.](../images/create-reports/drill-down-and-drillthrough-target-page.png)
 
-4. To return, select the back button. While editing, hold **Ctrl** and select it (a plain click selects the button
+4. To return, select the back button. While editing, hold Ctrl and select it (a plain click selects the button
    for editing, as in Power BI Desktop). In reading view a plain click works.
 
 A [button](buttons-and-page-navigation.md) with the **Drill through** action does the same from a selected data

@@ -35,8 +35,8 @@ pages show a **Tooltip** or **Drillthrough** badge.
 - **Select**: **All**, **None**, **Visible only** (pages not hidden), **Current page**.
 - **Select all** ticks or clears every page; it shows a mixed state when some pages are ticked. The count reads, for
   example, *2 of 3 pages selected*.
-- Keyboard: **Ctrl+A** ticks every page; click a page, then **Shift**+click another to tick the range; **Space** ticks
-  or clears the focused page; **Enter** exports; **Esc** cancels.
+- Keyboard: Ctrl+A ticks every page; click a page, then Shift+click another to tick the range; Space ticks
+  or clears the focused page; Enter exports; Esc cancels.
 - With no page ticked, **Export** is disabled and the dialog says *Select at least one page*.
 
 Lumen remembers your selection for the report until you close Lumen; the next export (in any format) starts from it.
@@ -67,7 +67,7 @@ Each page is drawn again for the export, from its saved state:
 ## When a page takes too long
 
 Lumen waits for every visual of a page to finish drawing (up to 12 seconds per page, with a 20-second safety limit per
-export job). If a page is not finished in time, it is still exported as far as it was drawn, and the notification
+render job: one job per page for images, PowerPoint and HTML, one job for all pages of a PDF). If a page is not finished in time, it is still exported as far as it was drawn, and the notification
 changes to **Export complete, but some pages were not fully rendered**, naming each page and how many visuals were
 still loading, for example *Sales (2 visuals still loading)*. This notification stays until you close it.
 

@@ -30,7 +30,8 @@ PowerPoint and HTML embed the pages as images at 2× resolution.
 ## "Export complete, but some pages were not fully rendered"
 
 Lumen does not wait forever for a page. If a visual is still loading after the page's time limit (about 12 seconds
-for the page to report that it is ready, with a 20-second safety limit per page above that), the page is exported
+for the page to report that it is ready, with a 20-second safety limit per render job above that: one job per page for
+images, PowerPoint and HTML, one job for all pages of a PDF), the page is exported
 as far as it was drawn and Lumen says so. It never drops a page silently. The warning stays on screen until you close
 it and reads, for example:
 

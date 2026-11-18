@@ -92,7 +92,7 @@ Each setting is written to the same theme JSON key Power BI Desktop's dialog wri
 | **Text** | **General** | **Font family**, **Font size (pt)**, **Font color** for labels, axis text, legends and table values | `textClasses.label` |
 | | **Title** | The same for visual titles and axis titles | `textClasses.title` |
 | | **Cards and KPIs** | The same for callout values of cards and KPIs | `textClasses.callout` |
-| | **Tab headers** | The same for column and row headers of tables and matrices, and slicer headers | `textClasses.header` |
+| | **Tab headers** | The same for column and row headers of tables and matrices, and slicer headers (saved in the theme; Lumen's visuals do not read it yet, see below) | `textClasses.header` |
 | **Visuals** | **Background** | **Color**, **Transparency (%)** | `visualStyles["*"]["*"].background` |
 | | **Border** | **Border** (on or off), **Color**, **Width (px)**, **Rounded corners (px)** | `visualStyles["*"]["*"].border` |
 | | **Header** | **Show header**, **Background color**, **Border color**, **Icon color**, **Transparency (%)** | `visualStyles["*"]["*"].visualHeader` |
@@ -133,8 +133,8 @@ Each format property is resolved in this order:
 2. the theme's `visualStyles` for this visual type (`visualStyles.<visualType>["*"]`);
 3. the theme's `visualStyles` for all visuals (`visualStyles["*"]["*"]`);
 4. the visual's own default, which often comes from the theme's colors and text classes: data colors in order for
-   series, `textClasses.label` for labels and axis text, `textClasses.title` for titles, `textClasses.callout` for card
-   values, `textClasses.header` for table headers.
+   series, `textClasses.label` for labels, axis text and table text, `textClasses.title` for titles,
+   `textClasses.callout` for card values.
 
 The Format pane shows the result of this order for every property you have not set, so after a theme change the pane
 shows the new defaults. See [Format a visual](format-a-visual.md#what-an-unset-property-shows).
@@ -151,6 +151,8 @@ Built-in icons drawn in a theme color follow a theme change; see [Icons](icons.m
   Storm and the five Accessible themes were sampled from published images and may differ from Power BI's by a few
   units per channel. Most built-in themes have 8 data colors in Lumen (Power BI's have more), and their sentiment and
   divergent colors are left to the base theme.
+- Lumen's visuals do not read the `header` text class (table and matrix headers take their defaults from `label`).
+  A **Tab headers** setting is saved in the theme but does not change any header in Lumen.
 - Picking a built-in theme stores it in the report as a custom theme file rather than as a reference to Power BI's
   built-in theme.
 - Theme files are written in Power BI's format and registered as Power BI registers them; opening such a report in

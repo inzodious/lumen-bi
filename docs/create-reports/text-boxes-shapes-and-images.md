@@ -19,7 +19,7 @@ article shows how to insert and format each of them in Lumen, and the current li
 1. Select **Insert > Text box** (also on the **Home** tab). An empty 280 × 64 px text box without a background is
    added to the page.
 2. Double-click the text box to edit it. A dashed outline shows that you are editing.
-3. Type the text. Press **Enter** for a new paragraph.
+3. Type the text. Press Enter for a new paragraph.
 4. Select outside the text box to finish editing.
 
 > [!WARNING]
@@ -41,11 +41,11 @@ visual has no visual-specific formatting options.* What Lumen does keep and rend
 > [!WARNING]
 > Editing rewrites the text as plain paragraphs. Each paragraph keeps the style of its first run, its alignment and its
 > list formatting; mixed formatting inside a paragraph, links and dynamic values in the edited text box become plain
-> text in that style. Use **Ctrl+Z** to undo an edit that lost formatting.
+> text in that style. Use Ctrl+Z to undo an edit that lost formatting.
 
 Use the **General** tab for the box itself (background, border, padding, shadow), as for any visual.
 
-Links in a text box open in your web browser: click them in reading view, or **Ctrl**+click them while editing.
+Links in a text box open in your web browser: click them in reading view, or Ctrl+click them while editing.
 
 ## Shapes
 

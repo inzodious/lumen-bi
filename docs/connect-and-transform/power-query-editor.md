@@ -1,6 +1,6 @@
 # The Power Query editor
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 The Power Query editor is where you shape the data of each table before it reaches the model: remove columns, filter rows, change types, merge and append queries, add columns. Every action adds an *applied step*, a line of Power Query M, and Lumen evaluates the query with its own M engine to show a preview.
 
@@ -104,7 +104,7 @@ Each column header shows a type icon (ABC text, 123 whole number, $ fixed decima
 
 **Column quality** and **Column distribution** add bars under the headers (valid, error and empty shares; distinct and unique counts). **Column profile** opens a pane with **Column statistics** and **Value distribution** for the selected column. Profiling is based on the preview rows (top 1,000).
 
-**File** has **Close & Apply**, **Apply**, **Discard & Close**, **Save**, **Options and settings** and **Data source settings**.
+**File** has **Close & Apply**, **Apply**, **Discard & Close**, **Save**, and **Options and settings** with **Data source settings** and **Options**.
 
 ## Apply or discard your changes
 

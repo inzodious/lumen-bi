@@ -2,7 +2,7 @@
 
 > **Applies to:** Developers
 
-This article explains how Lumen's built-in icons are referenced, drawn, saved into PBIR so Power BI shows them as ordinary images, and kept in step with the report. The design document with the full storage format, verification status and bundle sizes is [ICONS.md](../ICONS.md); this article is the developer's map of the code and links there for detail.
+This article explains how Lumen's built-in icons are referenced, drawn, saved into PBIR so that Power BI is designed to show them as ordinary images (not verified), and kept in step with the report. The design document with the full storage format, verification status and bundle sizes is [ICONS.md](../ICONS.md); this article is the developer's map of the code and links there for detail.
 
 ## Overview
 

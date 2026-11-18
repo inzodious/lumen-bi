@@ -1,6 +1,6 @@
 # Create calculated columns
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 A calculated column adds a column to a table whose value is computed by a DAX formula once per row and stored with the table. Use it for values you want to slice, filter or group by; use a measure for values that must react to filters. This article shows how to create calculated columns in Lumen and when they are computed.
 
@@ -20,7 +20,7 @@ A calculated column adds a column to a table whose value is computed by a DAX fo
    Line Margin = Sales[SalesAmount] - Sales[Cost]
    ```
 
-4. Press **Enter** to commit.
+4. Press Enter to commit.
 
 Lumen computes the column for every row, infers its data type from the values (whole number, decimal number, text, date, true/false) and, for a numeric column, sets its default summarization to **Sum** unless you chose another one. The column appears in the **Data** pane with a calculated-column icon, and in Table view as an extra column.
 

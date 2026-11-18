@@ -155,8 +155,8 @@ The steps follow the path of an existing database connector (`PostgreSQL.Databas
 ### Prerequisites
 
 - A working checkout ([development-environment.md](development-environment.md)).
-- A Node library for the source that does not need a native build (`npm install` is coordinated across
-  workstreams; see [contributing.md](contributing.md)), or a protocol you can speak with `fetch`.
+- A Node library for the source that does not need a native build (a new dependency must be
+  justified and listed with its licence; see [contributing.md](contributing.md)), or a protocol you can speak with `fetch`.
 - For live tests: Docker and a public container image of the server.
 
 ### Steps

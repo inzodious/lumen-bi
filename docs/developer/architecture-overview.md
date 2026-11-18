@@ -57,7 +57,7 @@ flowchart TB
   REP --> ENG
 ```
 
-The same picture as text:
+The layers as text:
 
 ```text
  Electron main (src/main)            Preload (src/preload)          Renderer (src/renderer/src)

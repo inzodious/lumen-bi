@@ -94,11 +94,11 @@ return.
 ## Filters from the visual context menu
 
 Right-click a data point in a chart and select **Include** or **Exclude** to keep or remove that point. Lumen adds a
-visual-level filter (type *Include* or *Exclude*) to the visual. Undo (**Ctrl+Z**) removes it.
+visual-level filter (type *Include* or *Exclude*) to the visual. Undo (Ctrl+Z) removes it.
 
 > [!WARNING]
 > The Include / Exclude filter is applied but is not shown as its own card in **Filters on this visual**: the card for
-> the field still reads *is (All)*. Use **Ctrl+Z** right away to take it back. Removing it later is not possible from
+> the field still reads *is (All)*. Use Ctrl+Z right away to take it back. Removing it later is not possible from
 > the pane in this version.
 
 ## Format the Filters pane

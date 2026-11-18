@@ -24,7 +24,7 @@ DAX query view lets you write DAX queries against the open model and see their r
    ORDER BY 'Date'[Year]
    ```
 
-2. Select **Run**, or press **F5** or **Ctrl+Enter**. When text is selected, only the selection runs.
+2. Select **Run**, or press F5 or Ctrl+Enter. When text is selected, only the selection runs.
 
 The results appear below the editor:
 
@@ -121,7 +121,7 @@ The query returns **69.8%**: with no filters, `[Sales LY]` covers 2023–2024 (t
 - Each query lives in a tab at the bottom of the view. Select **+** (**New query**) to add one; right-click a tab to **Rename**, **Duplicate** or **Delete** it.
 - Query text is saved with the model as `DAXQueries/<tab name>.dax` files in the semantic model folder, the location Power BI Desktop uses, so the tabs come back when you reopen a PBIP project or a `.wbi` bundle.
 - **History** lists the last 100 queries you ran in this session, with their outcome and time. Select one to put its text back in the editor. History is not saved.
-- **Format query** (**Shift+Alt+F**), **Comment** and **Uncomment** (**Ctrl+/**) and **Find** (**Ctrl+F**) work on the current tab.
+- **Format query** (Shift+Alt+F), **Comment** and **Uncomment** (Ctrl+/) and **Find** (Ctrl+F) work on the current tab.
 
 ## Considerations and limitations
 

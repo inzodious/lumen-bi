@@ -1,6 +1,6 @@
 # Troubleshoot a measure
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 When a measure shows an error, a blank, an unexpected number or takes too long, the tools in this article help you find out why: the formula bar's error line and live value, DAX query view's quick queries, and the Performance analyzer with the DAX query each visual sends.
 

@@ -1,6 +1,6 @@
 # Get data overview
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 The **Get Data** dialog is where every import starts. This article walks through the dialog, the Navigator that follows it, and what Lumen adds to your model when you select **Load** or **Transform data**.
 
@@ -81,7 +81,7 @@ For each item you load, Lumen:
   (This is the query Lumen generated for the file in the screenshot; only the folder in the path is shortened.)
 - Sets each column's data type from the detected type (here `Store` text, `Year` and `Target` whole numbers) and a default format: whole numbers `0`, dates *Long Date* when no value has a time, fixed decimal numbers as currency.
 - Loads the rows it already read for the preview, or reads the full table first for database sources, so the table is usable at once. A later [refresh](refresh-data.md) runs the M query again.
-- When **Autodetect new relationships after data is loaded** is on (**File > Options > Current file > Data Load**), creates many-to-one relationships to existing tables: same column name and data type, unique values on one side, and every value on the other side found there. One-to-one matches are skipped.
+- When **Autodetect new relationships after data is loaded** is on (**File > Options and settings > Options > Current file > Data Load**), creates many-to-one relationships to existing tables: same column name and data type, unique values on one side, and every value on the other side found there. One-to-one matches are skipped.
 
 A message in the corner confirms the load, for example *Loaded "store-targets" (8 rows).*
 
@@ -97,7 +97,7 @@ If you had no report open, Lumen starts a blank report first.
 ## Differences from Power BI Desktop
 
 - The connector list is Lumen's own: it includes connectors Power BI Desktop does not have (SQLite, DuckDB, Firestore, S3-compatible storage, lakehouse folders, network shares, paged REST and GraphQL templates) and lacks most of Power BI's online-service connectors.
-- **Data source settings…** is a link in the Get Data dialog footer instead of a ribbon button in Report view (it is also on the Power Query editor ribbon and in **File > Options > Security**).
+- **Data source settings…** is a link in the Get Data dialog footer instead of a ribbon button in Report view (it is also on the Power Query editor ribbon and in **File > Options and settings > Options > Security**).
 
 ## Related content
 

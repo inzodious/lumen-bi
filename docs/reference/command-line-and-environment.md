@@ -48,8 +48,8 @@ Handled in `createWindow()` in `src/main/index.ts` (the window is frameless and 
 
 | Keys | Effect |
 |---|---|
-| **F12** or **Ctrl+Shift+I** | Toggle Chromium developer tools. |
-| **Ctrl+R** | Reload the renderer. Development server (`npm run dev`) only. |
+| F12 or Ctrl+Shift+I | Toggle Chromium developer tools. |
+| Ctrl+R | Reload the renderer. Development server (`npm run dev`) only. |
 
 ## Application environment variables
 
@@ -70,7 +70,7 @@ Read by the Electron main process (`src/main/index.ts`) or the preload (`src/pre
 | `WBI_TIMEOUT` | `60000` (capture), `900000` (sweep) | Milliseconds. Capture: how long to wait for readiness before taking the picture anyway (the log then contains `[capture] timed out waiting for document.body.dataset.wbiReady`). Sweep: overall limit per report; on expiry the process exits with code 3. `scripts/sweep.sh` adds 30 s to it for its own `timeout`. |
 | `LUMEN_E2E` | unset | `1` enables end-to-end test mode (ignored when `WBI_CAPTURE` is set): a throwaway profile, the window is shown inactive and keeps painting when unfocused, and closing never prompts. Set by `e2e/harness.ts`. |
 | `LUMEN_USER_DATA` | a temp folder `lumen-e2e-<pid>` | Profile folder in end-to-end mode. When you set it, the folder is kept after the run; the default one is deleted on quit. |
-| `ELECTRON_RENDERER_URL` | unset | Set by `electron-vite dev`. When present the main process loads the renderer from the development server (hot module replacement) and enables **Ctrl+R**. |
+| `ELECTRON_RENDERER_URL` | unset | Set by `electron-vite dev`. When present the main process loads the renderer from the development server (hot module replacement) and enables Ctrl+R. |
 | `ELECTRON_RUN_AS_NODE` | set to `1` by VS Code terminals | Makes the Electron binary behave as plain Node, so the app fails at startup with `SyntaxError: The requested module 'electron' does not provide an export named 'BrowserWindow'`. Every npm script and repository script unsets it (`env -u ELECTRON_RUN_AS_NODE`); do the same when you run `electron` yourself. |
 | `npm_package_version` | `0.1.0` | Read by the preload as `window.wbi.app.version`. npm sets it when the app starts through an npm script. |
 

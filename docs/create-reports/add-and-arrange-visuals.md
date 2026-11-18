@@ -34,16 +34,16 @@ visible part of the page.
 | To | Do this |
 |---|---|
 | Select one visual | Select it on the canvas. |
-| Add to or remove from the selection | **Ctrl**+select or **Shift**+select. |
+| Add to or remove from the selection | Ctrl+select or Shift+select. |
 | Select several by area | Drag on an empty area of the page; every visual touched by the rectangle is selected. |
-| Select all visuals on the page | **Ctrl+A** |
-| Clear the selection | **Esc**, or select an empty area outside the page. |
+| Select all visuals on the page | Ctrl+A |
+| Clear the selection | Esc, or select an empty area outside the page. |
 
 ## Move and resize
 
-- **Move**: drag the visual. **Arrow** keys move the selection by 1 px, **Ctrl+Arrow** by 10 px (by the grid size,
+- **Move**: drag the visual. **Arrow** keys move the selection by 1 px, Ctrl+Arrow by 10 px (by the grid size,
   16 px, when **Snap to grid** is on).
-- **Resize**: drag one of the eight handles. **Shift+Arrow** resizes by 1 px, **Ctrl+Shift+Arrow** by 10 px.
+- **Resize**: drag one of the eight handles. Shift+Arrow resizes by 1 px, Ctrl+Shift+Arrow by 10 px.
 - **Exact values**: on the **General** tab of the Format pane, **Properties > Size** has **Height** and **Width** and
   **Properties > Position** has **Horizontal** and **Vertical**. Turn on **Lock aspect ratio** to keep the proportions
   when you change one dimension.
@@ -51,7 +51,7 @@ visible part of the page.
 ### Snapping and smart guides
 
 While you drag, the visual snaps to the edges and centers of the page and of the other visuals, and red guide lines show
-what it lines up with. Hold **Alt** while dragging to move or resize freely.
+what it lines up with. Hold Alt while dragging to move or resize freely.
 
 ![A card being dragged on the Overview page of the sample: red guide lines show that its right edge lines up with the card above and its top edge with the top of the line chart.](../images/create-reports/add-and-arrange-visuals-smart-guides.png)
 
@@ -103,10 +103,10 @@ from its menu) and **Format > Send backward** (or **Send to back**). The Selecti
 ## Group visuals
 
 1. Select two or more visuals.
-2. Select **Format > Group > Group**, or press **Ctrl+G**.
+2. Select **Format > Group > Group**, or press Ctrl+G.
 
 A group moves and resizes as one item and shows as a folder in the Selection pane. To undo it, select the group and
-choose **Format > Group > Ungroup**, or press **Ctrl+Shift+G**.
+choose **Format > Group > Ungroup**, or press Ctrl+Shift+G.
 
 ## Use the Selection pane
 
@@ -126,14 +126,14 @@ Open it with **View > Selection** or **Format > Selection**.
 
 ## Copy, paste and delete
 
-- **Ctrl+C**, **Ctrl+X** and **Ctrl+V** copy, cut and paste visuals, also to another page. A visual pasted on the page
+- Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste visuals, also to another page. A visual pasted on the page
   it came from is offset by 20 px; pasting again offsets it further.
-- **Delete** (or **Backspace**) deletes the selected visuals.
+- Delete (or Backspace) deletes the selected visuals.
 - **Home > Format painter** copies the formatting of the selected visual; then select another visual to apply it.
-  **Esc** cancels.
+  Esc cancels.
 
 Keyboard shortcuts work when the canvas has the focus. After you type in the Format pane, select the visual on the
-canvas again before pressing **Ctrl+C** or **Ctrl+V**.
+canvas again before pressing Ctrl+C or Ctrl+V.
 
 ## Considerations and limitations
 

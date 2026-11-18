@@ -28,8 +28,8 @@ Select the monitor icon (**Web layout**) to return to the normal layout.
 1. In **Page visuals**, double-click a visual, or drag it onto the phone canvas. A green check marks the visuals that
    are on the phone layout.
 2. Drag a visual on the phone canvas to move it, or drag its handles to resize it. Positions snap to a 5 px grid
-   (with **Snap to grid** on); hold **Shift** while resizing to keep the aspect ratio.
-3. With a visual selected, the arrow keys move it by 1 px, **Shift**+arrow by 20 px. **Delete** removes it from the
+   (with **Snap to grid** on); hold Shift while resizing to keep the aspect ratio.
+3. With a visual selected, the arrow keys move it by 1 px, Shift+arrow by 20 px. Delete (or Backspace) removes it from the
    phone layout (not from the page).
 4. Right-click a visual on the phone canvas for **Bring to front**, **Send to back** and **Remove from mobile layout**.
 
@@ -68,7 +68,7 @@ Lumen-made mobile layout in Power BI Desktop has not been verified.
   one and check the phone canvas.
 - Size and position on the phone are edited on the phone canvas; the **Properties** card of the **General** tab is
   not shown in the mobile layout.
-- Undo (**Ctrl+Z**) covers every mobile layout edit.
+- Undo (Ctrl+Z) covers every mobile layout edit.
 
 ## Differences from Power BI Desktop
 

@@ -81,7 +81,7 @@ Number.FromText("1,5", "es-ES")
 
 ## The Locale for import option
 
-**File > Options > Global > Regional Settings** has a **Locale for import** drop-down (English (United States), English (United Kingdom), German, French, Spanish, Italian, Dutch, Portuguese (Brazil), Japanese, Chinese (Simplified)), described as *Used to format numbers and dates in visuals and to interpret text when loading data.*
+**File > Options and settings > Options > Global > Regional Settings** has a **Locale for import** drop-down (English (United States), English (United Kingdom), German, French, Spanish, Italian, Dutch, Portuguese (Brazil), Japanese, Chinese (Simplified)), described as *Used to format numbers and dates in visuals and to interpret text when loading data.*
 
 ![The Options dialog, Regional Settings section, with Locale for import set to English (United States).](../images/connect-and-transform/data-types-and-locale-regional-settings.png)
 

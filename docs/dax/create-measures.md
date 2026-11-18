@@ -1,6 +1,6 @@
 # Create measures
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 A measure is a named DAX formula that is evaluated in the filter context of each cell of a visual, so one formula gives a different value per row, column, slicer selection and total. This article shows how to create, edit, format and organize measures in Lumen.
 
@@ -24,7 +24,7 @@ A measure is a named DAX formula that is evaluated in the filter context of each
    ```
 
    While you type, the editor suggests functions, tables, columns and measures. See [The formula bar and the DAX editor](the-formula-bar-and-dax-editor.md).
-4. Press **Enter** (**Ctrl+Enter** when the formula has several lines) or select the check mark (**Commit**) to save the measure. Press **Esc** or select **Cancel** to discard your edits. Moving the focus out of the formula bar also commits, as in Power BI Desktop.
+4. Press Enter (Ctrl+Enter when the formula has several lines) or select the check mark (**Commit**) to save the measure. Press Esc or select **Cancel** to discard your edits. Moving the focus out of the formula bar also commits, as in Power BI Desktop.
 
 The measure appears in the **Data** pane under its table. On the sample with no filters it evaluates to **$2,348,710** (the formula bar's live value shows `= 2348710.25` until you give the measure a format).
 
@@ -58,10 +58,10 @@ ORDER BY 'Date'[Year]
 
 ## Edit, rename or move a measure
 
-- **Edit the formula**: select the measure in the **Data** pane; its definition opens in the formula bar. Edit and press **Enter**.
+- **Edit the formula**: select the measure in the **Data** pane; its definition opens in the formula bar. Edit and press Enter.
 - **Rename**: change the name before the `=` in the formula bar, use **Measure tools > Name**, or right-click the measure and select **Rename**. Lumen renames references to the measure in other measures and in the report's visuals, as Power BI Desktop does.
 - **Move to another table**: on the **Measure tools** contextual tab, pick a table in **Home table**. Model view's **Properties** pane has the same setting.
-- **Delete**: right-click the measure and select **Delete from model**. Undo (**Ctrl+Z**) restores it.
+- **Delete**: right-click the measure and select **Delete from model**. Undo (Ctrl+Z) restores it.
 
 ## Format a measure
 

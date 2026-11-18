@@ -20,7 +20,7 @@ shows how to add, apply, update and organize bookmarks in Lumen.
    **Category** slicer.
 2. In the **Bookmarks** pane, select **Add**. A bookmark named **Bookmark 1** (the next free number) is added with its
    name ready to edit.
-3. Type a name, for example *Bikes only*, and press **Enter**.
+3. Type a name, for example *Bikes only*, and press Enter.
 
 Add a second bookmark after clearing the slicer (*All categories*) to switch between the two.
 

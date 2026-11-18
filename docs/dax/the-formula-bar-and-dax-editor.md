@@ -1,6 +1,6 @@
 # The formula bar and the DAX editor
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 Lumen has one DAX editor, used by the formula bar, DAX query view and the dialogs that take DAX (row-level security filters, calculation items). This article describes where the formula bar appears, how to commit and cancel, and what the editor does while you type: autocomplete, parameter hints, hover help, error checking and formatting.
 
@@ -23,10 +23,10 @@ Calculation groups do not open in the formula bar; edit their items in the calcu
 
 | Action | Keys or control |
 |---|---|
-| Commit a single-line formula | **Enter**, or the check mark (**Commit**) |
-| Commit a formula with several lines | **Ctrl+Enter**, or the check mark |
-| New line | **Shift+Enter** (or **Enter** when the formula already has several lines) |
-| Cancel your edits | **Esc**, or the cross (**Cancel**) |
+| Commit a single-line formula | Enter, or the check mark (**Commit**) |
+| Commit a formula with several lines | Ctrl+Enter, or the check mark |
+| New line | Shift+Enter (or Enter when the formula already has several lines) |
+| Cancel your edits | Esc, or the cross (**Cancel**) |
 | Commit by leaving | Click outside the formula bar: Lumen commits, as Power BI Desktop does |
 | Expand or collapse the bar | The chevron at the right end |
 
@@ -38,9 +38,9 @@ A formula that has an error is still saved when you commit it, and the error sta
 
 While you type, a list suggests DAX functions, tables, columns, measures, variables declared with `VAR`, and keywords. Columns are offered after a table name and `[`; a bare `[` offers measures (and, in a calculated column, the columns of its own table).
 
-- **Tab** or **Enter** inserts the highlighted suggestion. A function is inserted with its opening parenthesis.
-- **Esc** closes the list without inserting.
-- **Up** and **Down** move through the list.
+- Tab or Enter inserts the highlighted suggestion. A function is inserted with its opening parenthesis.
+- Esc closes the list without inserting.
+- Up and Down move through the list.
 
 ![Autocomplete offering the Channel column after typing Sales[Ch, with the CALCULATE parameter hint above](../images/dax/the-formula-bar-and-dax-editor-autocomplete.png)
 
@@ -75,13 +75,13 @@ Turn it off with **Formula bar options** (**…**) > **Show live value**.
 
 ## Format DAX
 
-- **Shift+Alt+F**, or **Formula bar options** (**…**) > **Format DAX**, reformats the formula following the basic DAX Formatter (daxformatter.com) conventions: function names and keywords in upper case, `FUNC ( arg1, arg2 )` spacing, a call longer than 80 characters broken into one argument per line with 4-space indentation, and `VAR` / `RETURN` on their own lines. Only whitespace and the letter case of functions and keywords change.
+- Shift+Alt+F, or **Formula bar options** (**…**) > **Format DAX**, reformats the formula following the basic DAX Formatter (daxformatter.com) conventions: function names and keywords in upper case, `FUNC ( arg1, arg2 )` spacing, a call longer than 80 characters broken into one argument per line with 4-space indentation, and `VAR` / `RETURN` on their own lines. Only whitespace and the letter case of functions and keywords change.
 - **Formula bar options** > **Format on commit** formats every formula when you commit it. Lumen only formats a formula without syntax errors, so a broken formula is never reshaped.
-- **Ctrl+/** comments or uncomments the selected lines (`//`).
+- Ctrl+/ comments or uncomments the selected lines (`//`).
 
 ## Other editing features
 
-Syntax colors close to Power BI's, matching-bracket highlighting, automatic closing of brackets and quotes, automatic indentation after a line break, line numbers, undo and redo inside the editor (**Ctrl+Z**, **Ctrl+Y**), and find (**Ctrl+F**).
+Syntax colors close to Power BI's, matching-bracket highlighting, automatic closing of brackets and quotes, automatic indentation after a line break, line numbers, undo and redo inside the editor (Ctrl+Z, Ctrl+Y), and find (Ctrl+F).
 
 ## Considerations and limitations
 

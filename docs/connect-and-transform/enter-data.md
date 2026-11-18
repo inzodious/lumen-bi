@@ -1,6 +1,6 @@
 # Enter data
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 Type or paste a small table, such as targets, a mapping or a list of categories, and load it into the model. The rows are stored inside the table's query, the same way Power BI Desktop stores them, so the table needs no source file.
 
@@ -12,7 +12,7 @@ None. The table can be created in a new report or added to an open one.
 
 1. Select **Home > Enter data**, or **Home > Get data**, then **Other > Enter data** and **Connect**.
 2. In the **Create Table** dialog, type the column names in the header row. Columns start as `Column1`.
-3. Type values in the cells. Press **Enter** in the last row to add a row, or select the **+** under the row numbers (**Insert row**). Select the **+** at the end of the header row (**Insert column**) to add a column.
+3. Type values in the cells. Press Enter in the last row to add a row, or select the **+** under the row numbers (**Insert row**). Select the **+** at the end of the header row (**Insert column**) to add a column.
 4. To paste from a spreadsheet, copy a block of cells and paste it into a cell. Tab-separated rows fill the grid from that cell, adding rows and columns as needed. Pasting into a header cell uses the first copied row as column names.
 5. In **Name**, type the table name (default `Table`).
 6. Select **Load** to add the table, or **Edit** to open it in the [Power Query editor](power-query-editor.md) first.

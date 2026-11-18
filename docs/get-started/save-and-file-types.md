@@ -43,7 +43,8 @@ from:
 | A project folder or a `*.Report` folder | The `<Name>.pbip` next to the `*.Report` folder, and the `*.Report` and `*.SemanticModel` folders, in place |
 | A `*.SemanticModel` folder | The same folder, in place (no `.pbip` file or report is written, because there is no report) |
 | A `.wbi` bundle | The same bundle, replaced |
-| A `.pbix` or `.pbit` file, a `model.bim` file, the sample report, a blank report | Nothing yet: **Save** opens **Save as** |
+| A `.pbix` or `.pbit` file, the sample report, a blank report | Nothing yet: **Save** opens **Save as** |
+| A standalone `model.bim` file | A new project named after the file, `model.bim.pbip` (see [Considerations and limitations](#considerations-and-limitations)) |
 
 When Lumen saves a PBIP project in place, it rewrites only the files whose content changed. Files you did not
 touch keep their exact bytes, which keeps Git diffs small. Files of pages, visuals, bookmarks or tables you deleted

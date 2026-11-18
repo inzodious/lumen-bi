@@ -1,6 +1,6 @@
 # Visual calculations
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 A visual calculation is a DAX expression that Power BI stores in a visual, not in the model, and evaluates over the visual's own grid of values (its *visual matrix*). This article explains how Lumen evaluates the visual calculations in a report, which functions they can use, and how the window functions `OFFSET`, `INDEX`, `WINDOW`, `RANK` and `ROWNUMBER` with `ORDERBY`, `PARTITIONBY` and `MATCHBY` behave in Lumen.
 

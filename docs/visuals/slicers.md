@@ -63,7 +63,7 @@ These settings are saved in the report under a Lumen-only object (`lumenSlicer`)
 
 ## Interactions
 
-- A slicer filters every visual on the page (and, with [sync slicers](../create-reports/sync-slicers.md), on other pages), unless you change it with [edit interactions](../create-reports/visual-interactions.md).
+- A slicer filters every visual on the page (and, with [sync slicers](../create-reports/sync-slicers.md), on other pages), unless the report's saved interactions say otherwise. Lumen applies interactions saved by Power BI Desktop but has no **Edit interactions** mode to change them; see [Visual interactions](../create-reports/visual-interactions.md).
 - Two slicers on different columns of the same table do not filter each other's items: like Power BI, a slicer lists all values of its column, and a visual-level filter on a measure keeps only items with data.
 - Right-click a slicer for its own entries such as **Search** and **Clear selections**.
 - The selection is saved in the report when you save it.

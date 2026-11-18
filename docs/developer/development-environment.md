@@ -55,7 +55,7 @@ Electron itself comes from `node_modules`; you do not install it separately.
 
    electron-vite builds `out/main/index.js` and `out/preload/index.cjs`, starts a Vite development server for the
    renderer (`http://localhost:5173/`) and launches Electron. Renderer edits reload in place; edits to `src/main` or
-   `src/preload` restart Electron. **Ctrl+R** reloads the window, **F12** opens the developer tools.
+   `src/preload` restart Electron. Ctrl+R reloads the window, F12 opens the developer tools.
 
 5. Type-check the whole project (about 10 seconds).
 
@@ -140,8 +140,8 @@ The complete list, with defaults and the files that read each one, is in
 
 - Only Linux is supported and tested. The code has no Windows or macOS packaging, and nothing has been verified on
   those systems.
-- The root `README.md` gives Node 22 as the minimum; `package.json` declares 20.19. The project is developed on
-  Node 24, and only that version was used to check these steps.
+- `package.json` declares Node 20.19 as the minimum. The project is developed on Node 24, and only that version was
+  used to check these steps.
 - `npm run dev` and `npm run build` both write to `out/`. A sweep or capture running at the same time uses that
   folder; the end-to-end suite builds into `out/e2e/` so it is not affected.
 - The app opened by `npm run dev` or `npm start` uses your real Electron profile (`~/.config/Lumen`): options, pane

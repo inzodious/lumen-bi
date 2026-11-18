@@ -1,6 +1,6 @@
 # Connect to files and folders
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 Import Excel workbooks, CSV and text files, JSON documents, Parquet files, or the list of files in a folder. Files are read from the local disk (or a mounted network location) with your own file permissions.
 

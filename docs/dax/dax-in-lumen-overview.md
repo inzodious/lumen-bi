@@ -1,6 +1,6 @@
 # DAX in Lumen
 
-> **Applies to:** Analysts · Creators · Developers
+> **Applies to:** Creators · Analysts · Developers
 
 This article explains what evaluates your DAX in Lumen, how its results are checked against Power BI, and what that means for the numbers and the speed you see. Read it before you compare a Lumen report with the same report in Power BI Desktop.
 

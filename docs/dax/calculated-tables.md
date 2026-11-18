@@ -1,6 +1,6 @@
 # Create calculated tables
 
-> **Applies to:** Analysts · Creators
+> **Applies to:** Creators · Analysts
 
 A calculated table is a table whose rows come from a DAX table expression instead of a data source. Use one for a date table, a list of scenarios, a bridge between two tables or a summary you want to relate to other tables. This article shows how to create one in Lumen and how its columns are determined.
 
@@ -20,7 +20,7 @@ A calculated table is a table whose rows come from a DAX table expression instea
    ```
 
    While you type, the formula bar shows how many rows the expression returns (`8 rows` for this one).
-3. Press **Enter** to commit.
+3. Press Enter to commit.
 
 ![Formula bar with the Category Channel table expression and the live row count "8 rows"](../images/dax/calculated-tables-formula-bar.png)
 

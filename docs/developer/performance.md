@@ -113,7 +113,7 @@ On a 20-thread development machine, the `WBI_PERF=1` run printed `summarize over
 1. Record it in the Performance analyzer; note whether the time is in **DAX query** or **Visual display**.
 2. For query time, use **Copy query** and run the text in the DAX query view, or reproduce the request in a test
    with `engine.summarize` and the model you need.
-3. For display time, profile the renderer with the developer tools (**F12**, Performance tab); see
+3. For display time, profile the renderer with the developer tools (F12, Performance tab); see
    [Debugging](debugging.md).
 4. For a whole report set, the sweep records each visual's engine probe time in `report.json`
    (see [The sweep](the-sweep.md)); `LUMEN_SWEEP_TRACE=1` logs each visual as the engine-level sweep test probes it.

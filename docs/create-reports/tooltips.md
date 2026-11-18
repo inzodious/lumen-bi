@@ -45,7 +45,7 @@ the page tab and select **Hide page**, as you would in Power BI Desktop.
 1. Select the visual whose tooltip should use the page, for example **Overview > Sales by country**.
 2. Select **Format visual > General** and expand the tooltip card (titled **Options**).
 3. Set **Type** to **Report page**.
-4. In **Page**, enter the tooltip page's **internal name** and press **Enter** (see the warning).
+4. In **Page**, enter the tooltip page's **internal name** and press Enter (see the warning).
 
 ![The General tab for a bar chart with the tooltip card, titled Options, expanded: a Show switch, Type set to Default, and an empty Page box.](../images/create-reports/tooltips-visual-options.png)
 

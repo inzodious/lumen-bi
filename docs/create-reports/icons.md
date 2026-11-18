@@ -34,7 +34,7 @@ is drawn in the theme's foreground color.
    - **Search icons** looks in both libraries by name and common synonyms (for example *dollar*, *trending up*).
 4. Select an icon. The previews on the right show it on a light and on a dark background.
 5. For a Lucide icon, set **Color** and **Stroke width**.
-6. Select **Insert** (or double-click the icon, or press **Enter**).
+6. Select **Insert** (or double-click the icon, or press Enter).
 
 ![The Insert icon dialog on the Lucide tab: the category list on the left with Trends up / down (29) selected, a grid of arrow and chart icons in orange, the Trending up icon selected and previewed on light and dark backgrounds, Color set to an orange theme color and Stroke width 2, with Insert and Cancel buttons.](../images/create-reports/icons-picker-lucide.png)
 
@@ -43,8 +43,8 @@ again places the next icon 20 px further down and right.
 
 ![The Insert icon dialog on the Fluent Color tab with the Charts category: multi-color chart icons, the Data pie icon selected, and the note that Fluent Color icons keep their own colors.](../images/create-reports/icons-picker-fluent.png)
 
-**Keyboard**: press **Tab** (or **Down arrow** from the search box) to move into the grid, the arrow keys, **Home**,
-**End**, **Page Up** and **Page Down** to move, **Enter** to choose and **Esc** to close.
+**Keyboard**: press Tab (or Down arrow from the search box) to move into the grid, the arrow keys, Home,
+End, Page Up and Page Down to move, Enter to choose and Esc to close.
 
 ## Change an icon
 
@@ -82,7 +82,7 @@ Power BI Desktop has no icon feature, so Lumen saves every icon in two forms:
   resource for the image visual, and an SVG data URI in the image URL of a card's image slot. This is what Power BI is
   designed to show.
 - **A reference** to the icon (library, name, color, stroke width, padding) in an annotation of the visual named
-  `Lumen_Icon`, which Power BI keeps and ignores. Lumen uses it to keep the icon editable.
+  `Lumen_Icon`, which Power BI is designed to keep and ignore (not verified). Lumen uses it to keep the icon editable.
 
 When you save, Lumen refreshes the pictures. If the picture was replaced in another tool, the image wins and the icon
 becomes a plain picture when the report is opened again.

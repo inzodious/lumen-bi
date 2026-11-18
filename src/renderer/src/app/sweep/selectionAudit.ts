@@ -276,8 +276,11 @@ export function checkEntityVisuals(engine: QueryEngine, report: ReportDocument, 
     const valueSpecs = ev.values.map((expr, i) => ({ id: `v${i}`, expr: { kind: 'sq' as const, expr } }))
     /** members of `field` the visual lists under a slicer state (rows whose measures are all blank are dropped, as in Power BI) */
     const listed = (field: SQExpr, slicerFilters: Record<string, SQFilter | undefined>): Set<string> => {
-      const r = engine.summarize({ groupBy: [{ kind: 'sq', expr: field }, ...ev.groups.map((expr) => ({ kind: 'sq' as const, expr }))], values: valueSpecs, filters: filtersFor(ev.visual.name, slicerFilters), limit: 100000 })
-      return new Set(r.rows.map((row) => itemText(row[0] as Scalar)))
+      // the slicer's field as a grouping column (once: a field the visual already groups by is not repeated)
+      const at = ev.groups.findIndex((g) => JSON.stringify(g) === JSON.stringify(field))
+      const groups = at >= 0 ? ev.groups : [field, ...ev.groups]
+      const r = engine.summarize({ groupBy: groups.map((expr) => ({ kind: 'sq' as const, expr })), values: valueSpecs, filters: filtersFor(ev.visual.name, slicerFilters), limit: 100000 })
+      return new Set(r.rows.map((row) => itemText(row[Math.max(0, at)] as Scalar)))
     }
     /** members a filter stored in the report leaves to the visual (its own filters, without measures) */
     const allowed = (field: SQExpr, slicerFilters: Record<string, SQFilter | undefined>): Set<string> =>

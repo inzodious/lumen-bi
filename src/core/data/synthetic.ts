@@ -2067,6 +2067,7 @@ class SyntheticGenerator {
     const table: TableData = { columns, rowCount: rows }
     const protect = new Uint8Array(rows)
     if (plan.cover && !plan.cover.snapshotEntity) protect.fill(1, plan.cover.from)
+    this.applyHierarchy(plan, table)
     this.seedConjunctions(plan, table, protect)
     const rng = this.rng(plan.def.name, '#needs')
     for (const c of columns) {
@@ -2078,6 +2079,56 @@ class SyntheticGenerator {
     this.applySortBy(plan, columns)
     this.restoreSnapshotEntities(plan, table)
     return table
+  }
+
+  /**
+   * Self-referencing hierarchies on a dimension: `parent_id`, `grandparent_id`, `great_grandparent_id`,
+   * `ultimate_parent_id` / `root_id` (id-like columns naming an ancestor) of a table with its own unique key of the same
+   * type reference that key, as in real data: about half the rows are roots (blank ancestors), the others hang under an
+   * earlier row, and each level is the previous level's parent (no cycles). Without this, invented codes could collide
+   * with the table's own keys and form a random graph.
+   */
+  private applyHierarchy(plan: TablePlan, table: TableData): void {
+    if (plan.role !== 'dim' || table.rowCount < 2) return
+    const levelOf = (c: ColumnDef): number | undefined => {
+      const toks = tokensOf(c.name)
+      if (!toks.some((t) => ['id', 'key', 'code', 'number', 'no', 'num', 'sk'].includes(t))) return undefined
+      if (toks.includes('ultimate') || toks.includes('root') || toks.includes('top')) return Infinity
+      if (toks.includes('great') && toks.includes('grandparent')) return 3
+      if (toks.includes('greatgrandparent')) return 3
+      if (toks.includes('grandparent')) return 2
+      if (toks.includes('parent')) return 1
+      return undefined
+    }
+    const levels = plan.cols.map((c) => ({ c, level: levelOf(c) })).filter((x): x is { c: ColumnDef; level: number } => x.level !== undefined && !this.compOf.get(keyOf(plan.def.name, x.c.name))?.member.one)
+    if (!levels.length) return
+    // the table's own key: a unique key column (relationship "one" end) of the same type, else its `id` column
+    const keyCol = (type: DataType): ColumnData | undefined => {
+      const one = plan.cols.find((c) => effectiveType(c) === type && this.compOf.get(keyOf(plan.def.name, c.name))?.member.one && !levelOf(c))
+      const named = one ?? plan.cols.find((c) => effectiveType(c) === type && /^(id|key)$/i.test(c.name))
+      return named && table.columns.find((x) => x.name === named.name)
+    }
+    const n = table.rowCount
+    const rng = this.rng(plan.def.name, '#hierarchy')
+    const parent = new Int32Array(n).fill(-1)
+    for (let r = 1; r < n; r++) if (rng.next() < 0.5) parent[r] = rng.int(0, r - 1)
+    const ancestor = (r: number, level: number): number => {
+      let a = r
+      for (let k = 0; k < level; k++) {
+        if (parent[a] < 0) return level === Infinity && a !== r ? a : -1
+        a = parent[a]
+      }
+      return a
+    }
+    for (const { c, level } of levels) {
+      const key = keyCol(effectiveType(c))
+      const out = table.columns.find((x) => x.name === c.name)
+      if (!key || !out || key === out) continue
+      for (let r = 0; r < n; r++) {
+        const a = ancestor(r, level)
+        out.values[r] = a < 0 ? null : key.values[a]
+      }
+    }
   }
 
   /**

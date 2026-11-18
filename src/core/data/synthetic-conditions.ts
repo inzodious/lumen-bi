@@ -281,6 +281,16 @@ export function decideColumns(project: Pick<ProjectDocument, 'model' | 'report'>
     const sentinelRequired = required.filter((vk) => isSentinel(lits.get(vk)!))
     required = required.filter((vk) => !isSentinel(lits.get(vk)!))
     const excludedByMeasure = new Set(measureExc.flatMap((c) => c.values.map(valueKeyOf)))
+    // comparisons measures filter on (`t[rate] > 0` in one measure, `t[rate] = 0` in another): when a required literal
+    // fails one, other rows must remain for it
+    const comparisons = conds.filter((c) => MEASURE_SITES.has(c.site) && c.use === 'filter' && ['<', '<=', '>', '>='].includes(c.op) && c.values.length === 1)
+    const failsComparison = (vk: string): boolean => {
+      const v = lits.get(vk)
+      return comparisons.some((c) => {
+        const holds = compare(v, c.op, c.values[0])
+        return holds !== undefined && holds === (c.polarity === 'negative')
+      })
+    }
     const excludedByFilter = new Set(filterExc.flatMap((c) => c.values.map(valueKeyOf)))
     const filterWants = filterInc.map((c) => new Set(c.values.filter(ok).map(valueKeyOf)))
 
@@ -302,15 +312,18 @@ export function decideColumns(project: Pick<ProjectDocument, 'model' | 'report'>
     }
     if (required.length) {
       if (!isSurfaced) {
-        const otherNeeded = required.some((vk) => excludedByMeasure.has(vk))
+        const otherNeeded = required.some((vk) => excludedByMeasure.has(vk) || failsComparison(vk))
         if (conflict) {
           rule = 'split'
           spreadOver(required, otherNeeded ? 0.8 : 1, 'required')
           note = 'not shown; measures need different values: rows split between them, weighted towards entity-level measures'
         } else if (otherNeeded) {
+          // another measure counts rows without the literal: an exclusion (`<>`) keeps a fifth of the rows for it, a
+          // comparison the literal fails (`> 0` next to `= 0`) is a second requirement of its own: half the rows each
+          const cmp = required.some(failsComparison)
           rule = 'split'
-          spreadOver(required, 0.8, 'required')
-          note = 'not shown; measures count rows with and without the literal: 80% hold it'
+          spreadOver(required, cmp ? 0.5 : 0.8, 'required')
+          note = cmp ? 'not shown; another measure filters on a comparison the literal fails: half the rows hold it' : 'not shown; measures also count rows without the literal: 80% hold it'
         } else {
           rule = 'all-rows'
           spreadOver(required, 1, 'required')
@@ -459,4 +472,13 @@ export function idWriter(opts: { names: string[]; prefix: string; count: number;
   const padLen = Math.max(need, 4)
   if (prefix.length + 1 + padLen <= maxChars) return (n) => `${prefix}-${String(n).padStart(padLen, '0')}`
   return digitWriter()
+}
+
+/** `v op w` for numbers and dates; undefined when it cannot be decided. */
+function compare(v: MinedValue | undefined, op: string, w: MinedValue): boolean | undefined {
+  const num = (x: MinedValue | undefined): number | undefined => (typeof x === 'number' ? x : x instanceof Date ? x.getTime() : typeof x === 'boolean' ? Number(x) : undefined)
+  const a = num(v)
+  const b = num(w)
+  if (a === undefined || b === undefined) return undefined
+  return op === '<' ? a < b : op === '<=' ? a <= b : op === '>' ? a > b : op === '>=' ? a >= b : undefined
 }

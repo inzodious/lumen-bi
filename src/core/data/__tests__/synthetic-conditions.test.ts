@@ -299,6 +299,39 @@ describe('id-like and code columns', () => {
     expect(shaped(12).endsWith('00012')).toBe(true)
   })
 
+  it('parent / grandparent ids of a dimension form a hierarchy of its own keys (roots blank, no cycles)', () => {
+    const p = project({ accountCols: [col('parent_id', 'string'), col('grandparent_id', 'string')], measures: [] })
+    generateSyntheticData(p, OPTS)
+    const ids = values(p, 'accounts', 'account_id')
+    const parents = values(p, 'accounts', 'parent_id')
+    const grand = values(p, 'accounts', 'grandparent_id')
+    const row = new Map(ids.map((v, i) => [v, i]))
+    const roots = parents.filter((v) => v === null).length / parents.length
+    expect(roots).toBeGreaterThan(0.3)
+    expect(roots).toBeLessThan(0.7)
+    parents.forEach((v, i) => {
+      if (v === null) return expect(grand[i]).toBeNull()
+      const pi = row.get(v)!
+      expect(pi).toBeLessThan(i)
+      expect(grand[i]).toBe(parents[pi])
+    })
+  })
+
+  it('a measure filtering on a comparison the required literal fails leaves rows for both', () => {
+    const p = project({
+      visitCols: [col('rate', 'double')],
+      measures: [
+        { name: 'Free', expression: 'CALCULATE ( COUNTROWS ( visits ), visits[rate] = 0 )' },
+        { name: 'Paid', expression: 'CALCULATE ( COUNTROWS ( visits ), visits[rate] > 0 )' }
+      ]
+    })
+    const r = generateSyntheticData(p, OPTS)
+    expect(r.decisions.find((d) => d.column === 'rate')?.rule).toBe('split')
+    const v = values(p, 'visits', 'rate')
+    expect(share(v, 0)).toBeGreaterThan(0.3)
+    expect(v.filter((x) => typeof x === 'number' && x > 0).length / v.length).toBeGreaterThan(0.3)
+  })
+
   it('generated keys and codes follow those rules in a model', () => {
     const p = project({
       accountCols: [col('system_number', 'string')],

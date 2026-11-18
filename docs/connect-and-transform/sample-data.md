@@ -1,6 +1,6 @@
 # Sample data
 
-> **Applies to:** Analysts · Creators · Developers
+> **Applies to:** Creators · Analysts · Developers
 
 Lumen can fill a model that has no data with generated *sample data*: invented rows that follow the model's tables, relationships, formulas and report filters, so you can explore and design a report without access to its sources. This article explains when a project opens without data, how the values are generated, the privacy rule that keeps real names and ids out of them, and the limits of the approach.
 
@@ -15,7 +15,7 @@ A report file does not always carry its data:
 - A **PBIP** project has rows only in its local cache (`.pbi/cache.abf`), which is often missing (it is not committed to source control). Lumen reads the cache when it is there, unless the environment variable `WBI_BLOCK_CACHE=1` tells it not to.
 - A **PBIX** file contains its data, and a Lumen **`.wbi`** bundle contains the rows that were loaded or generated when it was saved; they open with data.
 
-When tables have no rows, Lumen shows a *No data loaded* notification under the ribbon with **Refresh from source**, **Use sample data** and **Dismiss**. You can change this in **File > Options > Global > Data Load > When tables have no data**: **Ask me (show a notification)** (default), **Refresh from the data sources**, or **Generate sample data automatically**.
+When tables have no rows, Lumen shows a *No data loaded* notification under the ribbon with **Refresh from source**, **Use sample data** and **Dismiss**. You can change this in **File > Options and settings > Options > Global > Data Load > When tables have no data**: **Ask me (show a notification)** (default), **Refresh from the data sources**, or **Generate sample data automatically**.
 
 ![A report opened without data: the notification "No data loaded. This report has no cached data for 4 tables (calendar, accounts, visits, invoices)" with Refresh from source, Use sample data and Dismiss buttons, and empty slicers and table on the canvas.](../images/connect-and-transform/sample-data-no-data-notice.png)
 
@@ -101,7 +101,7 @@ Without more, every visual filtered to that name would be empty. Instead, Lumen 
 
 ### Allow real names and ids
 
-In **File > Options > Global > Data Load**, under **Sample data**, select **Also reuse names and ids mentioned in formulas and report filters (visuals filtered to a specific customer or person then show data, under the real name)**. Generate again to apply it.
+In **File > Options and settings > Options > Global > Data Load**, under **Sample data**, select **Also reuse names and ids mentioned in formulas and report filters (visuals filtered to a specific customer or person then show data, under the real name)**. Generate again to apply it.
 
 > [!WARNING]
 > With this option on, the generated rows contain the real names and ids that your formulas and filters mention. Do not share screenshots or exported files of such a report with people who must not see them.
@@ -122,13 +122,13 @@ To get the same rows again later, set the same **Random seed** in Options and se
 
 ## Keep or replace sample data
 
-- **Save As** a `.wbi` bundle keeps the generated rows: reopening it shows the same rows without generating anything.
+- **Save as** a `.wbi` bundle keeps the generated rows: reopening it shows the same rows without generating anything.
 - A PBIP project does not store rows; it opens without data again.
 - A successful refresh replaces a table's sample rows with real data.
 
 ## Considerations and limitations
 
-- **Exercised for this documentation.** The screenshots come from a small invented PBIP project of Lumen's test fixtures (`e2e/fixtures/accounts.ts`). Lumen's end-to-end tests of this feature (fill, regenerate, stand-in slicer, coverage: any account picked under the saved quarter keeps the table populated; a table whose measure counts only flagged accounts lists every account the slicer offers and keeps the row of each account picked; `.wbi` round trip) passed on the build documented here. The screenshots were taken before slice coverage and condition-aware values were added; the generated values in them may differ from what you see.
+- The screenshots come from a small invented PBIP project (`e2e/fixtures/accounts.ts`), the same one Lumen's end-to-end tests of this feature use.
 - A measure that is blank by design for some members (for example one that only counts members with a value in a column the report also shows) leaves those members out of a table, as it would with real data. For shown columns about one member in seven keeps another value.
 - Comparisons (`>`, `<`) and text searches are recorded but do not change how often values appear; conditions written only in measures that another measure's filter argument references, and conditions on calculated columns, are not traced back to the columns they come from.
 - Formulas that compare a column to a withheld name or id stay blank (see above).

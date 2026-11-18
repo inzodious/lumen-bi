@@ -62,7 +62,7 @@ flowchart TD
 ```
 
 In words: opening a file fills the `DataStore` from data embedded in the file, when there is any. After loading,
-`afterLoad` in `src/renderer/src/app/commands.ts` lists the tables without rows and acts on **Options > Data load**:
+`afterLoad` in `src/renderer/src/app/commands.ts` lists the tables without rows and acts on **Options > Data Load**:
 by default it shows a notice with **Use sample data**; it can instead open the Refresh dialog or generate sample
 data automatically. Get data, refresh and sample-data generation all write into the same `DataStore`, and each
 ends with `dataChanged()`.
@@ -222,13 +222,13 @@ What the generator guarantees:
 
 | `SyntheticOptions` field | Library default | App setting |
 |---|---|---|
-| `seed` | `1` | Options > Data load (default 42) |
-| `factRows` | `20000` | Options > Data load (default 5000) |
+| `seed` | `1` | Options > Data Load (default 42) |
+| `factRows` | `20000` | Options > Data Load (default 5000) |
 | `replace` | `'empty'` | `'empty'` for Use sample data; `'synthetic'` or `'all'` for Regenerate |
 | `coverageRows` | `40000` (`0` turns coverage off) | not exposed |
 | `conditions` | `mineModel(project).conditions` | not exposed |
 | `sliceable` | `mineSliceable(project)` | not exposed |
-| `identifyingLiterals` | `'never'` | `'reuse'` only when the user allows real values in Options > Data load |
+| `identifyingLiterals` | `'never'` | `'reuse'` only when the user allows real values in Options > Data Load |
 
 The result lists the tables written, the tables skipped with a reason (`calculated`, `calculationGroup`,
 `measureTable`, `noColumns`, `hasData`, `notRequested`), the seed, counts of withheld literals, the coverage per fact

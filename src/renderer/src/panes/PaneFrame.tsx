@@ -20,6 +20,8 @@ export interface PaneFrameProps {
   subheader?: ReactNode
   /** extra content shown in the collapsed strip below the title (e.g. filter count) */
   collapsedExtra?: ReactNode
+  /** render even when the pane was closed (Table / Model views always show the Data pane; it can only collapse there) */
+  alwaysOpen?: boolean
   minWidth?: number
   maxWidth?: number
 }
@@ -27,7 +29,7 @@ export interface PaneFrameProps {
 export function PaneFrame(p: PaneFrameProps) {
   const state = useShell((s) => s.panes[p.id])
   const setPane = useShell((s) => s.setPane)
-  if (!state.open) return null
+  if (!state.open && !p.alwaysOpen) return null
   if (p.collapsible && state.collapsed) {
     return (
       <div className="wbi-pane wbi-pane--collapsed" data-pane={p.id}>

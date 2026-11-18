@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { emptyModel, type SemanticModel, type TableDef } from '@core/model/types'
+import { emptyModel, type DataType, type RelationshipDef, type SemanticModel, type TableDef } from '@core/model/types'
 import { makeDate } from '@core/model/data'
 import { buildEnterDataM, buildEnterDataTable, decodeEnterDataPayload, encodeEnterDataPayload, inferEnterDataType, isEnterDataPartition, mIdentifier, parseEnterDataM } from './enterData'
 import { buildFieldParameter, buildNumericRangeParameter, fieldParameterExpression, isFieldParameterTable, parseFieldParameterExpression, validateNumericRange } from './parameters'
 import { QUICK_MEASURES, literal, valueExpr } from './quickMeasures'
-import { detectCardinality, draftFromRelationship, relationshipFromDraft, validateDraft, type RelationshipDraft } from './relationships'
+import { detectCardinality, draftFromRelationship, isUnique, relationshipFromDraft, validateDraft, type RelationshipDraft } from './relationships'
+import { dataTypeLabel, effectiveDataType, inferTypeFromValues, isNumericType } from './columnTypes'
 import { buildFormatString, parseFormatString } from './formats'
 import { markAsDateTable, renameColumn, renameInExpression, renameMeasure, renameTable, uniqueName, validateDateColumn, dateTableColumn } from './modelOps'
 import { localDaxDiagnostics } from '../../../editors/dax/diagnostics'
@@ -178,8 +179,139 @@ describe('relationships', () => {
     const d2 = { ...d, column1: 'Amount' }
     expect(validateDraft(m, d2, { v1: [1, 2], v2: [1, 1] }).errors.some((e) => e.includes("cardinality you selected isn't valid"))).toBe(true)
     const d3: RelationshipDraft = { ...d, table2: 'Date', column1: 'DateKey', column2: 'Year' }
-    expect(validateDraft(m, d3, {}).errors[0]).toMatch(/different data types/)
-    expect(validateDraft(m, { ...d3, column2: 'Date' }, {}).errors).toEqual([])
+    // different data types are a recommendation in Power BI ("should be the same"), not an error
+    const mixed = validateDraft(m, d3, {})
+    expect(mixed.errors).toEqual([])
+    // a date and a number never match in the engine: the note says so instead of promising a conversion
+    expect(mixed.warnings[0]).toMatch(/different data types \(Date\/time and Whole number\)\. Values of these types do not match/)
+    expect(validateDraft(m, { ...d3, column2: 'Date' }, {})).toEqual({ errors: [], warnings: [] })
+  })
+})
+
+/**
+ * A model as Power BI saves it when the fact is a calculated table: its columns carry no data type, and it
+ * is the many side of relationships to imported dimensions; two facts share two dimensions.
+ */
+function calculatedFactModel(): SemanticModel {
+  const m = emptyModel('Calc')
+  const t = (name: string, cols: Array<[string, DataType]>, calc = false): TableDef => ({
+    name,
+    columns: cols.map(([n, dt]) => ({ name: n, dataType: dt, kind: calc ? 'calculatedTableColumn' : 'data' })),
+    measures: [],
+    hierarchies: [],
+    partitions: [calc ? { name, sourceType: 'calculated', expression: 'UNION ( A, B )' } : { name, sourceType: 'm', expression: 'let s = 1 in s' }]
+  })
+  m.tables = [
+    t('Visits', [['site_id', 'unknown'], ['day', 'unknown'], ['code', 'unknown']], true),
+    t('Orders', [['site_id', 'string'], ['day', 'dateTime']]),
+    t('Site', [['site_guid', 'string'], ['name', 'string'], ['number', 'int64']]),
+    t('Calendar', [['date', 'dateTime'], ['year', 'int64']])
+  ]
+  const r = (name: string, from: string, to: string): RelationshipDef => {
+    const [ft, fc] = from.split('.')
+    const [tt, tc] = to.split('.')
+    return { name, fromTable: ft, fromColumn: fc, toTable: tt, toColumn: tc, fromCardinality: 'many', toCardinality: 'one', crossFilteringBehavior: 'oneDirection', isActive: true }
+  }
+  m.relationships = [r('v-site', 'Visits.site_id', 'Site.site_guid'), r('v-cal', 'Visits.day', 'Calendar.date'), r('o-site', 'Orders.site_id', 'Site.site_guid'), r('o-cal', 'Orders.day', 'Calendar.date')]
+  return m
+}
+
+describe('editing an existing relationship', () => {
+  const m = calculatedFactModel()
+  const day = (n: number) => new Date(Date.UTC(2026, 0, n))
+
+  it('shows nothing for a valid relationship whose many side is a calculated table without declared types', () => {
+    const site = m.relationships[0]
+    const check = validateDraft(m, draftFromRelationship(site), { v1: ['a', 'b', 'a', 'None'], type1: 'string', v2: ['a', 'b', 'c'], type2: 'string' }, site)
+    expect(check).toEqual({ errors: [], warnings: [] })
+    // …also when the engine has not stored a type yet: it is read from the values
+    expect(validateDraft(m, draftFromRelationship(site), { v1: ['a', 'b', 'a'], v2: ['a', 'b', 'c'] }, site)).toEqual({ errors: [], warnings: [] })
+    const cal = m.relationships[1]
+    expect(validateDraft(m, draftFromRelationship(cal), { v1: [day(1), day(1), day(2)], type1: 'dateTime', v2: [day(1), day(2), day(3)], type2: 'dateTime' }, cal)).toEqual({ errors: [], warnings: [] })
+    // no data at all: nothing to judge by
+    expect(validateDraft(m, draftFromRelationship(site), {}, site)).toEqual({ errors: [], warnings: [] })
+  })
+
+  it('does not call two facts sharing two dimensions ambiguous', () => {
+    for (const r of m.relationships) expect(validateDraft(m, draftFromRelationship(r), {}, r).errors, r.name).toEqual([])
+    // a genuinely second filter path between two tables still is
+    const direct: RelationshipDraft = { table1: 'Site', column1: 'number', table2: 'Calendar', column2: 'year', cardinality: 'manyToOne', crossFilter: 'both', isActive: true, relyOnReferentialIntegrity: false, securityBoth: false }
+    expect(validateDraft(m, direct, {}).errors.join(' ')).toMatch(/ambiguity/)
+    expect(validateDraft(m, { ...direct, isActive: false }, {}).errors).toEqual([])
+    // a new single-direction relationship between two dimensions adds a path Site ← Calendar, and Calendar already
+    // reaches the facts that Site filters: ambiguous as well
+    expect(validateDraft(m, { ...direct, crossFilter: 'single' }, {}).errors.join(' ')).toMatch(/ambiguity/)
+    // activating an inactive duplicate between the same tables is refused with the direct-relationship message
+    const twin: RelationshipDraft = { table1: 'Orders', column1: 'day', table2: 'Site', column2: 'name', cardinality: 'manyToOne', crossFilter: 'single', isActive: true, relyOnReferentialIntegrity: false, securityBoth: false }
+    expect(validateDraft(m, twin, {}).errors.join(' ')).toMatch(/direct active relationship/)
+  })
+
+  it('relates text to whole numbers like Power BI: a note, Save stays enabled', () => {
+    const d: RelationshipDraft = { table1: 'Visits', column1: 'code', table2: 'Site', column2: 'number', cardinality: 'manyToOne', crossFilter: 'single', isActive: false, relyOnReferentialIntegrity: false, securityBoth: false }
+    const check = validateDraft(m, d, { v1: ['1', '2', '2'], type1: 'string', v2: [1, 2, 3], type2: 'int64' })
+    expect(check.errors).toEqual([])
+    expect(check.warnings).toHaveLength(1)
+    expect(check.warnings[0]).toMatch(/different data types \(Text and Whole number\).*converting/)
+    // whole and decimal numbers are one family: no note
+    expect(validateDraft(m, d, { v1: [1.5, 2], type1: 'double', v2: [1, 2, 3], type2: 'int64' }).warnings).toEqual([])
+    // binary columns cannot be related
+    expect(validateDraft(m, d, { v1: [new Uint8Array(1)], type1: 'binary', v2: [1], type2: 'int64' }).errors[0]).toMatch(/Binary/)
+  })
+
+  it('reports duplicates in the loaded data of an unchanged relationship as a note, and as an error once the user changes it', () => {
+    const site = m.relationships[0]
+    const data = { v1: ['a', 'b'], type1: 'string' as const, v2: ['a', 'a', 'b'], type2: 'string' as const }
+    const kept = validateDraft(m, draftFromRelationship(site), data, site)
+    expect(kept.errors).toEqual([])
+    expect(kept.warnings[0]).toMatch(/currently loaded has duplicate values in 'site_guid'/)
+    // same relationship described from the other side (1:* with the tables swapped) is still unchanged
+    const flipped: RelationshipDraft = { ...draftFromRelationship(site), table1: 'Site', column1: 'site_guid', table2: 'Visits', column2: 'site_id', cardinality: 'oneToMany' }
+    expect(validateDraft(m, flipped, { v1: data.v2, v2: data.v1 }, site).errors).toEqual([])
+    // changing the column or the cardinality is the user's choice: validated strictly
+    expect(validateDraft(m, { ...draftFromRelationship(site), column2: 'name' }, data, site).errors[0]).toMatch(/contains duplicate values/)
+    expect(validateDraft(m, { ...draftFromRelationship(site), cardinality: 'oneToOne', crossFilter: 'both' }, data, site).errors[0]).toMatch(/contains duplicate values/)
+    // and a new relationship always is
+    expect(validateDraft(m, { ...draftFromRelationship(site), table1: 'Orders' }, data).errors.length).toBeGreaterThan(0)
+  })
+
+  it('compares keys like the engine: case-insensitive text, trailing spaces ignored, blanks are not keys', () => {
+    expect(isUnique(['a', 'B', 'c'])).toBe(true)
+    expect(isUnique(['a', 'A'])).toBe(false)
+    expect(isUnique(['a', 'a  '])).toBe(false)
+    expect(isUnique(['a', ' a'])).toBe(true) // leading spaces are significant
+    expect(isUnique([null, null, '', 'a'])).toBe(true)
+    expect(isUnique([1, 1])).toBe(false)
+    expect(isUnique([new Date(5), new Date(5)])).toBe(false)
+    expect(isUnique(undefined)).toBe(false)
+    expect(detectCardinality(['x', 'X'], ['x', 'y'])).toBe('manyToOne')
+  })
+})
+
+describe('effective column data types', () => {
+  it('uses the declared type, then the type stored with the data, then the values', () => {
+    expect(effectiveDataType({ dataType: 'int64' }, { type: 'string', values: ['a'] })).toBe('int64')
+    expect(effectiveDataType({ dataType: 'unknown' }, { type: 'dateTime', values: [] })).toBe('dateTime')
+    expect(effectiveDataType({ dataType: 'variant' }, { type: 'unknown', values: [null, 'x', 'y'] })).toBe('string')
+    expect(effectiveDataType({ dataType: 'unknown' })).toBe('unknown')
+    expect(effectiveDataType(undefined, { type: 'unknown', values: [null, null] })).toBe('unknown')
+  })
+  it('infers a type from values', () => {
+    expect(inferTypeFromValues([null, 1, 2, 3])).toBe('int64')
+    expect(inferTypeFromValues([1, 2.5])).toBe('double')
+    expect(inferTypeFromValues([2.5, 1])).toBe('double')
+    expect(inferTypeFromValues([true, false])).toBe('boolean')
+    expect(inferTypeFromValues([new Date(0)])).toBe('dateTime')
+    expect(inferTypeFromValues(['1', 2])).toBe('string')
+    expect(inferTypeFromValues([])).toBe('unknown')
+    expect(inferTypeFromValues(undefined)).toBe('unknown')
+  })
+  it('names data types as the Data type drop-down does', () => {
+    expect(dataTypeLabel('string')).toBe('Text')
+    expect(dataTypeLabel('int64')).toBe('Whole number')
+    expect(dataTypeLabel('double')).toBe('Decimal number')
+    expect(dataTypeLabel('dateTime')).toBe('Date/time')
+    expect(isNumericType('decimal')).toBe(true)
+    expect(isNumericType('string')).toBe(false)
   })
 })
 

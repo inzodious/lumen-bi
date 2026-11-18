@@ -101,6 +101,15 @@ export function OptionsDialog({ section: initial, onClose }: { section?: string;
                 <NumberField label="Random seed" value={opts.syntheticSeed} min={0} max={2 ** 31 - 1} onChange={(v) => set({ syntheticSeed: v ?? 42 })} />
                 <NumberField label="Approximate fact table rows" value={opts.syntheticFactRows} min={10} max={1_000_000} onChange={(v) => set({ syntheticFactRows: v ?? 5000 })} />
               </div>
+              <div className="wbi-dlg-help">
+                Every value is invented. Category values, flags, thresholds and dates that your formulas and report filters compare columns to are reused so that filtered measures return data; names, ids, e-mail addresses and free text never are, unless you allow
+                it below.
+              </div>
+              <Checkbox
+                checked={opts.syntheticReuseIdentifying}
+                onChange={(v) => set({ syntheticReuseIdentifying: v })}
+                label="Also reuse names and ids mentioned in formulas and report filters (visuals filtered to a specific customer or person then show data, under the real name)"
+              />
             </>
           )}
           {section === 'regional' && (

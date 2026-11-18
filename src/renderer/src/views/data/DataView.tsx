@@ -1,17 +1,24 @@
 /**
  * Table view (a.k.a. Data view): formula bar + virtualized grid of the selected table's rows.
- * The shell shows the Data pane on the right and the "Table: X (N rows) Column: Y (M distinct values)"
- * status bar; contextual Table/Column/Measure tools ribbons are registered by dialogs/modeling.
+ * The shell shows the Data pane on the right (always, in this view — it is how a table is picked) and the
+ * "Table: X (N rows) Column: Y (M distinct values)" status bar; contextual Table/Column/Measure tools
+ * ribbons are registered by dialogs/modeling.
+ *
+ * The view opens on the selected field's table, else on the first table that has rows (see tableChoice.ts):
+ * a model usually lists its measure tables first, and those have no rows by design.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowSortDownRegular, ArrowSortUpRegular, ChevronDownRegular, FilterRegular, TableRegular } from '@fluentui/react-icons'
-import type { ColumnDef, TableDef } from '@core/model/types'
+import type { ColumnDef, DataType, TableDef } from '@core/model/types'
 import type { Scalar } from '@core/model/data'
 import { useApp } from '../../state/store'
 import { ViewAsBanner } from '../../dialogs/modeling/RolesDialogs'
 import { DataTypeIcon } from '../../dialogs/modeling/icons'
-import { showContextMenu, Popover, cx } from '../../app/ui'
+import { showContextMenu, Popover, Button, cx } from '../../app/ui'
+import { refreshAll, useSampleData } from '../../app/commands'
+import { effectiveDataType, isNumericType } from '../../dialogs/modeling/logic/columnTypes'
+import { defaultTable, emptyTableInfo, viewableTables } from './tableChoice'
 import { newColumn, deleteField, setHidden, openEnterData } from '../../dialogs/modeling/commands'
 import { isEnterDataPartition } from '../../dialogs/modeling/logic/enterData'
 import { formatCell } from './formatCell'
@@ -25,6 +32,8 @@ const ROW_H = 22
 
 interface GridColumn {
   def: ColumnDef
+  /** declared type, or the one the engine inferred (calculated tables / columns without a declared type) */
+  type: DataType
   values: Scalar[]
   numeric: boolean
 }
@@ -42,7 +51,8 @@ function useTableColumns(table: TableDef | undefined): { columns: GridColumn[]; 
     let error: string | undefined
     for (const def of table.columns) {
       if (def.kind === 'rowNumber') continue
-      let values = data?.columns.find((c) => c.name.toLowerCase() === def.name.toLowerCase())?.values
+      const stored = data?.columns.find((c) => c.name.toLowerCase() === def.name.toLowerCase())
+      let values = stored?.values
       if (!values && def.kind === 'calculated' && def.expression?.trim() && engine && rowCount > 0) {
         try {
           const res = engine.runDaxQuery(`EVALUATE SELECTCOLUMNS(${quoteTable(table.name)}, ${JSON.stringify(def.name)}, ${def.expression})`)
@@ -52,8 +62,8 @@ function useTableColumns(table: TableDef | undefined): { columns: GridColumn[]; 
           error = `${def.name}: ${e instanceof Error ? e.message : String(e)}`
         }
       }
-      const numeric = def.dataType === 'int64' || def.dataType === 'double' || def.dataType === 'decimal'
-      cols.push({ def, values: values ?? new Array(rowCount).fill(null), numeric })
+      const type = effectiveDataType(def, values ? { type: stored?.type ?? 'unknown', values } : undefined)
+      cols.push({ def, type, values: values ?? new Array(rowCount).fill(null), numeric: isNumericType(type) })
     }
     return { columns: cols, rowCount, error }
     // revision: recompute after model/data edits
@@ -64,13 +74,21 @@ export function DataView() {
   const project = useApp((s) => s.project)
   const sel = useApp((s) => s.selectedField)
   const engine = useApp((s) => s.engine)
+  const revision = useApp((s) => s.revision)
   const model = project?.model
-  const visibleTables = useMemo(() => (model?.tables ?? []).filter((t) => !t.isPrivate && !t.showAsVariationsOnly), [model])
+  const visibleTables = useMemo(() => viewableTables(model), [model])
   const [lastTable, setLastTable] = useState<string | null>(null)
-  const tableName = sel && visibleTables.some((t) => t.name === sel.table) ? sel.table : lastTable && visibleTables.some((t) => t.name === lastTable) ? lastTable : (visibleTables.find((t) => !t.isHidden)?.name ?? visibleTables[0]?.name ?? null)
+  // revision: the default changes when data arrives (sample data, refresh)
+  const fallback = useMemo(() => defaultTable(model, project?.data), [model, project?.data, revision])
+  const tableName = sel && visibleTables.some((t) => t.name === sel.table) ? sel.table : lastTable && visibleTables.some((t) => t.name === lastTable) ? lastTable : fallback
   useEffect(() => {
     if (tableName && tableName !== lastTable) setLastTable(tableName)
   }, [tableName, lastTable])
+  // like Power BI Desktop, the table on screen is the selected one: the Data pane highlights it, the status bar
+  // shows its row count and the Table tools ribbon applies to it
+  useEffect(() => {
+    if (!sel && tableName) useApp.getState().selectField({ kind: 'table', table: tableName })
+  }, [sel, tableName])
   const table = visibleTables.find((t) => t.name === tableName)
 
   if (!project) return <div className="wbi-dv__empty">Open a report or semantic model to see its data.</div>
@@ -85,7 +103,8 @@ export function DataView() {
 
 function TableGrid({ table, selectedColumn, engineReady }: { table: TableDef; selectedColumn: string | null; engineReady: boolean }) {
   const engine = useApp((s) => s.engine)
-  const status = useApp((s) => s.project?.data.status.get(table.name))
+  const data = useApp((s) => s.project?.data)
+  const revision = useApp((s) => s.revision)
   const { columns, rowCount, error } = useTableColumns(table)
   const [sort, setSort] = useState<SortState | null>(null)
   const [filters, setFilters] = useState<Record<string, ColumnFilter>>({})
@@ -97,7 +116,7 @@ function TableGrid({ table, selectedColumn, engineReady }: { table: TableDef; se
     const byName = new Map(columns.map((c) => [c.def.name, c]))
     return (column: string, v: Scalar) => {
       const c = byName.get(column)
-      return c ? formatCell(v, c.def, engine) : String(v ?? '')
+      return c ? formatCell(v, { dataType: c.type, formatString: c.def.formatString }, engine) : String(v ?? '')
     }
   }, [columns, engine])
   const order = useMemo(() => computeRowOrder(rowCount, (c) => columns.find((x) => x.def.name === c)?.values, filters, sort, display), [rowCount, columns, filters, sort, display])
@@ -105,7 +124,7 @@ function TableGrid({ table, selectedColumn, engineReady }: { table: TableDef; se
     const out: Record<string, number> = {}
     for (const c of columns) {
       const samples: string[] = []
-      for (let i = 0; i < Math.min(rowCount, 60); i++) samples.push(formatCell(c.values[i], c.def, engine))
+      for (let i = 0; i < Math.min(rowCount, 60); i++) samples.push(formatCell(c.values[i], { dataType: c.type, formatString: c.def.formatString }, engine))
       out[c.def.name] = widths[c.def.name] ?? estimateWidth(c.def.name, samples)
     }
     return out
@@ -151,7 +170,8 @@ function TableGrid({ table, selectedColumn, engineReady }: { table: TableDef; se
     ])
   }
 
-  const emptyReason = rowCount === 0 ? (status?.state === 'error' ? `This table failed to load: ${status.message}` : status?.state === 'empty' ? (status.reason ?? 'This table is empty.') : status?.state === 'pending' ? 'Loading…' : 'No data is loaded for this table. Refresh the data source, or use sample data.') : null
+  // revision: the store is mutated in place when data arrives
+  const empty = useMemo(() => (rowCount === 0 ? emptyTableInfo(table, data) : null), [rowCount, table, data, revision])
 
   return (
     <div className="wbi-dv__gridwrap">
@@ -173,7 +193,7 @@ function TableGrid({ table, selectedColumn, engineReady }: { table: TableDef; se
                   onContextMenu={(e) => headerMenu(e, c)}
                   title={c.def.description || c.def.name}
                 >
-                  <DataTypeIcon type={c.def.dataType} calculated={c.def.kind === 'calculated'} summarizeBy={c.def.summarizeBy} size={14} />
+                  <DataTypeIcon type={c.type} calculated={c.def.kind === 'calculated'} summarizeBy={c.def.summarizeBy} size={14} />
                   <span className="wbi-dv__thname">{c.def.name}</span>
                   {sorted === 'asc' && <ArrowSortUpRegular className="wbi-dv__thicon" />}
                   {sorted === 'desc' && <ArrowSortDownRegular className="wbi-dv__thicon" />}
@@ -195,9 +215,16 @@ function TableGrid({ table, selectedColumn, engineReady }: { table: TableDef; se
               )
             })}
           </div>
-          {emptyReason ? (
-            <div className="wbi-dv__noRows">
-              <TableRegular /> {emptyReason}
+          {empty ? (
+            <div className="wbi-dv__noRows" data-empty-kind={empty.kind}>
+              <TableRegular />
+              <span>{empty.message}</span>
+              {empty.loadable && (
+                <span className="wbi-dv__noRowsActions">
+                  <Button onClick={() => useSampleData()}>Use sample data</Button>
+                  <Button onClick={() => refreshAll([table.name])}>Refresh</Button>
+                </span>
+              )}
             </div>
           ) : (
             <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
@@ -207,7 +234,7 @@ function TableGrid({ table, selectedColumn, engineReady }: { table: TableDef; se
                   <div key={vr.key} role="row" className="wbi-dv__row" style={{ transform: `translateY(${vr.start}px)`, height: ROW_H }}>
                     {columns.map((c) => (
                       <div key={c.def.name} role="gridcell" className={cx('wbi-dv__td', c.numeric && 'is-num', selectedColumn === c.def.name && 'is-selected')} style={{ width: colWidths[c.def.name] }}>
-                        {formatCell(c.values[r] ?? null, c.def, engine)}
+                        {formatCell(c.values[r] ?? null, { dataType: c.type, formatString: c.def.formatString }, engine)}
                       </div>
                     ))}
                   </div>

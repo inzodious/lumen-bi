@@ -1,7 +1,7 @@
 /** Table view column header dropdown: Sort ascending/descending, Clear, Text filters, value checklist. */
 import { useMemo, useState } from 'react'
 import { ArrowSortDownRegular, ArrowSortUpRegular, DismissRegular } from '@fluentui/react-icons'
-import type { ColumnDef } from '@core/model/types'
+import type { ColumnDef, DataType } from '@core/model/types'
 import type { Scalar } from '@core/model/data'
 import { Button, Dropdown, SearchBox, TextField } from '../../app/ui'
 import { distinctWithCounts, type ColumnFilter } from './gridModel'
@@ -19,7 +19,7 @@ const TEXT_OPS: Array<{ value: Extract<ColumnFilter, { kind: 'text' }>['op']; la
 const MAX_LIST = 1000
 
 export function ColumnFilterMenu(p: {
-  column: { def: ColumnDef; values: Scalar[]; numeric: boolean }
+  column: { def: ColumnDef; type?: DataType; values: Scalar[]; numeric: boolean }
   sort: 'asc' | 'desc' | null
   filter: ColumnFilter | undefined
   display(v: Scalar): string
@@ -35,8 +35,8 @@ export function ColumnFilterMenu(p: {
   const [mode, setMode] = useState<'list' | 'text'>(p.filter?.kind === 'text' ? 'text' : 'list')
   const shown = distinct.filter((d) => !q || p.display(d.value).toLowerCase().includes(q.toLowerCase()) || (d.value === null && 'blank'.includes(q.toLowerCase()))).slice(0, MAX_LIST)
   const allChecked = shown.every((d) => checked.has(d.key))
-  const asc = p.column.numeric ? 'Sort ascending' : p.column.def.dataType === 'dateTime' ? 'Sort oldest to newest' : 'Sort A to Z'
-  const desc = p.column.numeric ? 'Sort descending' : p.column.def.dataType === 'dateTime' ? 'Sort newest to oldest' : 'Sort Z to A'
+  const asc = p.column.numeric ? 'Sort ascending' : (p.column.type ?? p.column.def.dataType) === 'dateTime' ? 'Sort oldest to newest' : 'Sort A to Z'
+  const desc = p.column.numeric ? 'Sort descending' : (p.column.type ?? p.column.def.dataType) === 'dateTime' ? 'Sort newest to oldest' : 'Sort Z to A'
   const apply = () => {
     if (mode === 'text') p.onFilter(textOp === 'isBlank' || textOp === 'isNotBlank' || text ? { kind: 'text', op: textOp, text } : null)
     else p.onFilter(checked.size === distinct.length ? null : { kind: 'values', values: checked })
@@ -61,7 +61,7 @@ export function ColumnFilterMenu(p: {
           Values
         </button>
         <button type="button" className={mode === 'text' ? 'is-on' : ''} onClick={() => setMode('text')}>
-          {p.column.numeric ? 'Number filters' : p.column.def.dataType === 'dateTime' ? 'Date filters' : 'Text filters'}
+          {p.column.numeric ? 'Number filters' : (p.column.type ?? p.column.def.dataType) === 'dateTime' ? 'Date filters' : 'Text filters'}
         </button>
       </div>
       {mode === 'list' ? (

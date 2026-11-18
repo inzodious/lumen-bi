@@ -123,7 +123,9 @@ describe.skipIf(!CORPUS || !existsSync(CORPUS))('sweep: PBIP corpus with synthet
       // same order as the app: the store builds an engine (deriving calculated tables from no data) on open,
       // then "Use sample data" generates rows and the engine is rebuilt
       createEngine(doc.model, doc.data).processCalculated()
-      generateSyntheticData(doc, { onlyEmpty: true })
+      // like the sweep (app/sweep/sweep.ts): names / ids that filters and formulas mention are reused, so visuals
+      // pinned to them return data — the app's default withholds them, which empties those visuals by design
+      generateSyntheticData(doc, { onlyEmpty: true, identifyingLiterals: 'reuse' })
       const engine = createEngine(doc.model, doc.data)
       const calc = engine.processCalculated()
       const probes = doc.report ? probeReport(engine, doc.report, TRACE ? { onVisual: (p, v) => process.stderr.write(`[probe] ${label} / ${p.name} / ${v.json?.visual?.visualType} ${v.name}\n`) } : {}) : []

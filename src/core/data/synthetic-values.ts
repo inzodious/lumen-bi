@@ -324,6 +324,9 @@ export function personName(k: number): { first: string; last: string } {
   return { first: FIRST_NAMES[i % F], last: LAST_NAMES[(i * 7 + Math.floor(i / F)) % L] }
 }
 
+/** Number of distinct company names before companyName() starts numbering them ("… 2"). */
+export const COMPANY_NAME_COUNT = COMPANY_A.length * COMPANY_B.length
+
 export function companyName(k: number): string {
   const A = COMPANY_A.length
   const B = COMPANY_B.length
@@ -634,4 +637,77 @@ export function calendarValue(colName: string, type: DataType, d: Date, ctx: Cal
     return undefined
   }
   return undefined
+}
+
+// ---------------------------------------------------------------------------------------------
+// Survey-style realism: skewed ordinal scales, sentiment labels, placeholders
+// ---------------------------------------------------------------------------------------------
+
+/** Φ(z): standard normal CDF (Abramowitz–Stegun 7.1.26, absolute error < 1.5e-7). */
+export function normalCdf(z: number): number {
+  const x = Math.abs(z) / Math.SQRT2
+  const t = 1 / (1 + 0.3275911 * x)
+  const erf = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)
+  return z >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf)
+}
+
+/**
+ * Weights of an ordinal survey scale with `n` points, lowest first. Real satisfaction / rating / likelihood-
+ * to-recommend answers pile up at the top of the scale (most respondents are content, a small tail is not),
+ * so the weights rise steeply: a 5-point scale has ~87% in the top two boxes, an 11-point (0–10) scale has
+ * ~63% promoters (9–10), ~24% passives (7–8) and ~13% detractors (0–6), i.e. a net promoter score near +50.
+ */
+export function surveyWeights(n: number): Float64Array {
+  const fixed: Record<number, number[]> = {
+    2: [0.14, 0.86],
+    3: [0.13, 0.24, 0.63],
+    4: [0.05, 0.1, 0.33, 0.52],
+    5: [0.02, 0.03, 0.08, 0.32, 0.55],
+    11: [0.008, 0.004, 0.008, 0.012, 0.018, 0.035, 0.045, 0.09, 0.15, 0.26, 0.37]
+  }
+  if (fixed[n]) return Float64Array.from(fixed[n])
+  const w = new Float64Array(Math.max(1, n))
+  let sum = 0
+  for (let i = 0; i < w.length; i++) {
+    w[i] = Math.exp((3 * i) / Math.max(1, w.length - 1))
+    sum += w[i]
+  }
+  for (let i = 0; i < w.length; i++) w[i] /= sum
+  return w
+}
+
+const SENTIMENT: Array<[number, RegExp]> = [
+  [2, /^(promoters?|(very|extremely|completely|highly|totally) (satisfied|likely|positive|happy|good|pleased|helpful)|strongly agree|excellent|outstanding|exceptional|exceeds? expectations|delighted|great|always)$/],
+  [-2, /^(detractors?|(very|extremely|completely|highly|totally) (dissatisfied|unsatisfied|unlikely|negative|unhappy|bad|poor|unhelpful)|strongly disagree|terrible|awful|unacceptable|never)$/],
+  [1, /^((somewhat |mostly |fairly )?(satisfied|likely|positive|happy|agree|pleased|helpful)|good|above average|meets? expectations|favou?rable|usually|often)$/],
+  [-1, /^((somewhat |mostly |fairly )?(dissatisfied|unsatisfied|unlikely|negative|unhappy|disagree|unhelpful)|poor|bad|below average|below expectations|unfavou?rable|rarely|seldom)$/],
+  [0, /^(passives?|neutral|neither.*|undecided|average|fair|ok|okay|mixed|sometimes|no opinion|indifferent)$/]
+]
+
+/** Sentiment of a survey answer label: +2 (best) … -2 (worst); undefined when the label is not a sentiment word. */
+export function sentimentOf(label: string): number | undefined {
+  const l = label.trim().toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!l) return undefined
+  for (const [score, re] of SENTIMENT) if (re.test(l)) return score
+  return undefined
+}
+
+/**
+ * Net-promoter band of a label: 'promoter' | 'passive' | 'detractor', or undefined. Used to keep a group
+ * column in line with the 0–10 likelihood-to-recommend score of the same row.
+ */
+export function npsBandOf(label: string): 'promoter' | 'passive' | 'detractor' | undefined {
+  const l = label.trim().toLowerCase()
+  if (/^promot/.test(l)) return 'promoter'
+  if (/^detract/.test(l)) return 'detractor'
+  if (/^(passive|neutral)/.test(l)) return 'passive'
+  return undefined
+}
+
+/**
+ * Generic placeholder labels ("Unknown", "N/A", "None"…): they identify nobody, so they may be copied from
+ * the model's DAX / the report's filters even into name-like and id-like columns.
+ */
+export function isPlaceholderLabel(v: string): boolean {
+  return /^(unknown|none|none provided|n\/?a|n\.a\.|na|null|blank|\(blank\)|other|others|all|tbd|tba|unassigned|unspecified|undefined|missing|no data|not (provided|available|applicable|specified|assigned|set|known|reported)|misc|miscellaneous|general|various|multiple|default|total|-+|\?+)$/i.test(v.trim())
 }

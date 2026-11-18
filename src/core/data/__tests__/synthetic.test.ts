@@ -8,11 +8,11 @@ import type { ProjectDocument } from '../../project'
 import type { FileSystem } from '../../io/fs'
 import type { ReportDocument } from '../../report/types'
 import { createEngine } from '../../engine/engine'
-import { generateSyntheticData, mineValueDomains, mineModel, domainKey, PLACEHOLDER_IMAGES } from '../synthetic'
+import { columnSemantics, generateSyntheticData, isIdentifyingColumn, mineValueDomains, mineModel, domainKey, PLACEHOLDER_IMAGES } from '../synthetic'
 import { calculatedTableLiterals, isCalculatedTable } from '../synthetic-mine'
 import { isEnterDataPartition } from '../synthetic-enterdata'
 import { literalTableOf, parseDaxExpr, tokenizeDax } from '../synthetic-dax'
-import { calendarValue, tokensOf } from '../synthetic-values'
+import { calendarValue, isPlaceholderLabel, tokensOf } from '../synthetic-values'
 import { loadPbipLite, parseTmdl } from './tmdl-lite'
 
 // ---------------------------------------------------------------------------------------------
@@ -1085,6 +1085,7 @@ describe.skipIf(!process.env.LUMEN_CORPUS_DIR)('generateSyntheticData — extern
       const res = generateSyntheticData(p, { seed: 11, today: TODAY, factRows: 6000, domains, conjunctions: mined.conjunctions, implications: mined.implications })
       const ms = performance.now() - t0
       expect(ms).toBeLessThan(10000)
+      expect(res.skipped.every((x) => !res.tables.includes(x.table) || x.reason === 'measureTable')).toBe(true)
 
       // every non-calculated table with data columns has data
       for (const t of p.model.tables) {
@@ -1139,6 +1140,7 @@ describe.skipIf(!process.env.LUMEN_CORPUS_DIR)('generateSyntheticData — extern
 
       // mined literals appear in their (generated, data) columns
       let minedChecked = 0
+      let withheldChecked = 0
       for (const d of domains.values()) {
         if (!res.tables.includes(d.table)) continue
         const t = p.model.tables.find((x) => x.name === d.table)!
@@ -1150,6 +1152,23 @@ describe.skipIf(!process.env.LUMEN_CORPUS_DIR)('generateSyntheticData — extern
         const present = new Set(vs.map(key))
         const isDateTable = c.dataType !== 'dateTime' && (t.dataCategory === 'Time' || /calendar|date/i.test(t.name))
         if (isDateTable) continue
+        // privacy: literals are never copied into name-like / id-like / free-text columns (placeholders and rows of
+        // the model's own literal tables excepted) — and an invented value never equals one either
+        const sem = columnSemantics(c, t)
+        const isKey = p.model.relationships.some((r) => (r.fromTable === t.name && r.fromColumn === c.name) || (r.toTable === t.name && r.toColumn === c.name))
+        if (isIdentifyingColumn(sem) || (isKey && c.dataType === 'string' && ['idCode', 'idSeq', 'guid', 'generic'].includes(sem.sem))) {
+          for (const v of d.values) {
+            if (typeof v !== 'string' || isPlaceholderLabel(v) || d.linked.includes(v)) continue
+            if (isKey && !isIdentifyingColumn(sem)) continue
+            expect(present.has(key(v)), `an identifying literal was copied into column #${t.columns.indexOf(c) + 1} of table #${p.model.tables.indexOf(t) + 1}`).toBe(false)
+            withheldChecked++
+          }
+          continue
+        }
+        // survey scales keep their skew; literals outside the scale are not forced in
+        if ((sem.sem === 'score' || sem.sem === 'nps') && c.dataType !== 'string') continue
+        // whole-number keys: only literals in the generated range are kept
+        if (isKey && c.dataType === 'int64') continue
         for (const v of d.values) {
           if (v instanceof Date && c.dataType !== 'dateTime') continue
           const coerced =
@@ -1175,6 +1194,7 @@ describe.skipIf(!process.env.LUMEN_CORPUS_DIR)('generateSyntheticData — extern
         }
       }
       expect(minedChecked).toBeGreaterThanOrEqual(0)
+      expect(withheldChecked).toBeGreaterThanOrEqual(0)
 
       // determinism on the real model
       const again = await loadCorpusProject(dir)
@@ -1190,6 +1210,19 @@ describe.skipIf(!process.env.LUMEN_CORPUS_DIR)('generateSyntheticData — extern
       const p = await loadCorpusProject(dir)
       generateSyntheticData(p, { seed: 5, today: TODAY, factRows: 6000 })
       const engine = engineFor(p)
+      // with the calculated tables computed: the "one" side of every relationship is unique, whatever kind of table
+      // is on its many side (a calculated fact related to imported dimensions included)
+      for (const r of p.model.relationships) {
+        const sides: Array<[string, string]> = []
+        if (r.toCardinality !== 'many') sides.push([r.toTable, r.toColumn])
+        if (r.fromCardinality === 'one') sides.push([r.fromTable, r.fromColumn])
+        for (const [tn, cn] of sides) {
+          const vs = p.data.tables.get(tn)?.columns.find((c) => c.name.toLowerCase() === cn.toLowerCase())?.values.filter((v) => v !== null)
+          if (!vs?.length) continue
+          const n = models.indexOf(dir) + 1
+          expect(new Set(vs.map(key)).size, `corpus model #${n}, relationship #${p.model.relationships.indexOf(r) + 1}: one side unique`).toBe(vs.length)
+        }
+      }
       const candidates = p.model.tables.flatMap((t) => t.measures).filter((m) => LITERAL_FILTER.test(m.expression) && !CONTEXT_DEPENDENT.test(m.expression))
       let evaluated = 0
       let nonBlank = 0

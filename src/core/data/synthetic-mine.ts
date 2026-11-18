@@ -27,12 +27,16 @@
  * Calculated columns: values mined for a calculated column are pushed back to the data columns it is
  * computed from (`COALESCE(CALCULATE(MAX(t[c])), "N/A")`, `SWITCH(t[c], "a", "A", ...)` inverted,
  * `SWITCH(TRUE(), t[c] = "x", "X", ...)` / `IF(...)` conditions of the branch producing the value).
+ *
+ * Calculated tables: domains, conjunctions and implications mined for a calculated table's columns are
+ * copied to the imported columns they are computed from (see ./synthetic-lineage.ts).
  */
 import type { ColumnDef, SemanticModel, TableDef } from '../model/types'
 import type { ProjectDocument } from '../project'
 import { decodeLiteral } from '../report/literal'
 import { makeDate } from '../model/data'
 import { literalOf, literalTableOf, tokenizeDax, tryParseDax, type DaxNode, type LiteralTable } from './synthetic-dax'
+import { propagateLineage } from './synthetic-lineage'
 
 export type MinedValue = string | number | boolean | Date
 
@@ -1358,5 +1362,9 @@ export function mineModel(project: Pick<ProjectDocument, 'model' | 'report'>, op
   for (const conds of miner.conjunctions.values()) {
     conjunctions.push({ conds: conds.map((c) => ({ table: c.ref.table.name, column: c.ref.column.name, values: c.values })) })
   }
-  return { domains: miner.domains, conjunctions, implications: [...miner.implications.values()] }
+  const result: MineResult = { domains: miner.domains, conjunctions, implications: [...miner.implications.values()] }
+  // what was mined for calculated tables (UNION / SELECTCOLUMNS / FILTER over imported tables) also applies to
+  // the imported columns those tables are computed from — the only ones the generator writes
+  propagateLineage(model, result, domainKey)
+  return result
 }

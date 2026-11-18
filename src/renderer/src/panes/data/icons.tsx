@@ -18,7 +18,7 @@ import {
   TextT16Regular,
   CheckboxChecked16Regular
 } from '@fluentui/react-icons'
-import type { ColumnDef, TableDef } from '@core/model/types'
+import type { ColumnDef, DataType, TableDef } from '@core/model/types'
 
 const GEO = new Set(['address', 'city', 'continent', 'country', 'countryregion', 'county', 'latitude', 'longitude', 'place', 'postalcode', 'stateorprovince'])
 
@@ -74,13 +74,15 @@ export function TableIcon({ table }: { table: TableDef }): ReactElement {
   return <Table16Regular />
 }
 
-export function ColumnIcon({ column }: { column: ColumnDef }): ReactElement {
+/** `dataType`: the effective type when the definition declares none (calculated tables / columns). */
+export function ColumnIcon({ column, dataType }: { column: ColumnDef; dataType?: DataType }): ReactElement {
+  const type = dataType ?? column.dataType
   let icon: ReactElement
   if (isGeoColumn(column)) icon = <Globe16Regular />
   else if (column.isKey) icon = <Key16Regular />
-  else if (column.dataType === 'dateTime') icon = <CalendarLtr16Regular />
-  else if (isSummarizable(column)) icon = <Sigma />
-  else if (column.dataType === 'boolean') icon = <CheckboxChecked16Regular />
+  else if (type === 'dateTime') icon = <CalendarLtr16Regular />
+  else if (isSummarizable(type === column.dataType ? column : { ...column, dataType: type })) icon = <Sigma />
+  else if (type === 'boolean') icon = <CheckboxChecked16Regular />
   else icon = <TextT16Regular />
   if (column.kind === 'calculated')
     return (

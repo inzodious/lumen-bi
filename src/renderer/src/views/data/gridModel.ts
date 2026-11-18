@@ -86,8 +86,16 @@ export function distinctWithCounts(values: Scalar[]): Array<{ value: Scalar; key
   return [...map.values()].sort((a, b) => compareScalars(a.value, b.value))
 }
 
-/** Initial column width from header + sample of formatted values (7px/char approximation of Segoe UI 12px). */
+/**
+ * Initial column width. The header has to fit whole — data type icon, name (semibold), the sort / filter
+ * chevron and the cell padding — so a short name such as "Column1" is never cut to "Colum…"; long values
+ * only widen the column up to a limit (the user can drag it further).
+ */
 export function estimateWidth(header: string, samples: string[]): number {
-  const longest = Math.max(header.length + 4, ...samples.map((s) => s.length))
-  return Math.max(70, Math.min(320, Math.round(longest * 7 + 24)))
+  // 12px Segoe UI: ~6.6px per character regular, ~7.4px semibold; header chrome = 8 + 14 + 4 + 4 + 20 + 2 + 6
+  const headerPx = Math.ceil(header.length * 7.4) + 58
+  let longest = 0
+  for (const s of samples) if (s.length > longest) longest = s.length
+  const cellPx = Math.round(longest * 6.8) + 18
+  return Math.max(70, Math.min(420, headerPx), Math.min(320, cellPx))
 }

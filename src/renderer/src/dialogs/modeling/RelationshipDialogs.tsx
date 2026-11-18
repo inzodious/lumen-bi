@@ -3,13 +3,19 @@ import { useMemo, useState } from 'react'
 import { Button, Checkbox, Dropdown, Modal } from '../../app/ui'
 import { useApp } from '../../state/store'
 import type { RelationshipDef, SemanticModel } from '@core/model/types'
-import type { Scalar } from '@core/model/data'
+import type { ColumnData, Scalar } from '@core/model/data'
 import { CARDINALITY_LABELS, detectCardinality, draftFromRelationship, isUnique, relationshipFromDraft, suggestColumns, uiCardinality, validateDraft, type RelationshipDraft, type UiCardinality } from './logic/relationships'
 import { columnValues, tableData } from './context'
 import { formatCell } from '../../views/data/formatCell'
 import { cx } from '../../app/ui'
 import { confirmDialog } from '../../app/ui/Modal'
 import './modeling.css'
+
+/** A column's stored data (values + the data type the engine inferred when the definition declares none). */
+function columnData(table: string, column: string): ColumnData | undefined {
+  const lower = column.toLowerCase()
+  return tableData(table)?.columns.find((c) => c.name.toLowerCase() === lower)
+}
 
 const relLabel = (r: RelationshipDef): { from: string; to: string } => ({ from: `${r.fromTable} (${r.fromColumn})`, to: `${r.toTable} (${r.toColumn})` })
 
@@ -186,15 +192,17 @@ export function RelationshipEditorDialog({ onClose, editName, prefill }: { onClo
       : { table1: prefill?.table1 ?? '', column1: prefill?.column1 ?? '', table2: prefill?.table2 ?? '', column2: prefill?.column2 ?? '', cardinality: 'manyToOne', crossFilter: 'single', isActive: true, relyOnReferentialIntegrity: false, securityBoth: false }
   )
   const [touchedCard, setTouchedCard] = useState(!!editing)
-  const v1 = d.table1 && d.column1 ? columnValues(d.table1, d.column1) : undefined
-  const v2 = d.table2 && d.column2 ? columnValues(d.table2, d.column2) : undefined
+  const data1 = d.table1 && d.column1 ? columnData(d.table1, d.column1) : undefined
+  const data2 = d.table2 && d.column2 ? columnData(d.table2, d.column2) : undefined
+  const v1 = data1?.values
+  const v2 = data2?.values
   const effective: RelationshipDraft = useMemo(() => {
     if (touchedCard || !v1 || !v2) return d
     const card = detectCardinality(v1, v2)
     return { ...d, cardinality: card, crossFilter: card === 'oneToOne' || card === 'manyToMany' ? 'both' : d.crossFilter }
   }, [d, v1, v2, touchedCard])
   if (!model) return null
-  const check = validateDraft(model, effective, { v1, v2 }, editing)
+  const check = validateDraft(model, effective, { v1, v2, type1: data1?.type, type2: data2?.type }, editing)
   const tables = model.tables.filter((t) => !t.isPrivate && !t.showAsVariationsOnly && !t.calculationGroup).map((t) => ({ value: t.name, label: t.name }))
   const setTable = (side: 1 | 2, table: string) => {
     const next = side === 1 ? { ...d, table1: table, column1: '' } : { ...d, table2: table, column2: '' }

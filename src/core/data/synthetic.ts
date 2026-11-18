@@ -22,17 +22,40 @@
  *  - periodic-snapshot facts (snapshot / as-of / report-date columns, snapshot-ish table names) get
  *    month-end (or weekly / daily) snapshot days, every mined snapshot date included, with one row per
  *    entity per day;
- *  - every dimension member referenced by a fact has fact rows (facts grow when a dimension is large).
+ *  - every dimension member referenced by a fact has fact rows (facts grow when a dimension is large);
+ *  - calculated tables that combine imported tables (UNION / SELECTCOLUMNS / FILTER…, see
+ *    ./synthetic-lineage.ts) are traced to their source columns: a relationship, a mined value or a
+ *    conjunction on the calculated table applies to the imported columns it is computed from, so its keys
+ *    match the dimensions it is related to. A "one"-side key is unique whatever its other end is;
+ *  - survey-style columns are realistic: ratings / scores / likelihood-to-recommend answers are skewed to
+ *    the top of their scale (surveyWeights), correlated within a row and drifting slowly over time; answer
+ *    labels (Promoter / Detractor, Satisfied / Dissatisfied…) are mostly positive, and a promoter / passive /
+ *    detractor group column follows the score of its row — net-promoter style measures come out positive
+ *    and period-over-period variances stay sane;
+ *  - a calendar whose M query stops at the current date ends today.
  *
- * Skipped: calculated tables (the DAX engine computes them in processCalculated), calculation-group
- * tables, field parameters, calculated / rowNumber columns. "Enter data" tables are decoded from
- * their embedded rows instead of being invented (empty ones such as measure-holder tables → 0 rows).
+ * Privacy: nothing is read but the model and report *definitions*. Values that come from them:
+ *  (1) rows of "Enter data" tables and of DATATABLE / table-constructor calculated tables (the model's own
+ *      embedded rows, verbatim); (2) literals that DAX or report filters / slicers / bookmarks compare a
+ *      column to, when the column is a category, status, flag, number, threshold or date; (3) generic
+ *      placeholders ("Unknown", "N/A"). Literals compared to name-like, id-like and free-text columns
+ *      (people, organisations, e-mail, phone, address, ids, GUIDs, notes — isIdentifyingColumn) are never
+ *      copied (an invented non-key value that happens to equal one is replaced), unless
+ *      `identifyingLiterals: 'reuse'` is passed; the result lists the columns concerned (`withheld`,
+ *      counts only).
+ *
+ * Skipped (see SyntheticResult.skipped): calculated tables (the DAX engine computes them in
+ * processCalculated), calculation-group tables, tables without stored columns, calculated / rowNumber
+ * columns. "Enter data" tables are decoded from their embedded rows instead of being invented (empty
+ * ones such as measure-holder tables → 0 rows).
  *
  * Approximations (documented gaps): calculated date tables (CALENDAR(...)) are not evaluated here, so
  * fact dates related to them use the default range; key domains are shared per relationship
  * component, so two one-side tables of different sizes in one component nest (smaller ⊂ larger)
  * rather than being independent; cross-table value correlations (e.g. fact date ≥ dimension
- * created date) are not modelled.
+ * created date) are not modelled; the size of each feed of a combined calculated table is a heuristic
+ * (readLineageHints); a calculated table that cannot be traced (joins, GENERATE, SUMMARIZECOLUMNS over
+ * several tables) constrains nothing.
  */
 import type { ColumnDef, DataType, SemanticModel, TableDef } from '../model/types'
 import { makeDate, type ColumnData, type Scalar, type TableData } from '../model/data'
@@ -48,8 +71,10 @@ import {
   type MinedDomain
 } from './synthetic-mine'
 import { decodeEnterDataTable, isEnterDataPartition } from './synthetic-enterdata'
+import { modelLineage, type LineageBranch } from './synthetic-lineage'
 import {
   CATEGORICAL_TOKENS,
+  COMPANY_NAME_COUNT,
   singular,
   CATEGORY_POOLS,
   COUNTRIES,
@@ -69,7 +94,12 @@ import {
   entityOf,
   guidFrom,
   hash32,
+  isPlaceholderLabel,
   loremSentence,
+  normalCdf,
+  npsBandOf,
+  sentimentOf,
+  surveyWeights,
   pad,
   personName,
   streetAddress,
@@ -88,6 +118,22 @@ export interface SyntheticOptions {
   factRows?: number
   /** only tables without data (default true): tables whose status is `loaded` with rows are kept */
   onlyEmpty?: boolean
+  /**
+   * Which tables are (re)generated; overrides `onlyEmpty`:
+   *  - 'empty'     tables without rows (= onlyEmpty: true);
+   *  - 'synthetic' those, plus tables that hold sample rows from an earlier run ("Regenerate sample data":
+   *                a new seed gives a different, equally consistent dataset; real data is never touched);
+   *  - 'all'       every table, replacing real data too (= onlyEmpty: false).
+   */
+  replace?: 'empty' | 'synthetic' | 'all'
+  /**
+   * Literals that the model's DAX and the report's filters compare name-like, id-like and free-text columns
+   * to (`customer_name = "…"`, an organisation id in a report filter):
+   *  - 'never' (default): they are not copied into the data — it must not contain a real name or id; visuals
+   *    filtered to such a literal then show no data;
+   *  - 'reuse': they are copied like any other mined value (those visuals render, the names are real).
+   */
+  identifyingLiterals?: 'never' | 'reuse'
   /** "today" as a naive wall-clock date (UTC fields, per the DataStore contract). Default: local today. */
   today?: Date
   /** calendar span in whole years ending Dec 31 of today's year (default 3) */
@@ -111,6 +157,48 @@ export interface SyntheticOptions {
 // ---------------------------------------------------------------------------------------------
 
 type Role = 'date' | 'dim' | 'fact' | 'measure' | 'enterData' | 'single'
+
+/** Why a table has no generated rows. */
+export type SyntheticSkipReason =
+  /** computed by the DAX engine from the generated rows (calculated table) */
+  | 'calculated'
+  /** calculation group: holds calculation items, never rows */
+  | 'calculationGroup'
+  /** holds measures only (an empty "Enter data" / placeholder table) */
+  | 'measureTable'
+  /** has no stored columns */
+  | 'noColumns'
+  /** already has rows that this run was asked to keep */
+  | 'hasData'
+  /** not in the `tables` option */
+  | 'notRequested'
+
+export interface SyntheticResult {
+  /** tables written by this run (model order); includes decoded "Enter data" tables */
+  tables: string[]
+  /** tables this run did not write, with the reason (model order) */
+  skipped: Array<{ table: string; reason: SyntheticSkipReason }>
+  /** the seed that was used */
+  seed: number
+  /**
+   * Columns for which literals of the definitions were *not* reused because they would identify a person,
+   * organisation or record (see SyntheticOptions.identifyingLiterals), with the number of distinct literals.
+   * `kind`: what the column holds — a name (person, organisation, e-mail, address…), an id, or free text.
+   * The literals themselves are deliberately not returned.
+   */
+  withheld: Array<{ table: string; column: string; literals: number; kind: 'name' | 'id' | 'text' }>
+}
+
+/** A relationship as the generator sees it: calculated-table ends are replaced by the columns they are computed from. */
+interface EffRel {
+  fromTable: string
+  fromColumn: string
+  toTable: string
+  toColumn: string
+  fromOne: boolean
+  toOne: boolean
+  active: boolean
+}
 
 interface TablePlan {
   def: TableDef
@@ -410,6 +498,8 @@ export function columnSemantics(col: ColumnDef, table: TableDef): ColumnSemantic
   if (toks.some((x) => FREE_TEXT_TOKENS.has(x)) && has('description', 'desc', 'notes', 'note', 'comment', 'comments', 'feedback', 'text', 'message', 'summary', 'body', 'remarks', 'subject'))
     return { sem: 'text', toks }
   if (has('full') && has('name')) return { sem: 'person', toks }
+  // unpivoted (attribute / value) tables: `name` or `attribute` next to a `value` column names the attribute
+  if (toks.length === 1 && (first === 'name' || first === 'attribute') && table.columns.some((c) => c !== col && /^(value|values|val)$/i.test(c.name))) return { sem: 'generic', toks }
   if (has('name') || toks.length === 1) {
     const other = toks.filter((x) => x !== 'name')
     if (other.length === 0 || (other.length === 1 && singular(other[0]) === ent && has('name'))) {
@@ -468,6 +558,50 @@ function isFreeForm(sem: Sem): boolean {
   return ['email', 'phone', 'url', 'image', 'zip', 'address', 'firstName', 'lastName', 'person', 'company', 'entityName', 'text', 'guid', 'idCode', 'idSeq'].includes(sem)
 }
 
+/**
+ * Columns whose real values identify people, organisations or records (names, e-mail addresses, phone
+ * numbers, addresses, ids, free text). Privacy rule: literals found in the model's DAX or in the report's
+ * filters are never copied into them — the report may be shown to third parties with sample data, and a
+ * filter such as `customer_name = "…"` holds a real name. Only generic placeholders ("Unknown", "N/A") and
+ * rows of the model's own literal tables are kept. Name-like columns that are really categories
+ * (`status_name`, `metric_label`, `customer_class`…) are not identifying.
+ */
+export function isIdentifyingColumn(s: ColumnSemantics): boolean {
+  if (!isFreeForm(s.sem)) return false
+  if (s.sem !== 'entityName' && s.sem !== 'person' && s.sem !== 'company') return true
+  // `customer_class`, `account_tier`, `status_name`: a category about an entity, not the entity's name
+  return !s.toks.some((t) => CATEGORICAL_TOKENS.has(t) && t !== 'name')
+}
+
+/** Points of the survey scale of a rating / score / likelihood column: defaults, widened by the literals it is compared to. */
+function ordinalScale(sem: Sem, mined: Scalar[]): { lo: number; hi: number } {
+  let lo = sem === 'nps' ? 0 : 1
+  let hi = sem === 'nps' ? 10 : 5
+  const nums = mined.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  if (nums.length) {
+    const max = Math.max(...nums)
+    const min = Math.min(...nums)
+    if (max > hi) hi = [5, 7, 10, 100].find((x) => x >= max) ?? Math.ceil(max)
+    if (min < lo && min >= 0) lo = Math.floor(min)
+  }
+  return { lo, hi }
+}
+
+/** Rank of each label on a worst → best sentiment scale (undefined entries are not sentiment labels); undefined when the labels are not a sentiment scale. */
+function sentimentRanks(labels: Scalar[]): { order: number[]; others: number[] } | undefined {
+  const scored: Array<{ i: number; s: number }> = []
+  const others: number[] = []
+  labels.forEach((v, i) => {
+    const s = typeof v === 'string' ? sentimentOf(v) : undefined
+    if (s === undefined) others.push(i)
+    else scored.push({ i, s })
+  })
+  if (scored.length < 2 || scored.every((x) => x.s === scored[0].s)) return undefined
+  if (others.length > scored.length) return undefined
+  scored.sort((a, b) => a.s - b.s || a.i - b.i)
+  return { order: scored.map((x) => x.i), others }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Generator
 // ---------------------------------------------------------------------------------------------
@@ -478,6 +612,12 @@ interface RowHelpers {
   place(r: number): readonly [string, string, string]
   baseDay(r: number): number
   scale(r: number): number
+  /**
+   * The row's latent "how satisfied is this respondent" value (standard normal, plus a slow drift over time
+   * on fact tables): rating, score and sentiment columns of one row are all drawn around it, so a happy
+   * respondent rates everything high and period-over-period scores move a little instead of being flat.
+   */
+  latent(r: number): number
 }
 
 class SyntheticGenerator {
@@ -503,12 +643,25 @@ class SyntheticGenerator {
   /** 1:1 relationship pairs */
   private readonly oneToOne: Array<[Member, Member]> = []
   private trendSampler!: WeightedSampler
+  /** relationships between tables the generator writes or knows the values of (see buildRelationships) */
+  private readonly rels: EffRel[] = []
+  /** "one"-side key columns of relationships whose other end is computed by the engine: unique whatever happens */
+  private readonly uniqueKeys = new Set<string>()
+  private readonly lineage: Map<string, LineageBranch[]>
+  /** source column → factor a calculated table multiplies it by while its sibling sources are taken as they are */
+  private readonly scaleHints = new Map<string, number>()
+  /** fact table → share of the default fact size (minor feeds of a combined table are smaller) */
+  private readonly sizeFactors = new Map<string, number>()
+  readonly skipped: SyntheticResult['skipped'] = []
+  readonly withheld: SyntheticResult['withheld'] = []
+  private readonly reuseIdentifying: boolean
 
   constructor(
     readonly project: ProjectDocument,
     readonly opts: SyntheticOptions
   ) {
     this.model = project.model
+    this.reuseIdentifying = opts.identifyingLiterals === 'reuse'
     this.seed = (opts.seed ?? 1) >>> 0
     const t = opts.today
     if (t) this.today = makeDate(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate())
@@ -545,6 +698,91 @@ class SyntheticGenerator {
     this.windowStart = dayDiff(this.calStart, defaultStart)
     this.cal = { today: this.today, fiscalStartMonth: Math.min(12, Math.max(1, Math.round(opts.fiscalYearStartMonth ?? 7))), weekEndDow: this.minedWeekEndDow() }
     this.buildTrend()
+    this.lineage = modelLineage(this.model)
+    this.buildRelationships()
+    this.readLineageHints()
+  }
+
+  /**
+   * Relationships as constraints on generated tables. A relationship end on a calculated table without
+   * literal rows (UNION / SELECTCOLUMNS / FILTER over imported tables, auto date/time tables, CALENDAR())
+   * is replaced by the imported columns that table is computed from, so that e.g. `Combined[key] → Dim[key]`
+   * makes every source of `Combined` draw its keys from `Dim`. When the calculated end cannot be traced the
+   * relationship constrains nothing, except that a "one" end on a generated table still has to be unique.
+   */
+  private buildRelationships(): void {
+    const tableByName = new Map(this.model.tables.map((t) => [t.name.toLowerCase(), t]))
+    const opaque = (name: string): boolean => {
+      const t = tableByName.get(name.toLowerCase())
+      return !t || (isCalculatedTable(t) && !calculatedTableLiterals(t))
+    }
+    const seen = new Set<string>()
+    const push = (r: EffRel): void => {
+      if (r.fromTable.toLowerCase() === r.toTable.toLowerCase()) return
+      const k = `${keyOf(r.fromTable, r.fromColumn)}>${keyOf(r.toTable, r.toColumn)}`
+      if (seen.has(k)) return
+      seen.add(k)
+      this.rels.push(r)
+    }
+    for (const r of this.model.relationships) {
+      const fromOne = r.fromCardinality === 'one'
+      const toOne = r.toCardinality !== 'many'
+      const active = r.isActive !== false
+      const fo = opaque(r.fromTable)
+      const to = opaque(r.toTable)
+      if (!fo && !to) {
+        push({ fromTable: r.fromTable, fromColumn: r.fromColumn, toTable: r.toTable, toColumn: r.toColumn, fromOne, toOne, active })
+        continue
+      }
+      if (!fo && fromOne && tableByName.has(r.fromTable.toLowerCase())) this.uniqueKeys.add(keyOf(r.fromTable, r.fromColumn))
+      if (!to && toOne && tableByName.has(r.toTable.toLowerCase())) this.uniqueKeys.add(keyOf(r.toTable, r.toColumn))
+      if (fo && to) continue
+      const calcTable = fo ? r.fromTable : r.toTable
+      const calcColumn = (fo ? r.fromColumn : r.toColumn).toLowerCase()
+      for (const b of this.lineage.get(calcTable.toLowerCase()) ?? []) {
+        const lc = b.columns.get(calcColumn)
+        if (!lc?.source || lc.scale) continue
+        // rows of the calculated table are rows of its source, so the source column is a "many" end even when
+        // the calculated table is the "one" side (a lookup made with DISTINCT / SUMMARIZE): the two columns then
+        // simply share one key domain
+        if (fo) push({ fromTable: b.table, fromColumn: lc.source, toTable: r.toTable, toColumn: r.toColumn, fromOne: false, toOne, active })
+        else push({ fromTable: r.fromTable, fromColumn: r.fromColumn, toTable: b.table, toColumn: lc.source, fromOne, toOne: false, active })
+      }
+    }
+  }
+
+  /**
+   * Hints read from calculated tables that combine several imported tables (UNION of SELECTCOLUMNS):
+   *  - a source multiplied by a constant (`t[score] * 2`) while its siblings are copied as they are uses a
+   *    scale that much smaller than theirs, so the generated values are divided accordingly;
+   *  - a feed that fills only a few of the combined columns (the others are BLANK()) is a minor source in
+   *    practice; it gets fewer rows (share = (its coverage / best coverage)², at least 8%), so ratios whose
+   *    denominator counts every row of the combined table are not dominated by rows that lack the attribute.
+   *    Heuristic: real volumes are unknown.
+   */
+  private readLineageHints(): void {
+    for (const branches of this.lineage.values()) {
+      const tables = new Set(branches.map((b) => b.table.toLowerCase()))
+      if (tables.size < 2) continue
+      const names = new Set<string>()
+      for (const b of branches) for (const n of b.columns.keys()) names.add(n)
+      for (const n of names) {
+        const cols = branches.map((b) => b.columns.get(n)).filter((c) => c?.source)
+        if (!cols.some((c) => !c!.scale)) continue
+        for (const b of branches) {
+          const c = b.columns.get(n)
+          if (c?.source && c.scale && c.scale > 1) this.scaleHints.set(keyOf(b.table, c.source), c.scale)
+        }
+      }
+      const coverage = branches.map((b) => [...b.columns.values()].filter((c) => c.source).length)
+      const best = Math.max(...coverage)
+      if (best <= 0) continue
+      branches.forEach((b, i) => {
+        const f = Math.max(0.08, Math.pow(coverage[i] / best, 2))
+        const k = b.table.toLowerCase()
+        this.sizeFactors.set(k, Math.max(this.sizeFactors.get(k) ?? 0, f))
+      })
+    }
   }
 
   /** Weekday the report's week-end literals fall on (e.g. a slicer saved on a Sunday-ending week); default Saturday. */
@@ -609,41 +847,54 @@ class SyntheticGenerator {
   plan(): void {
     const data = this.project.data
     const only = this.opts.tables?.map((t) => t.toLowerCase())
-    const onlyEmpty = this.opts.onlyEmpty !== false
+    const replace = this.opts.replace ?? (this.opts.onlyEmpty === false ? 'all' : 'empty')
     const oneSideCols = new Set<string>()
     const manySideTables = new Set<string>()
     const oneSideTables = new Set<string>()
-    const tableByName = new Map(this.model.tables.map((t) => [t.name.toLowerCase(), t]))
-    // relationships to calculated tables without literal rows (auto date/time LocalDateTable_*, CALENDAR
-    // tables) do not constrain anything here: those tables are derived from the data afterwards
-    const opaque = (name: string): boolean => {
-      const t = tableByName.get(name.toLowerCase())
-      return !t || (isCalculatedTable(t) && !calculatedTableLiterals(t))
-    }
-    for (const r of this.model.relationships) {
-      if (opaque(r.fromTable) || opaque(r.toTable)) continue
-      const fromOne = r.fromCardinality === 'one'
-      const toOne = r.toCardinality !== 'many'
-      if (fromOne) {
+    // relationships to calculated tables that cannot be traced to imported columns (auto date/time
+    // LocalDateTable_*, CALENDAR tables) are not in this.rels: those tables are derived from the data afterwards
+    for (const r of this.rels) {
+      if (r.fromOne) {
         oneSideCols.add(keyOf(r.fromTable, r.fromColumn))
         oneSideTables.add(r.fromTable.toLowerCase())
       } else manySideTables.add(r.fromTable.toLowerCase())
-      if (toOne) {
+      if (r.toOne) {
         oneSideCols.add(keyOf(r.toTable, r.toColumn))
         oneSideTables.add(r.toTable.toLowerCase())
       } else manySideTables.add(r.toTable.toLowerCase())
     }
+    for (const k of this.uniqueKeys) {
+      oneSideCols.add(k)
+      oneSideTables.add(k.slice(0, k.indexOf('[')))
+    }
 
     for (const t of this.model.tables) {
-      if (isCalculatedTable(t) || isCalculationGroupTable(t)) continue
+      if (isCalculationGroupTable(t)) {
+        this.skipped.push({ table: t.name, reason: 'calculationGroup' })
+        continue
+      }
+      if (isCalculatedTable(t)) {
+        this.skipped.push({ table: t.name, reason: 'calculated' })
+        continue
+      }
       const cols = t.columns.filter(isDataColumn)
-      if (!cols.length) continue
-      if (only && !only.includes(t.name.toLowerCase())) continue
-      if (onlyEmpty) {
+      if (!cols.length) {
+        this.skipped.push({ table: t.name, reason: t.measures.length ? 'measureTable' : 'noColumns' })
+        continue
+      }
+      if (only && !only.includes(t.name.toLowerCase())) {
+        this.skipped.push({ table: t.name, reason: 'notRequested' })
+        continue
+      }
+      if (replace !== 'all') {
         const st = data.status.get(t.name)
         const existing = data.tables.get(t.name)
-        if (st?.state === 'loaded' && (existing?.rowCount ?? st.rowCount) > 0) continue
-        if (!st && existing && existing.rowCount > 0) continue
+        const hasRows = (st?.state === 'loaded' && (existing?.rowCount ?? st.rowCount) > 0) || (!st && !!existing && existing.rowCount > 0)
+        const sample = st?.state === 'loaded' && st.source === 'synthetic'
+        if (hasRows && !(replace === 'synthetic' && sample)) {
+          this.skipped.push({ table: t.name, reason: 'hasData' })
+          continue
+        }
       }
       const lname = t.name.toLowerCase()
       const plan: TablePlan = { def: t, cols, role: 'dim', rows: 0, isOneSide: oneSideTables.has(lname), isManySide: manySideTables.has(lname) }
@@ -655,6 +906,7 @@ class SyntheticGenerator {
           plan.fixed = fixed
           plan.rows = fixed.rowCount
           this.plans.set(lname, plan)
+          if (fixed.rowCount === 0 && t.measures.length > 0) this.skipped.push({ table: t.name, reason: 'measureTable' })
           continue
         }
       }
@@ -664,6 +916,7 @@ class SyntheticGenerator {
         plan.role = 'measure'
         plan.rows = 0
         this.plans.set(lname, plan)
+        this.skipped.push({ table: t.name, reason: 'measureTable' })
         continue
       }
       const dateCol = looksLikeDateTable(t, cols, oneSideCols)
@@ -677,7 +930,9 @@ class SyntheticGenerator {
       } else if (dateCol) {
         plan.role = 'date'
         plan.dateCol = dateCol
-        plan.rows = this.nDays
+        // a calendar whose query stops at the current date (`… <= DateTime.LocalNow()`) ends today, as it does when
+        // refreshed: "latest date" logic (MAX of the calendar date) then lands on a day that has fact rows
+        plan.rows = endsToday(mPart?.expression) ? Math.min(this.nDays, this.todayIdx + 1) : this.nDays
       } else if (isFactName(t.name) || (plan.isManySide && !plan.isOneSide) || (!plan.isOneSide && !plan.isManySide && looksFactual(cols))) {
         plan.role = 'fact'
       } else {
@@ -694,7 +949,8 @@ class SyntheticGenerator {
     const perFact = Math.max(Math.min(factRows, 500), Math.round(factRows * Math.min(1, 4 / Math.max(1, facts.length))))
     for (const p of facts) {
       const jitter = 0.85 + (hash32(p.def.name, this.seed) % 1000) / 1000 * 0.3
-      p.rows = Math.max(1, Math.round(facts.length === 1 ? perFact : perFact * jitter))
+      const share = this.sizeFactors.get(p.def.name.toLowerCase()) ?? 1
+      p.rows = Math.max(1, Math.round((facts.length === 1 ? perFact : perFact * jitter) * share))
     }
     // dimensions: at least as many rows as the largest mined categorical domain on their columns
     for (const p of this.plans.values()) {
@@ -756,34 +1012,50 @@ class SyntheticGenerator {
       parent.set(k, k)
       return m
     }
-    for (const r of this.model.relationships) {
+    for (const r of this.rels) {
       const ft = tables.get(r.fromTable.toLowerCase())
       const tt = tables.get(r.toTable.toLowerCase())
       const fc = ft?.columns.find((c) => c.name.toLowerCase() === r.fromColumn.toLowerCase())
       const tc = tt?.columns.find((c) => c.name.toLowerCase() === r.toColumn.toLowerCase())
       if (!ft || !tt || !fc || !tc) continue
+      // both ends must be known before either becomes a member: a lone member would be drawn like a foreign key
+      const known = (t: TableDef, c: ColumnDef): boolean => {
+        const plan = this.plans.get(t.name.toLowerCase())
+        return (!!plan && !plan.fixed && isDataColumn(c)) || !!this.fixedValuesOf(t, c)
+      }
+      if (!known(ft, fc) || !known(tt, tc)) continue
       const fm = getMember(ft, fc)
       const tm = getMember(tt, tc)
       if (!fm || !tm) continue
       if (!fm.plan && !tm.plan) continue
-      const fromOne = r.fromCardinality === 'one'
-      const toOne = r.toCardinality !== 'many'
+      const fromOne = r.fromOne
+      const toOne = r.toOne
       if (fromOne) fm.one = true
       else fm.many = true
       if (toOne) tm.one = true
       else tm.many = true
       if (!fromOne && toOne) {
         fm.targets.add(tm)
-        this.edges.push({ from: fm, to: tm, active: r.isActive !== false })
+        this.edges.push({ from: fm, to: tm, active: r.active })
       } else if (fromOne && !toOne) {
         tm.targets.add(fm)
-        this.edges.push({ from: tm, to: fm, active: r.isActive !== false })
+        this.edges.push({ from: tm, to: fm, active: r.active })
       }
       else if (fromOne && toOne) this.oneToOne.push([fm, tm])
       // many-to-one: the many side must be ⊂ one side; 1:1 and m:m share the domain too
       const a = find(keyOf(ft.name, fc.name))
       const b = find(keyOf(tt.name, tc.name))
       if (a !== b) parent.set(a, b)
+    }
+    // "one" ends whose other end is computed by the engine (an untraceable calculated table): unique keys
+    for (const k of this.uniqueKeys) {
+      const t = tables.get(k.slice(0, k.indexOf('[')))
+      const c = t?.columns.find((x) => keyOf(t.name, x.name) === k)
+      if (!t || !c) continue
+      const plan = this.plans.get(t.name.toLowerCase())
+      if (!plan || plan.fixed || !isDataColumn(c)) continue
+      const m = getMember(t, c)
+      if (m) m.one = true
     }
     const groups = new Map<string, Member[]>()
     for (const [k, m] of members) {
@@ -862,9 +1134,23 @@ class SyntheticGenerator {
     const fixedMembers = [...ms.filter((m) => m.fixed && m.one), ...ms.filter((m) => m.fixed && !m.one)]
     for (const m of fixedMembers) for (const v of m.fixed ?? []) this.pushValue(comp, v)
     comp.fixedCount = comp.values.length
+    // privacy: ids, codes and names used as keys are always invented; literals from DAX / report filters only
+    // seed keys that are categories (a status or type used as a key), placeholders, or small whole numbers
+    // (surrogate keys the generator would produce anyway)
+    const identifying = !this.reuseIdentifying && kind === 'string' && (style !== 'label' || isIdentifyingColumn(refSem))
+    const maxKey = Math.max(1000, ...ms.filter((m) => m.plan).map((m) => m.plan!.rows))
     for (const m of ms) {
       const d = this.domains.get(domainKey(m.table.name, m.col.name))
-      if (d) for (const v of d.values) this.pushValue(comp, v)
+      if (!d) continue
+      let dropped = 0
+      for (const v of d.values) {
+        const drop =
+          (identifying && !(typeof v === 'string' && isPlaceholderLabel(v)) && !d.linked.includes(v)) ||
+          (!this.reuseIdentifying && kind === 'int' && typeof v === 'number' && (v < 0 || v > maxKey))
+        if (drop) dropped++
+        else this.pushValue(comp, v)
+      }
+      if (dropped && m.plan) this.withheld.push({ table: m.table.name, column: m.col.name, literals: dropped, kind: kind === 'string' && style === 'label' ? 'name' : 'id' })
     }
     comp.minedCount = comp.values.length - comp.fixedCount
     comp.seeded = comp.values.length
@@ -928,7 +1214,9 @@ class SyntheticGenerator {
         b.plan.rows = n
       }
     }
-    const sizeOf = (m: Member): number => (m.plan ? (m.plan.role === 'date' ? this.nDays : m.plan.rows) : (m.fixed?.filter((v) => v !== null).length ?? 0))
+    const sizeOf = (m: Member): number => (m.plan ? m.plan.rows : (m.fixed?.filter((v) => v !== null).length ?? 0))
+    // days a calendar-backed component can use: the shortest generated calendar among its members
+    const calendarDays = (comp: Component): number => Math.min(this.nDays, ...comp.members.filter((m) => m.plan?.role === 'date' && m.one).map((m) => m.plan!.rows))
     for (let pass = 0; pass < 8; pass++) {
       let changed = false
       for (const comp of this.comps) {
@@ -937,7 +1225,7 @@ class SyntheticGenerator {
         let compLimit = 0
         for (const m of comp.members) {
           let limit: number
-          if (comp.kind === 'date') limit = comp.calendarBacked ? this.nDays : comp.values.length
+          if (comp.kind === 'date') limit = comp.calendarBacked ? calendarDays(comp) : comp.values.length
           else if (m.targets.size) limit = Math.min(...[...m.targets].map(sizeOf))
           else if (m.one) limit = sizeOf(m)
           else limit = fallback
@@ -1003,9 +1291,10 @@ class SyntheticGenerator {
       }
       set.add(this.todayIdx)
     }
+    const lastDay = Math.min(this.nDays, this.compOf.get(keyOf(plan.def.name, col.name))?.member.limit || this.nDays)
     for (const d of this.minedDatesFor(plan.def, col)) {
       const i = dayDiff(this.calStart, d)
-      if (i >= 0 && i < this.nDays) set.add(i)
+      if (i >= 0 && i < lastDay) set.add(i)
     }
     const days = [...set].sort((a, b) => a - b)
     // entity: the first many-side key column that is not a person / audit reference
@@ -1116,8 +1405,9 @@ class SyntheticGenerator {
     let places: Array<readonly [string, string, string]> | undefined
     let days: Int32Array | undefined
     let scales: Float64Array | undefined
+    let latents: Float64Array | undefined
     const perRowEntity = plan.role === 'dim' || plan.role === 'single'
-    return {
+    const helpers: RowHelpers = {
       person: (r) => {
         if (!persons) {
           persons = new Array(rows)
@@ -1160,8 +1450,53 @@ class SyntheticGenerator {
           for (let i = 0; i < rows; i++) scales[i] = Math.exp(0.55 * rng.normal())
         }
         return scales[r]
+      },
+      latent: (r) => {
+        if (!latents) {
+          latents = new Float64Array(rows)
+          const lr = this.rng(name, '#latent')
+          const drift = plan.role === 'fact' ? this.moodDrift(name) : undefined
+          for (let i = 0; i < rows; i++) latents[i] = lr.normal() + (drift ? drift(helpers.baseDay(i)) : 0)
+        }
+        return latents[r]
       }
     }
+    return helpers
+  }
+
+  /**
+   * Slow, seeded drift of satisfaction over time for one fact table (two long waves plus a small monthly
+   * step, about ±0.1 standard deviations): enough for month / year comparisons to show plausible movement
+   * (a few points of a net promoter score), never enough to flip its sign.
+   */
+  private moodDrift(table: string): (day: number) => number {
+    const rng = this.rng(table, '#mood')
+    const p1 = rng.next() * 2 * Math.PI
+    const p2 = rng.next() * 2 * Math.PI
+    const salt = hash32(table, this.seed ^ 0x2545f491)
+    return (day) => {
+      const d = this.dayAt(day)
+      const month = d.getUTCFullYear() * 12 + d.getUTCMonth()
+      const step = ((hash32(String(month), salt) % 2001) / 1000 - 1) * 0.04
+      return 0.06 * Math.sin((2 * Math.PI * day) / 365 + p1) + 0.04 * Math.sin((2 * Math.PI * day) / 117 + p2) + step
+    }
+  }
+
+  private readonly semCache = new Map<ColumnDef, ColumnSemantics>()
+
+  /**
+   * Privacy gate for every place that writes a literal taken from the definitions (DAX, report filters) into
+   * a generated column: name-like, id-like and free-text columns only accept generic placeholders and rows of
+   * the model's own literal tables (see isIdentifyingColumn), unless the caller opted into reuse.
+   */
+  private literalAllowed(table: TableDef, col: ColumnDef, v: unknown): boolean {
+    if (this.reuseIdentifying) return true
+    let sem = this.semCache.get(col)
+    if (!sem) this.semCache.set(col, (sem = columnSemantics(col, table)))
+    if (!isIdentifyingColumn(sem)) return true
+    if (typeof v === 'string' && isPlaceholderLabel(v)) return true
+    const linked = this.domains.get(domainKey(table.name, col.name))?.linked
+    return !!linked?.some((x) => (x instanceof Date && v instanceof Date ? x.getTime() === v.getTime() : typeof x === 'string' && typeof v === 'string' ? x.toLowerCase() === v.toLowerCase() : x === v))
   }
 
   /** values each column must contain (at least n times), applied after conjunction seeding */
@@ -1192,6 +1527,7 @@ class SyntheticGenerator {
       if (needs) applyNeeds(c.values, needs, rng, protect)
     }
     this.applyImplications(plan, table)
+    this.alignScoreGroups(plan, table, protect)
     this.applySortBy(plan, columns)
     return table
   }
@@ -1215,6 +1551,8 @@ class SyntheticGenerator {
         .map((t) => {
           const col = colOf(t.column)
           if (!col || this.compOf.has(keyOf(plan.def.name, col.name))) return undefined
+          const def = plan.cols.find((c) => c.name === col.name)
+          if (def && !this.literalAllowed(plan.def, def, t.value)) return undefined
           const v = coerceTo(t.value, col.type as DataType)
           return v === undefined ? undefined : { col, v }
         })
@@ -1339,6 +1677,7 @@ class SyntheticGenerator {
     for (const v of values) {
       const c = coerceTo(v as Scalar, type)
       if (c === undefined || c === null) continue
+      if (!this.literalAllowed(plan.def, def, v)) continue
       if (c instanceof Date && link?.comp.kind === 'date' && link.comp.calendarBacked) {
         const i = dayDiff(this.calStart, c)
         if (i < 0 || i >= this.nDays) continue
@@ -1425,6 +1764,8 @@ class SyntheticGenerator {
       // adjust a few rows of the (generated) dimension so the combination exists; keys stay untouched
       const plan = this.plans.get(tableName)!
       if (checks.some((c) => this.compOf.get(keyOf(plan.def.name, c.col.name))?.member.one)) return undefined
+      // privacy: a dimension row is never rewritten with a literal its column must not hold
+      if (checks.some((c) => { const def = plan.cols.find((d) => d.name === c.col.name); return !!def && c.vals.some((v) => !this.literalAllowed(plan.def, def, v)) })) return []
       // only rows whose current values also appear elsewhere, so no value disappears from the dimension
       const counts = checks.map((c) => {
         const m = new Map<string, number>()
@@ -1567,7 +1908,16 @@ class SyntheticGenerator {
     }
     const mined = this.domains.get(domainKey(plan.def.name, col.name)) ?? this.sameNameDomain(plan, col)
     const sem = columnSemantics(col, plan.def)
-    const rawBase = this.baseGenerator(plan, col, sem, h, rng)
+    // privacy: literals from DAX / report filters never land in name-like, id-like or free-text columns
+    const identifying = !this.reuseIdentifying && isIdentifyingColumn(sem)
+    const usable = (v: Scalar): boolean => this.literalAllowed(plan.def, col, v)
+    /** literals that must not appear in this column, not even by coincidence */
+    const withheld = new Set<string>()
+    const numericType = type === 'int64' || type === 'double' || type === 'decimal'
+    // survey scales keep their skew: literals only widen the scale (and are guaranteed to appear), they do not flatten it
+    const ordinal = numericType && (sem.sem === 'score' || sem.sem === 'nps')
+    const scale = ordinal ? ordinalScale(sem.sem, (mined?.values ?? []).map((v) => coerceTo(v, type) ?? null)) : undefined
+    const rawBase = this.baseGenerator(plan, col, sem, h, rng, scale)
     const base: (r: number) => Scalar =
       type === 'string'
         ? (r) => {
@@ -1578,6 +1928,12 @@ class SyntheticGenerator {
     const minedVals = (mined?.values ?? [])
       .map((v) => coerceTo(v, type))
       .filter((v): v is Exclude<Scalar, undefined> => v !== undefined && v !== null && !(typeof v === 'string' && v === ''))
+      .filter((v) => {
+        if (usable(v)) return true
+        withheld.add(valueKey(v))
+        return false
+      })
+      .filter((v) => !scale || (typeof v === 'number' && v >= scale.lo && v <= scale.hi))
     const uniqMined: Scalar[] = []
     const seenMined = new Set<string>()
     for (const v of minedVals) {
@@ -1588,7 +1944,7 @@ class SyntheticGenerator {
       }
     }
     let gen = base
-    if (uniqMined.length && type !== 'boolean' && type !== 'dateTime') {
+    if (uniqMined.length && !ordinal && type !== 'boolean' && type !== 'dateTime') {
       const linkedOnly = mined && mined.linked.length > 0
       const categorical =
         type === 'string'
@@ -1603,15 +1959,33 @@ class SyntheticGenerator {
       for (let rank = 0; rank < order.length; rank++) w[order[rank]] = zw[rank]
       const sampler = new WeightedSampler(w)
       const perRowDim = (plan.role === 'dim' || plan.role === 'single') && rows <= uniqMined.length * 2
+      const sentiment = type === 'string' && categorical ? sentimentRanks(uniqMined) : undefined
       if (share >= 1 && perRowDim) {
         // small dimension keyed by the mined labels: one row per value (cycled), in a stable shuffled order
         gen = (r) => uniqMined[order[r % order.length]]
+      } else if (sentiment) {
+        // answer labels of a satisfaction scale (Promoter / Passive / Detractor, Satisfied / Dissatisfied…):
+        // mostly positive, like real survey data, and in line with the row's other ratings
+        const pick = this.sentimentPicker(sentiment, h, rng)
+        gen = (r) => uniqMined[pick(r)]
       } else gen = share >= 1 ? () => uniqMined[sampler.draw(rng)] : (r) => (rng.next() < share ? uniqMined[sampler.draw(rng)] : base(r))
     }
     for (let r = 0; r < rows; r++) out[r] = gen(r)
+    const skippedContains = identifying ? (mined?.contains.length ?? 0) : 0
+    if (withheld.size || skippedContains) {
+      const kind = sem.sem === 'text' ? 'text' : sem.sem === 'idCode' || sem.sem === 'idSeq' || sem.sem === 'guid' ? 'id' : 'name'
+      this.withheld.push({ table: plan.def.name, column: col.name, literals: withheld.size + skippedContains, kind })
+      // an invented value that happens to equal a withheld literal is replaced by another invented one
+      for (let r = 0; r < rows && withheld.size; r++) {
+        let v = out[r]
+        for (let k = 1; k <= 8 && v !== null && withheld.has(valueKey(v)); k++) v = gen((r + k * 7919) % rows)
+        if (v !== null && withheld.has(valueKey(v))) v = typeof v === 'string' ? `${v} (${(r % 97) + 2})` : null
+        out[r] = v
+      }
+    }
     if (mined?.lookupKey && plan.role !== 'fact' && type !== 'boolean') makeUnique(out, type === 'string' ? uniquePool(sem) : [])
     // CONTAINSSTRING / SEARCH targets: embed the searched text in a share of the values
-    if (type === 'string' && mined?.contains.length) {
+    if (type === 'string' && mined?.contains.length && !skippedContains) {
       for (let r = 0; r < rows; r++) {
         if (rng.next() < 0.2) {
           const lit = mined.contains[rng.int(0, mined.contains.length - 1)]
@@ -1627,6 +2001,96 @@ class SyntheticGenerator {
       this.addNeeds(col, uniqMined, plan.role === 'fact' ? Math.max(3, k) : 1)
     } else this.addNeeds(col, uniqMined)
     return out
+  }
+
+  /** Index picker over labels ranked worst → best: survey-skewed weights, correlated with the row's latent satisfaction. */
+  private sentimentPicker(ranks: { order: number[]; others: number[] }, h: RowHelpers, rng: Rng): (r: number) => number {
+    const w = surveyWeights(ranks.order.length)
+    const cum = new Float64Array(w.length)
+    let acc = 0
+    for (let i = 0; i < w.length; i++) cum[i] = acc += w[i]
+    // labels that are not part of the scale ("N/A", "No answer") take a small share
+    const otherShare = Math.min(0.12, 0.03 * ranks.others.length)
+    return (r) => {
+      if (ranks.others.length && rng.next() < otherShare) return ranks.others[rng.int(0, ranks.others.length - 1)]
+      const u = normalCdf(0.75 * h.latent(r) + 0.6614 * rng.normal())
+      let i = 0
+      while (i < cum.length - 1 && u > cum[i]) i++
+      return ranks.order[i]
+    }
+  }
+
+  /**
+   * Values of an ordinal survey scale lo…hi (ratings, scores, likelihood to recommend), skewed to the top
+   * (see surveyWeights) and correlated across the columns of a row through the row's latent satisfaction.
+   * `divide` > 1: the column uses a scale that much smaller than the canonical one (0–10 answers stored 0–5).
+   */
+  private ordinalGenerator(lo: number, hi: number, h: RowHelpers, rng: Rng, divide = 1): (r: number) => number {
+    const n = Math.round(hi - lo) + 1
+    const draw = (r: number): number => normalCdf(0.6 * h.latent(r) + 0.8 * rng.normal())
+    if (n > 12) return (r) => Math.round((lo + (hi - lo) * Math.pow(draw(r), 0.3)) / divide)
+    const w = surveyWeights(n)
+    const cum = new Float64Array(n)
+    let acc = 0
+    for (let i = 0; i < n; i++) cum[i] = acc += w[i]
+    return (r) => {
+      const u = draw(r)
+      let i = 0
+      while (i < n - 1 && u > cum[i]) i++
+      return divide > 1 ? Math.round((lo + i) / divide) : lo + i
+    }
+  }
+
+  /**
+   * Net-promoter consistency: a group column whose labels are Promoter / Passive / Detractor follows the
+   * likelihood-to-recommend score of the same row (9–10 promoter, 7–8 passive, 0–6 detractor, relative to the
+   * scale in use), as the source system computes it. Rows seeded for a conjunction keep their group and get a
+   * score inside its band instead.
+   */
+  private alignScoreGroups(plan: TablePlan, table: TableData, protect: Uint8Array): void {
+    if (!table.rowCount) return
+    const numeric = (c: ColumnDef): boolean => ['int64', 'double', 'decimal'].includes(effectiveType(c))
+    const scoreDef = plan.cols.find((c) => numeric(c) && columnSemantics(c, plan.def).sem === 'nps' && !this.compOf.has(keyOf(plan.def.name, c.name)))
+    const score = scoreDef && table.columns.find((c) => c.name === scoreDef.name)
+    if (!score) return
+    let hi = 0
+    for (const v of score.values) if (typeof v === 'number' && v > hi) hi = v
+    if (hi <= 0) return
+    // the scale in use: 0–10 unless the values never exceed a smaller round maximum
+    const top = hi > 5 ? 10 : hi > 3 ? 5 : hi
+    const bandOf = (v: number): 'promoter' | 'passive' | 'detractor' => (v >= 0.9 * top ? 'promoter' : v >= 0.7 * top ? 'passive' : 'detractor')
+    const rng = this.rng(plan.def.name, '#nps')
+    for (const def of plan.cols) {
+      if (effectiveType(def) !== 'string' || this.compOf.has(keyOf(plan.def.name, def.name))) continue
+      const col = table.columns.find((c) => c.name === def.name)
+      if (!col) continue
+      const labels = new Map<string, string>()
+      for (const v of col.values) {
+        if (typeof v !== 'string') continue
+        const band = npsBandOf(v)
+        if (band && !labels.has(band)) labels.set(band, v)
+        if (labels.size === 3) break
+      }
+      if (!labels.has('promoter') || !labels.has('detractor')) continue
+      if (!labels.has('passive')) {
+        // formulas usually only name promoters and detractors; the middle band exists in the data all the same
+        const like = labels.get('promoter')!
+        const word = /s$/i.test(like) ? 'Passives' : 'Passive'
+        labels.set('passive', like === like.toUpperCase() ? word.toUpperCase() : like === like.toLowerCase() ? word.toLowerCase() : word)
+      }
+      const fallback = labels.get('passive')!
+      for (let r = 0; r < table.rowCount; r++) {
+        const s = score.values[r]
+        const g = col.values[r]
+        if (protect[r] && typeof g === 'string' && npsBandOf(g)) {
+          const band = npsBandOf(g)!
+          if (typeof s === 'number' && bandOf(s) === band) continue
+          const lo = band === 'promoter' ? Math.ceil(0.9 * top) : band === 'passive' ? Math.ceil(0.7 * top) : 0
+          const up = band === 'promoter' ? top : band === 'passive' ? Math.ceil(0.9 * top) - 1 : Math.ceil(0.7 * top) - 1
+          score.values[r] = rng.int(Math.min(lo, up), Math.max(lo, up))
+        } else if (typeof s === 'number') col.values[r] = labels.get(bandOf(s)) ?? fallback
+      }
+    }
   }
 
   private ensureContains(out: Scalar[], subs: string[], rng: Rng): void {
@@ -1678,7 +2142,7 @@ class SyntheticGenerator {
         // mined dates (slicers, filters, DAX) get a realistic number of rows each
         const mined = this.minedDatesFor(plan.def, col)
           .map((d) => dayDiff(this.calStart, d))
-          .filter((i) => i >= 0 && i < this.nDays)
+          .filter((i) => i >= 0 && i < Math.min(this.nDays, Math.max(1, member.limit)))
         if (mined.length && plan.snapshot?.col !== col) {
           const active = Math.max(1, this.todayIdx - this.windowStart + 1)
           const k = Math.max(3, Math.min(Math.round((1.5 * rows) / active), Math.floor(rows / (4 * mined.length))))
@@ -1760,7 +2224,7 @@ class SyntheticGenerator {
     return undefined
   }
 
-  private baseGenerator(plan: TablePlan, col: ColumnDef, s: ColumnSemantics, h: RowHelpers, rng: Rng): (r: number) => Scalar {
+  private baseGenerator(plan: TablePlan, col: ColumnDef, s: ColumnSemantics, h: RowHelpers, rng: Rng, scale?: { lo: number; hi: number }): (r: number) => Scalar {
     const type = effectiveType(col)
     const rows = plan.rows
     const toks = s.toks
@@ -1880,7 +2344,16 @@ class SyntheticGenerator {
         return () => names[smp.draw(rng)]
       }
       case 'company': {
-        if (perRow && ORG_ENTITY.has(ent)) return (r) => h.company(r)
+        if (perRow && ORG_ENTITY.has(ent)) {
+          // parent / grandparent organisation of an organisation dimension: several rows share one parent, and
+          // each level up is a smaller set of (different) names, so the hierarchy rolls up like a real one
+          const level = has('great') ? 3 : has('grandparent', 'ultimate') ? 2 : has('parent', 'holding') ? 1 : 0
+          if (level > 0) {
+            const span = [4, 12, 36][level - 1]
+            return (r) => companyName((rows + 17 + level * 131 + Math.floor(r / span)) % COMPANY_NAME_COUNT)
+          }
+          return (r) => h.company(r)
+        }
         const off = hash32(col.name, this.seed) % 1000
         const size = Math.max(1, Math.min(rows, 80))
         const smp = new WeightedSampler(zipfWeights(size, 0.8))
@@ -1901,7 +2374,13 @@ class SyntheticGenerator {
         return () => (rng.next() < 0.15 ? null : pool[Math.floor(rng.next() * pool.length)])
       }
       case 'category': {
-        const pick = zipfPick(s.pool ?? ['A', 'B', 'C'])
+        const pool = s.pool ?? ['A', 'B', 'C']
+        const sentiment = perRow ? undefined : sentimentRanks([...pool])
+        if (sentiment) {
+          const at = this.sentimentPicker(sentiment, h, rng)
+          return (r) => asType(pool[at(r)])
+        }
+        const pick = zipfPick(pool)
         return () => asType(pick())
       }
       case 'datePart':
@@ -1938,13 +2417,15 @@ class SyntheticGenerator {
           return type === 'int64' ? Math.max(0, Math.round(v)) : type === 'string' ? String(Math.round(v)) : Math.round(v * 10) / 10
         }
       }
-      case 'score': {
-        const pick = new WeightedSampler([0.04, 0.06, 0.15, 0.35, 0.4])
-        return () => asType(pick.draw(rng) + 1)
-      }
+      case 'score':
       case 'nps': {
-        const pick = new WeightedSampler([0.02, 0.01, 0.02, 0.03, 0.04, 0.06, 0.07, 0.12, 0.2, 0.2, 0.23])
-        return () => asType(pick.draw(rng))
+        // a source that a calculated table multiplies by k (its siblings are copied as they are) stores answers
+        // on a scale k times smaller
+        const divide = this.scaleHints.get(keyOf(plan.def.name, col.name)) ?? 1
+        const lo = scale?.lo ?? (s.sem === 'nps' ? 0 : 1)
+        const hi = scale?.hi ?? (s.sem === 'nps' ? 10 : 5)
+        const pick = this.ordinalGenerator(lo, hi, h, rng, divide)
+        return (r) => asType(pick(r))
       }
       case 'age':
         return () => asType(Math.round(18 + Math.pow(rng.next(), 1.1) * 57))
@@ -2083,6 +2564,15 @@ function dateOffsetDays(col: ColumnDef): number {
   return 0
 }
 
+/**
+ * A calendar query that stops at the current date: it mentions the clock (`DateTime.LocalNow()` …) and no
+ * end-of-period / shifted bound (`Date.EndOfYear(…)`, `Date.AddYears(…)`), which would mean it runs past today.
+ */
+function endsToday(m: string | undefined): boolean {
+  if (!m) return false
+  return /\b(DateTime|DateTimeZone)\.(Fixed)?(Local|Utc)Now\b/.test(m) && !/\bDate\.(EndOf(Year|Quarter|Month)|AddYears|AddMonths|AddQuarters)\b/.test(m)
+}
+
 function looksFactual(cols: ColumnDef[]): boolean {
   let measures = 0
   let dates = 0
@@ -2184,10 +2674,11 @@ function makeUnique(out: Scalar[], pool: Scalar[]): void {
   }
 }
 
-export function generateSyntheticData(project: ProjectDocument, opts: SyntheticOptions = {}): { tables: string[] } {
+export function generateSyntheticData(project: ProjectDocument, opts: SyntheticOptions = {}): SyntheticResult {
   const gen = new SyntheticGenerator(project, opts)
   gen.plan()
   gen.buildComponents()
   gen.resolveSizes()
-  return { tables: gen.generate() }
+  const tables = gen.generate()
+  return { tables, skipped: gen.skipped, seed: gen.seed, withheld: gen.withheld }
 }

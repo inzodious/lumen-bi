@@ -220,6 +220,16 @@ document.addEventListener('click', (ev) => {
   onClick(ev)
   handledInEvent = false
 })
+// links and forms never navigate the frame (it would only replace the visual with an error page: the network is blocked)
+document.addEventListener(
+  'click',
+  (ev) => {
+    const a = (ev.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+    if (a && !a.getAttribute('href')!.startsWith('#')) ev.preventDefault()
+  },
+  true
+)
+document.addEventListener('submit', (ev) => ev.preventDefault(), true)
 document.addEventListener('mousedown', () => (handledInEvent = false), true)
 document.addEventListener('click', () => (handledInEvent = false), true)
 

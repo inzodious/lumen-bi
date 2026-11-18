@@ -7,6 +7,10 @@
  * Content-Security-Policy: no network of any kind (connect / img / font / media / frame / form / worker), scripts only
  * from this scheme plus `unsafe-eval` for the author's transpiled JSX, inline styles only.
  *
+ * Frames with author JavaScript (JSX) are served from a host of their own (`lumen-frame://jsx-<id>/`), which Chromium's
+ * site isolation puts in a separate renderer process: a runaway script freezes only that frame, and removing the frame
+ * ends the process.
+ *
  * `guardFrameNavigation` additionally cancels any navigation of a sub-frame away from `lumen-frame:` / `about:` /
  * `blob:` / `data:` (a frame navigating itself to a URL would otherwise reach the network).
  */
@@ -49,7 +53,9 @@ export function handleCodeFrameScheme(rendererDir: string): void {
   const cache = new Map<string, Buffer>()
   protocol.handle(CODE_FRAME_SCHEME, async (req) => {
     const url = new URL(req.url)
-    const type = url.host === 'code' ? FILES[url.pathname] : undefined
+    // `code` hosts the frames of template-only visuals; `jsx-<id>` one frame with author JavaScript each, so it gets a
+    // renderer process of its own (a different site) and a runaway script there blocks nothing else
+    const type = url.host === 'code' || /^jsx-[a-z0-9]{6,32}$/.test(url.host) ? FILES[url.pathname] : undefined
     if (!type || req.method !== 'GET') return new Response('Not found', { status: 404, headers: { 'content-security-policy': CODE_FRAME_CSP } })
     let body = cache.get(url.pathname)
     if (!body) {

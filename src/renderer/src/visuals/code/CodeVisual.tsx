@@ -26,6 +26,7 @@ import { cachedTranspile, transpileJsx, type TranspileResult } from './transpile
 import { drillInto, drillUp, expandNextLevel, nextLevel } from './drillOps'
 import { resourceNames, loadResources } from './resources'
 import { codeVisualActions } from './actions'
+import { sanitizeTemplateHtml } from './sanitize'
 import './codeVisual.css'
 
 export interface CodeVisualError {
@@ -58,7 +59,7 @@ export function renderCodeTemplate(html: string, data: CodeData, env: { format(v
     rowAttributes: (row: CodeRow) => ({ attrs: rowAttrs(row, data), style: rowStyles[row.index] ?? '' }),
     onMissing: (name, line, column) => warnings.push(`Unknown name "${name}" (line ${line}, column ${column})`)
   })
-  return { html: out, rowStyles, warnings }
+  return { html: sanitizeTemplateHtml(out), rowStyles, warnings }
 }
 
 export function rowAttrs(row: CodeRow, data: CodeData): Record<string, string> {
@@ -143,6 +144,8 @@ export function CodeVisual({ visual, pageName, width, height, ctx, onStatus }: V
 
   const [frameError, setFrameError] = useState<CodeVisualError | null>(null)
   const [runKey, setRunKey] = useState(0)
+  /** bumps when a new frame was created, so the render is sent to it */
+  const [frameKey, setFrameKey] = useState(0)
 
   const hostError: CodeVisualError | null = !q.ok
     ? { phase: 'data', message: q.error }
@@ -241,23 +244,27 @@ export function CodeVisual({ visual, pageName, width, height, ctx, onStatus }: V
   const onMessageRef = useRef(onMessage)
   onMessageRef.current = onMessage
 
+  // author JavaScript runs in a frame (and process) of its own; templates share one
+  const isolated = !!src.jsx.trim()
   useEffect(() => {
     const box = boxRef.current
     if (!box) return
+    setRendered(false)
     const h = new CodeFrameHost(box, title, {
       message: (m) => onMessageRef.current(m),
       timeout: () => {
         setFrameError({ phase: 'timeout', message: 'The visual’s code stopped responding and was stopped (an endless loop or a very long computation).' })
         setRendered(true)
       }
-    })
+    }, isolated)
     hostRef.current = h
+    setFrameKey((k) => k + 1)
     return () => {
       h.destroy()
       if (hostRef.current === h) hostRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runKey])
+  }, [runKey, isolated])
 
   useEffect(() => {
     if (hostRef.current) hostRef.current.iframe.title = title
@@ -285,7 +292,7 @@ export function CodeVisual({ visual, pageName, width, height, ctx, onStatus }: V
     })
     // size changes are followed by the frame itself (ResizeObserver): not a dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, hostError, data, tpl, src, tx, theme, resources, fmt, ctx.mode, runKey])
+  }, [ready, hostError, data, tpl, src, tx, theme, resources, fmt, ctx.mode, frameKey])
 
   useReadyHold(rendered || !!hostError)
 

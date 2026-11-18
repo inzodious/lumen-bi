@@ -12,6 +12,17 @@
 import { PROTOCOL, ReplayGuard, newToken, validateFrameEnvelope, type FrameMessage, type HostMessage, type RenderMessage } from '@core/codevisual/protocol'
 
 export const FRAME_URL = 'lumen-frame://code/frame.html'
+
+/**
+ * Frames that run author JavaScript get a host of their own (`jsx-<random>`): a separate site, so Chromium gives them a
+ * separate renderer process and a runaway script there cannot stall other code visuals (src/main/codeFrame.ts).
+ */
+export function frameUrl(isolated: boolean): string {
+  if (!isolated) return FRAME_URL
+  const b = new Uint8Array(8)
+  crypto.getRandomValues(b)
+  return `lumen-frame://jsx-${Array.from(b, (x) => x.toString(36).padStart(2, '0')).join('').slice(0, 16)}/frame.html`
+}
 /** a render must answer within this time (ms), a ping within PING_TIMEOUT */
 export const RENDER_TIMEOUT = 8000
 const PING_EVERY = 4000
@@ -62,7 +73,8 @@ export class CodeFrameHost {
   constructor(
     parent: HTMLElement,
     title: string,
-    private handlers: FrameHandlers
+    private handlers: FrameHandlers,
+    isolated = false
   ) {
     listen()
     const f = document.createElement('iframe')
@@ -72,7 +84,7 @@ export class CodeFrameHost {
     f.setAttribute('loading', 'eager')
     f.title = title
     f.className = 'wbi-codevisual__frame'
-    f.src = FRAME_URL
+    f.src = frameUrl(isolated)
     this.iframe = f
     parent.appendChild(f)
     this.win = f.contentWindow

@@ -65,6 +65,21 @@ export interface TextboxDefaults {
 
 export const TEXTBOX_DEFAULTS: TextboxDefaults = { fontFamily: 'Segoe UI', fontSize: 10, color: '#252423' }
 
+/**
+ * Run font when a text run has no textStyle: the theme's `label` text class (Power BI's text box, button and
+ * navigator text start from it; the default theme's label class is Segoe UI 10pt #252423). A custom theme that
+ * changes the label class (e.g. 12pt) changes unstyled text box text too: measured on a Power BI render of a report
+ * whose theme sets label = 12pt (unstyled text box and page-navigator text measure 12.0–12.7pt).
+ */
+export function themeTextDefaults(theme: { textClasses?: Record<string, { fontFace?: string; fontSize?: number; color?: string }> } | undefined): TextboxDefaults {
+  const label = theme?.textClasses?.label ?? {}
+  return {
+    fontFamily: typeof label.fontFace === 'string' && label.fontFace ? label.fontFace : TEXTBOX_DEFAULTS.fontFamily,
+    fontSize: typeof label.fontSize === 'number' && label.fontSize > 0 ? label.fontSize : TEXTBOX_DEFAULTS.fontSize,
+    color: typeof label.color === 'string' && label.color ? label.color : TEXTBOX_DEFAULTS.color
+  }
+}
+
 const BINDING_KEYS = ['valueExpr', 'expression', 'expr', 'field', 'valueExpression']
 
 function isFieldExpr(e: any): boolean {

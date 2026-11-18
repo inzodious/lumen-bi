@@ -1,4 +1,4 @@
-import { SHAPE_KINDS, normalizeShapeKind, shapePath } from '../shapes'
+import { SHAPE_KINDS, normalizeShapeKind, roundedButtonKind, shapePath } from '../shapes'
 
 function coords(d: string): number[] {
   return (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
@@ -26,5 +26,16 @@ describe('shape geometry', () => {
     expect(normalizeShapeKind('arrow_right')).toBe('arrow')
     expect(normalizeShapeKind('tabroundtopcorners')).toBe('tabRoundTopCorners')
     expect(normalizeShapeKind('nonsense')).toBe('rectangle')
+  })
+})
+
+describe('button / navigator rounded corners', () => {
+  it('a rectangle with a corner radius is drawn rounded; other shapes and radius 0 are unchanged', () => {
+    expect(roundedButtonKind('rectangle', 10)).toBe('rectangleRounded')
+    expect(roundedButtonKind('rectangle', 0)).toBe('rectangle')
+    expect(roundedButtonKind('oval', 10)).toBe('oval')
+    expect(roundedButtonKind('rectangleRounded', 4)).toBe('rectangleRounded')
+    // the rounded path has arcs / curves at the corners
+    expect(shapePath(roundedButtonKind('rectangle', 10), 0, 0, 200, 30, { radius: 10 })).toMatch(/[AQC]/)
   })
 })

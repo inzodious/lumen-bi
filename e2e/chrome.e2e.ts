@@ -103,4 +103,35 @@ describe('visual container chrome', () => {
     expect(d.right).toBeCloseTo(g.box.right - g.border - g.padding.right, 0)
     expect(g.content.top).toBeCloseTo(d.top + 3 + 5, 0)
   })
+  it('semibold text is visibly between regular and bold (the bundled Segoe UI stand-in faces)', async () => {
+    const { page } = lumen()
+    const ink = await page.evaluate(async () => {
+      const text = 'Rating Distribution by Question'
+      const out: Record<string, number> = {}
+      for (const w of [400, 600, 700]) {
+        await document.fonts.load(`${w} 40px "Segoe UI"`)
+        const c = document.createElement('canvas')
+        c.width = 900
+        c.height = 60
+        const g = c.getContext('2d')!
+        g.font = `${w} 40px "Segoe UI"`
+        g.fillStyle = '#000'
+        g.fillText(text, 4, 44)
+        const d = g.getImageData(0, 0, c.width, c.height).data
+        let sum = 0
+        for (let i = 3; i < d.length; i += 4) sum += d[i]
+        out[w] = sum / 255
+      }
+      return { ...out, loaded: document.fonts.check('600 40px "Segoe UI"') }
+    })
+    expect(ink.loaded).toBe(true)
+    const [regular, semibold, bold] = [ink[400], ink[600], ink[700]]
+    expect(regular).toBeLessThan(semibold)
+    expect(semibold).toBeLessThan(bold)
+    // Power BI's Segoe UI Semibold reads clearly lighter than Bold. By ink, Selawik's own Semibold sits at ≈ 0.64 of the
+    // regular → bold range (it read as bold next to bold text); the derived face Lumen bundles sits at ≈ 0.3
+    const t = (semibold - regular) / (bold - regular)
+    expect(t).toBeGreaterThan(0.15)
+    expect(t).toBeLessThan(0.5)
+  })
 })

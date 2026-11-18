@@ -3,7 +3,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from '
 import '@fontsource/open-sans/300.css'
 import type { VisualProps } from '../contract'
 import type { VisualHostContext } from '../contract'
-import { buildParagraphs, bulletGlyph, caseRuns, dynamicKey, fitScale, fitsOneLineInPbi, paragraphsFromText, paragraphsText, type Paragraph, type TextRun } from './textboxModel'
+import { buildParagraphs, themeTextDefaults, bulletGlyph, caseRuns, dynamicKey, fitScale, fitsOneLineInPbi, paragraphsFromText, paragraphsText, type Paragraph, type TextRun } from './textboxModel'
 import { evaluateField } from './evaluate'
 import { evaluateDynamicValue, valueDefs, type EvalResult, type TransformCache } from './narrativeQuery'
 
@@ -156,7 +156,8 @@ function ParagraphView({ p: source, resolve, width, valueUnderline }: { p: Parag
 
 export function TextboxVisual({ visual, width, height, ctx }: VisualProps) {
   const raw = paragraphsOf(visual.json)
-  const paragraphs = useMemo(() => buildParagraphs(raw), [raw])
+  const defaults = useMemo(() => themeTextDefaults(ctx.theme), [ctx.theme])
+  const paragraphs = useMemo(() => buildParagraphs(raw, defaults), [raw, defaults])
   const resolve = useMemo(() => makeResolver(visual.json, ctx), [visual.json, ctx])
   const [editing, setEditing] = useState(false)
   const valueUnderline = ctx.mode === 'edit' ? (ctx.theme.dataColors[0] ?? '#118DFF') : undefined

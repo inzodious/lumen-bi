@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import type { VisualProps } from '../contract'
 import { withTransparency } from '@core/report/theme'
-import { normalizeShapeKind } from './shapes'
+import { normalizeShapeKind, roundedButtonKind } from './shapes'
 import { ShapeSvg } from './ShapeSvg'
 import { readGlow, readShadow, readShapeText } from './Shape'
 import { Props, actionAllowed, stateSelector, useElementState, type ElementState } from './util'
+import { themeTextDefaults } from './textboxModel'
 import { buildBookmarkItems, buildPageItems, navLayout, resolveSelectedBookmark, type BookmarkPick, type NavItem } from './navigatorModel'
 
 /**
@@ -23,13 +24,15 @@ function NavButton({ item, p, x, y, w, h, interactive, onActivate }: { item: Nav
   const state: ElementState = item.selected ? 'selected' : hs
   const sel = stateSelector(state)
   const d = NAV_DEFAULTS[item.selected ? 'selected' : 'default']
-  const kind = normalizeShapeKind(p.str('shape', 'tileShape', 'rectangle', sel))
   const radius = p.num('shape', 'roundEdge', p.num('shape', 'rectangleRoundedCurve', 0, sel), sel)
+  const kind = roundedButtonKind(normalizeShapeKind(p.str('shape', 'tileShape', 'rectangle', sel)), radius)
   const fill = p.bool('fill', 'show', true, sel) ? withTransparency(p.color('fill', 'fillColor', d.fill, sel), p.num('fill', 'transparency', 0, sel)) : undefined
   const outlineOn = p.bool('outline', 'show', true, sel)
   const stroke = outlineOn ? withTransparency(p.color('outline', 'lineColor', d.outline, sel), p.num('outline', 'transparency', 0, sel)) : undefined
   const weight = outlineOn ? p.num('outline', 'weight', 1, sel) : 0
-  const text = readShapeText(p, state, { size: 10, color: d.text, show: true })
+  // unstyled navigator text follows the theme's label class (size / face), like text boxes; see themeTextDefaults
+  const label = themeTextDefaults(p.theme)
+  const text = readShapeText(p, state, { size: label.fontSize, family: label.fontFamily, color: d.text, show: true })
   return (
     <div
       role="tab"

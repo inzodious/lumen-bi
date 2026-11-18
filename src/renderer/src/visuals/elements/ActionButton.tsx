@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import type { VisualProps } from '../contract'
 import { withTransparency } from '@core/report/theme'
 import { iconPaths, normalizeIconKind, type ButtonIconKind } from './buttonIcons'
-import { normalizeShapeKind } from './shapes'
+import { normalizeShapeKind, roundedButtonKind } from './shapes'
 import { ShapeSvg } from './ShapeSvg'
 import { readGlow, readShadow, readShapeText } from './Shape'
 import { Props, stateSelector, useElementState, type ElementState } from './util'
@@ -60,8 +60,8 @@ export function ActionButtonVisual({ visual, width, height, ctx }: VisualProps) 
   const state: ElementState = disabled ? 'disabled' : hoverState
   const sel = stateSelector(state)
 
-  const kind = normalizeShapeKind(p.str('shape', 'tileShape', 'rectangle'))
-  const radius = p.num('shape', 'rectangleRoundedCurve', p.num('outline', 'roundEdge', 0, sel))
+  const radius = p.num('shape', 'roundEdge', p.num('shape', 'rectangleRoundedCurve', p.num('outline', 'roundEdge', 0, sel), sel), sel)
+  const kind = roundedButtonKind(normalizeShapeKind(p.str('shape', 'tileShape', 'rectangle')), radius)
   const fill = p.bool('fill', 'show', true, sel) ? withTransparency(p.color('fill', 'fillColor', BUTTON_DEFAULTS.fill, sel), p.num('fill', 'transparency', 0, sel)) : undefined
   const outlineOn = p.bool('outline', 'show', true, sel)
   const stroke = outlineOn ? withTransparency(p.color('outline', 'lineColor', BUTTON_DEFAULTS.outline, sel), p.num('outline', 'transparency', 0, sel)) : undefined

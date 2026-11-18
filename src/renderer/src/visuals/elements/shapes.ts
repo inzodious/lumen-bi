@@ -62,6 +62,15 @@ export function normalizeShapeKind(v: unknown): ShapeKind {
   return hit ?? 'rectangle'
 }
 
+/**
+ * Buttons and navigators: Power BI's Shape card offers "Rounded corners" (`shape.roundEdge`) for the default Rectangle
+ * shape, so a rectangle with a corner radius is drawn rounded (unlike the standalone Shape visual, whose plain
+ * rectangle has no rounding option).
+ */
+export function roundedButtonKind(kind: ShapeKind, radius: number): ShapeKind {
+  return kind === 'rectangle' && radius > 0 ? 'rectangleRounded' : kind
+}
+
 const f = (n: number) => (Math.round(n * 100) / 100).toString()
 
 function poly(points: Array<[number, number]>): string {

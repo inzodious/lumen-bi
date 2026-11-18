@@ -1,4 +1,4 @@
-import { buildParagraphs, bulletGlyph, normalizeStyle, paragraphsFromText, paragraphsText } from '../textboxModel'
+import { TEXTBOX_DEFAULTS, buildParagraphs, bulletGlyph, normalizeStyle, paragraphsFromText, paragraphsText, themeTextDefaults } from '../textboxModel'
 
 describe('textbox paragraphs model', () => {
   it('normalizes runs, styles (pt → px), alignment and urls', () => {
@@ -65,5 +65,21 @@ describe('textbox paragraphs model', () => {
     const s = normalizeStyle({ fontSize: '16px', fontWeight: '300' })
     expect(s.fontSize).toBe(16)
     expect(s.fontWeight).toBe(300)
+  })
+})
+
+describe('unstyled text box runs follow the theme label class', () => {
+  it('uses the label class face / size / color, and the built-in defaults without one', () => {
+    const theme = { textClasses: { label: { fontFace: 'Segoe UI', fontSize: 12, color: '#123456' } } }
+    const d = themeTextDefaults(theme)
+    expect(d).toEqual({ fontFamily: 'Segoe UI', fontSize: 12, color: '#123456' })
+    const [p] = buildParagraphs([{ textRuns: [{ value: 'Plain' }, { value: 'Styled', textStyle: { fontSize: '9pt', color: '#FF0000' } }] }], d)
+    expect(p.runs[0].style.fontSize).toBeCloseTo(16, 5)
+    expect(p.runs[0].style.color).toBe('#123456')
+    // an explicit run style still wins
+    expect(p.runs[1].style.fontSize).toBeCloseTo(12, 5)
+    expect(p.runs[1].style.color).toBe('#FF0000')
+    expect(themeTextDefaults(undefined)).toEqual(TEXTBOX_DEFAULTS)
+    expect(themeTextDefaults({ textClasses: { label: { fontSize: 0 } } })).toEqual(TEXTBOX_DEFAULTS)
   })
 })

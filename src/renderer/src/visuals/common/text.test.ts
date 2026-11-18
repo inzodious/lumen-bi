@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cssFontFamily, fontWeightOf, primaryFamily, resolveFont } from './text'
+import { cssFont as styleFont, fontStyle } from './textStyle'
 
 /** what the format pane stores for "Segoe UI Semibold" (a PBIR string literal un-escaped: quoted family + PBI's own fallbacks) */
 const SEMIBOLD_STACK = "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif"
@@ -67,5 +70,54 @@ describe('Power BI font names', () => {
     expect(f.fontFamily.startsWith("'Brand Sans', 'Brand Fallback', 'Segoe UI'")).toBe(true)
     expect(f.fontWeight).toBe(400)
     expect(resolveFont('Brand Sans Bold').fontFamily.startsWith("'Brand Sans Bold', 'Brand Sans', ")).toBe(true)
+  })
+})
+
+describe('Segoe UI faces: weight with and without the Bold toggle', () => {
+  // [family, weight, weight with Bold on, first family of the CSS stack without Bold]
+  const cases: Array<[string, number, number, string]> = [
+    ['Segoe UI', 400, 700, 'Segoe UI'],
+    ['Segoe UI Light', 300, 700, 'Segoe UI Light'],
+    ['Segoe UI Semibold', 600, 700, 'Segoe UI Semibold'],
+    ['Segoe UI Bold', 700, 700, 'Segoe UI Bold']
+  ]
+  for (const [family, weight, boldWeight, face] of cases) {
+    it(`${family}: ${weight}, Bold → ${boldWeight}`, () => {
+      for (const stored of [family, `'${family}', wf_segoe-ui_normal, helvetica, arial, sans-serif`]) {
+        const plain = resolveFont(stored)
+        expect(plain.fontWeight).toBe(weight)
+        expect(primaryFamily(plain.fontFamily)).toBe(face)
+        const bold = resolveFont(stored, { bold: true })
+        expect(bold.fontWeight).toBe(boldWeight)
+        // Bold asks for the base family's real bold face, never a synthesized bold of the named face
+        expect(primaryFamily(bold.fontFamily)).toBe('Segoe UI')
+      }
+      // the element / slicer helper agrees on the weight
+      expect(fontStyle({ family, size: 10, color: '#000' }).fontWeight).toBe(weight)
+      expect(fontStyle({ family, size: 10, color: '#000', bold: true }).fontWeight).toBe(700)
+      expect(styleFont(family).fontWeight ?? 400).toBe(weight)
+    })
+  }
+})
+
+describe('bundled Segoe UI stand-in faces', () => {
+  const css = readFileSync(resolve(__dirname, '../../assets/fonts/selawik/selawik.css'), 'utf8')
+  const srcOf = (family: string, weight: string): string | undefined => {
+    for (const rule of css.match(/@font-face\s*{[^}]*}/g) ?? []) {
+      if (rule.includes(`font-family: '${family}'`) && new RegExp(`font-weight: ${weight};`).test(rule)) return /url\('\.\/([^']+)'\)/.exec(rule)?.[1]
+    }
+    return undefined
+  }
+
+  it('every Semibold alias uses the lighter derived semibold face; regular and bold stay Selawik', () => {
+    // Selawik's own Semibold is nearly as heavy as its Bold: semibold titles / headers would read as bold
+    expect(srcOf('Segoe UI', '600')).toBe('lumensans-semibold.woff2')
+    expect(srcOf('Segoe UI Semibold', '400')).toBe('lumensans-semibold.woff2')
+    expect(srcOf('Segoe UI Semibold', '600')).toBe('lumensans-semibold.woff2')
+    expect(srcOf('wf_segoe-ui_semibold', 'normal')).toBe('lumensans-semibold.woff2')
+    expect(srcOf('Segoe UI', '400')).toBe('selawk.woff2')
+    expect(srcOf('Segoe UI', '700')).toBe('selawkb.woff2')
+    expect(srcOf('Segoe UI Bold', '700')).toBe('selawkb.woff2')
+    expect(srcOf('Segoe UI Light', '300')).toBe('selawkl.woff2')
   })
 })

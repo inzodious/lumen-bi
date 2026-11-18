@@ -7,7 +7,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from 'react'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import type { PageDocument, ReportDocument, VisualDocument } from '@core/report/types'
-import type { SQFilter } from '@core/report/sq'
+import type { DataPointIdentity, SQFilter } from '@core/report/sq'
 import { decodeValue, rawProp } from '@core/report/props'
 import { withTransparency } from '@core/report/theme'
 import { useApp } from '../state/store'
@@ -42,7 +42,7 @@ export interface PageCanvasProps {
   /** called once when every visible visual rendered (or after a timeout) */
   onReady?(): void
   /** focus mode / show as table for one visual */
-  focus?: { visual: string; mode: 'focus' | 'table' } | null
+  focus?: { visual: string; mode: 'focus' | 'table'; point?: DataPointIdentity } | null
   /** box size for focus mode (CSS px) */
   focusSize?: { width: number; height: number }
   /** color under the (possibly transparent) page background; default white like PBI */
@@ -492,7 +492,7 @@ export function PageCanvas(props: PageCanvasProps) {
               <VisualContainer visual={v} rect={{ x: 0, y: 0, width: size.width, height: size.height }} z={0} filters={f?.filters ?? EMPTY} highlightFilters={f?.highlightFilters ?? EMPTY} fill />
             </div>
           )}
-          {v && focus.mode === 'table' && <ShowAsTable visual={v} filters={f?.filters ?? EMPTY} highlightFilters={f?.highlightFilters ?? EMPTY} size={size} />}
+          {v && focus.mode === 'table' && <ShowAsTable visual={v} filters={f?.filters ?? EMPTY} highlightFilters={f?.highlightFilters ?? EMPTY} size={size} point={focus.point} />}
         </div>
       </CanvasEnvContext.Provider>
     )

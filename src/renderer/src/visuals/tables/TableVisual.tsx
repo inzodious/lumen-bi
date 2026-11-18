@@ -1,14 +1,16 @@
 /** Table visual (tableEx) renderer. */
 import { useCallback, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { identityKey } from '@core/report/sq'
-import type { VisualProps } from '../contract'
+import type { ContextMenuEntry, VisualProps } from '../contract'
 import { fontStyle, ptToPx } from '../common/textStyle'
+import { promptDialog } from '../../app/ui'
 import { CellContent, Grid, ResizeHandle, SortCaret } from './Grid'
 import { applySort, buildTableModel, nextSort, type TableColumn } from './tableModel'
 import { outlineBorders } from './tableFormat'
-import { computeWidths, CELL_PAD_X } from './widths'
+import { cellPadX, computeWidths, contentWidth, CELL_PAD_X, MIN_COLUMN_WIDTH, type WidthInput } from './widths'
+import { resetColumnWidth, setColumnWidth as setWidth, visualObjects } from './columnWidths'
 import type { CellModel } from './cellModel'
-import { copyToClipboard, isCopyKey, toTsv } from './copy'
+import { copyToClipboard, copyValueText, isCopyKey, toTsv } from './copy'
 import { SPARKLINE_DEFAULT_WIDTH } from './sparklineModel'
 import { LOAD_MORE_THRESHOLD, ROW_WINDOW } from './windowQuery'
 
@@ -32,26 +34,29 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
   const valuePx = ptToPx(f.values.font.size)
   const headerPx = ptToPx(f.header.font.size)
 
-  const widths = useMemo(
-    () =>
-      computeWidths(
-        model.columns.map((c, ci) => ({
-          header: c.label,
-          headerFont: f.header.font,
-          // images and sparklines are sized by their graphic, not by their (URL) text
-          texts:
-            c.sparkline || isImageColumn(c) || (f.values.urlIcon && isUrlColumn(c))
-              ? []
-              : [...model.rows.slice(0, AUTOSIZE_SAMPLE_ROWS).map((r) => r[ci].text), model.total?.[ci]?.text ?? ''],
-          valueFont: f.values.font,
-          explicit: f.widthByRef.get(c.queryRef),
-          minWidth: c.sparkline ? SPARKLINE_DEFAULT_WIDTH : isImageColumn(c) ? f.grid.imageWidth ?? f.grid.imageHeight : undefined,
-          extra: (c.sort ? 12 : 0) + (c.cf?.icon ? valuePx + 4 : 0)
-        })),
-        { autoSize: f.header.autoSize, defaultWidth: f.header.defaultWidth, wrapHeader: f.header.wordWrap, available: width, adjustment: f.header.columnAdjustment }
-      ),
-    [model, width]
+  // Layout ▸ Column width: `available` is the viewport without the vertical scrollbar (reported by the grid)
+  const [viewport, setViewport] = useState<number | undefined>()
+  const available = viewport !== undefined ? Math.min(width, viewport) : width
+  const widthInputs = useMemo(
+    (): WidthInput[] =>
+      model.columns.map((c, ci) => ({
+        header: c.label,
+        headerFont: f.header.font,
+        // images and sparklines are sized by their graphic, not by their (URL) text
+        texts: c.sparkline || isImageColumn(c) || (f.values.urlIcon && isUrlColumn(c)) ? [] : model.rows.slice(0, AUTOSIZE_SAMPLE_ROWS).map((r) => r[ci].text),
+        valueFont: f.values.font,
+        // the total is drawn with its own (bold) font
+        extraTexts: model.total?.[ci]?.text && !c.sparkline ? [{ text: model.total[ci].text, font: f.total.font }] : undefined,
+        explicit: f.widthByRef.get(c.queryRef),
+        minWidth: c.sparkline ? SPARKLINE_DEFAULT_WIDTH : isImageColumn(c) ? f.grid.imageWidth ?? f.grid.imageHeight : undefined,
+        extra: (c.sort ? 12 : 0) + (c.cf?.icon ? valuePx + 4 : 0)
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [model]
   )
+  const widthOptions = { behavior: f.sizing.behavior, legacyManual: f.sizing.legacyManual, defaultWidth: f.sizing.defaultWidth, wrapHeader: f.header.wordWrap, available }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const widths = useMemo(() => computeWidths(widthInputs, widthOptions), [widthInputs, available])
   const colWidths = preview ? widths.map((w, i) => (i === preview.col ? preview.width : w)) : widths
   const totalWidth = colWidths.reduce((a, b) => a + b, 0)
 
@@ -62,28 +67,48 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
   const rowH = Math.ceil(valuePx * 1.36) + pad * 2 + (f.grid.horizontal ? f.grid.horizontalWeight : 0)
   const wrapValues = f.values.wordWrap
   const hasImages = model.columns.some((c) => (c.dataCategory ?? '').toLowerCase() === 'imageurl')
-  const copySelection = () => {
-    const sel = model.identities.map((id, i) => ({ id, i })).filter(({ id }) => id && selected.has(identityKey(id)))
-    if (sel.length) {
-      const cols = model.columns.map((c, i) => ({ c, i })).filter(({ c }) => !c.sparkline)
-      void copyToClipboard(toTsv(cols.map(({ c }) => c.label), sel.map(({ i }) => cols.map(({ i: ci }) => model.rows[i][ci].text))))
-    } else if (lastCell.current) {
-      const cell = model.rows[lastCell.current.row]?.[lastCell.current.col]
-      if (cell) void copyToClipboard(cell.text)
-    }
-  }
   const selected = new Set(ctx.selection.map(identityKey))
+  /** selected rows as TSV with headers (Copy ▸ Copy selection, Ctrl+C); undefined without a selection */
+  const selectionText = (): string | undefined => {
+    const sel = model.identities.map((id, i) => ({ id, i })).filter(({ id }) => id && selected.has(identityKey(id)))
+    if (!sel.length) return undefined
+    const cols = model.columns.map((c, i) => ({ c, i })).filter(({ c }) => !c.sparkline)
+    return toTsv(cols.map(({ c }) => c.label), sel.map(({ i }) => cols.map(({ i: ci }) => model.rows[i][ci].text)))
+  }
+  const copySelection = () => {
+    const text = selectionText() ?? (lastCell.current ? model.rows[lastCell.current.row]?.[lastCell.current.col]?.text : undefined)
+    if (text !== undefined) void copyToClipboard(text)
+  }
+
+  // ---- column widths (custom widths are `columnWidth` entries keyed by the column's queryRef) ----
+  const editable = ctx.mode === 'edit'
+  const resize = (c: TableColumn, w: number) => ctx.updateVisual((j) => setWidth(visualObjects(j), c.queryRef, w))
+  const autoFit = (ci: number) => resize(model.columns[ci], contentWidth(widthInputs[ci], widthOptions))
+  const widthEntries = (ci: number): ContextMenuEntry[] => {
+    const c = model.columns[ci]
+    if (!editable) return []
+    return [
+      {
+        label: 'Set column width',
+        onClick: () =>
+          void promptDialog({ title: 'Set column width', label: `Width of "${c.label}" (pixels)`, value: String(Math.round(widths[ci])), validate: validWidth }).then((v) => {
+            if (v !== null) resize(c, Number(v))
+          })
+      },
+      { label: 'Reset column width', disabled: !f.widthByRef.has(c.queryRef), onClick: () => ctx.updateVisual((j) => resetColumnWidth(visualObjects(j), c.queryRef)) }
+    ]
+  }
   const outline = (o: Parameters<typeof outlineBorders>[0]) => outlineBorders(o, f.grid.outlineColor, f.grid.outlineWeight)
 
   const cellBase = (ci: number, last: boolean): CSSProperties => ({
     position: 'relative',
     flex: `0 0 ${colWidths[ci]}px`,
     width: colWidths[ci],
-    padding: `${pad}px ${CELL_PAD_X}px`,
+    padding: `${pad}px ${cellPadX(colWidths[ci])}px`,
     display: 'flex',
     alignItems: 'flex-start',
     overflow: 'hidden',
-    borderRight: f.grid.vertical && !last ? `${f.grid.verticalWeight}px solid ${f.grid.verticalColor}` : undefined
+    borderRight: f.grid.vertical && !last && colWidths[ci] > 0 ? `${f.grid.verticalWeight}px solid ${f.grid.verticalColor}` : undefined
   })
 
   const onHeaderClick = (c: TableColumn) => {
@@ -99,17 +124,25 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
           <div
             key={c.queryRef + ci}
             style={{ ...cellBase(ci, ci === model.columns.length - 1), background: ov?.backColor, color: ov?.fontColor, cursor: 'pointer', alignItems: 'flex-end', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}
+            data-col={c.queryRef}
+            role="columnheader"
             onClick={() => onHeaderClick(c)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              ctx.showContextMenu({ x: e.clientX, y: e.clientY, target: 'header', value: c.label, selectionText, entries: widthEntries(ci) })
+            }}
             title={c.label}
           >
             {c.sort && align === 'right' ? <SortCaret dir={c.sort} color={f.header.font.color} /> : null}
             <span style={f.header.wordWrap ? { whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: align } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.label}</span>
             {c.sort && align !== 'right' ? <SortCaret dir={c.sort} color={f.header.font.color} /> : null}
-            {ctx.mode === 'edit' ? (
+            {editable ? (
               <ResizeHandle
                 width={colWidths[ci]}
+                label={c.label}
                 onPreview={(w) => setPreview(w === undefined ? undefined : { col: ci, width: w })}
-                onResize={(w) => ctx.updateVisual((j) => setColumnWidth(j, c.queryRef, w))}
+                onResize={(w) => resize(c, w)}
+                onAutoFit={() => autoFit(ci)}
               />
             ) : null}
           </div>
@@ -126,6 +159,12 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
           key={ci}
           style={{ ...cellBase(ci, ci === cells.length - 1), background: cell.background, color: cell.color ?? rowStyle.color, alignItems: cell.spark ? 'center' : 'flex-start' }}
           onMouseDown={() => (lastCell.current = rowIndex >= 0 ? { row: rowIndex, col: ci } : null)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            const id = rowIndex >= 0 ? model.identities[rowIndex] : undefined
+            ctx.showContextMenu({ x: e.clientX, y: e.clientY, identity: id?.fields.length ? id : undefined, target: isTotal ? 'total' : 'dataPoint', value: copyValueText(cell), selectionText })
+          }}
           onMouseMove={(e) =>
             !isTotal && cell.text
               ? ctx.showTooltip({ x: e.clientX, y: e.clientY, items: [{ label: c.label, value: cell.text }] })
@@ -174,10 +213,12 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
         estimateRowHeight={hasImages ? Math.max(rowH, f.grid.imageHeight + pad * 2) : rowH}
         measure={wrapValues || hasImages}
         background={f.values.backPrimary}
+        bodyStyle={outline(f.values.outline)}
         header={header}
         footer={footer}
         onNearEnd={model.hasMore ? loadMore : undefined}
         nearEndThreshold={LOAD_MORE_THRESHOLD}
+        onViewportWidth={setViewport}
         renderRow={(i, style, ref) => {
           const odd = i % 2 === 1
           const id = model.identities[i]
@@ -204,10 +245,6 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
                 if (selected.has(k) && (multi || selected.size === 1)) ctx.select(ctx.selection.filter((s) => identityKey(s) !== k))
                 else ctx.select(multi ? [...ctx.selection, id] : [id], { multi })
               }}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                ctx.showContextMenu({ x: e.clientX, y: e.clientY, identity: id })
-              }}
             >
               {renderCells(model.rows[i], { color, fontStyle: {} }, false, i)}
             </div>
@@ -228,14 +265,17 @@ function isImageColumn(c: TableColumn): boolean {
   return (c.dataCategory ?? '').toLowerCase() === 'imageurl'
 }
 
+/** Set a column's custom width in a visual JSON (see ./columnWidths). */
 export function setColumnWidth(visualJson: any, queryRef: string, width: number): void {
-  const v = visualJson.visual
-  v.objects ??= {}
-  const list: any[] = (v.objects.columnWidth ??= [])
-  const entry = list.find((e) => e.selector?.metadata === queryRef)
-  const value = { expr: { Literal: { Value: `${width}D` } } }
-  if (entry) entry.properties = { ...entry.properties, value }
-  else list.push({ properties: { value }, selector: { metadata: queryRef } })
+  setWidth(visualObjects(visualJson), queryRef, width)
+}
+
+/** Validation of the "Set column width" prompt. */
+export function validWidth(v: string): string | undefined {
+  const n = Number(v)
+  if (v.trim() === '' || !Number.isFinite(n)) return 'Enter a width in pixels.'
+  if (n < MIN_COLUMN_WIDTH || n > 2000) return `Enter a width between ${MIN_COLUMN_WIDTH} and 2000 pixels.`
+  return undefined
 }
 
 export function Message({ text, muted }: { text: string; muted?: boolean }) {

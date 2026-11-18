@@ -3,11 +3,12 @@ import { createMockHost } from '../common/mockHost'
 import { createSampleEngine, proj, S } from '../common/sampleData'
 import { blockKey, buildMatrixLayout, pathKey, type MatrixSpec } from './matrixModel'
 import { buildMatrixView, matrixData } from './matrixView'
-import { readToggled, toggleExpansion } from './matrixQuery'
+import { readToggled, savedExpansion, toggleExpansion } from './matrixQuery'
+import { applyExpansion, setAllExpanded, setLevelExpanded } from '../common/expansion'
 import { buildTableModel, tableData } from './tableModel'
 import { readTableFormat } from './tableFormat'
 import { computeWidths } from './widths'
-import { toTsv, tsvField } from './copy'
+import { copyValueText, toTsv, tsvField } from './copy'
 import { markerPoints, MARKER, seriesFromRows, sparkKey, sparklineGeometry, sparklineSpec, readSparklineFormats } from './sparklineModel'
 import { makePropContext } from '@core/report/props'
 import { buildCell } from './cellModel'
@@ -318,6 +319,26 @@ describe('matrix with the sample engine: columns, values on rows, sparklines', (
     expect(v.cells[eu][5].value as number).toBeCloseTo(q, 4)
   })
 
+  it('column headers: Expand ▸ Entire level / Collapse ▸ All (the context menu commands) drive the layout', () => {
+    const json: any = matrixJson()
+    const refs = ['Sales.Year', 'Sales.Quarter']
+    const levels = refs.map((queryRef) => ({ queryRef }))
+    applyExpansion(json, 'Columns', levels, savedExpansion(json, 'Columns', refs), (e) => setLevelExpanded(e, 0, true))
+    let v = buildMatrixView(json, createMockHost({ engine }))
+    expect(v.data.spec.colLevelExpanded).toEqual([true, false])
+    expect(v.layout.colHeaderLevels).toBe(2)
+    expect(v.layout.leaves.filter((l) => l.path.length === 2).length).toBe(8)
+    expect(json.visual.query.queryState.Columns.projections.map((p: any) => !!p.active)).toEqual([true, true])
+    // one year collapsed by hand keeps the others open
+    toggleExpansion(json, [2023], refs, 'Columns')
+    v = buildMatrixView(json, createMockHost({ engine }))
+    expect(v.layout.leaves.filter((l) => l.path.length === 2).every((l) => l.path[0] === 2024)).toBe(true)
+    applyExpansion(json, 'Columns', levels, savedExpansion(json, 'Columns', refs), (e) => setAllExpanded(e, false))
+    v = buildMatrixView(json, createMockHost({ engine }))
+    expect(v.layout.leaves.map((l) => l.path.join('/'))).toEqual(['2023', '2024', ''])
+    expect(json.visual.expansionStates.find((s: any) => s.roles.includes('Columns')).root).toEqual({})
+  })
+
   it('auto expand on column headers shows every column level', () => {
     const v = buildMatrixView(matrixJson({ objects: { columnHeaders: [{ properties: { autoExpand: L('true') } }] } }), createMockHost({ engine }))
     expect(v.layout.colHeaderLevels).toBe(2)
@@ -376,15 +397,22 @@ describe('column widths and copy', () => {
       { header: 'b', headerFont: font, texts: ['x'], valueFont: font, explicit: 50 },
       { header: 'c', headerFont: font, texts: [], valueFont: font, minWidth: 100 }
     ]
-    const fit = computeWidths(cols, { autoSize: true, wrapHeader: true, available: 600, adjustment: 'fitToContent' })
+    const fit = computeWidths(cols, { behavior: 'fitToContent', wrapHeader: true, available: 600 })
     expect(fit[1]).toBe(50)
     expect(fit[2]).toBeGreaterThanOrEqual(100)
-    const grow = computeWidths(cols, { autoSize: true, wrapHeader: true, available: 600, adjustment: 'growToFit' })
+    const grow = computeWidths(cols, { behavior: 'growToFit', wrapHeader: true, available: 600 })
     expect(grow[1]).toBe(50)
     expect(grow[0] - fit[0]).toBe(grow[2] - fit[2])
     expect(grow.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(600)
     expect(grow.reduce((a, b) => a + b, 0)).toBeGreaterThan(597)
-    expect(computeWidths(cols, { autoSize: true, wrapHeader: true, available: 600, adjustment: 'fixedWidth', defaultWidth: 80 })).toEqual([80, 50, 80])
+    expect(computeWidths(cols, { behavior: 'fixedWidth', wrapHeader: true, available: 600, defaultWidth: 80 })).toEqual([80, 50, 80])
+  })
+
+  it('Copy value: the data value, not its formatting', () => {
+    expect(copyValueText({ value: 1234567.891, text: '$1.23M' })).toBe('1234567.891')
+    expect(copyValueText({ value: 'Europe', text: 'Europe' })).toBe('Europe')
+    expect(copyValueText({ value: null, text: '' })).toBe('')
+    expect(copyValueText({ value: new Date(Date.UTC(2024, 0, 5)), text: '1/5/2024' })).toBe('1/5/2024')
   })
 
   it('TSV with headers and quoting', () => {

@@ -5,7 +5,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRightRegular } from '@fluentui/react-icons'
 import type { DataPointIdentity, SQExpr } from '@core/report/sq'
-import { identitiesToFilter } from '@core/report/sq'
+import { fieldKey, identitiesToFilter } from '@core/report/sq'
 import type { Scalar } from '@core/model/data'
 import { useApp } from '../state/store'
 import { useInteraction, type ContextMenuState } from '../state/interaction'
@@ -14,8 +14,9 @@ import type { VisualHostContext } from '../visuals/contract'
 import { resolveChrome } from './chrome'
 import { autoTooltipPage, tooltipIsAuto } from './tooltipPages'
 import { PageCanvas } from './PageCanvas'
-import { deleteVisuals } from './editOps'
-import { findPage, findVisual, pageInfo, visualFields, visualTypeOf } from './pbir'
+import { deleteVisuals, topLevelOf } from './editOps'
+import { copySelection, groupSelection, ungroupSelection } from './commands'
+import { findPage, findVisual, isGroup, pageInfo, parentOf, visualFields, visualTypeOf } from './pbir'
 import { drillthrough, drillthroughTargets, includeExclude, setDrill, sortVisual } from './runtime'
 import { liveContext } from './host'
 
@@ -173,75 +174,184 @@ function downloadCsv(name: string, data: { columns: string[]; rows: Scalar[][] }
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 
-/** Build the visual context menu (PBI order: Show as a table · Include/Exclude · Drill · Drill through · Copy · Sort · Export · Spotlight · Remove). */
+/** Drillable hierarchy of a visual: the role with several fields (charts' Category / matrix Rows or, with "Drill on: Columns", Columns). */
+function drillHierarchy(v: { json: any }, def: ReturnType<typeof getVisual>, onColumns: boolean): SQExpr[] {
+  const qs = v.json?.visual?.query?.queryState ?? {}
+  const roles = onColumns ? ['Columns'] : (def?.roles ?? []).filter((r) => r.drillable && r.name !== 'Columns').map((r) => r.name)
+  for (const r of roles) {
+    const ps: any[] = qs[r]?.projections ?? []
+    if (ps.length > 1) return ps.map((p) => p.field)
+  }
+  return []
+}
+
+/**
+ * Build the visual context menu. One menu serves Power BI's right-click menu and its "More options (…)" menu, in
+ * this order: Show as a table · Show data point as a table · Include / Exclude · the visual's own entries
+ * (Expand ▸ / Collapse ▸, Set column width, a slicer's Search / Clear selections) · Drill down / Drill up / Show next
+ * level / Expand to next level · Drill through ▸ · Copy ▸ · Sort ▸ · Group ▸ · Export data · Spotlight · Remove.
+ * Entries without a working feature behind them in this context are left out (never shown dead).
+ */
 export function buildVisualMenu(state: ContextMenuState, ctx: VisualHostContext | null, opts: { editing: boolean; title: string }): MenuItem[] {
-  const { page, visual } = state
+  const { page, visual, req } = state
   const report = useApp.getState().project?.report
   const pageDoc = findPage(report, page)
   const v = findVisual(pageDoc, visual)
-  if (!v) return []
+  if (!v || !pageDoc) return []
   const def = getVisual(visualTypeOf(v))
-  const id: DataPointIdentity | undefined = state.req.identity
+  const id: DataPointIdentity | undefined = req.identity?.fields.length ? req.identity : undefined
   const it = useInteraction.getState()
   const items: MenuItem[] = []
   const getData = () => (def?.getData && ctx ? def.getData(v, ctx) : undefined)
+  const isSlicer = def?.category === 'slicer' || !!def?.isSlicer
+  const sep = () => items.push({ separator: true })
 
-  items.push({ label: 'Show as a table', onClick: () => it.setFocus({ page, visual, mode: 'table' }), disabled: !def })
-  if (id) {
+  items.push({ label: 'Show as a table', onClick: () => it.setFocus({ page, visual, mode: 'table' }), disabled: !def?.getData })
+  // PBI lists the records behind the point; here: the visual and its data restricted to the point (see ShowAsTable)
+  if (id && def?.getData && !isSlicer) items.push({ label: 'Show data point as a table', onClick: () => it.setFocus({ page, visual, mode: 'table', point: id }) })
+  if (id && !isSlicer) {
     const sel = it.crossFilter[page]?.source === visual && it.crossFilter[page]!.identities.length ? it.crossFilter[page]!.identities : [id]
-    items.push({ separator: true })
+    sep()
     items.push({ label: 'Include', onClick: () => includeExclude(page, visual, sel, 'Include') })
     items.push({ label: 'Exclude', onClick: () => includeExclude(page, visual, sel, 'Exclude') })
   }
+  if (req.entries?.length) {
+    sep()
+    items.push(...req.entries)
+  }
   if (def?.supportsDrill && ctx) {
     const d = ctx.drill
-    items.push({ separator: true })
-    items.push({ label: 'Drill down', disabled: !id, onClick: () => id && setDrill(page, visual, { ...d, level: d.level + 1, path: [...d.path, id] }) })
-    items.push({ label: 'Drill up', disabled: d.level === 0 && !d.path.length, onClick: () => setDrill(page, visual, { ...d, level: Math.max(0, d.level - 1), path: d.path.slice(0, -1) }) })
+    const onColumns = d.target === 'columns' && visualTypeOf(v) === 'pivotTable'
+    const levels = drillHierarchy(v, def, onColumns)
+    if (levels.length > 1) {
+      const last = levels.length - 1
+      const level = onColumns ? (d.columnLevel ?? 0) : d.level
+      const expandedTo = onColumns ? (d.columnExpandedLevel ?? level) : (d.expandedLevel ?? level)
+      // drill into the clicked point: below the deepest hierarchy level the point belongs to
+      const keys = levels.map((e) => fieldKey(e))
+      const pointLevel = id ? Math.max(-1, ...id.fields.map((f) => keys.indexOf(fieldKey(f.expr)))) : -1
+      const canDrillDown = !!id && pointLevel >= 0 && pointLevel < last
+      sep()
+      items.push({
+        label: 'Drill down',
+        disabled: !canDrillDown,
+        onClick: () => {
+          if (!id) return
+          const path = [...d.path, id]
+          setDrill(page, visual, onColumns ? { ...d, columnLevel: pointLevel + 1, columnExpandedLevel: undefined, path } : { ...d, level: pointLevel + 1, expandedLevel: undefined, path })
+        }
+      })
+      items.push({
+        label: 'Drill up',
+        disabled: level === 0 && !d.path.length,
+        onClick: () => {
+          const path = d.path.slice(0, -1)
+          setDrill(page, visual, onColumns ? { ...d, path, columnLevel: Math.max(0, level - 1), columnExpandedLevel: undefined } : { ...d, path, level: Math.max(0, level - 1), expandedLevel: undefined })
+        }
+      })
+      items.push({
+        label: 'Show next level',
+        disabled: level >= last,
+        onClick: () => setDrill(page, visual, onColumns ? { ...d, columnLevel: level + 1, columnExpandedLevel: undefined } : { ...d, level: level + 1, expandedLevel: undefined })
+      })
+      items.push({
+        label: 'Expand to next level',
+        disabled: expandedTo >= last,
+        onClick: () => setDrill(page, visual, onColumns ? { ...d, columnExpandedLevel: expandedTo + 1 } : { ...d, expandedLevel: expandedTo + 1 })
+      })
+    }
   }
   const targets = drillthroughTargets(id)
-  if (id) {
+  if (id && targets.length) {
     items.push({
       label: 'Drill through',
-      disabled: !targets.length,
       items: targets.map((t) => ({ label: t.displayName, onClick: () => drillthrough(page, t.name, id, ctx?.filters ?? []) }))
     })
   }
-  items.push({ separator: true })
+  sep()
+  const value = req.value ?? (id ? id.fields.map((f) => scalarText(f.value)).join('\t') : undefined)
+  const inSelection = useApp.getState().selectedVisuals
   items.push({
     label: 'Copy',
     items: [
-      { label: 'Copy value', disabled: !id, onClick: () => id && copyText(id.fields.map((f) => scalarText(f.value)).join('\t')) },
+      { label: 'Copy value', disabled: value === undefined || value === '', onClick: () => value !== undefined && copyText(value) },
       {
         label: 'Copy selection',
-        disabled: !def?.getData,
+        disabled: !req.selectionText && !def?.getData,
         onClick: () => {
+          // the visual's selected rows / points; without a selection, everything the visual shows
+          const text = req.selectionText?.()
+          if (text !== undefined) return copyText(text)
           const d = getData()
           if (d) copyText(toTsv(d))
         }
-      }
+      },
+      // the visual itself, for Paste on a report page
+      ...(opts.editing
+        ? [
+            {
+              label: 'Copy visual',
+              onClick: () => {
+                if (!inSelection.includes(visual)) useApp.getState().selectVisuals([visual])
+                copySelection()
+              }
+            }
+          ]
+        : [])
     ]
   })
   const fields = visualFields(v.json).filter((f) => !['Tooltips'].includes(f.role))
   const sort: any = v.json?.visual?.query?.sortDefinition?.sort?.[0]
   const sortKey = sort ? JSON.stringify(sort.field) : undefined
-  if (fields.length && def?.category !== 'slicer' && def?.category !== 'element') {
+  if (fields.length && def?.category !== 'element') {
     const uniq = new Map<string, { expr: SQExpr; label: string }>()
-    for (const f of fields) {
+    // a slicer sorts by its (first) field only
+    for (const f of isSlicer ? fields.slice(0, 1) : fields) {
       const k = JSON.stringify(f.expr)
       if (!uniq.has(k)) uniq.set(k, { expr: f.expr, label: f.displayName ?? ctx?.engine.describeField(f.expr)?.displayName ?? f.queryRef })
     }
+    const first = [...uniq.values()][0]
+    // slicers sort ascending unless told otherwise; choosing a direction sorts by the slicer's field
+    const target = sort?.field ?? (isSlicer ? first?.expr : undefined)
+    const direction: 'Ascending' | 'Descending' | undefined = sort?.direction ?? (isSlicer ? 'Ascending' : undefined)
     items.push({
-      label: 'Sort axis',
+      label: def?.category === 'table' ? 'Sort by' : 'Sort axis',
       items: [
         ...[...uniq.entries()].map(([k, f]) => ({
           label: f.label,
-          checked: k === sortKey,
-          onClick: () => sortVisual(page, visual, f.expr, sort?.direction === 'Ascending' && k === sortKey ? 'Ascending' : 'Descending')
+          checked: k === sortKey || (isSlicer && !sortKey),
+          onClick: () => sortVisual(page, visual, f.expr, k === sortKey || isSlicer ? (direction ?? 'Descending') : 'Descending')
         })),
         { separator: true },
-        { label: 'Sort descending', checked: sort?.direction === 'Descending', disabled: !sort, onClick: () => sort && sortVisual(page, visual, sort.field, 'Descending') },
-        { label: 'Sort ascending', checked: sort?.direction === 'Ascending', disabled: !sort, onClick: () => sort && sortVisual(page, visual, sort.field, 'Ascending') }
+        { label: 'Sort descending', checked: direction === 'Descending', disabled: !target, onClick: () => target && sortVisual(page, visual, target, 'Descending') },
+        { label: 'Sort ascending', checked: direction === 'Ascending', disabled: !target, onClick: () => target && sortVisual(page, visual, target, 'Ascending') }
+      ]
+    })
+  }
+  if (opts.editing) {
+    // Group / Ungroup the selected visuals (the Selection pane's groups)
+    const picked = inSelection.includes(visual) ? inSelection : [visual]
+    const groups = picked.filter((n) => isGroup(findVisual(pageDoc, n)))
+    const parent = parentOf(v)
+    items.push({
+      label: 'Group',
+      items: [
+        {
+          label: 'Group',
+          disabled: topLevelOf(pageDoc, picked).length < 2,
+          onClick: () => {
+            useApp.getState().selectVisuals(picked)
+            groupSelection()
+          }
+        },
+        {
+          label: 'Ungroup',
+          disabled: !groups.length && !parent,
+          onClick: () => {
+            useApp.getState().selectVisuals(groups.length ? groups : [parent!])
+            ungroupSelection()
+          }
+        }
       ]
     })
   }
@@ -255,7 +365,7 @@ export function buildVisualMenu(state: ContextMenuState, ctx: VisualHostContext 
       else if (data) downloadCsv(opts.title, data)
     }
   })
-  items.push({ separator: true })
+  sep()
   const spot = it.spotlight?.page === page && it.spotlight.visual === visual
   items.push({ label: 'Spotlight', checked: spot, onClick: () => it.setSpotlight(spot ? null : { page, visual }) })
   if (opts.editing) {

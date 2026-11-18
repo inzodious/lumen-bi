@@ -123,6 +123,7 @@
 .wbi-seedata-table th { position: sticky; top: 0; background: #fff; text-align: left; font-weight: 600; padding: 6px 10px; border-bottom: 1px solid #C8C6C4; white-space: nowrap; }
 .wbi-seedata-table td { padding: 4px 10px; border-bottom: 1px solid #F3F2F1; white-space: nowrap; }
 .wbi-seedata-table td.num { text-align: right; }
+.wbi-seedata-point { padding: 6px 10px; font-size: 12px; color: #605E5C; border-bottom: 1px solid #F3F2F1; }
 .wbi-seedata-empty { padding: 16px; color: #605E5C; font-size: 12px; }
 
 /* print */

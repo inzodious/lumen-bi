@@ -248,6 +248,35 @@ describe('matrix with the sample engine', () => {
     expect(matrixData(v).columns.slice(0, 2)).toEqual(['Region', 'Country'])
   })
 
+  it('Power BI expansion state: collapsed levels with single nodes expanded (the next level is active, but not expanded)', () => {
+    // what Power BI saves after expanding only Europe with its + icon: both row levels active, both levels collapsed
+    const expansion = [
+      {
+        roles: ['Rows'],
+        levels: [
+          { queryRefs: ['Sales.Region'], isCollapsed: true, identityKeys: [S.col('Region')], isPinned: true },
+          { queryRefs: ['Sales.Country'], isCollapsed: true, isPinned: true }
+        ],
+        root: { children: [{ identityValues: [{ Literal: { Value: "'Europe'" } }], isToggled: true }] }
+      }
+    ]
+    const v = buildMatrixView(matrixJson({ activeRows: [true, true], expansion }), createMockHost({ engine }))
+    const nodes = v.layout.items.filter((i) => i.kind === 'node')
+    const regions = nodes.filter((n) => n.path.length === 1)
+    expect(regions.length).toBeGreaterThan(1)
+    expect(regions.filter((n) => n.node!.expanded).map((n) => n.label)).toEqual(['Europe'])
+    expect(nodes.filter((n) => n.path.length === 2).every((n) => n.path[0] === 'Europe')).toBe(true)
+    expect(v.data.spec.rowLevelExpanded).toEqual([false, false])
+    // a level the file marks as expanded (no isCollapsed) with one region collapsed by hand
+    const open = [{ roles: ['Rows'], levels: [{ queryRefs: ['Sales.Region'], isPinned: true }, { queryRefs: ['Sales.Country'], isCollapsed: true, isPinned: true }], root: { children: [{ identityValues: [{ Literal: { Value: "'Europe'" } }], isToggled: true }] } }]
+    const w = buildMatrixView(matrixJson({ activeRows: [true, true], expansion: open }), createMockHost({ engine }))
+    const wr = w.layout.items.filter((i) => i.kind === 'node' && i.path.length === 1)
+    expect(wr.filter((n) => !n.node!.expanded).map((n) => n.label)).toEqual(['Europe'])
+    // "Expand all down one level" at run time forces the first level open on top of the saved state
+    const forced = buildMatrixView(matrixJson({ activeRows: [true, true], expansion }), createMockHost({ engine, state: { selection: [], log: [], drill: { level: 0, path: [], expandedLevel: 1 } } }))
+    expect(forced.data.spec.rowLevelExpanded).toEqual([true, false])
+  })
+
   it('expansion state round-trips through PBIR expansionStates', () => {
     const json: any = matrixJson()
     toggleExpansion(json, ['Europe'], ['Sales.Region', 'Sales.Country'])

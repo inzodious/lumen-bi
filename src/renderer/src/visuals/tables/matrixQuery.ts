@@ -9,7 +9,7 @@
  * calc-group column doesn't apply the item.
  */
 import type { Scalar } from '@core/model/data'
-import { decodeLiteral } from '@core/report/literal'
+import { readExpansion, readToggledPaths, applyExpansion, setNodeExpanded, isExpanded as nodeExpanded, type ExpansionLevel, type ExpansionState } from '../common/expansion'
 import type { SummarizeRequest } from '@core/engine/api'
 import { fieldKey, literalExpr, type SQExpr, type SQFilter } from '@core/report/sq'
 import type { DrillState, VisualHostContext } from '../contract'
@@ -84,64 +84,44 @@ export interface MatrixData {
 
 export const MATRIX_ROW_LIMIT = 30000
 
-/**
- * Read toggled node paths from PBIR expansionStates (Rows role). Child `identityValues` may hold
- * the full path (what we write) or only the node's own level value(s); both are accepted.
- */
+/** Number of levels shown when nothing is toggled: 1 + the leading levels that are expanded by default. */
+export function uniformDepth(levelExpanded: boolean[]): number {
+  let d = levelExpanded.length ? 1 : 0
+  for (let i = 0; i < levelExpanded.length - 1 && levelExpanded[i]; i++) d = i + 2
+  return d
+}
+
+/** Deepest level that can be visible: a level shows when the one above is expanded by default or has toggled nodes. */
+export function reachableDepth(levelExpanded: boolean[], toggled: Set<string>): number {
+  const toggledAt = new Set<number>()
+  for (const k of toggled) toggledAt.add(k.split('\u0001').length)
+  let d = levelExpanded.length ? 1 : 0
+  for (let i = 0; i < levelExpanded.length - 1 && (levelExpanded[i] || toggledAt.has(i + 1)); i++) d = i + 2
+  return d
+}
+
+/** Path keys of the toggled nodes of a role (PBIR expansionStates; see ../common/expansion). */
 export function readToggled(visualJson: any, role: 'Rows' | 'Columns' = 'Rows'): Set<string> {
-  const out = new Set<string>()
-  const states: any[] = visualJson?.visual?.expansionStates ?? []
-  const st = states.find((s) => (s.roles ?? []).includes(role))
-  const walk = (node: any, prefix: Scalar[]) => {
-    for (const c of node?.children ?? []) {
-      const vals: Scalar[] = (c.identityValues ?? []).map(decodeIdentityValue)
-      const full = vals.length > prefix.length ? vals : [...prefix, ...vals]
-      if (c.isToggled) out.add(pathKey(full))
-      walk(c, full)
-    }
-  }
-  if (st?.root) walk(st.root, [])
-  return out
+  return new Set(readToggledPaths(visualJson, role).map(pathKey))
 }
 
-function decodeIdentityValue(iv: any): Scalar {
-  const lit = iv?.Literal ?? iv?.expr?.Literal
-  return lit ? decodeLiteral(lit.Value) : null
+/** Saved expansion state of a role for the given (visible) levels; levels the file says nothing about follow the `active` flags. */
+export function savedExpansion(visualJson: any, role: 'Rows' | 'Columns', queryRefs: string[]): ExpansionState {
+  const ps: any[] = visualJson?.visual?.query?.queryState?.[role]?.projections ?? []
+  const first = Math.max(0, ps.findIndex((p) => p?.queryRef === queryRefs[0]))
+  let active = 0
+  for (let i = first; i < ps.length && ps[i]?.active; i++) active++
+  const hasFlags = ps.some((p) => p?.active !== undefined)
+  return readExpansion(visualJson, role, queryRefs, (i) => (role === 'Columns' && !hasFlags) || i < active - 1)
 }
 
-/** Toggle the expansion of a row (or column) node in PBIR expansionStates (mutates the visual JSON). */
-export function toggleExpansion(visualJson: any, path: Scalar[], queryRefs: string[], role: 'Rows' | 'Columns' = 'Rows'): void {
-  const v = visualJson.visual
-  v.expansionStates ??= []
-  let st = v.expansionStates.find((s: any) => (s.roles ?? []).includes(role))
-  if (!st) {
-    st = { roles: [role], levels: queryRefs.map((q) => ({ queryRefs: [q], isPinned: true })), root: {} }
-    v.expansionStates.push(st)
-  }
-  st.root ??= {}
-  let node = st.root
-  for (let i = 0; i < path.length; i++) {
-    node.children ??= []
-    const ids = path.slice(0, i + 1).map((x) => literalExpr(x))
-    const k = JSON.stringify(ids)
-    let child = node.children.find((c: any) => JSON.stringify(c.identityValues) === k)
-    if (!child) {
-      child = { identityValues: ids }
-      node.children.push(child)
-    }
-    node = child
-  }
-  node.isToggled = !node.isToggled
-  if (!node.isToggled) delete node.isToggled
-  prune(st.root)
-}
-
-function prune(node: any): boolean {
-  if (node.children) {
-    node.children = node.children.filter((c: any) => !prune(c))
-    if (!node.children.length) delete node.children
-  }
-  return !node.isToggled && !node.children && node.identityValues !== undefined
+/**
+ * Toggle the expansion of a row (or column) node in PBIR expansionStates (mutates the visual JSON).
+ * `effective` = the state currently shown when it differs from the saved one (run-time "expand all down one level").
+ */
+export function toggleExpansion(visualJson: any, path: Scalar[], queryRefs: string[], role: 'Rows' | 'Columns' = 'Rows', effective?: ExpansionState, levels?: ExpansionLevel[]): void {
+  const state = effective ?? savedExpansion(visualJson, role, queryRefs)
+  applyExpansion(visualJson, role, levels ?? queryRefs.map((queryRef) => ({ queryRef })), state, (e) => setNodeExpanded(e, path, !nodeExpanded(e.state, path)))
 }
 
 function calcGroupItems(ctx: VisualHostContext, p: Projection): string[] | undefined {
@@ -170,35 +150,31 @@ export function loadMatrix(visualJson: any, ctx: VisualHostContext, format: Tabl
   const rowFields = allRows.slice(rowOffset)
   let activeCount = 0
   for (let i = rowOffset; i < allRows.length && allRows[i].active; i++) activeCount++
-  const expandedDepth = format.rowHeaders.autoExpand
-    ? rowFields.length
-    : ctx.drill.expandedLevel !== undefined
-      ? Math.max(1, ctx.drill.expandedLevel - rowOffset + 1)
-      : Math.max(1, activeCount)
+  // Expansion: PBIR `expansionStates` (per-level default + toggled nodes, see ../common/expansion). A file that
+  // says nothing about a level falls back to the `active` flags (a level is expanded when the next one is active).
+  // "Expand all down one level" (visual header) forces the first levels expanded at run time.
+  const drill = ctx.drill
+  const rowState = readExpansion(visualJson, 'Rows', rowFields.map((p) => p.queryRef), (i) => i < activeCount - 1)
+  const forcedRows = drill.expandedLevel !== undefined ? drill.expandedLevel - rowOffset : 0
+  const rowLevelExpanded = rowFields.map((_, i) => i < rowFields.length - 1 && (format.rowHeaders.autoExpand || i < forcedRows || rowState.levelExpanded[i]))
+  const expandedDepth = uniformDepth(rowLevelExpanded)
   // Columns: same model as rows. `active` marks the shown levels; a drill on columns (PBI's
   // "Drill on: Columns", DrillState.target/columnLevel) moves the first visible level.
-  const drill = ctx.drill
   const hasColFlags = allCols.some((p) => p.active !== undefined)
   const firstActiveCol = Math.max(0, allCols.findIndex((p) => p.active))
   const colOffset = drill.columnLevel !== undefined ? Math.min(drill.columnLevel, Math.max(0, allCols.length - 1)) : hasColFlags ? firstActiveCol : 0
   const colFields = allCols.slice(colOffset)
   let colActiveCount = 0
   for (let i = colOffset; i < allCols.length && allCols[i].active; i++) colActiveCount++
-  const colExpandedDepth = format.header.autoExpand || !hasColFlags
-    ? colFields.length
-    : drill.columnExpandedLevel !== undefined
-      ? Math.max(1, drill.columnExpandedLevel - colOffset + 1)
-      : Math.max(1, colActiveCount)
+  const colState = readExpansion(visualJson, 'Columns', colFields.map((p) => p.queryRef), (i) => !hasColFlags || i < colActiveCount - 1)
+  const forcedCols = drill.columnExpandedLevel !== undefined ? drill.columnExpandedLevel - colOffset : 0
+  const colLevelExpanded = colFields.map((_, i) => i < colFields.length - 1 && (format.header.autoExpand || i < forcedCols || colState.levelExpanded[i]))
+  const colExpandedDepth = uniformDepth(colLevelExpanded)
 
-  const toggled = readToggled(visualJson, 'Rows')
-  const colToggled = readToggled(visualJson, 'Columns')
-  const maxDepthOf = (set: Set<string>) => {
-    let m = 0
-    for (const k of set) m = Math.max(m, k.split('\u0001').length)
-    return m
-  }
-  const neededRowDepth = Math.min(rowFields.length, Math.max(rowFields.length ? 1 : 0, expandedDepth, maxDepthOf(toggled) + 1))
-  const neededColDepth = Math.min(colFields.length, Math.max(colFields.length ? 1 : 0, colExpandedDepth, maxDepthOf(colToggled) + 1))
+  const toggled = rowState.toggled
+  const colToggled = colState.toggled
+  const neededRowDepth = reachableDepth(rowLevelExpanded, toggled)
+  const neededColDepth = reachableDepth(colLevelExpanded, colToggled)
 
   const cfs = collectColumnCF(visualJson, ctx.theme)
   const valueCFs = values.map((v) => cfs.get(v.queryRef))
@@ -235,7 +211,7 @@ export function loadMatrix(visualJson: any, ctx: VisualHostContext, format: Tabl
   const calcItems = colFields.map((c) => calcGroupItems(ctx, c))
   // restricting the filter context to the window's groups is safe unless a value reads the shadow filter context (ALLSELECTED)
   const sensitive = shadowSensitive(ctx.engine, [...reqValues.map((v) => v.expr), ...(sort?.kind === 'value' ? [{ kind: 'sq' as const, expr: values[sort.index].expr }] : [])])
-  const win = loadRowWindow(ctx, rowFields.map((p) => p.expr), neededRowDepth, expandedDepth, toggled, sort, sort?.kind === 'value' ? values[sort.index].expr : undefined, window, sensitive)
+  const win = loadRowWindow(ctx, rowFields.map((p) => p.expr), neededRowDepth, rowLevelExpanded, toggled, sort, sort?.kind === 'value' ? values[sort.index].expr : undefined, window, sensitive)
   // column window: the first `columnWindow` deepest column groups; the visual grows it on horizontal scroll
   const cols = capColumns(ctx, colFields.map((p) => p.expr), neededColDepth, calcItems.slice(0, neededColDepth).some((x) => x), columnWindow)
   // CF ranges over the full result when only a window is loaded. Only for uniformly expanded rows /
@@ -428,8 +404,10 @@ export function loadMatrix(visualJson: any, ctx: VisualHostContext, format: Tabl
     valueCount: values.length,
     blocks,
     expandedDepth,
+    rowLevelExpanded,
     toggled,
     colExpandedDepth,
+    colLevelExpanded,
     colToggled,
     rowTotalLabel: (depth) => levelLabel(rowFields, depth, st.label),
     colTotalLabel: (depth) => levelLabel(colFields, depth, st.columnLabel),
@@ -509,7 +487,8 @@ export function loadRowWindow(
   ctx: VisualHostContext,
   rowExprs: SQExpr[],
   neededDepth: number,
-  expandedDepth: number,
+  /** levels shown expanded by default: a depth (levels above it are expanded) or a per-level flag (index 0 = first level) */
+  expandedDepth: number | boolean[],
   toggled: Set<string>,
   sort: MatrixSort,
   sortExpr: SQExpr | undefined,
@@ -520,7 +499,8 @@ export function loadRowWindow(
   if (!rowExprs.length || neededDepth < 1) return { byDepth, hasMore: false }
   const dir = sort?.dir ?? 'asc'
   const byValue = sort?.kind === 'value' && !!sortExpr
-  const isExpanded = (path: Scalar[]) => path.length < rowExprs.length && path.length < neededDepth && (path.length < expandedDepth) !== toggled.has(pathKey(path))
+  const byDefault = (depth: number) => (typeof expandedDepth === 'number' ? depth < expandedDepth : !!expandedDepth[depth - 1])
+  const isExpanded = (path: Scalar[]) => path.length < rowExprs.length && path.length < neededDepth && byDefault(path.length) !== toggled.has(pathKey(path))
 
   /** children (depth d) of the given parents (depth d - 1), in display order per parent */
   const probe = (d: number, parents: Scalar[][] | undefined, limit: number | undefined): { rows: Scalar[][]; more: boolean } => {

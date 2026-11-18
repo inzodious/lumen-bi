@@ -43,10 +43,36 @@ export interface TooltipRequest {
   identity?: DataPointIdentity
 }
 
+/** One entry of the visual context menu supplied by the visual itself (see ContextMenuRequest.entries). */
+export interface ContextMenuEntry {
+  label?: string
+  onClick?(): void
+  disabled?: boolean
+  /** shows a check mark (toggle entries such as a slicer's Search) */
+  checked?: boolean
+  /** sub-menu */
+  items?: ContextMenuEntry[]
+  separator?: boolean
+}
+
 export interface ContextMenuRequest {
   x: number
   y: number
   identity?: DataPointIdentity
+  /**
+   * What was right-clicked. Default: a data point when `identity` is set, else the visual's empty area.
+   * 'header' = a row / column / item header (a label, not a value); 'total' = a total or subtotal.
+   */
+  target?: 'dataPoint' | 'header' | 'total' | 'empty'
+  /** display text of the clicked cell / label (Copy ▸ Copy value) */
+  value?: string
+  /** the visual's current selection as tab-separated text (Copy ▸ Copy selection); default: the visual's data */
+  selectionText?(): string | undefined
+  /**
+   * Entries only this visual can offer for what was clicked (Expand ▸ / Collapse ▸ of a hierarchy, Set column
+   * width, a slicer's Search / Clear selections…). The host shows them as one block after Include / Exclude.
+   */
+  entries?: ContextMenuEntry[]
 }
 
 export interface VisualActions {

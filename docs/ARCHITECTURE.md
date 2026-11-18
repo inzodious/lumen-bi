@@ -101,6 +101,9 @@ Most real models import from Fabric SQL endpoints. Order of preference when open
 | Mobile-only formatting | `report/mobile/format.ts`, Format pane in mobile layout | edits `mobile.json` objects (object-level override seeded from desktop); "Reset to desktop formatting" |
 | Page visuals for summaries | `report/host.ts` (`usePageVisualFilters`, `pageVisualInfos`) | `ReportInfo.pageVisuals` with each visual's effective filters, only for page-summary visuals (narrative) |
 | Bookmark highlights | `report/bookmarks.ts` | `DecomposedSelectors` (compressed HighlightState.selection) decoded/encoded per the bookmark schema; raw value kept on save |
+| Table / matrix column sizing | `visuals/tables/{widths,columnWidths}.ts`, `visuals/tables/LayoutCard.tsx` | Layout ▸ Column width: `columnHeaders.columnAdjustment` (fit to content / grow to fit / fixed width), `defaultColumnWidth`, custom widths = `columnWidth` entries (`metadata` selector; matrix column headers / totals: `data` scope selectors); header-edge drag, double-click fit, Set / Reset column width |
+| Expand / collapse state | `visuals/common/expansion.ts` | PBIR `expansionStates` (per-level `isCollapsed` + `isToggled` nodes, `active` projections kept in step) for matrix Rows / Columns and hierarchy slicers; +/- icons and the context menu's Expand ▸ / Collapse ▸ (Selection · Entire level · All) |
+| Visual context menu | `report/Overlays.tsx` (`buildVisualMenu`) | one menu for PBI's right-click and "More options" entries; a visual adds its own entries for what was clicked through `ContextMenuRequest.entries` (`target`, `value`, `selectionText`) |
 
 ## Dev workflow
 

@@ -20,8 +20,10 @@ import type { ResolvedTheme } from '@core/report/theme'
 import { fieldKey } from '@core/report/sq'
 import { cssAlign, readFont, type FontSpec } from '../common/textStyle'
 import { readSparklineFormats, type SparklineFormat } from './sparklineModel'
+import type { SizeBehavior } from './widths'
 
-export type Outline = 'None' | 'BottomOnly' | 'TopOnly' | 'LeftOnly' | 'RightOnly' | 'TopBottom' | 'LeftRight' | 'Frame'
+/** a named outline, or a side mask (top 1, right 2, bottom 4, left 8) for other combinations */
+export type Outline = 'None' | 'BottomOnly' | 'TopOnly' | 'LeftOnly' | 'RightOnly' | 'TopBottom' | 'LeftRight' | 'Frame' | number
 
 export interface RegionStyle {
   font: FontSpec
@@ -78,9 +80,6 @@ export interface TableFormat {
   pc: PropContext
   isMatrix: boolean
   header: RegionStyle & {
-    autoSize: boolean
-    columnAdjustment: 'growToFit' | 'fixedWidth' | 'fitToContent' | 'auto'
-    defaultWidth?: number
     titleAlignment?: 'left' | 'center' | 'right'
     /** matrix column headers: +/- icons */
     buttons: ExpandButtonStyle
@@ -132,14 +131,47 @@ export interface TableFormat {
   columnTotal: TotalStyle
   showBlankRows: boolean
   blankRows: { color?: string; border: boolean; borderPosition: 'Top' | 'Bottom' | 'TopAndBottom'; borderColor: string; borderWidth: number }
-  /** column width by queryRef (selector.metadata) */
+  /** Layout ▸ Column width (see ./widths) */
+  sizing: ColumnSizing
+  /** custom column width by queryRef (`columnWidth` entry with a `metadata` selector) */
   widthByRef: Map<string, number>
-  /** column width by matrix column-header scope (stringified scopeId) */
-  widthByScope: Array<{ scope: any; width: number }>
+  /** matrix widths of one column header or total column (`data` scope selector, optionally for one value `ref`) */
+  widthByScope: Array<{ scope: any[]; ref?: string; width: number }>
+  /** legacy stepped row-header width (`selector.id = 'cornerColumn'`, written by older Lumen versions) */
   cornerWidth?: number
   columnOverrides: Map<string, ColumnOverride>
   /** sparkline formatting by sparkline projection queryRef */
   sparklines: Map<string, SparklineFormat>
+}
+
+export interface ColumnSizing {
+  /** Auto-size behavior (`columnHeaders.columnAdjustment`; legacy files: from `autoSizeColumnWidth`) */
+  behavior: SizeBehavior
+  /** legacy "Auto-size width: off" without a `columnAdjustment` (shown as Fixed width; see WidthOptions.legacyManual) */
+  legacyManual: boolean
+  /** `columnHeaders.defaultColumnWidth` (Fixed width) */
+  defaultWidth?: number
+  /** Custom widths toggle: `columnHeaders.customColumnWidth`, or implied by stored widths */
+  custom: boolean
+  /** matrix "More granular" (`columnHeaders.customColumnWidthGranularView`, or implied by scoped widths) */
+  granular: boolean
+}
+
+const BEHAVIORS: SizeBehavior[] = ['fitToContent', 'growToFit', 'fixedWidth']
+
+/** Resolve the column sizing options of a table / matrix (explicit → theme → Power BI defaults). */
+export function readColumnSizing(pc: PropContext, stored: { widths: number; scoped: number }): ColumnSizing {
+  const raw = getProp<any>(pc, 'columnHeaders', 'columnAdjustment', undefined)
+  const adjustment = typeof raw === 'string' ? BEHAVIORS.find((b) => b.toLowerCase() === raw.toLowerCase()) : undefined
+  const autoSize = getProp<any>(pc, 'columnHeaders', 'autoSizeColumnWidth', true) !== false
+  const d = getProp<any>(pc, 'columnHeaders', 'defaultColumnWidth', undefined)
+  return {
+    behavior: adjustment ?? (autoSize ? 'fitToContent' : 'fixedWidth'),
+    legacyManual: !adjustment && !autoSize,
+    defaultWidth: typeof d === 'number' && Number.isFinite(d) && d > 0 ? d : undefined,
+    custom: stored.widths > 0 || getProp<any>(pc, 'columnHeaders', 'customColumnWidth', false) === true,
+    granular: stored.scoped > 0 || getProp<any>(pc, 'columnHeaders', 'customColumnWidthGranularView', false) === true
+  }
 }
 
 function num(v: unknown, fallback: number): number {
@@ -147,15 +179,20 @@ function num(v: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
-function outlineOf(v: unknown, fallback: Outline): Outline {
-  // PBIR stores outlines as names ('BottomOnly'…) or legacy numeric codes
-  if (typeof v === 'number') {
-    const codes: Record<number, Outline> = { 0: 'None', 1: 'BottomOnly', 2: 'TopOnly', 3: 'LeftOnly', 4: 'RightOnly', 5: 'TopBottom', 6: 'LeftRight', 7: 'Frame', 10: 'None' }
-    return codes[v] ?? fallback
+/**
+ * `outlineStyle` is a number: a bit mask of the sides that have a border — top 1, right 2, bottom 4, left 8 (as in
+ * Microsoft's sample reports: matrix column headers 4 = bottom, row headers 2 = right, values 0 = none). Older files
+ * store the legacy `outline` names ('BottomOnly'…).
+ */
+export function outlineOf(v: unknown, fallback: Outline): Outline {
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    const m = Math.round(v) & 15
+    const named: Record<number, Outline> = { 0: 'None', 1: 'TopOnly', 2: 'RightOnly', 4: 'BottomOnly', 8: 'LeftOnly', 5: 'TopBottom', 10: 'LeftRight', 15: 'Frame' }
+    return named[m] ?? m
   }
   const s = String(v ?? '')
   const known: Outline[] = ['None', 'BottomOnly', 'TopOnly', 'LeftOnly', 'RightOnly', 'TopBottom', 'LeftRight', 'Frame']
-  return known.find((k) => k.toLowerCase() === s.toLowerCase()) ?? fallback
+  return known.find((k) => typeof k === 'string' && k.toLowerCase() === s.toLowerCase()) ?? fallback
 }
 
 function align(v: unknown): 'left' | 'center' | 'right' | undefined {
@@ -187,14 +224,15 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
   const backSecondary = getColor(pc, 'values', 'backColorSecondary', isMatrix ? backPrimary : theme.backgroundLight)
 
   const widthByRef = new Map<string, number>()
-  const widthByScope: Array<{ scope: any; width: number }> = []
+  const widthByScope: Array<{ scope: any[]; ref?: string; width: number }> = []
   let cornerWidth: number | undefined
   for (const e of objectEntries(pc, 'columnWidth')) {
     const raw = e.properties?.value
     const w = num(raw?.expr?.Literal ? Number.parseFloat(String(raw.expr.Literal.Value)) : raw, NaN)
     if (!Number.isFinite(w)) continue
-    if (e.selector?.metadata) widthByRef.set(e.selector.metadata, w)
-    else if (e.selector?.data) widthByScope.push({ scope: e.selector.data, width: w })
+    // a `data` scope (one column-header combination of a matrix) is more specific than its `metadata`
+    if (Array.isArray(e.selector?.data) && e.selector.data.length) widthByScope.push({ scope: e.selector.data, ref: e.selector.metadata, width: w })
+    else if (e.selector?.metadata) widthByRef.set(e.selector.metadata, w)
     else if (e.selector?.id === 'cornerColumn') cornerWidth = w
   }
   // Legacy `table` / older `tableEx` files keep per-column widths in `general.columnWidth` (selector = queryRef)
@@ -240,8 +278,6 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
     }
   }
 
-  const columnAdjustmentRaw = String(getProp<any>(pc, 'columnHeaders', 'columnAdjustment', 'auto'))
-  const columnAdjustment = (['growToFit', 'fixedWidth', 'fitToContent'] as const).find((x) => x.toLowerCase() === columnAdjustmentRaw.toLowerCase()) ?? 'auto'
   const layoutRaw = String(getProp<any>(pc, 'general', 'layout', 'Compact')).toLowerCase()
   const layout: 'compact' | 'outline' | 'tabular' = layoutRaw === 'outline' ? 'outline' : layoutRaw === 'tabular' ? 'tabular' : 'compact'
 
@@ -286,12 +322,6 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
       wordWrap: getProp<boolean>(pc, 'columnHeaders', 'wordWrap', true),
       alignment: align(getProp<any>(pc, 'columnHeaders', 'alignment', undefined)),
       titleAlignment: align(getProp<any>(pc, 'columnHeaders', 'titleAlignment', undefined)),
-      autoSize: getProp<boolean>(pc, 'columnHeaders', 'autoSizeColumnWidth', true),
-      columnAdjustment,
-      defaultWidth: (() => {
-        const d = getProp<any>(pc, 'columnHeaders', 'defaultColumnWidth', undefined)
-        return typeof d === 'number' ? d : undefined
-      })(),
       buttons: {
         show: getProp<boolean>(pc, 'columnHeaders', 'showExpandCollapseButtons', isMatrix) !== false,
         size: Number.isFinite(colButtonSize) ? colButtonSize : defaultButtonPx,
@@ -383,6 +413,7 @@ export function readTableFormat(visualJson: any, theme: ResolvedTheme): TableFor
       borderColor: getColor(pc, 'blankRows', 'borderColor', theme.backgroundNeutral),
       borderWidth: num(getProp<any>(pc, 'blankRows', 'borderWidth', 1), 1)
     },
+    sizing: readColumnSizing(pc, { widths: widthByRef.size + widthByScope.length + (cornerWidth === undefined ? 0 : 1), scoped: widthByScope.length }),
     widthByRef,
     widthByScope,
     cornerWidth,
@@ -401,6 +432,7 @@ function withAlpha(hex: string, a: number): string {
 /** CSS borders for an outline style. */
 export function outlineBorders(o: Outline, color: string, weight: number): { borderTop?: string; borderBottom?: string; borderLeft?: string; borderRight?: string } {
   const b = `${weight}px solid ${color}`
+  if (typeof o === 'number') return { ...(o & 1 ? { borderTop: b } : {}), ...(o & 2 ? { borderRight: b } : {}), ...(o & 4 ? { borderBottom: b } : {}), ...(o & 8 ? { borderLeft: b } : {}) }
   switch (o) {
     case 'BottomOnly':
       return { borderBottom: b }
@@ -419,6 +451,34 @@ export function outlineBorders(o: Outline, color: string, weight: number): { bor
     default:
       return {}
   }
+}
+
+/** Field key of the column level a `total` scope selector totals (the width of a matrix total column), if it is one. */
+export function scopeTotalKey(scope: any[]): string | undefined {
+  const t = scope.find((s) => Array.isArray(s?.total))?.total?.[0]
+  return t ? fieldKey(t) : undefined
+}
+
+/** Field keys compared by the `scopeId` conditions of a scope selector. */
+export function scopeKeys(scope: any[]): string[] {
+  return scope.map((s) => s?.scopeId?.Comparison?.Left).filter(Boolean).map((e) => fieldKey(e))
+}
+
+/**
+ * Width stored for one matrix column (a `data` selector entry): a total column matches the `total` entry of the
+ * column level it totals; a column header matches a `scopeId` entry on its own level's value (Power BI stores the
+ * header's level only, so the same header under another parent shares the width). Entries for a specific value
+ * (`ref`) win over entries for every value.
+ */
+export function scopedWidth(entries: Array<{ scope: any[]; ref?: string; width: number }>, leaf: { ref?: string; path: Array<{ expr: any; value: unknown }>; totalOf?: any }): number | undefined {
+  const own = leaf.path.length ? fieldKey(leaf.path[leaf.path.length - 1].expr) : undefined
+  const hits = entries.filter((w) => {
+    if (w.ref !== undefined && w.ref !== leaf.ref) return false
+    const totalKey = scopeTotalKey(w.scope)
+    if (leaf.totalOf !== undefined) return totalKey === fieldKey(leaf.totalOf)
+    return totalKey === undefined && own !== undefined && scopeKeys(w.scope).includes(own) && scopeMatches(w.scope, leaf.path)
+  })
+  return (hits.find((w) => w.ref !== undefined) ?? hits[0])?.width
 }
 
 /** Does a columnWidth scope selector match a column header path (field expr + value pairs)? */

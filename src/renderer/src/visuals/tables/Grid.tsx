@@ -4,11 +4,12 @@
  * sticky footer (totals stay pinned to the bottom of the visual like in Power BI). Frozen
  * left columns are implemented by the caller with `position: sticky; left: …` cells.
  */
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { CellModel } from './cellModel'
 import { CFIcon } from './cfIcons'
 import { sparklineGeometry, type MarkerShape, type SparkPoint, type SparklineFormat } from './sparklineModel'
+import { MIN_COLUMN_WIDTH } from './widths'
 
 export interface GridProps {
   width: number
@@ -20,6 +21,8 @@ export interface GridProps {
   measure: boolean
   header: ReactNode
   footer?: ReactNode
+  /** extra style of the body (values) region, e.g. the Values border */
+  bodyStyle?: CSSProperties
   renderRow(index: number, style: CSSProperties, measureRef: (el: HTMLElement | null) => void): ReactNode
   background?: string
   /**
@@ -35,6 +38,11 @@ export interface GridProps {
    */
   onNearRightEnd?(): void
   nearRightThresholdPx?: number
+  /**
+   * Width of the scroll viewport without the vertical scrollbar, reported whenever it changes — the space
+   * "Grow to fit" has to fill (a scrollbar appearing must not push the last column out of view).
+   */
+  onViewportWidth?(width: number): void
 }
 
 export function Grid(props: GridProps) {
@@ -62,6 +70,15 @@ export function Grid(props: GridProps) {
   const requestedRight = useRef(-1)
   const { onNearRightEnd, totalWidth } = props
   const rightPx = props.nearRightThresholdPx ?? 400
+  const lastViewport = useRef(0)
+  const { onViewportWidth } = props
+  useLayoutEffect(() => {
+    const w = scrollRef.current?.clientWidth ?? 0
+    // 0 = not laid out (hidden page, jsdom)
+    if (!onViewportWidth || w <= 0 || w === lastViewport.current) return
+    lastViewport.current = w
+    onViewportWidth(w)
+  })
   const checkRight = () => {
     const el = scrollRef.current
     if (!el || !onNearRightEnd || requestedRight.current === totalWidth) return
@@ -80,7 +97,7 @@ export function Grid(props: GridProps) {
       <style>{SCROLLBAR_CSS}</style>
       <div style={{ width: props.totalWidth, minWidth: '100%', position: 'relative' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 3, width: props.totalWidth }}>{props.header}</div>
-        <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: props.totalWidth }}>
+        <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: props.totalWidth, ...props.bodyStyle }}>
           {items.map((it) =>
             props.renderRow(
               it.index,
@@ -106,8 +123,8 @@ const SCROLLBAR_CSS = `
 .wbi-table-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.38); }
 .wbi-table-scroll:not(:hover)::-webkit-scrollbar-thumb { background: transparent; }
 .wbi-table-scroll::-webkit-scrollbar-track, .wbi-table-scroll::-webkit-scrollbar-corner { background: transparent; }
-.wbi-table-resize { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 2; }
-.wbi-table-resize:hover { background: rgba(0,0,0,0.08); }
+.wbi-table-resize { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; z-index: 2; touch-action: none; }
+.wbi-table-resize:hover, .wbi-table-resize.is-dragging { background: rgba(0,0,0,0.12); }
 .wbi-table-link { color: inherit; text-decoration: underline; cursor: pointer; }
 `
 
@@ -255,30 +272,53 @@ export function SortCaret({ dir, color }: { dir: 'asc' | 'desc'; color: string }
   )
 }
 
-/** Drag handle on a header cell's right edge; reports the new width on mouse up. */
-export function ResizeHandle({ width, onResize, onPreview }: { width: number; onResize(w: number): void; onPreview?(w: number | undefined): void }) {
+/**
+ * Drag handle on a header cell's right edge (Power BI: hover the edge until the resize arrows appear, then drag;
+ * double-click fits the column to its content). `onPreview` follows the pointer, `onResize` commits on release.
+ * Deltas are divided by the canvas zoom so the edge stays under the pointer at any page scale.
+ */
+export function ResizeHandle({ width, onResize, onPreview, onAutoFit, label }: { width: number; onResize(w: number): void; onPreview?(w: number | undefined): void; onAutoFit?(): void; label?: string }) {
   return (
     <div
       className="wbi-table-resize"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label ? `Resize ${label}` : 'Resize column'}
+      title="Drag to resize · double-click to fit"
       onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => {
+      onContextMenu={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
+        onAutoFit?.()
+      }}
+      // the canvas starts moving the visual on pointerdown: keep the drag for the column
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        e.preventDefault()
+        e.stopPropagation()
+        const el = e.currentTarget
+        const zoom = el.offsetWidth > 0 ? el.getBoundingClientRect().width / el.offsetWidth || 1 : 1
         const x0 = e.clientX
         let w = width
-        const move = (ev: MouseEvent) => {
-          w = Math.max(16, width + ev.clientX - x0)
+        el.classList.add('is-dragging')
+        const move = (ev: PointerEvent) => {
+          w = Math.max(MIN_COLUMN_WIDTH, Math.round(width + (ev.clientX - x0) / zoom))
           onPreview?.(w)
         }
         const up = () => {
-          window.removeEventListener('mousemove', move)
-          window.removeEventListener('mouseup', up)
+          window.removeEventListener('pointermove', move)
+          window.removeEventListener('pointerup', up)
+          window.removeEventListener('pointercancel', up)
+          el.classList.remove('is-dragging')
           onPreview?.(undefined)
           if (w !== width) onResize(w)
         }
-        window.addEventListener('mousemove', move)
-        window.addEventListener('mouseup', up)
+        window.addEventListener('pointermove', move)
+        window.addEventListener('pointerup', up)
+        window.addEventListener('pointercancel', up)
       }}
+      onMouseDown={(e) => e.stopPropagation()}
     />
   )
 }

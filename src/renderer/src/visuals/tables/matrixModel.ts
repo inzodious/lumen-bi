@@ -31,6 +31,8 @@ export interface MatrixSpec {
   blocks: Map<string, MatrixBlock>
   /** number of row levels shown expanded by default (≥ 1 when there are row fields) */
   expandedDepth: number
+  /** default state per row level (index 0 = first level); overrides `expandedDepth` (PBIR `expansionStates.levels[].isCollapsed`) */
+  rowLevelExpanded?: boolean[]
   /** path keys of nodes whose expansion was toggled relative to the default */
   toggled: Set<string>
   /** row subtotal enabled at a given node depth (1-based path length); depth 0 = grand total row */
@@ -42,6 +44,8 @@ export interface MatrixSpec {
   sort?: MatrixSort
   /** column levels shown expanded by default (default: all loaded levels) */
   colExpandedDepth?: number
+  /** default state per column level; overrides `colExpandedDepth` */
+  colLevelExpanded?: boolean[]
   /** column path keys whose expansion was toggled relative to the default */
   colToggled?: Set<string>
   /** label of the row subtotal of a node at `depth` (1-based); depth 0 = grand total row */
@@ -195,7 +199,7 @@ export function buildMatrixLayout(spec: MatrixSpec): MatrixLayout {
       if (seen.has(key)) continue
       seen.add(key)
       const canExpand = d < spec.rowLevels
-      const defaultExpanded = d < spec.expandedDepth
+      const defaultExpanded = spec.rowLevelExpanded ? !!spec.rowLevelExpanded[d - 1] : d < spec.expandedDepth
       const expanded = canExpand && defaultExpanded !== spec.toggled.has(key)
       out.push({ key, path, depth: d, children: [], canExpand, expanded })
     }
@@ -283,7 +287,7 @@ export function buildMatrixLayout(spec: MatrixSpec): MatrixLayout {
       if (seen.has(k)) continue
       seen.add(k)
       const canExpand = e < spec.colLevels
-      const expanded = canExpand && (e < colExpandedDepth) !== colToggled.has(k)
+      const expanded = canExpand && (spec.colLevelExpanded ? !!spec.colLevelExpanded[e - 1] : e < colExpandedDepth) !== colToggled.has(k)
       out.push({ path, children: [], canExpand, expanded })
     }
     for (const n of out) {

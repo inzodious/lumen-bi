@@ -51,6 +51,31 @@ async function pointOnEdge(page: Page, index: number, fraction = 0.5): Promise<{
   )
 }
 
+/**
+ * Screen point on edge #index that is not covered by a card, near `fraction` of its length (a curved line whose end
+ * was moved to the far side of its card runs partly behind that card).
+ */
+async function grabbablePointOnEdge(page: Page, index: number, fraction: number): Promise<{ x: number; y: number }> {
+  const pt = await page.evaluate(
+    ([i, f]) => {
+      const p = document.querySelectorAll<SVGPathElement>('.wbi-mv-edge .wbi-mv-edge__line')[i]
+      const m = p.getScreenCTM()!
+      const len = p.getTotalLength()
+      for (let d = 0; d <= 0.5; d += 0.02)
+        for (const g of [f - d, f + d]) {
+          if (g <= 0.03 || g >= 0.97) continue
+          const q = p.getPointAtLength(len * g)
+          const s = { x: q.x * m.a + q.y * m.c + m.e, y: q.x * m.b + q.y * m.d + m.f }
+          if (document.elementFromPoint(s.x, s.y)?.closest('.wbi-mv-edge') === p.closest('.wbi-mv-edge')) return s
+        }
+      return null
+    },
+    [index, fraction] as const
+  )
+  expect(pt).not.toBeNull()
+  return pt!
+}
+
 /** Index of a relationship line whose midpoint is not covered by a card (so it can be grabbed there). */
 async function grabbableEdge(page: Page): Promise<number> {
   const i = await page.evaluate(() => {
@@ -263,7 +288,7 @@ describe('model view: line ends and reset', () => {
     expect(await end.getAttribute('class')).toContain('is-manual')
 
     // a pinch point dropped anywhere lands on the 10 px diagram grid (or on an alignment guide); with Alt it does not snap
-    const p1 = await pointOnEdge(page, index, 0.4)
+    const p1 = await grabbablePointOnEdge(page, index, 0.4)
     await drag(page, p1, { x: p1.x - 47, y: p1.y + 33 })
     await expect.poll(async () => (await route())?.waypoints?.length).toBe(1)
     const w = (await route())!.waypoints![0]
@@ -279,13 +304,13 @@ describe('model view: line ends and reset', () => {
     expect(Math.abs(free.x / 10 - Math.round(free.x / 10)) > 1e-6 || Math.abs(free.y / 10 - Math.round(free.y / 10)) > 1e-6).toBe(true)
 
     // per-line style override, then "Reset line" from the line's menu puts everything back
-    const p2 = await pointOnEdge(page, index, 0.15)
+    const p2 = await grabbablePointOnEdge(page, index, 0.15)
     await page.mouse.click(p2.x, p2.y, { button: 'right' })
     await page.getByRole('menuitem', { name: 'Line style' }).hover()
     await page.getByRole('menuitem', { name: 'Orthogonal' }).click()
     await expect.poll(() => edge.getAttribute('data-style')).toBe('orthogonal')
     expect(await page.locator('.wbi-mv-edge[data-style="orthogonal"]').count()).toBe(1)
-    const p3 = await pointOnEdge(page, index, 0.1)
+    const p3 = await grabbablePointOnEdge(page, index, 0.1)
     await page.mouse.click(p3.x, p3.y, { button: 'right' })
     await page.getByRole('menuitem', { name: 'Reset line' }).click()
     await expect.poll(() => edge.getAttribute('data-style')).toBe('curved')

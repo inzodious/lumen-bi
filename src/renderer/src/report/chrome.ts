@@ -5,38 +5,24 @@
  */
 import { decodeValue, getProp, isDataBound, makePropContext, rawProp, type PropContext } from '@core/report/props'
 import { withTransparency, type ResolvedTheme } from '@core/report/theme'
+import { fontWeightOf as sharedFontWeightOf, resolveFont } from '../visuals/common/text'
+import { parseFontSize } from '../visuals/common/textStyle'
 
-/** PBI font names → CSS stacks. PBI's "DIN" / "Segoe UI" both render as Segoe UI in Desktop. */
+/**
+ * PBI font value → CSS stack (see `resolveFont` in visuals/common/text.ts — one mapping for the container chrome and
+ * the visuals). The stack keeps the named face first ("'Segoe UI Semibold', 'Segoe UI', …"), so it can be used where
+ * only a family can be set (CSS variables of the filter pane).
+ */
 export function fontStack(name: string | undefined, fallback = "'Segoe UI', 'Selawik', 'Open Sans', sans-serif"): string {
   if (!name) return fallback
-  const n = name.replace(/^'+|'+$/g, '').trim()
-  if (/,/.test(name)) return name // already a stack (e.g. "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica…")
-  switch (n) {
-    case 'DIN':
-    case 'Segoe UI':
-    case 'wf_standard-font':
-      return "'Segoe UI', 'Selawik', 'Open Sans', sans-serif"
-    case 'Segoe UI Semibold':
-    case 'wf_segoe-ui_semibold':
-      return "'Segoe UI Semibold', 'Segoe UI', 'Selawik', 'Open Sans', sans-serif"
-    case 'Segoe UI Bold':
-    case 'wf_segoe-ui_bold':
-      return "'Segoe UI Bold', 'Segoe UI', 'Selawik', 'Open Sans', sans-serif"
-    case 'Segoe UI Light':
-    case 'wf_segoe-ui_light':
-      return "'Segoe UI Light', 'Segoe UI', 'Selawik', 'Open Sans', sans-serif"
-    default:
-      return `'${n}', 'Segoe UI', 'Open Sans', sans-serif`
-  }
+  return resolveFont(name).fontFamily
 }
 
-/** Font weight implied by a PBI font name (Semibold / Bold / Light faces). */
+/** Font weight implied by a PBI font name (Semibold / Bold / Light faces); undefined for regular faces. */
 export function fontWeightOf(name: string | undefined): number | undefined {
   if (!name) return undefined
-  if (/semibold/i.test(name)) return 600
-  if (/bold/i.test(name)) return 700
-  if (/light/i.test(name)) return 300
-  return undefined
+  const w = sharedFontWeightOf(name)
+  return w === 400 ? undefined : w
 }
 
 export const ptToPx = (pt: number) => (pt * 4) / 3
@@ -58,6 +44,41 @@ export interface TextSpec {
   wrap: boolean
 }
 
+/**
+ * Title-area spacing. Power BI has had two models (both occur in files):
+ *  - "below" (until mid-2026): `verticalSpacing` (one value, default 5 px) or, with `customizeSpacing`, a space below
+ *    each element — `spaceBelowTitle`, `spaceBelowSubTitle`, `spaceBelowTitleArea` (= below the divider);
+ *  - "above" (July 2026 format pane): `spaceAboveSubtitle`, `spaceAboveDivider`, `spaceAbovePlotArea`.
+ */
+export interface SpacingSpec {
+  model: 'below' | 'above'
+  belowTitle: number
+  belowSubTitle: number
+  belowDivider: number
+  aboveSubTitle: number
+  aboveDivider: number
+  abovePlotArea: number
+}
+
+/** Gaps (px) between the title-area elements that are actually shown and the visual content. */
+export function titleAreaGaps(sp: SpacingSpec, shown: { title: boolean; subTitle: boolean; divider: boolean }): { titleToSubTitle: number; aboveDivider: number; aboveContent: number } {
+  const anyText = shown.title || shown.subTitle
+  if (sp.model === 'above') {
+    return {
+      titleToSubTitle: shown.title && shown.subTitle ? sp.aboveSubTitle : 0,
+      aboveDivider: shown.divider && anyText ? sp.aboveDivider : 0,
+      aboveContent: anyText || shown.divider ? sp.abovePlotArea : 0
+    }
+  }
+  // every shown element is followed by its own space (measured on Power BI renders: title, 5, subtitle, 5, divider, 5)
+  const belowText = shown.subTitle ? sp.belowSubTitle : shown.title ? sp.belowTitle : 0
+  return {
+    titleToSubTitle: shown.title && shown.subTitle ? sp.belowTitle : 0,
+    aboveDivider: shown.divider ? belowText : 0,
+    aboveContent: shown.divider ? sp.belowDivider : belowText
+  }
+}
+
 export interface ShadowSpec {
   css: string
   inset: boolean
@@ -67,9 +88,8 @@ export interface ChromeSpec {
   title: TextSpec
   subTitle: TextSpec
   divider?: { color: string; style: string; width: number; ignorePadding: boolean }
-  /** px between title/subtitle area and content */
-  spaceBelowTitleArea: number
-  spaceBelowTitle: number
+  /** vertical gaps of the title area (px), see `titleAreaGaps` */
+  spacing: SpacingSpec
   background?: string
   border?: { color: string; width: number; radius: number }
   radius: number
@@ -123,22 +143,62 @@ function textSpec(ctx: PropContext, object: string, theme: ResolvedTheme, defaul
   const fontName = getProp<string>(ctx, object, 'fontFamily', defaults.font)
   const bg = getProp<any>(ctx, object, 'background', undefined)
   const bgTransparency = getProp<number>(ctx, object, 'transparency', 0)
-  const bold = getProp<boolean>(ctx, object, 'bold', false)
+  const font = resolveFont(fontName, { bold: getProp<boolean>(ctx, object, 'bold', false) === true })
   return {
     show: bool(getProp(ctx, object, 'show', defaults.show), defaults.show),
     text: typeof text === 'string' ? text : undefined,
     boundExpr: bound ? rawText : undefined,
     color: str(getProp(ctx, object, 'fontColor', defaults.color), defaults.color),
     background: typeof bg === 'string' ? withTransparency(bg, bgTransparency) : undefined,
-    fontSizePx: ptToPx(num(getProp(ctx, object, 'fontSize', defaults.sizePt), defaults.sizePt)),
-    fontFamily: fontStack(fontName),
-    fontWeight: bold ? 700 : (fontWeightOf(fontName) ?? 400),
+    // points; files also carry the size as a string literal ('14') or with a unit
+    fontSizePx: parseFontSize(getProp(ctx, object, 'fontSize', defaults.sizePt), defaults.sizePt),
+    fontFamily: font.fontFamily,
+    fontWeight: font.fontWeight,
     italic: getProp<boolean>(ctx, object, 'italic', false) === true,
     underline: getProp<boolean>(ctx, object, 'underline', false) === true,
     align: (['left', 'center', 'right'].includes(String(getProp(ctx, object, 'alignment', 'left')).toLowerCase())
       ? String(getProp(ctx, object, 'alignment', 'left')).toLowerCase()
       : 'left') as TextSpec['align'],
-    wrap: getProp<boolean>(ctx, object, object === 'title' ? 'titleWrap' : 'titleWrap', true) !== false
+    wrap: getProp<boolean>(ctx, object, 'titleWrap', true) !== false
+  }
+}
+
+/**
+ * Power BI's default container padding for data visuals: none at the top, 5 px on the other sides. Measured on a
+ * Power BI Desktop render of a default-theme Microsoft sample (four chart / map visuals without any padding setting):
+ * the title's line box starts at the container's top edge and its text 5 px from the left edge (Lumen's titles then
+ * land within 1 px of Power BI's). Microsoft doesn't publish the values; format-pane screenshots of the Padding card
+ * (top 0 px, bottom 5 px on otherwise customised visuals) agree.
+ */
+export const DEFAULT_PADDING = { top: 0, right: 5, bottom: 5, left: 5 } as const
+/**
+ * Elements (text box, shape, image, buttons, navigators) keep 5 px on every side. Unverified: Power BI's defaults vary
+ * by visual type and aren't published; on the same render a text box's text sits lower than a 0 px top padding gives.
+ */
+export const ELEMENT_PADDING = { top: 5, right: 5, bottom: 5, left: 5 } as const
+/** Power BI's "Vertical spacing" default (format pane ▸ Title ▸ Spacing, Customize spacing off). */
+export const DEFAULT_VERTICAL_SPACING = 5
+
+function spacingSpec(ctx: PropContext): SpacingSpec {
+  const n = (prop: string): number | undefined => {
+    const v = getProp<any>(ctx, 'spacing', prop, undefined)
+    const x = typeof v === 'string' ? Number(v) : v
+    return typeof x === 'number' && Number.isFinite(x) ? Math.max(0, x) : undefined
+  }
+  const custom = getProp<boolean>(ctx, 'spacing', 'customizeSpacing', false) === true
+  const vertical = n('verticalSpacing') ?? DEFAULT_VERTICAL_SPACING
+  const above = { sub: n('spaceAboveSubtitle'), divider: n('spaceAboveDivider'), plot: n('spaceAbovePlotArea') }
+  const hasAbove = above.sub !== undefined || above.divider !== undefined || above.plot !== undefined
+  return {
+    // files saved by the July 2026+ format pane carry the "above" properties (older ones may linger next to them)
+    model: hasAbove ? 'above' : 'below',
+    belowTitle: custom ? (n('spaceBelowTitle') ?? vertical) : vertical,
+    belowSubTitle: custom ? (n('spaceBelowSubTitle') ?? vertical) : vertical,
+    belowDivider: custom ? (n('spaceBelowTitleArea') ?? vertical) : vertical,
+    // a missing "above" value falls back to the single vertical spacing (approximation: the new defaults aren't documented)
+    aboveSubTitle: above.sub ?? vertical,
+    aboveDivider: above.divider ?? vertical,
+    abovePlotArea: above.plot ?? vertical
   }
 }
 
@@ -157,16 +217,28 @@ const SHADOW_PRESETS: Record<string, { angle: number; distance: number; blur: nu
   InsideTopLeft: { angle: -135, distance: 5, blur: 5, spread: 0, inset: true }
 }
 
-export function resolveChrome(visualJson: any, theme: ResolvedTheme, opts: { titleOnByDefault?: boolean } = {}): ChromeSpec {
-  const ctx = makePropContext(visualJson, theme)
+export interface ChromeOptions {
+  titleOnByDefault?: boolean
+  /** text box / shape / image / button / navigator: see `ELEMENT_PADDING` */
+  element?: boolean
+}
+
+export function resolveChrome(visualJson: any, theme: ResolvedTheme, opts: ChromeOptions = {}): ChromeSpec {
+  // container formatting lives in `visualContainerObjects` only: a visual's own `objects` can use the same names for
+  // something else (the card visual's `divider` / `padding`, a slicer's `header`…) and must not leak into the chrome
+  const ctx: PropContext = { ...makePropContext(visualJson, theme), objects: undefined }
   const vt = ctx.visualType
   const fg = theme.foreground
   const titleClass = theme.textClasses?.title ?? {}
   const titleDefault = opts.titleOnByDefault ?? TITLE_ON_BY_DEFAULT.test(vt)
   const title = textSpec(ctx, 'title', theme, { show: titleDefault, sizePt: titleClass.fontSize ?? 12, color: titleClass.color ?? fg, font: titleClass.fontFace ?? 'DIN' })
   const subTitle = textSpec(ctx, 'subTitle', theme, { show: false, sizePt: 10, color: theme.foregroundNeutralSecondary, font: 'DIN' })
+  // Power BI has one background for the whole title block (the subtitle has no background of its own)
+  subTitle.background = title.background
+  // The format pane's Title card toggle (`title.show`) switches the whole card: title, subtitle and divider
+  if (!title.show) subTitle.show = false
 
-  const dividerOn = getProp<boolean>(ctx, 'divider', 'show', false) === true
+  const dividerOn = title.show && getProp<boolean>(ctx, 'divider', 'show', false) === true
   const divider = dividerOn
     ? {
         color: str(getProp(ctx, 'divider', 'color', theme.foregroundNeutralTertiary), theme.foregroundNeutralTertiary),
@@ -176,9 +248,7 @@ export function resolveChrome(visualJson: any, theme: ResolvedTheme, opts: { tit
       }
     : undefined
 
-  const customSpacing = getProp<boolean>(ctx, 'spacing', 'customizeSpacing', false) === true
-  const spaceBelowTitleArea = customSpacing ? num(getProp(ctx, 'spacing', 'spaceBelowTitleArea', 0), 0) : title.show || subTitle.show ? 4 : 0
-  const spaceBelowTitle = customSpacing ? num(getProp(ctx, 'spacing', 'spaceBelowTitle', 0), 0) : 0
+  const spacing = spacingSpec(ctx)
 
   const bgShow = getProp<boolean>(ctx, 'background', 'show', true) !== false
   const bgColor = str(getProp(ctx, 'background', 'color', theme.background), theme.background)
@@ -207,7 +277,8 @@ export function resolveChrome(visualJson: any, theme: ResolvedTheme, opts: { tit
     shadow = { css: `${inset ? 'inset ' : ''}${dx}px ${dy}px ${blur}px ${spread}px ${withTransparency(color, transparency)}`, inset }
   }
 
-  const pad = (side: string) => num(getProp(ctx, 'padding', side, 5), 5)
+  const padDefaults = opts.element ? ELEMENT_PADDING : DEFAULT_PADDING
+  const pad = (side: 'top' | 'right' | 'bottom' | 'left') => Math.max(0, num(getProp(ctx, 'padding', side, padDefaults[side]), padDefaults[side]))
   const headerShow = getProp<boolean>(ctx, 'visualHeader', 'show', true) !== false
   const hb = getProp<any>(ctx, 'visualHeader', 'background', undefined)
   const hbo = getProp<any>(ctx, 'visualHeader', 'border', undefined)
@@ -230,8 +301,7 @@ export function resolveChrome(visualJson: any, theme: ResolvedTheme, opts: { tit
     title,
     subTitle,
     divider,
-    spaceBelowTitleArea,
-    spaceBelowTitle,
+    spacing,
     background: bgShow ? withTransparency(bgColor, bgTransparency) : undefined,
     border,
     radius,

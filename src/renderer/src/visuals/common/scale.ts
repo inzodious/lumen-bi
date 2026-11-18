@@ -2,7 +2,10 @@
  * Axis scale helpers (pure): value-axis domains and ticks the way Power BI picks them.
  *
  *  - Column/bar/area values always include zero; line/scatter axes fit the data (PBI "Auto" start).
- *  - Explicit `start` / `end` from the format pane override the nice bounds.
+ *  - An automatic range is rounded out to a "nice" step. An explicit `start` or `end` from the format pane switches
+ *    the rounding off: the other, automatic end then stops at the data (measured on Power BI renders — a bar chart
+ *    with only "Start = 0" ends exactly at its longest bar).
+ *  - Floating-point noise never moves a bound: a stack that sums to 1.0000000000000002 ends at 1, not at the next step.
  *  - Tick density ≈ one tick per ~50 px (vertical) / ~80 px (horizontal), PBI-like.
  */
 import { scaleLinear, scaleLog, scaleUtc } from 'd3-scale'
@@ -19,6 +22,13 @@ export interface ValueAxisSpec {
   length: number
   /** px per tick */
   tickSpacing?: number
+  /** false: never round the automatic bounds out (the domain is exactly the data range, e.g. room for total labels was added by the caller) */
+  nice?: boolean
+}
+
+/** Drop binary floating-point noise (sums like 0.1 + 0.2, stacks of shares): 12 significant digits. */
+export function snapFloat(v: number): number {
+  return Number.isFinite(v) && v !== 0 ? Number(v.toPrecision(12)) : v
 }
 
 export interface ValueAxisModel {
@@ -33,8 +43,8 @@ export function tickCountFor(length: number, spacing = 50): number {
 }
 
 export function computeValueAxis(spec: ValueAxisSpec): ValueAxisModel {
-  let lo = Number.isFinite(spec.dataMin) ? spec.dataMin : 0
-  let hi = Number.isFinite(spec.dataMax) ? spec.dataMax : 0
+  let lo = Number.isFinite(spec.dataMin) ? snapFloat(spec.dataMin) : 0
+  let hi = Number.isFinite(spec.dataMax) ? snapFloat(spec.dataMax) : 0
   if (spec.scale === 'log' && hi > 0) {
     const min = spec.start && spec.start > 0 ? spec.start : Math.max(lo > 0 ? lo : hi / 1000, 1e-12)
     const max = spec.end && spec.end > min ? spec.end : hi
@@ -66,7 +76,7 @@ export function computeValueAxis(spec: ValueAxisSpec): ValueAxisModel {
   if (lo === hi) hi = lo + 1
   let count = tickCountFor(spec.length, spec.tickSpacing)
   const s = scaleLinear().domain([lo, hi])
-  if (!hasStart || !hasEnd) {
+  if (!hasStart && !hasEnd && spec.nice !== false) {
     s.nice(count)
     // Short axes: a coarse step can overshoot the data a lot (645K → 1.0M). PBI then uses a finer
     // step as long as the labels keep ~a line of room; pick the tightest of a few tick counts.

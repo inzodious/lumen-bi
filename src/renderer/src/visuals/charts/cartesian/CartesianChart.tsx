@@ -13,7 +13,7 @@ import type { VisualProps } from '../../contract'
 import { buildCategorical, pointIdentity, type CategoricalData, type Series } from '../../common/categorical'
 import { FormatReader, PBI, axisTitleDefaults } from '../../common/fmtProps'
 import { Legend, measureLegend, readLegendStyle, isVertical, type LegendItem } from '../../common/Legend'
-import { alignSecondaryAxis, bandLayout, computeValueAxis, continuousTicks, stackValues, valueToPx, type ValueAxisModel } from '../../common/scale'
+import { alignSecondaryAxis, bandLayout, computeValueAxis, continuousTicks, snapFloat, stackValues, valueToPx, type ValueAxisModel } from '../../common/scale'
 import { ellipsize, fontAttrs, lineHeight, measureText, ptToPx, type FontSpec } from '../../common/text'
 import { contrastText, rgba } from '../../common/color'
 import { formatWithUnits, resolveDisplayUnit, formatDate } from '../../common/units'
@@ -1287,7 +1287,9 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   const catLH = lineHeight(catT.font)
   const valFmt1 = { displayUnits: fmt.optNum('valueAxis', 'labelDisplayUnits'), precision: fmt.optNum('valueAxis', 'labelPrecision'), formatString: firstFormat(series, isSec, false), format: formatter, percent }
   const valFmt2 = { displayUnits: fmt.optNum(y2Obj(fmt, 'secLabelDisplayUnits'), 'secLabelDisplayUnits'), precision: fmt.optNum(y2Obj(fmt, 'secLabelPrecision'), 'secLabelPrecision'), formatString: firstFormat(series, isSec, true), format: formatter }
-  const start1 = percent ? fmt.optNum('valueAxis', 'start') ?? 0 : fmt.optNum('valueAxis', 'start')
+  // 100% stacked: the axis is exactly the stacked range — 0…100%, starting below zero when a category has negative
+  // values (Power BI shows the negative part left of / below 0%) — never rounded out
+  const start1 = percent ? fmt.optNum('valueAxis', 'start') ?? Math.min(0, snapFloat(lo1)) : fmt.optNum('valueAxis', 'start')
   const end1 = percent ? fmt.optNum('valueAxis', 'end') ?? 1 : fmt.optNum('valueAxis', 'end')
   const start2 = fmt.optNum(y2Obj(fmt, 'secStart'), 'secStart')
   const end2 = fmt.optNum(y2Obj(fmt, 'secEnd'), 'secEnd')
@@ -1302,7 +1304,32 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   }
 
   let plot: Rect = { ...area }
-  let model1: ValueAxisModel = computeValueAxis({ dataMin: lo1, dataMax: hi1, includeZero: z1, start: start1, end: end1, scale: logScale ? 'log' : 'linear', length: vertical ? area.h * 0.75 : area.w * 0.75, tickSpacing: vertical ? 50 : 90 })
+  // Stacked total labels: Power BI makes room for them by extending the value range past the stacks instead of
+  // rounding it out to a nice step — the longest bar plus its total label fill the plot, and a chart with negative
+  // stacks gets the same room on the negative side (measured on Power BI renders of stacked bar charts; applied to
+  // stacked columns by analogy — approximation). Explicit start / end values are honoured as they are.
+  const totalsRoom = cfg.stacking === 'stacked' && barIdx.length > 0 && !logScale && start1 === undefined && end1 === undefined && fmt.bool('totals', 'show', false)
+  const totalLabelRoom = (): number => {
+    const tf = { size: ptToPx(fmt.num('totals', 'fontSize', PBI.dataLabelFontPt)), family: fmt.str('totals', 'fontFamily', PBI.fontFamily) }
+    if (vertical) return lineHeight(tf) + 4
+    const sums = data.categories.map((_, ci) => series.reduce((a, s, i) => (kinds[i] === 'bar' ? a + Math.abs(s.values[ci] ?? 0) : a), 0))
+    const ref = Math.max(0, ...sums)
+    const txt = formatWithUnits(ref, { unit: resolveDisplayUnit(fmt.optNum('totals', 'labelDisplayUnits') ?? 0, ref), decimals: fmt.optNum('totals', 'labelPrecision'), formatString: series[0]?.measure.formatString, format: formatter })
+    return measureText(txt, tf) + 10
+  }
+  const totalRoomPx = totalsRoom ? totalLabelRoom() : 0
+  /** primary value axis for a plot of `length` px along the value direction */
+  const primaryAxis = (length: number, tickSpacing: number): ValueAxisModel => {
+    if (!totalsRoom) return computeValueAxis({ dataMin: lo1, dataMax: hi1, includeZero: z1, start: start1, end: end1, scale: logScale ? 'log' : 'linear', length, tickSpacing })
+    const lo = Math.min(0, lo1)
+    const hi = Math.max(0, hi1)
+    const above = hi > 0 ? totalRoomPx : 0
+    const below = lo < 0 ? totalRoomPx : 0
+    // value units per px once the label room is taken out of the plot (at least half of it stays for the bars)
+    const k = (hi - lo) / Math.max(length / 2, length - above - below)
+    return computeValueAxis({ dataMin: lo - below * k, dataMax: hi + above * k, includeZero: true, length, tickSpacing, nice: false })
+  }
+  let model1: ValueAxisModel = primaryAxis(vertical ? area.h * 0.75 : area.w * 0.75, vertical ? 50 : 90)
   let model2: ValueAxisModel | undefined
   let labels1: string[] = []
   let labels2: string[] = []
@@ -1320,19 +1347,6 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   // series labels at the end of lines (seriesLabels object)
   const seriesLab = readSeriesLabels(fmt, series, kinds)
   const seriesLabW = vertical && seriesLab.show ? seriesLab.width : 0
-
-  // room for outside data labels / total labels at the end of horizontal bars
-  const outsideLabelReserve = (): number => {
-    const labelsOn = fmt.bool('labels', 'show', false) && cfg.stacking === 'clustered'
-    const totalsOn = fmt.bool('totals', 'show', false) && cfg.stacking !== 'clustered'
-    if (!labelsOn && !totalsOn) return 0
-    const sums = data.categories.map((_, ci) => series.reduce((a, s) => a + Math.abs(s.values[ci] ?? 0), 0))
-    const ref = totalsOn ? Math.max(0, ...sums) : Math.max(0, ...series.flatMap((s) => s.values.map((v) => Math.abs(v ?? 0))))
-    const obj = totalsOn ? 'totals' : 'labels'
-    const f = { size: ptToPx(fmt.num(obj, 'fontSize', PBI.dataLabelFontPt)), family: fmt.str(obj, 'fontFamily', PBI.fontFamily) }
-    const txt = formatWithUnits(ref, { unit: resolveDisplayUnit(fmt.optNum(obj, 'labelDisplayUnits') ?? 0, ref), decimals: fmt.optNum(obj, 'labelPrecision'), formatString: series[0]?.measure.formatString, format: formatter })
-    return measureText(txt, f) + 10
-  }
 
   const fitCategories = (len: number) => {
     // PBI "Minimum category width": a category band never gets narrower than this; beyond that the
@@ -1361,7 +1375,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   for (let iter = 0; iter < 3; iter++) {
     if (vertical) {
       const plotHGuess = Math.max(10, plot.h)
-      model1 = zoomed(computeValueAxis({ dataMin: lo1, dataMax: hi1, includeZero: z1, start: start1, end: end1, scale: logScale ? 'log' : 'linear', length: plotHGuess, tickSpacing: 50 }), vzoom, plotHGuess, 50)
+      model1 = zoomed(primaryAxis(plotHGuess, 50), vzoom, plotHGuess, 50)
       labels1 = model1.ticks.map(valueTickFormatter(model1, valFmt1))
       if (anySec) {
         // PBI aligns the secondary axis to the primary gridlines (same tick count, zero aligned)
@@ -1401,7 +1415,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
     } else {
       // horizontal bars: categories on the left, values at the bottom (or top when switched)
       const plotWGuess = Math.max(10, plot.w)
-      model1 = zoomed(computeValueAxis({ dataMin: lo1, dataMax: hi1, includeZero: z1, start: start1, end: end1, scale: logScale ? 'log' : 'linear', length: plotWGuess, tickSpacing: 90 }), vzoom, plotWGuess, 90)
+      model1 = zoomed(primaryAxis(plotWGuess, 90), vzoom, plotWGuess, 90)
       labels1 = model1.ticks.map(valueTickFormatter(model1, valFmt1))
       const valH = valShow ? catLH + 6 : 0
       const zh = zoomVal ? ZOOM_BAR + 4 : 0
@@ -1415,7 +1429,9 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
       const firstLabelHalf = valShow ? Math.ceil(measureText(labels1[0] ?? '', valT.font) / 2) + 2 : 0
       const zw = zoomCat ? ZOOM_BAR + 4 : contentLen > viewLen + 0.5 ? 8 : 0
       const left = panel?.margins ? panel.margins.left - area.x : Math.max(barLab.width + catTitleH + outerW + 4, firstLabelHalf)
-      const right = panel?.margins ? panel.margins.right - (W - area.x - area.w) : Math.max(lastLabelHalf + 2, 8, outsideLabelReserve()) + zw
+      // No room is reserved for the data labels of clustered bars: like Power BI, the bars run to the end of the value
+      // range and a label that doesn't fit outside its bar is drawn inside it (total labels: see `primaryAxis`).
+      const right = panel?.margins ? panel.margins.right - (W - area.x - area.w) : Math.max(lastLabelHalf + 2, 8) + zw
       const topY = panel?.margins ? panel.margins.top : area.y + 4 + (valTop ? valH + valTitleH : 0)
       plot = { x: area.x + left, y: topY, w: Math.max(10, area.w - left - right), h: plotH0 - 4 }
       viewLen = plot.h

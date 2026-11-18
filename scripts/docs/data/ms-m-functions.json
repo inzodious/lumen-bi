@@ -1,0 +1,2647 @@
+{
+ "source": "https://learn.microsoft.com/en-us/powerquery-m/toc.json",
+ "retrievedAt": "2026-11-18",
+ "count": 660,
+ "functions": [
+  {
+   "name": "AccessControlEntry.ConditionToIdentities",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Access.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "ActiveDirectory.Domains",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AdobeAnalytics.Cubes",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AdoDotNet.DataSource",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AdoDotNet.Query",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AnalysisServices.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AnalysisServices.Databases",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Arrow.Document",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Arrow.FromBinary",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Arrow.ToBinary",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AzureStorage.BlobContents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AzureStorage.Blobs",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AzureStorage.DataLake",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AzureStorage.DataLakeContents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "AzureStorage.Tables",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cdm.Contents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Csv.Document",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.AddAndExpandDimensionColumn",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.AddMeasureColumn",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.ApplyParameter",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.AttributeMemberId",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.AttributeMemberProperty",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.CollapseAndRemoveColumns",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.Dimensions",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.DisplayFolders",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.MeasureProperties",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.MeasureProperty",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.Measures",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.Parameters",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.Properties",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.PropertyKey",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.ReplaceDimensions",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Cube.Transform",
+   "category": "Accessing data"
+  },
+  {
+   "name": "DB2.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "DeltaLake.Metadata",
+   "category": "Accessing data"
+  },
+  {
+   "name": "DeltaLake.Table",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Essbase.Cubes",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Excel.CurrentWorkbook",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Excel.Workbook",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Exchange.Contents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "FabricAI.Prompt",
+   "category": "Accessing data"
+  },
+  {
+   "name": "File.Contents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Folder.Contents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Folder.Files",
+   "category": "Accessing data"
+  },
+  {
+   "name": "GoogleAnalytics.Accounts",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Hdfs.Contents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Hdfs.Files",
+   "category": "Accessing data"
+  },
+  {
+   "name": "HdInsight.Containers",
+   "category": "Accessing data"
+  },
+  {
+   "name": "HdInsight.Contents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "HdInsight.Files",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Html.Table",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Identity.From",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Identity.IsMemberOf",
+   "category": "Accessing data"
+  },
+  {
+   "name": "IdentityProvider.Default",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Informix.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Json.Document",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Json.FromValue",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Json.SchemaFromType",
+   "category": "Accessing data"
+  },
+  {
+   "name": "MySQL.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "OData.Feed",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Odbc.DataSource",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Odbc.InferOptions",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Odbc.Query",
+   "category": "Accessing data"
+  },
+  {
+   "name": "OleDb.DataSource",
+   "category": "Accessing data"
+  },
+  {
+   "name": "OleDb.Query",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Oracle.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Pdf.Tables",
+   "category": "Accessing data"
+  },
+  {
+   "name": "PostgreSQL.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "RData.FromBinary",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Salesforce.Data",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Salesforce.Reports",
+   "category": "Accessing data"
+  },
+  {
+   "name": "SapBusinessWarehouse.Cubes",
+   "category": "Accessing data"
+  },
+  {
+   "name": "SapHana.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "SharePoint.Contents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "SharePoint.Files",
+   "category": "Accessing data"
+  },
+  {
+   "name": "SharePoint.Tables",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Soda.Feed",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Sql.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Sql.Databases",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Sybase.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Teradata.Database",
+   "category": "Accessing data"
+  },
+  {
+   "name": "WebAction.Request",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Web.BrowserContents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Web.Contents",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Web.Headers",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Web.Page",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Xml.Document",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Xml.Tables",
+   "category": "Accessing data"
+  },
+  {
+   "name": "Binary.ApproximateLength",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.Buffer",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.Combine",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.Compress",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.Decompress",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.From",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.FromList",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.FromText",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.InferContentType",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.Length",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.Range",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.Split",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.ToList",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.ToText",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.View",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.ViewError",
+   "category": "Binary"
+  },
+  {
+   "name": "Binary.ViewFunction",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.7BitEncodedSignedInteger",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.7BitEncodedUnsignedInteger",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Binary",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Byte",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.ByteOrder",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Choice",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Decimal",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Double",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Group",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Length",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.List",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Null",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Record",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.SignedInteger16",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.SignedInteger32",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.SignedInteger64",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Single",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Text",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.Transform",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.UnsignedInteger16",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.UnsignedInteger32",
+   "category": "Binary"
+  },
+  {
+   "name": "BinaryFormat.UnsignedInteger64",
+   "category": "Binary"
+  },
+  {
+   "name": "Combiner.CombineTextByDelimiter",
+   "category": "Combiner"
+  },
+  {
+   "name": "Combiner.CombineTextByEachDelimiter",
+   "category": "Combiner"
+  },
+  {
+   "name": "Combiner.CombineTextByLengths",
+   "category": "Combiner"
+  },
+  {
+   "name": "Combiner.CombineTextByPositions",
+   "category": "Combiner"
+  },
+  {
+   "name": "Combiner.CombineTextByRanges",
+   "category": "Combiner"
+  },
+  {
+   "name": "Comparer.Equals",
+   "category": "Comparer"
+  },
+  {
+   "name": "Comparer.FromCulture",
+   "category": "Comparer"
+  },
+  {
+   "name": "Comparer.Ordinal",
+   "category": "Comparer"
+  },
+  {
+   "name": "Comparer.OrdinalIgnoreCase",
+   "category": "Comparer"
+  },
+  {
+   "name": "Date.AddDays",
+   "category": "Date"
+  },
+  {
+   "name": "Date.AddMonths",
+   "category": "Date"
+  },
+  {
+   "name": "Date.AddQuarters",
+   "category": "Date"
+  },
+  {
+   "name": "Date.AddWeeks",
+   "category": "Date"
+  },
+  {
+   "name": "Date.AddYears",
+   "category": "Date"
+  },
+  {
+   "name": "Date.Day",
+   "category": "Date"
+  },
+  {
+   "name": "Date.DayOfWeek",
+   "category": "Date"
+  },
+  {
+   "name": "Date.DayOfWeekName",
+   "category": "Date"
+  },
+  {
+   "name": "Date.DayOfYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.DaysInMonth",
+   "category": "Date"
+  },
+  {
+   "name": "Date.EndOfDay",
+   "category": "Date"
+  },
+  {
+   "name": "Date.EndOfMonth",
+   "category": "Date"
+  },
+  {
+   "name": "Date.EndOfQuarter",
+   "category": "Date"
+  },
+  {
+   "name": "Date.EndOfWeek",
+   "category": "Date"
+  },
+  {
+   "name": "Date.EndOfYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.From",
+   "category": "Date"
+  },
+  {
+   "name": "Date.FromText",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInCurrentDay",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInCurrentMonth",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInCurrentQuarter",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInCurrentWeek",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInCurrentYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextDay",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextMonth",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextNDays",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextNMonths",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextNQuarters",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextNWeeks",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextNYears",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextQuarter",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextWeek",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInNextYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousDay",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousMonth",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousNDays",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousNMonths",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousNQuarters",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousNWeeks",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousNYears",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousQuarter",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousWeek",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInPreviousYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsInYearToDate",
+   "category": "Date"
+  },
+  {
+   "name": "Date.IsLeapYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.Month",
+   "category": "Date"
+  },
+  {
+   "name": "Date.MonthName",
+   "category": "Date"
+  },
+  {
+   "name": "Date.QuarterOfYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.StartOfDay",
+   "category": "Date"
+  },
+  {
+   "name": "Date.StartOfMonth",
+   "category": "Date"
+  },
+  {
+   "name": "Date.StartOfQuarter",
+   "category": "Date"
+  },
+  {
+   "name": "Date.StartOfWeek",
+   "category": "Date"
+  },
+  {
+   "name": "Date.StartOfYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.ToRecord",
+   "category": "Date"
+  },
+  {
+   "name": "Date.ToText",
+   "category": "Date"
+  },
+  {
+   "name": "Date.WeekOfMonth",
+   "category": "Date"
+  },
+  {
+   "name": "Date.WeekOfYear",
+   "category": "Date"
+  },
+  {
+   "name": "Date.Year",
+   "category": "Date"
+  },
+  {
+   "name": "DateTime.AddZone",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.Date",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.FixedLocalNow",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.From",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.FromFileTime",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.FromText",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInCurrentHour",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInCurrentMinute",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInCurrentSecond",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInNextHour",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInNextMinute",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInNextNHours",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInNextNMinutes",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInNextNSeconds",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInNextSecond",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInPreviousHour",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInPreviousMinute",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInPreviousNHours",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInPreviousNMinutes",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInPreviousNSeconds",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.IsInPreviousSecond",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.LocalNow",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.Time",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.ToRecord",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTime.ToText",
+   "category": "DateTime"
+  },
+  {
+   "name": "DateTimeZone.FixedLocalNow",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.FixedUtcNow",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.From",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.FromFileTime",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.FromText",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.LocalNow",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.RemoveZone",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.SwitchZone",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.ToLocal",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.ToRecord",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.ToText",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.ToUtc",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.UtcNow",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.ZoneHours",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "DateTimeZone.ZoneMinutes",
+   "category": "DateTimeZone"
+  },
+  {
+   "name": "Duration.Days",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.From",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.FromText",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.Hours",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.Minutes",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.Seconds",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.ToRecord",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.TotalDays",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.TotalHours",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.TotalMinutes",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.TotalSeconds",
+   "category": "Duration"
+  },
+  {
+   "name": "Duration.ToText",
+   "category": "Duration"
+  },
+  {
+   "name": "Diagnostics.ActivityId",
+   "category": "Error handling"
+  },
+  {
+   "name": "Diagnostics.CorrelationId",
+   "category": "Error handling"
+  },
+  {
+   "name": "Diagnostics.Trace",
+   "category": "Error handling"
+  },
+  {
+   "name": "Error.Record",
+   "category": "Error handling"
+  },
+  {
+   "name": "Expression.Constant",
+   "category": "Expression"
+  },
+  {
+   "name": "Expression.Evaluate",
+   "category": "Expression"
+  },
+  {
+   "name": "Expression.Identifier",
+   "category": "Expression"
+  },
+  {
+   "name": "Function.From",
+   "category": "Function values"
+  },
+  {
+   "name": "Function.Invoke",
+   "category": "Function values"
+  },
+  {
+   "name": "Function.InvokeAfter",
+   "category": "Function values"
+  },
+  {
+   "name": "Function.InvokeWithErrorContext",
+   "category": "Function values"
+  },
+  {
+   "name": "Function.IsDataSource",
+   "category": "Function values"
+  },
+  {
+   "name": "Function.ScalarVector",
+   "category": "Function values"
+  },
+  {
+   "name": "Lines.FromBinary",
+   "category": "Lines"
+  },
+  {
+   "name": "Lines.FromText",
+   "category": "Lines"
+  },
+  {
+   "name": "Lines.ToBinary",
+   "category": "Lines"
+  },
+  {
+   "name": "Lines.ToText",
+   "category": "Lines"
+  },
+  {
+   "name": "List.Accumulate",
+   "category": "List"
+  },
+  {
+   "name": "List.AllTrue",
+   "category": "List"
+  },
+  {
+   "name": "List.Alternate",
+   "category": "List"
+  },
+  {
+   "name": "List.AnyTrue",
+   "category": "List"
+  },
+  {
+   "name": "List.Average",
+   "category": "List"
+  },
+  {
+   "name": "List.Buffer",
+   "category": "List"
+  },
+  {
+   "name": "List.Combine",
+   "category": "List"
+  },
+  {
+   "name": "List.ConformToPageReader",
+   "category": "List"
+  },
+  {
+   "name": "List.Contains",
+   "category": "List"
+  },
+  {
+   "name": "List.ContainsAll",
+   "category": "List"
+  },
+  {
+   "name": "List.ContainsAny",
+   "category": "List"
+  },
+  {
+   "name": "List.Count",
+   "category": "List"
+  },
+  {
+   "name": "List.Covariance",
+   "category": "List"
+  },
+  {
+   "name": "List.Dates",
+   "category": "List"
+  },
+  {
+   "name": "List.DateTimes",
+   "category": "List"
+  },
+  {
+   "name": "List.DateTimeZones",
+   "category": "List"
+  },
+  {
+   "name": "List.Difference",
+   "category": "List"
+  },
+  {
+   "name": "List.Distinct",
+   "category": "List"
+  },
+  {
+   "name": "List.Durations",
+   "category": "List"
+  },
+  {
+   "name": "List.FindText",
+   "category": "List"
+  },
+  {
+   "name": "List.First",
+   "category": "List"
+  },
+  {
+   "name": "List.FirstN",
+   "category": "List"
+  },
+  {
+   "name": "List.Generate",
+   "category": "List"
+  },
+  {
+   "name": "List.InsertRange",
+   "category": "List"
+  },
+  {
+   "name": "List.Intersect",
+   "category": "List"
+  },
+  {
+   "name": "List.IsDistinct",
+   "category": "List"
+  },
+  {
+   "name": "List.IsEmpty",
+   "category": "List"
+  },
+  {
+   "name": "List.Last",
+   "category": "List"
+  },
+  {
+   "name": "List.LastN",
+   "category": "List"
+  },
+  {
+   "name": "List.MatchesAll",
+   "category": "List"
+  },
+  {
+   "name": "List.MatchesAny",
+   "category": "List"
+  },
+  {
+   "name": "List.Max",
+   "category": "List"
+  },
+  {
+   "name": "List.MaxN",
+   "category": "List"
+  },
+  {
+   "name": "List.Median",
+   "category": "List"
+  },
+  {
+   "name": "List.Min",
+   "category": "List"
+  },
+  {
+   "name": "List.MinN",
+   "category": "List"
+  },
+  {
+   "name": "List.Mode",
+   "category": "List"
+  },
+  {
+   "name": "List.Modes",
+   "category": "List"
+  },
+  {
+   "name": "List.NonNullCount",
+   "category": "List"
+  },
+  {
+   "name": "List.Numbers",
+   "category": "List"
+  },
+  {
+   "name": "List.Percentile",
+   "category": "List"
+  },
+  {
+   "name": "List.PositionOf",
+   "category": "List"
+  },
+  {
+   "name": "List.PositionOfAny",
+   "category": "List"
+  },
+  {
+   "name": "List.Positions",
+   "category": "List"
+  },
+  {
+   "name": "List.Product",
+   "category": "List"
+  },
+  {
+   "name": "List.Random",
+   "category": "List"
+  },
+  {
+   "name": "List.Range",
+   "category": "List"
+  },
+  {
+   "name": "List.RemoveFirstN",
+   "category": "List"
+  },
+  {
+   "name": "List.RemoveItems",
+   "category": "List"
+  },
+  {
+   "name": "List.RemoveLastN",
+   "category": "List"
+  },
+  {
+   "name": "List.RemoveMatchingItems",
+   "category": "List"
+  },
+  {
+   "name": "List.RemoveNulls",
+   "category": "List"
+  },
+  {
+   "name": "List.RemoveRange",
+   "category": "List"
+  },
+  {
+   "name": "List.Repeat",
+   "category": "List"
+  },
+  {
+   "name": "List.ReplaceMatchingItems",
+   "category": "List"
+  },
+  {
+   "name": "List.ReplaceRange",
+   "category": "List"
+  },
+  {
+   "name": "List.ReplaceValue",
+   "category": "List"
+  },
+  {
+   "name": "List.Reverse",
+   "category": "List"
+  },
+  {
+   "name": "List.Select",
+   "category": "List"
+  },
+  {
+   "name": "List.Single",
+   "category": "List"
+  },
+  {
+   "name": "List.SingleOrDefault",
+   "category": "List"
+  },
+  {
+   "name": "List.Skip",
+   "category": "List"
+  },
+  {
+   "name": "List.Sort",
+   "category": "List"
+  },
+  {
+   "name": "List.Split",
+   "category": "List"
+  },
+  {
+   "name": "List.StandardDeviation",
+   "category": "List"
+  },
+  {
+   "name": "List.Sum",
+   "category": "List"
+  },
+  {
+   "name": "List.Times",
+   "category": "List"
+  },
+  {
+   "name": "List.Transform",
+   "category": "List"
+  },
+  {
+   "name": "List.TransformMany",
+   "category": "List"
+  },
+  {
+   "name": "List.Union",
+   "category": "List"
+  },
+  {
+   "name": "List.Zip",
+   "category": "List"
+  },
+  {
+   "name": "Logical.From",
+   "category": "Logical"
+  },
+  {
+   "name": "Logical.FromText",
+   "category": "Logical"
+  },
+  {
+   "name": "Logical.ToText",
+   "category": "Logical"
+  },
+  {
+   "name": "Byte.From",
+   "category": "Number"
+  },
+  {
+   "name": "Currency.From",
+   "category": "Number"
+  },
+  {
+   "name": "Decimal.From",
+   "category": "Number"
+  },
+  {
+   "name": "Double.From",
+   "category": "Number"
+  },
+  {
+   "name": "Int8.From",
+   "category": "Number"
+  },
+  {
+   "name": "Int16.From",
+   "category": "Number"
+  },
+  {
+   "name": "Int32.From",
+   "category": "Number"
+  },
+  {
+   "name": "Int64.From",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Abs",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Acos",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Asin",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Atan",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Atan2",
+   "category": "Number"
+  },
+  {
+   "name": "Number.BitwiseAnd",
+   "category": "Number"
+  },
+  {
+   "name": "Number.BitwiseNot",
+   "category": "Number"
+  },
+  {
+   "name": "Number.BitwiseOr",
+   "category": "Number"
+  },
+  {
+   "name": "Number.BitwiseShiftLeft",
+   "category": "Number"
+  },
+  {
+   "name": "Number.BitwiseShiftRight",
+   "category": "Number"
+  },
+  {
+   "name": "Number.BitwiseXor",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Combinations",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Cos",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Cosh",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Exp",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Factorial",
+   "category": "Number"
+  },
+  {
+   "name": "Number.From",
+   "category": "Number"
+  },
+  {
+   "name": "Number.FromText",
+   "category": "Number"
+  },
+  {
+   "name": "Number.IntegerDivide",
+   "category": "Number"
+  },
+  {
+   "name": "Number.IsEven",
+   "category": "Number"
+  },
+  {
+   "name": "Number.IsNaN",
+   "category": "Number"
+  },
+  {
+   "name": "Number.IsOdd",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Ln",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Log",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Log10",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Mod",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Permutations",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Power",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Random",
+   "category": "Number"
+  },
+  {
+   "name": "Number.RandomBetween",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Round",
+   "category": "Number"
+  },
+  {
+   "name": "Number.RoundAwayFromZero",
+   "category": "Number"
+  },
+  {
+   "name": "Number.RoundDown",
+   "category": "Number"
+  },
+  {
+   "name": "Number.RoundTowardZero",
+   "category": "Number"
+  },
+  {
+   "name": "Number.RoundUp",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Sign",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Sin",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Sinh",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Sqrt",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Tan",
+   "category": "Number"
+  },
+  {
+   "name": "Number.Tanh",
+   "category": "Number"
+  },
+  {
+   "name": "Number.ToText",
+   "category": "Number"
+  },
+  {
+   "name": "Percentage.From",
+   "category": "Number"
+  },
+  {
+   "name": "Single.From",
+   "category": "Number"
+  },
+  {
+   "name": "Geography.FromWellKnownText",
+   "category": "Record"
+  },
+  {
+   "name": "Geography.ToWellKnownText",
+   "category": "Record"
+  },
+  {
+   "name": "GeographyPoint.From",
+   "category": "Record"
+  },
+  {
+   "name": "Geometry.FromWellKnownText",
+   "category": "Record"
+  },
+  {
+   "name": "Geometry.ToWellKnownText",
+   "category": "Record"
+  },
+  {
+   "name": "GeometryPoint.From",
+   "category": "Record"
+  },
+  {
+   "name": "Record.AddField",
+   "category": "Record"
+  },
+  {
+   "name": "Record.Combine",
+   "category": "Record"
+  },
+  {
+   "name": "Record.Field",
+   "category": "Record"
+  },
+  {
+   "name": "Record.FieldCount",
+   "category": "Record"
+  },
+  {
+   "name": "Record.FieldNames",
+   "category": "Record"
+  },
+  {
+   "name": "Record.FieldOrDefault",
+   "category": "Record"
+  },
+  {
+   "name": "Record.FieldValues",
+   "category": "Record"
+  },
+  {
+   "name": "Record.FromList",
+   "category": "Record"
+  },
+  {
+   "name": "Record.FromTable",
+   "category": "Record"
+  },
+  {
+   "name": "Record.HasFields",
+   "category": "Record"
+  },
+  {
+   "name": "Record.RemoveFields",
+   "category": "Record"
+  },
+  {
+   "name": "Record.RenameFields",
+   "category": "Record"
+  },
+  {
+   "name": "Record.ReorderFields",
+   "category": "Record"
+  },
+  {
+   "name": "Record.SelectFields",
+   "category": "Record"
+  },
+  {
+   "name": "Record.ToList",
+   "category": "Record"
+  },
+  {
+   "name": "Record.ToTable",
+   "category": "Record"
+  },
+  {
+   "name": "Record.TransformFields",
+   "category": "Record"
+  },
+  {
+   "name": "Replacer.ReplaceText",
+   "category": "Replacer"
+  },
+  {
+   "name": "Replacer.ReplaceValue",
+   "category": "Replacer"
+  },
+  {
+   "name": "Splitter.SplitByNothing",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByAnyDelimiter",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByCharacterTransition",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByDelimiter",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByEachDelimiter",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByLengths",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByPositions",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByRanges",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByRepeatedLengths",
+   "category": "Splitter"
+  },
+  {
+   "name": "Splitter.SplitTextByWhitespace",
+   "category": "Splitter"
+  },
+  {
+   "name": "ItemExpression.From",
+   "category": "Table"
+  },
+  {
+   "name": "RowExpression.Column",
+   "category": "Table"
+  },
+  {
+   "name": "RowExpression.From",
+   "category": "Table"
+  },
+  {
+   "name": "Table.AddColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.AddFuzzyClusterColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.AddIndexColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.AddJoinColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.AddKey",
+   "category": "Table"
+  },
+  {
+   "name": "Table.AddRankColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.AggregateTableColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.AlternateRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ApproximateRowCount",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Buffer",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ClearDown",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Column",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ColumnCount",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ColumnNames",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ColumnsOfType",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Combine",
+   "category": "Table"
+  },
+  {
+   "name": "Table.CombineColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.CombineColumnsToRecord",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ConformToPageReader",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Contains",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ContainsAll",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ContainsAny",
+   "category": "Table"
+  },
+  {
+   "name": "Table.DemoteHeaders",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Distinct",
+   "category": "Table"
+  },
+  {
+   "name": "Table.DuplicateColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ExpandListColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ExpandRecordColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ExpandTableColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FillDown",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FillUp",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FilterWithDataTable",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FindText",
+   "category": "Table"
+  },
+  {
+   "name": "Table.First",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FirstN",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FirstValue",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FromColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FromList",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FromPartitions",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FromRecords",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FromRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FromValue",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FuzzyGroup",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FuzzyJoin",
+   "category": "Table"
+  },
+  {
+   "name": "Table.FuzzyNestedJoin",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Group",
+   "category": "Table"
+  },
+  {
+   "name": "Table.HasColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.InsertRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.IsDistinct",
+   "category": "Table"
+  },
+  {
+   "name": "Table.IsEmpty",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Join",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Keys",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Last",
+   "category": "Table"
+  },
+  {
+   "name": "Table.LastN",
+   "category": "Table"
+  },
+  {
+   "name": "Table.MatchesAllRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.MatchesAnyRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Max",
+   "category": "Table"
+  },
+  {
+   "name": "Table.MaxN",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Min",
+   "category": "Table"
+  },
+  {
+   "name": "Table.MinN",
+   "category": "Table"
+  },
+  {
+   "name": "Table.NestedJoin",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Partition",
+   "category": "Table"
+  },
+  {
+   "name": "Table.PartionKey",
+   "category": "Table"
+  },
+  {
+   "name": "Table.PartitionValues",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Pivot",
+   "category": "Table"
+  },
+  {
+   "name": "Table.PositionOf",
+   "category": "Table"
+  },
+  {
+   "name": "Table.PositionOfAny",
+   "category": "Table"
+  },
+  {
+   "name": "Table.PrefixColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Profile",
+   "category": "Table"
+  },
+  {
+   "name": "Table.PromoteHeaders",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Range",
+   "category": "Table"
+  },
+  {
+   "name": "Table.RemoveColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.RemoveFirstN",
+   "category": "Table"
+  },
+  {
+   "name": "Table.RemoveLastN",
+   "category": "Table"
+  },
+  {
+   "name": "Table.RemoveMatchingRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.RemoveRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.RemoveRowsWithErrors",
+   "category": "Table"
+  },
+  {
+   "name": "Table.RenameColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReorderColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Repeat",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReplaceErrorValues",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReplaceKeys",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReplaceMatchingRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReplacePartitionKey",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReplaceRelationshipIdentity",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReplaceRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReplaceValue",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ReverseRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.RowCount",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Schema",
+   "category": "Table"
+  },
+  {
+   "name": "Table.SelectColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.SelectRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.SelectRowsWithErrors",
+   "category": "Table"
+  },
+  {
+   "name": "Table.SingleRow",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Skip",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Sort",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Split",
+   "category": "Table"
+  },
+  {
+   "name": "Table.SplitAt",
+   "category": "Table"
+  },
+  {
+   "name": "Table.SplitColumn",
+   "category": "Table"
+  },
+  {
+   "name": "Table.StopFolding",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ToColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ToList",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ToRecords",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ToRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.TransformColumnNames",
+   "category": "Table"
+  },
+  {
+   "name": "Table.TransformColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.TransformColumnTypes",
+   "category": "Table"
+  },
+  {
+   "name": "Table.TransformRows",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Transpose",
+   "category": "Table"
+  },
+  {
+   "name": "Table.Unpivot",
+   "category": "Table"
+  },
+  {
+   "name": "Table.UnpivotOtherColumns",
+   "category": "Table"
+  },
+  {
+   "name": "Table.View",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ViewError",
+   "category": "Table"
+  },
+  {
+   "name": "Table.ViewFunction",
+   "category": "Table"
+  },
+  {
+   "name": "Table.WithErrorContext",
+   "category": "Table"
+  },
+  {
+   "name": "Tables.GetRelationships",
+   "category": "Table"
+  },
+  {
+   "name": "Character.FromNumber",
+   "category": "Text"
+  },
+  {
+   "name": "Character.ToNumber",
+   "category": "Text"
+  },
+  {
+   "name": "Guid.From",
+   "category": "Text"
+  },
+  {
+   "name": "Text.AfterDelimiter",
+   "category": "Text"
+  },
+  {
+   "name": "Text.At",
+   "category": "Text"
+  },
+  {
+   "name": "Text.BeforeDelimiter",
+   "category": "Text"
+  },
+  {
+   "name": "Text.BetweenDelimiters",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Clean",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Combine",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Contains",
+   "category": "Text"
+  },
+  {
+   "name": "Text.End",
+   "category": "Text"
+  },
+  {
+   "name": "Text.EndsWith",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Format",
+   "category": "Text"
+  },
+  {
+   "name": "Text.From",
+   "category": "Text"
+  },
+  {
+   "name": "Text.FromBinary",
+   "category": "Text"
+  },
+  {
+   "name": "Text.InferNumberType",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Insert",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Length",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Lower",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Middle",
+   "category": "Text"
+  },
+  {
+   "name": "Text.NewGuid",
+   "category": "Text"
+  },
+  {
+   "name": "Text.PadEnd",
+   "category": "Text"
+  },
+  {
+   "name": "Text.PadStart",
+   "category": "Text"
+  },
+  {
+   "name": "Text.PositionOf",
+   "category": "Text"
+  },
+  {
+   "name": "Text.PositionOfAny",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Proper",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Range",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Remove",
+   "category": "Text"
+  },
+  {
+   "name": "Text.RemoveRange",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Repeat",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Replace",
+   "category": "Text"
+  },
+  {
+   "name": "Text.ReplaceRange",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Reverse",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Select",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Split",
+   "category": "Text"
+  },
+  {
+   "name": "Text.SplitAny",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Start",
+   "category": "Text"
+  },
+  {
+   "name": "Text.StartsWith",
+   "category": "Text"
+  },
+  {
+   "name": "Text.ToBinary",
+   "category": "Text"
+  },
+  {
+   "name": "Text.ToList",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Trim",
+   "category": "Text"
+  },
+  {
+   "name": "Text.TrimEnd",
+   "category": "Text"
+  },
+  {
+   "name": "Text.TrimStart",
+   "category": "Text"
+  },
+  {
+   "name": "Text.Upper",
+   "category": "Text"
+  },
+  {
+   "name": "Time.EndOfHour",
+   "category": "Time"
+  },
+  {
+   "name": "Time.From",
+   "category": "Time"
+  },
+  {
+   "name": "Time.FromText",
+   "category": "Time"
+  },
+  {
+   "name": "Time.Hour",
+   "category": "Time"
+  },
+  {
+   "name": "Time.Minute",
+   "category": "Time"
+  },
+  {
+   "name": "Time.Second",
+   "category": "Time"
+  },
+  {
+   "name": "Time.StartOfHour",
+   "category": "Time"
+  },
+  {
+   "name": "Time.ToRecord",
+   "category": "Time"
+  },
+  {
+   "name": "Time.ToText",
+   "category": "Time"
+  },
+  {
+   "name": "Type.AddTableKey",
+   "category": "Type"
+  },
+  {
+   "name": "Type.ClosedRecord",
+   "category": "Type"
+  },
+  {
+   "name": "Type.Facets",
+   "category": "Type"
+  },
+  {
+   "name": "Type.ForFunction",
+   "category": "Type"
+  },
+  {
+   "name": "Type.ForRecord",
+   "category": "Type"
+  },
+  {
+   "name": "Type.FunctionParameters",
+   "category": "Type"
+  },
+  {
+   "name": "Type.FunctionRequiredParameters",
+   "category": "Type"
+  },
+  {
+   "name": "Type.FunctionReturn",
+   "category": "Type"
+  },
+  {
+   "name": "Type.Is",
+   "category": "Type"
+  },
+  {
+   "name": "Type.IsNullable",
+   "category": "Type"
+  },
+  {
+   "name": "Type.IsOpenRecord",
+   "category": "Type"
+  },
+  {
+   "name": "Type.ListItem",
+   "category": "Type"
+  },
+  {
+   "name": "Type.NonNullable",
+   "category": "Type"
+  },
+  {
+   "name": "Type.OpenRecord",
+   "category": "Type"
+  },
+  {
+   "name": "Type.RecordFields",
+   "category": "Type"
+  },
+  {
+   "name": "Type.ReplaceFacets",
+   "category": "Type"
+  },
+  {
+   "name": "Type.ReplaceTableKeys",
+   "category": "Type"
+  },
+  {
+   "name": "Type.ReplaceTablePartitionKey",
+   "category": "Type"
+  },
+  {
+   "name": "Type.TableColumn",
+   "category": "Type"
+  },
+  {
+   "name": "Type.TableKeys",
+   "category": "Type"
+  },
+  {
+   "name": "Type.TablePartitionKey",
+   "category": "Type"
+  },
+  {
+   "name": "Type.TableRow",
+   "category": "Type"
+  },
+  {
+   "name": "Type.TableSchema",
+   "category": "Type"
+  },
+  {
+   "name": "Type.Union",
+   "category": "Type"
+  },
+  {
+   "name": "Uri.BuildQueryString",
+   "category": "Uri"
+  },
+  {
+   "name": "Uri.Combine",
+   "category": "Uri"
+  },
+  {
+   "name": "Uri.EscapeDataString",
+   "category": "Uri"
+  },
+  {
+   "name": "Uri.Parts",
+   "category": "Uri"
+  },
+  {
+   "name": "Action.WithErrorContext",
+   "category": "Value"
+  },
+  {
+   "name": "DirectQueryCapabilities.From",
+   "category": "Value"
+  },
+  {
+   "name": "Embedded.Value",
+   "category": "Value"
+  },
+  {
+   "name": "Excel.ShapeTable",
+   "category": "Value"
+  },
+  {
+   "name": "Graph.Nodes",
+   "category": "Value"
+  },
+  {
+   "name": "Module.Versions",
+   "category": "Value"
+  },
+  {
+   "name": "Progress.DataSourceProgress",
+   "category": "Value"
+  },
+  {
+   "name": "SqlExpression.SchemaFrom",
+   "category": "Value"
+  },
+  {
+   "name": "SqlExpression.ToExpression",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Add",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Alternates",
+   "category": "Value"
+  },
+  {
+   "name": "Value.As",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Compare",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Divide",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Equals",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Expression",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Firewall",
+   "category": "Value"
+  },
+  {
+   "name": "Value.FromText",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Is",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Lineage",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Metadata",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Multiply",
+   "category": "Value"
+  },
+  {
+   "name": "Value.NativeQuery",
+   "category": "Value"
+  },
+  {
+   "name": "Value.NullableEquals",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Optimize",
+   "category": "Value"
+  },
+  {
+   "name": "Value.RemoveMetadata",
+   "category": "Value"
+  },
+  {
+   "name": "Value.ReplaceMetadata",
+   "category": "Value"
+  },
+  {
+   "name": "Value.ReplaceType",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Subtract",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Traits",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Type",
+   "category": "Value"
+  },
+  {
+   "name": "Value.VersionIdentity",
+   "category": "Value"
+  },
+  {
+   "name": "Value.Versions",
+   "category": "Value"
+  },
+  {
+   "name": "Value.ViewError",
+   "category": "Value"
+  },
+  {
+   "name": "Value.ViewFunction",
+   "category": "Value"
+  },
+  {
+   "name": "Variable.Value",
+   "category": "Value"
+  },
+  {
+   "name": "Variable.ValueOrDefault",
+   "category": "Value"
+  }
+ ]
+}

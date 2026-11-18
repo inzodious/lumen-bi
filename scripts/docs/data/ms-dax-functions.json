@@ -1,0 +1,1843 @@
+{
+ "source": "https://learn.microsoft.com/en-us/dax/toc.json",
+ "retrievedAt": "2026-11-18",
+ "count": 459,
+ "functions": [
+  {
+   "name": "APPROXIMATEDISTINCTCOUNT",
+   "category": "Aggregation"
+  },
+  {
+   "name": "AVERAGE",
+   "category": "Aggregation"
+  },
+  {
+   "name": "AVERAGEA",
+   "category": "Aggregation"
+  },
+  {
+   "name": "AVERAGEX",
+   "category": "Aggregation"
+  },
+  {
+   "name": "COUNT",
+   "category": "Aggregation"
+  },
+  {
+   "name": "COUNTA",
+   "category": "Aggregation"
+  },
+  {
+   "name": "COUNTAX",
+   "category": "Aggregation"
+  },
+  {
+   "name": "COUNTBLANK",
+   "category": "Aggregation"
+  },
+  {
+   "name": "COUNTROWS",
+   "category": "Aggregation"
+  },
+  {
+   "name": "COUNTX",
+   "category": "Aggregation"
+  },
+  {
+   "name": "DISTINCTCOUNT",
+   "category": "Aggregation"
+  },
+  {
+   "name": "DISTINCTCOUNTNOBLANK",
+   "category": "Aggregation"
+  },
+  {
+   "name": "MAX",
+   "category": "Aggregation"
+  },
+  {
+   "name": "MAXA",
+   "category": "Aggregation"
+  },
+  {
+   "name": "MAXX",
+   "category": "Aggregation"
+  },
+  {
+   "name": "MIN",
+   "category": "Aggregation"
+  },
+  {
+   "name": "MINA",
+   "category": "Aggregation"
+  },
+  {
+   "name": "MINX",
+   "category": "Aggregation"
+  },
+  {
+   "name": "PRODUCT",
+   "category": "Aggregation"
+  },
+  {
+   "name": "PRODUCTX",
+   "category": "Aggregation"
+  },
+  {
+   "name": "SUM",
+   "category": "Aggregation"
+  },
+  {
+   "name": "SUMX",
+   "category": "Aggregation"
+  },
+  {
+   "name": "CALENDAR",
+   "category": "Date and time"
+  },
+  {
+   "name": "CALENDARAUTO",
+   "category": "Date and time"
+  },
+  {
+   "name": "DATE",
+   "category": "Date and time"
+  },
+  {
+   "name": "DATEDIFF",
+   "category": "Date and time"
+  },
+  {
+   "name": "DATEVALUE",
+   "category": "Date and time"
+  },
+  {
+   "name": "DAY",
+   "category": "Date and time"
+  },
+  {
+   "name": "EDATE",
+   "category": "Date and time"
+  },
+  {
+   "name": "EOMONTH",
+   "category": "Date and time"
+  },
+  {
+   "name": "HOUR",
+   "category": "Date and time"
+  },
+  {
+   "name": "MINUTE",
+   "category": "Date and time"
+  },
+  {
+   "name": "MONTH",
+   "category": "Date and time"
+  },
+  {
+   "name": "NETWORKDAYS",
+   "category": "Date and time"
+  },
+  {
+   "name": "NOW",
+   "category": "Date and time"
+  },
+  {
+   "name": "QUARTER",
+   "category": "Date and time"
+  },
+  {
+   "name": "SECOND",
+   "category": "Date and time"
+  },
+  {
+   "name": "TIME",
+   "category": "Date and time"
+  },
+  {
+   "name": "TIMEVALUE",
+   "category": "Date and time"
+  },
+  {
+   "name": "TODAY",
+   "category": "Date and time"
+  },
+  {
+   "name": "UTCNOW",
+   "category": "Date and time"
+  },
+  {
+   "name": "UTCTODAY",
+   "category": "Date and time"
+  },
+  {
+   "name": "WEEKDAY",
+   "category": "Date and time"
+  },
+  {
+   "name": "WEEKNUM",
+   "category": "Date and time"
+  },
+  {
+   "name": "YEAR",
+   "category": "Date and time"
+  },
+  {
+   "name": "YEARFRAC",
+   "category": "Date and time"
+  },
+  {
+   "name": "ALL",
+   "category": "Filter"
+  },
+  {
+   "name": "ALLCROSSFILTERED",
+   "category": "Filter"
+  },
+  {
+   "name": "ALLEXCEPT",
+   "category": "Filter"
+  },
+  {
+   "name": "ALLNOBLANKROW",
+   "category": "Filter"
+  },
+  {
+   "name": "ALLSELECTED",
+   "category": "Filter"
+  },
+  {
+   "name": "CALCULATE",
+   "category": "Filter"
+  },
+  {
+   "name": "CALCULATETABLE",
+   "category": "Filter"
+  },
+  {
+   "name": "EARLIER",
+   "category": "Filter"
+  },
+  {
+   "name": "EARLIEST",
+   "category": "Filter"
+  },
+  {
+   "name": "FILTER",
+   "category": "Filter"
+  },
+  {
+   "name": "FIRSTNONBLANK",
+   "category": "Filter"
+  },
+  {
+   "name": "FIRSTNONBLANKVALUE",
+   "category": "Filter"
+  },
+  {
+   "name": "INDEX",
+   "category": "Filter"
+  },
+  {
+   "name": "KEEPFILTERS",
+   "category": "Filter"
+  },
+  {
+   "name": "LASTNONBLANK",
+   "category": "Filter"
+  },
+  {
+   "name": "LASTNONBLANKVALUE",
+   "category": "Filter"
+  },
+  {
+   "name": "LOOKUP",
+   "category": "Filter"
+  },
+  {
+   "name": "LOOKUPVALUE",
+   "category": "Filter"
+  },
+  {
+   "name": "LOOKUPWITHTOTALS",
+   "category": "Filter"
+  },
+  {
+   "name": "MATCHBY",
+   "category": "Filter"
+  },
+  {
+   "name": "MOVINGAVERAGE",
+   "category": "Filter"
+  },
+  {
+   "name": "OFFSET",
+   "category": "Filter"
+  },
+  {
+   "name": "ORDERBY",
+   "category": "Filter"
+  },
+  {
+   "name": "PARTITIONBY",
+   "category": "Filter"
+  },
+  {
+   "name": "RANGE",
+   "category": "Filter"
+  },
+  {
+   "name": "RANK",
+   "category": "Filter"
+  },
+  {
+   "name": "REMOVEFILTERS",
+   "category": "Filter"
+  },
+  {
+   "name": "ROWNUMBER",
+   "category": "Filter"
+  },
+  {
+   "name": "RUNNINGSUM",
+   "category": "Filter"
+  },
+  {
+   "name": "SELECTEDVALUE",
+   "category": "Filter"
+  },
+  {
+   "name": "WINDOW",
+   "category": "Filter"
+  },
+  {
+   "name": "ACCRINT",
+   "category": "Financial"
+  },
+  {
+   "name": "ACCRINTM",
+   "category": "Financial"
+  },
+  {
+   "name": "AMORDEGRC",
+   "category": "Financial"
+  },
+  {
+   "name": "AMORLINC",
+   "category": "Financial"
+  },
+  {
+   "name": "COUPDAYBS",
+   "category": "Financial"
+  },
+  {
+   "name": "COUPDAYS",
+   "category": "Financial"
+  },
+  {
+   "name": "COUPDAYSNC",
+   "category": "Financial"
+  },
+  {
+   "name": "COUPNCD",
+   "category": "Financial"
+  },
+  {
+   "name": "COUPNUM",
+   "category": "Financial"
+  },
+  {
+   "name": "COUPPCD",
+   "category": "Financial"
+  },
+  {
+   "name": "CUMIPMT",
+   "category": "Financial"
+  },
+  {
+   "name": "CUMPRINC",
+   "category": "Financial"
+  },
+  {
+   "name": "DB",
+   "category": "Financial"
+  },
+  {
+   "name": "DDB",
+   "category": "Financial"
+  },
+  {
+   "name": "DISC",
+   "category": "Financial"
+  },
+  {
+   "name": "DOLLARDE",
+   "category": "Financial"
+  },
+  {
+   "name": "DOLLARFR",
+   "category": "Financial"
+  },
+  {
+   "name": "DURATION",
+   "category": "Financial"
+  },
+  {
+   "name": "EFFECT",
+   "category": "Financial"
+  },
+  {
+   "name": "FV",
+   "category": "Financial"
+  },
+  {
+   "name": "INTRATE",
+   "category": "Financial"
+  },
+  {
+   "name": "IPMT",
+   "category": "Financial"
+  },
+  {
+   "name": "ISPMT",
+   "category": "Financial"
+  },
+  {
+   "name": "MDURATION",
+   "category": "Financial"
+  },
+  {
+   "name": "NOMINAL",
+   "category": "Financial"
+  },
+  {
+   "name": "NPER",
+   "category": "Financial"
+  },
+  {
+   "name": "ODDFPRICE",
+   "category": "Financial"
+  },
+  {
+   "name": "ODDFYIELD",
+   "category": "Financial"
+  },
+  {
+   "name": "ODDLPRICE",
+   "category": "Financial"
+  },
+  {
+   "name": "ODDLYIELD",
+   "category": "Financial"
+  },
+  {
+   "name": "PDURATION",
+   "category": "Financial"
+  },
+  {
+   "name": "PMT",
+   "category": "Financial"
+  },
+  {
+   "name": "PPMT",
+   "category": "Financial"
+  },
+  {
+   "name": "PRICE",
+   "category": "Financial"
+  },
+  {
+   "name": "PRICEDISC",
+   "category": "Financial"
+  },
+  {
+   "name": "PRICEMAT",
+   "category": "Financial"
+  },
+  {
+   "name": "PV",
+   "category": "Financial"
+  },
+  {
+   "name": "RATE",
+   "category": "Financial"
+  },
+  {
+   "name": "RECEIVED",
+   "category": "Financial"
+  },
+  {
+   "name": "RRI",
+   "category": "Financial"
+  },
+  {
+   "name": "SLN",
+   "category": "Financial"
+  },
+  {
+   "name": "SYD",
+   "category": "Financial"
+  },
+  {
+   "name": "TBILLEQ",
+   "category": "Financial"
+  },
+  {
+   "name": "TBILLPRICE",
+   "category": "Financial"
+  },
+  {
+   "name": "TBILLYIELD",
+   "category": "Financial"
+  },
+  {
+   "name": "VDB",
+   "category": "Financial"
+  },
+  {
+   "name": "XIRR",
+   "category": "Financial"
+  },
+  {
+   "name": "XNPV",
+   "category": "Financial"
+  },
+  {
+   "name": "YIELD",
+   "category": "Financial"
+  },
+  {
+   "name": "YIELDDISC",
+   "category": "Financial"
+  },
+  {
+   "name": "YIELDMAT",
+   "category": "Financial"
+  },
+  {
+   "name": "INFO.VIEW.COLUMNS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.VIEW.MEASURES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.VIEW.RELATIONSHIPS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.VIEW.TABLES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.ALTERNATEOFDEFINITIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.ANNOTATIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.ATTRIBUTEHIERARCHIES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.ATTRIBUTEHIERARCHYSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CALCDEPENDENCY",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CALCULATIONGROUPS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CALCULATIONITEMS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CALENDARCOLUMNGROUPS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CALENDARCOLUMNREFERENCES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CALENDARS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CATALOGS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CHANGEDPROPERTIES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.COLUMNPARTITIONSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.COLUMNPERMISSIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.COLUMNS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.COLUMNSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CSDLMETADATA",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.CULTURES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.DATACOVERAGEDEFINITIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.DATASOURCES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.DELTATABLEMETADATASTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.DEPENDENCIES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.DETAILROWSDEFINITIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.DICTIONARYSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.EXCLUDEDARTIFACTS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.EXPRESSIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.EXTENDEDPROPERTIES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.FORMATSTRINGDEFINITIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.FUNCTIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.GENERALSEGMENTMAPSEGMENTMETADATASTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.GROUPBYCOLUMNS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.HIERARCHIES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.HIERARCHYSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.KPIS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.LEVELS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.LINGUISTICMETADATA",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.MEASURES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.MODEL",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.OBJECTTRANSLATIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PARQUETFILESTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PARTITIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PARTITIONSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PERSPECTIVECOLUMNS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PERSPECTIVEHIERARCHIES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PERSPECTIVEMEASURES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PERSPECTIVES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PERSPECTIVETABLES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.PROPERTIES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.QUERYGROUPS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.REFRESHPOLICIES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.RELATEDCOLUMNDETAILS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.RELATIONSHIPINDEXSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.RELATIONSHIPS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.RELATIONSHIPSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.ROLEMEMBERSHIPS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.ROLES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.SEGMENTMAPSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.SEGMENTSTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.STORAGEFILES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.STORAGEFOLDERS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.STORAGETABLECOLUMNS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.STORAGETABLECOLUMNSEGMENTS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.STORAGETABLES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.TABLEPERMISSIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.TABLES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.TABLESTORAGES",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.USERDEFINEDFUNCTIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "INFO.VARIATIONS",
+   "category": "INFO"
+  },
+  {
+   "name": "COLUMNSTATISTICS",
+   "category": "Information"
+  },
+  {
+   "name": "CONTAINS",
+   "category": "Information"
+  },
+  {
+   "name": "CONTAINSROW",
+   "category": "Information"
+  },
+  {
+   "name": "CONTAINSSTRING",
+   "category": "Information"
+  },
+  {
+   "name": "CONTAINSSTRINGEXACT",
+   "category": "Information"
+  },
+  {
+   "name": "CUSTOMDATA",
+   "category": "Information"
+  },
+  {
+   "name": "HASONEFILTER",
+   "category": "Information"
+  },
+  {
+   "name": "HASONEVALUE",
+   "category": "Information"
+  },
+  {
+   "name": "ISAFTER",
+   "category": "Information"
+  },
+  {
+   "name": "ISBLANK",
+   "category": "Information"
+  },
+  {
+   "name": "ISBOOLEAN",
+   "category": "Information"
+  },
+  {
+   "name": "ISCROSSFILTERED",
+   "category": "Information"
+  },
+  {
+   "name": "ISCURRENCY",
+   "category": "Information"
+  },
+  {
+   "name": "ISDATETIME",
+   "category": "Information"
+  },
+  {
+   "name": "ISDECIMAL",
+   "category": "Information"
+  },
+  {
+   "name": "ISDOUBLE",
+   "category": "Information"
+  },
+  {
+   "name": "ISEMPTY",
+   "category": "Information"
+  },
+  {
+   "name": "ISERROR",
+   "category": "Information"
+  },
+  {
+   "name": "ISEVEN",
+   "category": "Information"
+  },
+  {
+   "name": "ISFILTERED",
+   "category": "Information"
+  },
+  {
+   "name": "ISINSCOPE",
+   "category": "Information"
+  },
+  {
+   "name": "ISINT64",
+   "category": "Information"
+  },
+  {
+   "name": "ISINTEGER",
+   "category": "Information"
+  },
+  {
+   "name": "ISLOGICAL",
+   "category": "Information"
+  },
+  {
+   "name": "ISNONTEXT",
+   "category": "Information"
+  },
+  {
+   "name": "ISNUMBER",
+   "category": "Information"
+  },
+  {
+   "name": "ISNUMERIC",
+   "category": "Information"
+  },
+  {
+   "name": "ISODD",
+   "category": "Information"
+  },
+  {
+   "name": "ISONORAFTER",
+   "category": "Information"
+  },
+  {
+   "name": "ISSELECTEDMEASURE",
+   "category": "Information"
+  },
+  {
+   "name": "ISSTRING",
+   "category": "Information"
+  },
+  {
+   "name": "ISSUBTOTAL",
+   "category": "Information"
+  },
+  {
+   "name": "ISTEXT",
+   "category": "Information"
+  },
+  {
+   "name": "NAMEOF",
+   "category": "Information"
+  },
+  {
+   "name": "NONVISUAL",
+   "category": "Information"
+  },
+  {
+   "name": "SELECTEDMEASURE",
+   "category": "Information"
+  },
+  {
+   "name": "SELECTEDMEASUREFORMATSTRING",
+   "category": "Information"
+  },
+  {
+   "name": "SELECTEDMEASURENAME",
+   "category": "Information"
+  },
+  {
+   "name": "TABLEOF",
+   "category": "Information"
+  },
+  {
+   "name": "TEXTCONTAINS",
+   "category": "Information"
+  },
+  {
+   "name": "TEXTSIMILARITY",
+   "category": "Information"
+  },
+  {
+   "name": "USERCULTURE",
+   "category": "Information"
+  },
+  {
+   "name": "USERNAME",
+   "category": "Information"
+  },
+  {
+   "name": "USEROBJECTID",
+   "category": "Information"
+  },
+  {
+   "name": "USERPRINCIPALNAME",
+   "category": "Information"
+  },
+  {
+   "name": "AND",
+   "category": "Logical"
+  },
+  {
+   "name": "BITAND",
+   "category": "Logical"
+  },
+  {
+   "name": "BITLSHIFT",
+   "category": "Logical"
+  },
+  {
+   "name": "BITOR",
+   "category": "Logical"
+  },
+  {
+   "name": "BITRSHIFT",
+   "category": "Logical"
+  },
+  {
+   "name": "BITXOR",
+   "category": "Logical"
+  },
+  {
+   "name": "COALESCE",
+   "category": "Logical"
+  },
+  {
+   "name": "FALSE",
+   "category": "Logical"
+  },
+  {
+   "name": "IF",
+   "category": "Logical"
+  },
+  {
+   "name": "IF.EAGER",
+   "category": "Logical"
+  },
+  {
+   "name": "IFERROR",
+   "category": "Logical"
+  },
+  {
+   "name": "NOT",
+   "category": "Logical"
+  },
+  {
+   "name": "OR",
+   "category": "Logical"
+  },
+  {
+   "name": "SWITCH",
+   "category": "Logical"
+  },
+  {
+   "name": "TRUE",
+   "category": "Logical"
+  },
+  {
+   "name": "ABS",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ACOS",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ACOSH",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ACOT",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ACOTH",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ASIN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ASINH",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ATAN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ATANH",
+   "category": "Math and trig"
+  },
+  {
+   "name": "CEILING",
+   "category": "Math and trig"
+  },
+  {
+   "name": "CONVERT",
+   "category": "Math and trig"
+  },
+  {
+   "name": "COS",
+   "category": "Math and trig"
+  },
+  {
+   "name": "COSH",
+   "category": "Math and trig"
+  },
+  {
+   "name": "COT",
+   "category": "Math and trig"
+  },
+  {
+   "name": "COTH",
+   "category": "Math and trig"
+  },
+  {
+   "name": "CURRENCY",
+   "category": "Math and trig"
+  },
+  {
+   "name": "DEGREES",
+   "category": "Math and trig"
+  },
+  {
+   "name": "DIVIDE",
+   "category": "Math and trig"
+  },
+  {
+   "name": "EVEN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "EXP",
+   "category": "Math and trig"
+  },
+  {
+   "name": "FACT",
+   "category": "Math and trig"
+  },
+  {
+   "name": "FLOOR",
+   "category": "Math and trig"
+  },
+  {
+   "name": "GCD",
+   "category": "Math and trig"
+  },
+  {
+   "name": "INT",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ISO.CEILING",
+   "category": "Math and trig"
+  },
+  {
+   "name": "LCM",
+   "category": "Math and trig"
+  },
+  {
+   "name": "LN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "LOG",
+   "category": "Math and trig"
+  },
+  {
+   "name": "LOG10",
+   "category": "Math and trig"
+  },
+  {
+   "name": "MOD",
+   "category": "Math and trig"
+  },
+  {
+   "name": "MROUND",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ODD",
+   "category": "Math and trig"
+  },
+  {
+   "name": "PI",
+   "category": "Math and trig"
+  },
+  {
+   "name": "POWER",
+   "category": "Math and trig"
+  },
+  {
+   "name": "QUOTIENT",
+   "category": "Math and trig"
+  },
+  {
+   "name": "RADIANS",
+   "category": "Math and trig"
+  },
+  {
+   "name": "RAND",
+   "category": "Math and trig"
+  },
+  {
+   "name": "RANDBETWEEN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ROUND",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ROUNDDOWN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "ROUNDUP",
+   "category": "Math and trig"
+  },
+  {
+   "name": "SIGN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "SIN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "SINH",
+   "category": "Math and trig"
+  },
+  {
+   "name": "SQRT",
+   "category": "Math and trig"
+  },
+  {
+   "name": "SQRTPI",
+   "category": "Math and trig"
+  },
+  {
+   "name": "TAN",
+   "category": "Math and trig"
+  },
+  {
+   "name": "TANH",
+   "category": "Math and trig"
+  },
+  {
+   "name": "TRUNC",
+   "category": "Math and trig"
+  },
+  {
+   "name": "BLANK",
+   "category": "Other"
+  },
+  {
+   "name": "ERROR",
+   "category": "Other"
+  },
+  {
+   "name": "EVALUATEANDLOG",
+   "category": "Other"
+  },
+  {
+   "name": "EXTERNALMEASURE",
+   "category": "Other"
+  },
+  {
+   "name": "TOCSV",
+   "category": "Other"
+  },
+  {
+   "name": "TOJSON",
+   "category": "Other"
+  },
+  {
+   "name": "PATH",
+   "category": "Parent and child"
+  },
+  {
+   "name": "PATHCONTAINS",
+   "category": "Parent and child"
+  },
+  {
+   "name": "PATHITEM",
+   "category": "Parent and child"
+  },
+  {
+   "name": "PATHITEMREVERSE",
+   "category": "Parent and child"
+  },
+  {
+   "name": "PATHLENGTH",
+   "category": "Parent and child"
+  },
+  {
+   "name": "CROSSFILTER",
+   "category": "Relationship"
+  },
+  {
+   "name": "RELATED",
+   "category": "Relationship"
+  },
+  {
+   "name": "RELATEDTABLE",
+   "category": "Relationship"
+  },
+  {
+   "name": "USERELATIONSHIP",
+   "category": "Relationship"
+  },
+  {
+   "name": "BETA.DIST",
+   "category": "Statistical"
+  },
+  {
+   "name": "BETA.INV",
+   "category": "Statistical"
+  },
+  {
+   "name": "CHISQ.DIST",
+   "category": "Statistical"
+  },
+  {
+   "name": "CHISQ.DIST.RT",
+   "category": "Statistical"
+  },
+  {
+   "name": "CHISQ.INV",
+   "category": "Statistical"
+  },
+  {
+   "name": "CHISQ.INV.RT",
+   "category": "Statistical"
+  },
+  {
+   "name": "COMBIN",
+   "category": "Statistical"
+  },
+  {
+   "name": "COMBINA",
+   "category": "Statistical"
+  },
+  {
+   "name": "CONFIDENCE.NORM",
+   "category": "Statistical"
+  },
+  {
+   "name": "CONFIDENCE.T",
+   "category": "Statistical"
+  },
+  {
+   "name": "EXPON.DIST",
+   "category": "Statistical"
+  },
+  {
+   "name": "GEOMEAN",
+   "category": "Statistical"
+  },
+  {
+   "name": "GEOMEANX",
+   "category": "Statistical"
+  },
+  {
+   "name": "LINEST",
+   "category": "Statistical"
+  },
+  {
+   "name": "LINESTX",
+   "category": "Statistical"
+  },
+  {
+   "name": "MEDIAN",
+   "category": "Statistical"
+  },
+  {
+   "name": "MEDIANX",
+   "category": "Statistical"
+  },
+  {
+   "name": "NORM.DIST",
+   "category": "Statistical"
+  },
+  {
+   "name": "NORM.INV",
+   "category": "Statistical"
+  },
+  {
+   "name": "NORM.S.DIST",
+   "category": "Statistical"
+  },
+  {
+   "name": "NORM.S.INV",
+   "category": "Statistical"
+  },
+  {
+   "name": "PERCENTILE.EXC",
+   "category": "Statistical"
+  },
+  {
+   "name": "PERCENTILE.INC",
+   "category": "Statistical"
+  },
+  {
+   "name": "PERCENTILEX.EXC",
+   "category": "Statistical"
+  },
+  {
+   "name": "PERCENTILEX.INC",
+   "category": "Statistical"
+  },
+  {
+   "name": "PERMUT",
+   "category": "Statistical"
+  },
+  {
+   "name": "POISSON.DIST",
+   "category": "Statistical"
+  },
+  {
+   "name": "RANK.EQ",
+   "category": "Statistical"
+  },
+  {
+   "name": "RANKX",
+   "category": "Statistical"
+  },
+  {
+   "name": "SAMPLE",
+   "category": "Statistical"
+  },
+  {
+   "name": "SAMPLECARTESIANPOINTSBYCOVER",
+   "category": "Statistical"
+  },
+  {
+   "name": "STDEV.S",
+   "category": "Statistical"
+  },
+  {
+   "name": "STDEV.P",
+   "category": "Statistical"
+  },
+  {
+   "name": "STDEVX.S",
+   "category": "Statistical"
+  },
+  {
+   "name": "STDEVX.P",
+   "category": "Statistical"
+  },
+  {
+   "name": "T.DIST",
+   "category": "Statistical"
+  },
+  {
+   "name": "T.DIST.2T",
+   "category": "Statistical"
+  },
+  {
+   "name": "T.DIST.RT",
+   "category": "Statistical"
+  },
+  {
+   "name": "T.INV",
+   "category": "Statistical"
+  },
+  {
+   "name": "T.INV.2T",
+   "category": "Statistical"
+  },
+  {
+   "name": "VAR.S",
+   "category": "Statistical"
+  },
+  {
+   "name": "VAR.P",
+   "category": "Statistical"
+  },
+  {
+   "name": "VARX.S",
+   "category": "Statistical"
+  },
+  {
+   "name": "VARX.P",
+   "category": "Statistical"
+  },
+  {
+   "name": "ADDCOLUMNS",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "ADDMISSINGITEMS",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "CROSSJOIN",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "CURRENTGROUP",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "DATATABLE",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "DETAILROWS",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "EXCEPT",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "FILTERS",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "GENERATE",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "GENERATEALL",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "GENERATESERIES",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "GROUPBY",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "IGNORE",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "INTERSECT",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "NATURALINNERJOIN",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "NATURALLEFTOUTERJOIN",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "ROLLUP",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "ROLLUPADDISSUBTOTAL",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "ROLLUPGROUP",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "ROLLUPISSUBTOTAL",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "ROW",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "SELECTCOLUMNS",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "SUBSTITUTEWITHINDEX",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "SUMMARIZE",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "SUMMARIZECOLUMNS",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "TOPN",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "TREATAS",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "UNION",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "VALUES",
+   "category": "Table manipulation"
+  },
+  {
+   "name": "COMBINEVALUES",
+   "category": "Text"
+  },
+  {
+   "name": "CONCATENATE",
+   "category": "Text"
+  },
+  {
+   "name": "CONCATENATEX",
+   "category": "Text"
+  },
+  {
+   "name": "EXACT",
+   "category": "Text"
+  },
+  {
+   "name": "FIND",
+   "category": "Text"
+  },
+  {
+   "name": "FIXED",
+   "category": "Text"
+  },
+  {
+   "name": "FORMAT",
+   "category": "Text"
+  },
+  {
+   "name": "LEFT",
+   "category": "Text"
+  },
+  {
+   "name": "LEN",
+   "category": "Text"
+  },
+  {
+   "name": "LOWER",
+   "category": "Text"
+  },
+  {
+   "name": "MID",
+   "category": "Text"
+  },
+  {
+   "name": "REPLACE",
+   "category": "Text"
+  },
+  {
+   "name": "REPT",
+   "category": "Text"
+  },
+  {
+   "name": "RIGHT",
+   "category": "Text"
+  },
+  {
+   "name": "SEARCH",
+   "category": "Text"
+  },
+  {
+   "name": "SUBSTITUTE",
+   "category": "Text"
+  },
+  {
+   "name": "TRIM",
+   "category": "Text"
+  },
+  {
+   "name": "UNICHAR",
+   "category": "Text"
+  },
+  {
+   "name": "UNICODE",
+   "category": "Text"
+  },
+  {
+   "name": "UPPER",
+   "category": "Text"
+  },
+  {
+   "name": "VALUE",
+   "category": "Text"
+  },
+  {
+   "name": "CLOSINGBALANCEWEEK",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "CLOSINGBALANCEMONTH",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "CLOSINGBALANCEQUARTER",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "CLOSINGBALANCEYEAR",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "DATEADD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "DATESBETWEEN",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "DATESINPERIOD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "DATESWTD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "DATESMTD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "DATESQTD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "DATESYTD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "ENDOFWEEK",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "ENDOFMONTH",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "ENDOFQUARTER",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "ENDOFYEAR",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "FIRSTDATE",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "LASTDATE",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "NEXTDAY",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "NEXTWEEK",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "NEXTMONTH",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "NEXTQUARTER",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "NEXTYEAR",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "OPENINGBALANCEWEEK",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "OPENINGBALANCEMONTH",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "OPENINGBALANCEQUARTER",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "OPENINGBALANCEYEAR",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "PARALLELPERIOD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "PREVIOUSDAY",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "PREVIOUSWEEK",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "PREVIOUSMONTH",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "PREVIOUSQUARTER",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "PREVIOUSYEAR",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "SAMEPERIODLASTYEAR",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "STARTOFWEEK",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "STARTOFMONTH",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "STARTOFQUARTER",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "STARTOFYEAR",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "TOTALWTD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "TOTALMTD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "TOTALQTD",
+   "category": "Time intelligence"
+  },
+  {
+   "name": "TOTALYTD",
+   "category": "Time intelligence"
+  }
+ ]
+}

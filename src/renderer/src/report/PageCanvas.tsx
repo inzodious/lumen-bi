@@ -39,8 +39,11 @@ export interface PageCanvasProps {
   editing: boolean
   /** extra filters for every visual (report-page tooltips) */
   extraFilters?: SQFilter[]
-  /** called once when every visible visual rendered (or after a timeout) */
-  onReady?(): void
+  /**
+   * called once when every visible visual rendered, or after a timeout; `result.timedOut` (with the visuals still
+   * pending) tells the two apart, so exports can say which pages were not fully drawn
+   */
+  onReady?(result?: CanvasReadyResult): void
   /** focus mode / show as table for one visual */
   focus?: { visual: string; mode: 'focus' | 'table'; point?: DataPointIdentity } | null
   /** box size for focus mode (CSS px) */
@@ -50,6 +53,14 @@ export interface PageCanvasProps {
 }
 
 const READY_TIMEOUT_MS = 12000
+
+/** Outcome of a canvas' readiness wait (PageCanvasProps.onReady). */
+export interface CanvasReadyResult {
+  /** true when the readiness timeout fired before every visual reported */
+  timedOut: boolean
+  /** visuals not rendered when the timeout fired (name and visual type) */
+  pending: Array<{ name: string; type: string }>
+}
 
 // ---------------------------------------------------------------------------------------------
 // Page background
@@ -216,7 +227,7 @@ export function PageCanvas(props: PageCanvasProps) {
     if (readyFired.current) return
     if (expected.every((n) => done.current.has(n))) {
       readyFired.current = true
-      onReadyRef.current?.()
+      onReadyRef.current?.({ timedOut: false, pending: [] })
     }
   }, [expected])
   useEffect(() => {
@@ -224,8 +235,9 @@ export function PageCanvas(props: PageCanvasProps) {
     const t = setTimeout(() => {
       if (!readyFired.current) {
         readyFired.current = true
-        console.warn(`[canvas] readiness timeout on page ${page.name}: ${expected.filter((n) => !done.current.has(n)).length} visual(s) pending (${expected.filter((n) => !done.current.has(n)).map((n) => visualTypeOf(page.visuals.find((v) => v.name === n))).join(', ')})`)
-        onReadyRef.current?.()
+        const pending = expected.filter((n) => !done.current.has(n)).map((n) => ({ name: n, type: visualTypeOf(page.visuals.find((v) => v.name === n)) }))
+        console.warn(`[canvas] readiness timeout on page ${page.name}: ${pending.length} visual(s) pending (${pending.map((p) => p.type).join(', ')})`)
+        onReadyRef.current?.({ timedOut: true, pending })
       }
     }, READY_TIMEOUT_MS)
     return () => clearTimeout(t)

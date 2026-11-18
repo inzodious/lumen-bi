@@ -9,7 +9,7 @@ import { useApp } from '../../state/store'
 import { FIXTURE, fixtureProject } from '../../report/dev/fixture'
 import { usePrintJob } from '../PrintLayout'
 import { capturePagesPng, exportablePages, printPagesPdf } from '../capture'
-import { exportReport } from '../index'
+import { exportReport, exportReportWithResult } from '../index'
 
 const toasts: Array<{ kind?: string; message?: unknown }> = []
 vi.mock('../../app/ui/Notify', () => ({ toast: (t: { kind?: string; message?: unknown }) => void toasts.push(t) }))
@@ -18,6 +18,10 @@ vi.mock('../../app/ui/Notify', () => ({ toast: (t: { kind?: string; message?: un
 const PNG = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='), (c) => c.charCodeAt(0))
 
 const jobs: string[][] = []
+/** pages whose print job never reports ready (a page that never finishes rendering) */
+const never = new Set<string>()
+/** pages whose canvas reports its own readiness timeout with pending visuals */
+const canvasTimeout = new Map<string, Array<{ name: string; type: string }>>()
 const written = new Map<string, Uint8Array | string>()
 const g = globalThis as any
 const saved: Record<string, unknown> = {}
@@ -48,7 +52,9 @@ beforeAll(() => {
     const job = s.job
     if (job) {
       jobs.push(job.pages)
-      setTimeout(() => job.onReady(), 0)
+      if (job.pages.some((p) => never.has(p))) return
+      const incomplete = job.pages.filter((p) => canvasTimeout.has(p)).map((p) => ({ name: p, displayName: p, pending: canvasTimeout.get(p)! }))
+      setTimeout(() => job.onReady({ incomplete }), 0)
     }
   })
 })
@@ -59,6 +65,8 @@ afterAll(() => {
 
 beforeEach(() => {
   jobs.length = 0
+  never.clear()
+  canvasTimeout.clear()
   toasts.length = 0
   written.clear()
   useApp.getState().setProject(fixtureProject())
@@ -120,5 +128,36 @@ describe('exporters receive and honour the page list', () => {
     const slides = Object.keys(zip).filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k))
     expect(slides.length).toBe(2)
     expect(strFromU8(zip['ppt/slides/slide1.xml'])).toContain('1 page')
+  })
+})
+
+describe('a page that does not finish rendering is reported, never exported silently', () => {
+  const displayName = (n: string) => useApp.getState().project!.report!.pages.find((p) => p.name === n)!.json.displayName as string
+
+  it('PNG: the export finishes, the completion message names the page, scripts get it in the result', async () => {
+    never.add(FIXTURE.details)
+    const res = await exportReportWithResult('png', { path: '/x/png', pages: [FIXTURE.overview, FIXTURE.details], jobTimeoutMs: 30 })
+    expect(res?.path).toBe('/x/png')
+    // both pages were written (the slow one as drawn so far)
+    expect(written.size).toBe(2)
+    expect(res?.incomplete).toEqual([{ name: FIXTURE.details, displayName: displayName(FIXTURE.details), pending: [], reason: 'job' }])
+    const warn = toasts.find((t) => t.kind === 'warning')
+    expect(warn).toBeDefined()
+    expect(String(warn!.message)).toContain(displayName(FIXTURE.details))
+    expect(String(warn!.message)).not.toContain(displayName(FIXTURE.overview))
+    expect(toasts.some((t) => t.kind === 'success')).toBe(false)
+  })
+
+  it('PDF: the canvas readiness timeout (pending visuals) is reported too', async () => {
+    canvasTimeout.set(FIXTURE.overview, [{ name: 'v1', type: 'lineChart' }])
+    const res = await exportReportWithResult('pdf', { path: '/x/r.pdf', pages: [FIXTURE.overview, FIXTURE.hidden] })
+    expect(res?.incomplete).toEqual([{ name: FIXTURE.overview, displayName: FIXTURE.overview, pending: [{ name: 'v1', type: 'lineChart' }], reason: 'canvas' }])
+    expect(String(toasts.find((t) => t.kind === 'warning')?.message)).toMatch(/1 visual still loading/)
+  })
+
+  it('a complete export reports nothing', async () => {
+    const res = await exportReportWithResult('pdf', { path: '/x/r.pdf', pages: [FIXTURE.overview] })
+    expect(res?.incomplete).toEqual([])
+    expect(toasts.map((t) => t.kind)).toEqual(['success'])
   })
 })

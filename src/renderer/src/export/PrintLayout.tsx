@@ -3,11 +3,11 @@
  * the report canvas' non-interactive PrintLayout:
  *   - mode 'pdf'     → every job page at native size, each in its own named @page box (vector PDF)
  *   - mode 'capture' → one page at native size, CSS-scaled to fit the window, for PNG capture
- * The job's onReady fires once every visual has rendered.
+ * The job's onReady fires once every visual has rendered (or a page's canvas timed out: reported in its result).
  */
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import { PrintLayout as CanvasPrintLayout } from '../report'
+import { PrintLayout as CanvasPrintLayout, type PrintReadyResult } from '../report'
 
 export interface PrintJob {
   mode: 'pdf' | 'capture'
@@ -17,7 +17,8 @@ export interface PrintJob {
   scale: number
   /** unique per job so the canvas layout remounts and reports readiness again */
   key: number
-  onReady(): void
+  /** every page rendered, or some hit the canvas readiness timeout (`result.incomplete`) */
+  onReady(result?: PrintReadyResult): void
 }
 
 export const usePrintJob = create<{ job: PrintJob | null; set(job: PrintJob | null): void }>((set) => ({

@@ -4,6 +4,8 @@
  *   openExportDialog('pdf' | 'pptx' | 'png' | 'html')          — File ▸ Export, menu, command search: the page
  *                                                                selection dialog (dialogs/ExportPagesDialog.tsx)
  *   exportReport(format, { pages?, path?, resolution? })        — runs the export (the dialog, scripts, e2e)
+ *   exportReportWithResult(format, opts)                       — the same, returning the path and the pages that
+ *                                                                were not fully rendered (scripted exports)
  *   exportVisualData(req)                                      — a visual's "Export data" (register
  *                                                                with useApp().setExportVisualDataHandler)
  *   PrintLayout (./PrintLayout)                                — '#/print' route (renders the current print job)
@@ -12,12 +14,12 @@ import { create } from 'zustand'
 import type { ExportVisualDataRequest } from '../state/store'
 import { useApp } from '../state/store'
 import { toast } from '../app/ui/Notify'
-import { capturePagesPng, printPagesPdf } from './capture'
+import { capturePagesPng, printPagesPdf, type IncompleteExportPage } from './capture'
 import { buildHtml, buildPptx, type ExportedPage } from './builders'
 import { buildXlsx, toCsv, type TabularData } from './data'
 import type { PageExportOptions } from './pageSelection'
 
-export { capturePagesPng, printPagesPdf, exportablePages } from './capture'
+export { capturePagesPng, printPagesPdf, exportablePages, type IncompleteExportPage } from './capture'
 export * from './pageSelection'
 export { buildHtml, buildPptx, type ExportedPage } from './builders'
 export { buildXlsx, toCsv } from './data'
@@ -81,13 +83,34 @@ export interface ReportExportOptions extends PageExportOptions {
   path?: string
   /** PNG only: 1 = page size, 2 / 3 = high-DPI */
   resolution?: number
+  /** safety timeout per rendered page / print job (ms); tests inject a short one */
+  jobTimeoutMs?: number
+}
+
+export interface ReportExportResult {
+  /** written file (folder for PNG) */
+  path: string
+  /** pages exported before they finished rendering (drawn partly), in report order; empty when all were complete */
+  incomplete: IncompleteExportPage[]
+}
+
+/** "Sales, Overview (2 visuals still loading)" — for the completion message. */
+export function describeIncompletePages(pages: IncompleteExportPage[]): string {
+  return pages.map((p) => (p.pending.length ? `${p.displayName} (${p.pending.length} visual${p.pending.length === 1 ? '' : 's'} still loading)` : p.displayName)).join(', ')
 }
 
 /**
  * Export the report pages in `opts.pages` (report order; default: every page except tooltip pages, hidden pages
- * included). Returns the written path (file or folder), or null when cancelled/failed.
+ * included). Returns the written path (file or folder), or null when cancelled/failed. Pages that did not finish
+ * rendering in time are still exported as drawn, and the completion message names them (exportReportWithResult
+ * returns them).
  */
 export async function exportReport(format: ReportExportFormat, opts: ReportExportOptions = {}): Promise<string | null> {
+  return (await exportReportWithResult(format, opts))?.path ?? null
+}
+
+/** exportReport, returning the written path and the pages that were not fully rendered (null when cancelled/failed). */
+export async function exportReportWithResult(format: ReportExportFormat, opts: ReportExportOptions = {}): Promise<ReportExportResult | null> {
   const project = useApp.getState().project
   if (!project?.report) {
     toast({ kind: 'warning', message: 'Open a report to export it.' })
@@ -107,15 +130,17 @@ export async function exportReport(format: ReportExportFormat, opts: ReportExpor
   }
   if (!target) return null
   exporting = true
+  const incomplete: IncompleteExportPage[] = []
   try {
     const meta = { reportName, exportedAt: new Date() }
+    const run = { pages: opts.pages, incomplete, jobTimeoutMs: opts.jobTimeoutMs }
     if (format === 'pdf') {
-      const bytes = await printPagesPdf({ pages: opts.pages })
+      const bytes = await printPagesPdf(run)
       await window.wbi.fs.writeFile(target, bytes)
     } else {
       // PNG files honor the resolution option; PowerPoint/HTML embed 2× images so they stay sharp when enlarged
       const resolution = format === 'png' ? (opts.resolution ?? usePngExportPrefs.getState().resolution) : 2
-      const pages: ExportedPage[] = await capturePagesPng(undefined, { resolution, pages: opts.pages })
+      const pages: ExportedPage[] = await capturePagesPng(undefined, { ...run, resolution })
       if (format === 'png') {
         await window.wbi.fs.mkdirp(target)
         for (let i = 0; i < pages.length; i++) await window.wbi.fs.writeFile(`${target}/${i + 1} - ${safeName(pages[i].displayName)}.png`, pages[i].png)
@@ -125,8 +150,18 @@ export async function exportReport(format: ReportExportFormat, opts: ReportExpor
         await window.wbi.fs.writeFile(target, buildHtml(pages, meta))
       }
     }
-    toast({ kind: 'success', title: 'Export complete', message: target, action: { label: 'Show in folder', onClick: () => void window.wbi.app.showItemInFolder(target!) } })
-    return target
+    const show = { label: 'Show in folder', onClick: () => void window.wbi.app.showItemInFolder(target!) }
+    if (incomplete.length) {
+      // never silent: the file shows these pages as far as they were drawn when the wait ran out
+      toast({
+        kind: 'warning',
+        title: 'Export complete, but some pages were not fully rendered',
+        message: `${incomplete.length === 1 ? 'This page was' : 'These pages were'} exported before every visual finished drawing: ${describeIncompletePages(incomplete)}. ${target}`,
+        duration: 0,
+        action: show
+      })
+    } else toast({ kind: 'success', title: 'Export complete', message: target, action: show })
+    return { path: target, incomplete }
   } catch (e) {
     toast({ kind: 'error', title: 'Export failed', message: errText(e) })
     return null

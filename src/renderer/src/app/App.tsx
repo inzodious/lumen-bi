@@ -32,7 +32,7 @@ import { PaneHost } from '../panes/PaneHost'
 import { DialogsHost } from '../dialogs/DialogsHost'
 import { AuthPromptHost } from '../views/powerquery/AuthPromptHost'
 import { ModelingDialogHost } from '../dialogs/modeling'
-import { exportVisualData, exportReport, openExportDialog } from '../export'
+import { exportVisualData, exportReportWithResult, describeIncompletePages, openExportDialog } from '../export'
 import { TitleBar } from './TitleBar'
 import { Ribbon } from './ribbon/Ribbon'
 import { registerStandardTabs } from './ribbon/tabs'
@@ -138,8 +138,9 @@ async function runScriptedExport(params: URLSearchParams): Promise<void> {
   try {
     await new Promise((r) => setTimeout(r, 1500))
     const res = Number(params.get('pngScale') ?? '')
-    const out = await exportReport(fmt, { path, ...(res > 0 ? { resolution: res } : {}) })
-    console.info(`[export] ${fmt} → ${out ?? 'cancelled'}`)
+    const out = await exportReportWithResult(fmt, { path, ...(res > 0 ? { resolution: res } : {}) })
+    console.info(`[export] ${fmt} → ${out?.path ?? 'cancelled'}`)
+    if (out?.incomplete.length) console.warn(`[export] pages not fully rendered: ${describeIncompletePages(out.incomplete)}`)
   } catch (e) {
     console.error(`[export] ${fmt} failed: ${e instanceof Error ? e.message : String(e)}`)
   } finally {

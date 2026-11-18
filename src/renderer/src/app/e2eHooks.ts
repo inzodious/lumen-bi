@@ -11,7 +11,7 @@ import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
 import { useShell } from './shellState'
 import { openPath, saveAs } from './commands'
-import { exportReport } from '../export'
+import { exportReport, exportReportWithResult } from '../export'
 import { isBusy } from './readiness'
 
 export interface LumenE2EHooks {
@@ -21,6 +21,7 @@ export interface LumenE2EHooks {
   openPath: typeof openPath
   saveAs: typeof saveAs
   exportReport: typeof exportReport
+  exportReportWithResult: typeof exportReportWithResult
   isBusy: typeof isBusy
   /** console errors / uncaught errors seen by the renderer since the hooks were installed */
   errors: string[]
@@ -46,5 +47,5 @@ export function installE2EHooks(): void {
   }
   window.addEventListener('error', (e) => errors.push(`[uncaught] ${e.message}`))
   window.addEventListener('unhandledrejection', (e) => errors.push(`[unhandledrejection] ${String((e as PromiseRejectionEvent).reason)}`))
-  window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, isBusy, errors }
+  window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, exportReportWithResult, isBusy, errors }
 }

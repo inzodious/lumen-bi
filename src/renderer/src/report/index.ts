@@ -3,7 +3,7 @@
  */
 export { ReportView, computeScale, setReady, type ReportViewProps } from './ReportView'
 export { PageTabs } from './PageTabs'
-export { PrintLayout, type PrintLayoutProps } from './PrintLayout'
+export { PrintLayout, type PrintLayoutProps, type PrintReadyResult, type IncompletePrintPage } from './PrintLayout'
 export { PageCanvas, type PageCanvasProps } from './PageCanvas'
 
 // selection-based edit commands (ribbon Format ▸ Align / Arrange / Group, Edit menu, selection pane)

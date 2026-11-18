@@ -8,17 +8,31 @@ import '../visuals'
 import './report.css'
 import type { PageDocument, ReportDocument } from '@core/report/types'
 import { useApp } from '../state/store'
-import { PageCanvas } from './PageCanvas'
+import { PageCanvas, type CanvasReadyResult } from './PageCanvas'
 import { findPage, orderedPages, pageInfo } from './pbir'
 
 export interface PrintLayoutProps {
   /** pages (documents or names) — default: all pages visible in reading view, in order */
   pages?: Array<PageDocument | string>
   report?: ReportDocument
-  /** called once every page finished rendering */
-  onReady?(): void
+  /**
+   * called once every page finished rendering; `result.incomplete` lists the pages whose canvas hit its readiness
+   * timeout (drawn partly), with the visuals still pending
+   */
+  onReady?(result?: PrintReadyResult): void
   /** include pages hidden in view mode when `pages` isn't given */
   includeHidden?: boolean
+}
+
+/** A page that was not fully rendered when its canvas' readiness timeout fired. */
+export interface IncompletePrintPage {
+  name: string
+  displayName: string
+  pending: CanvasReadyResult['pending']
+}
+
+export interface PrintReadyResult {
+  incomplete: IncompletePrintPage[]
 }
 
 export function PrintLayout(props: PrintLayoutProps) {
@@ -41,14 +55,18 @@ export function PrintLayout(props: PrintLayoutProps) {
     }).join('\n') +
     `\n@media print { html, body, #root { height: auto !important; overflow: visible !important; background: #fff; } }`
 
-  const done = useRef(new Set<string>())
+  const done = useRef(new Map<string, CanvasReadyResult | undefined>())
   const fired = useRef(false)
   const onPageReady = useCallback(
-    (name: string) => {
-      done.current.add(name)
+    (name: string, result?: CanvasReadyResult) => {
+      done.current.set(name, result)
       if (!fired.current && pages.every((p) => done.current.has(p.name))) {
         fired.current = true
-        props.onReady?.()
+        const incomplete = pages.flatMap((p) => {
+          const r = done.current.get(p.name)
+          return r?.timedOut ? [{ name: p.name, displayName: pageInfo(p).displayName, pending: r.pending }] : []
+        })
+        props.onReady?.({ incomplete })
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,7 +81,7 @@ export function PrintLayout(props: PrintLayoutProps) {
         const i = pageInfo(p)
         return (
           <div key={p.name} className="wbi-print-page" data-page={p.name} style={{ width: i.width, height: i.height, page: `wbi${i.width}x${i.height}` } as React.CSSProperties}>
-            <PageCanvas report={report} page={p} scale={1} mode="view" interactive={false} editing={false} onReady={() => onPageReady(p.name)} />
+            <PageCanvas report={report} page={p} scale={1} mode="view" interactive={false} editing={false} onReady={(r) => onPageReady(p.name, r)} />
           </div>
         )
       })}

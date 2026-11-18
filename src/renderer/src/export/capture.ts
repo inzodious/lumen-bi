@@ -7,12 +7,17 @@
  * Hidden pages and pages never opened in this session render the same way as any other: the print route mounts a
  * fresh PageCanvas per page (it does not depend on the interactive canvas having visited the page) and each job
  * resolves on the canvas' own readiness callback (every visual rendered), with the model's data already in memory.
+ *
+ * A page that does not finish rendering in time (the canvas' 12 s readiness timeout, or this module's job timeout
+ * above it) is still exported as drawn so far, but never silently: it is added to `opts.incomplete` with the
+ * visuals still pending, and exportReport tells the user which pages they were (and returns them to scripts).
  */
 import { useApp } from '../state/store'
 import { cardsFilters } from '../report/filters'
 import type { ExportedPage } from './builders'
 import { describeFilterCards } from './filterText'
 import { usePrintJob, CAPTURE_ROOT_CLASS, type PrintJob } from './PrintLayout'
+import type { PrintReadyResult } from '../report'
 import { defaultSelection, exportPageEntries, orderedSelection, type PageExportOptions } from './pageSelection'
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
@@ -21,6 +26,24 @@ const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
 /** Canvas PageCanvas has its own 12 s ready timeout; this is a safety net above it. */
 const JOB_TIMEOUT_MS = 20000
 let jobKey = 1
+
+/** A page exported before it was fully rendered (it shows what was drawn when the wait ran out). */
+export interface IncompleteExportPage {
+  name: string
+  displayName: string
+  /** visuals still rendering (empty when unknown: the export's own job timeout fired) */
+  pending: Array<{ name: string; type: string }>
+  /** 'canvas': the page canvas' readiness timeout; 'job': the export's safety timeout above it */
+  reason: 'canvas' | 'job'
+}
+
+/** Options shared by the page renderers. */
+export interface CaptureOptions extends PageExportOptions {
+  /** collects the pages that were not fully rendered (see the module comment) */
+  incomplete?: IncompleteExportPage[]
+  /** safety timeout per print job (ms); default JOB_TIMEOUT_MS. Tests inject a short one. */
+  jobTimeoutMs?: number
+}
 
 export interface ExportPageInfo {
   name: string
@@ -48,18 +71,29 @@ function filterNotes(pageName: string): string[] {
   return cardsFilters(cards).length ? describeFilterCards(cards) : []
 }
 
-/** Run one print job: render it in the print route and resolve when every visual reported ready. */
-function runJob(job: Omit<PrintJob, 'key' | 'onReady'>): Promise<void> {
+/**
+ * Run one print job: render it in the print route and resolve when every visual reported ready, or when a timeout
+ * fired; pages not fully rendered are added to `opts.incomplete`.
+ */
+function runJob(job: Omit<PrintJob, 'key' | 'onReady'>, opts: CaptureOptions): Promise<void> {
   return new Promise<void>((resolve) => {
     let settled = false
-    const done = () => {
+    const finish = (incomplete: IncompleteExportPage[]) => {
       if (settled) return
       settled = true
       window.clearTimeout(timer)
+      if (incomplete.length) {
+        console.warn(`[export] not fully rendered: ${incomplete.map((p) => `${p.displayName} (${p.pending.length ? p.pending.map((v) => v.type).join(', ') : 'timed out'})`).join('; ')}`)
+        opts.incomplete?.push(...incomplete)
+      }
       resolve()
     }
-    const timer = window.setTimeout(done, JOB_TIMEOUT_MS)
-    usePrintJob.getState().set({ ...job, key: jobKey++, onReady: done })
+    const onReady = (result?: PrintReadyResult) => finish((result?.incomplete ?? []).map((p) => ({ ...p, reason: 'canvas' as const })))
+    const timer = window.setTimeout(() => {
+      const info = new Map(exportPageEntries(useApp.getState().project?.report).map((p) => [p.name, p.displayName]))
+      finish(job.pages.map((name) => ({ name, displayName: info.get(name) ?? name, pending: [], reason: 'job' as const })))
+    }, opts.jobTimeoutMs ?? JOB_TIMEOUT_MS)
+    usePrintJob.getState().set({ ...job, key: jobKey++, onReady })
   })
 }
 
@@ -86,7 +120,7 @@ function ensurePages(names?: readonly string[]): ExportPageInfo[] {
 }
 
 /** Render each selected page alone and capture it as PNG (report order). */
-export async function capturePagesPng(onProgress?: (done: number, total: number, page: string) => void, opts: { resolution?: number } & PageExportOptions = {}): Promise<ExportedPage[]> {
+export async function capturePagesPng(onProgress?: (done: number, total: number, page: string) => void, opts: { resolution?: number } & CaptureOptions = {}): Promise<ExportedPage[]> {
   const pages = ensurePages(opts.pages)
   const resolution = Math.max(1, Math.min(4, opts.resolution ?? 1))
   return inPrintRoute(async () => {
@@ -96,7 +130,7 @@ export async function capturePagesPng(onProgress?: (done: number, total: number,
       onProgress?.(i, pages.length, p.displayName)
       if (resolution === 1 && p.width <= window.innerWidth && p.height <= window.innerHeight) {
         // native size in one capture
-        await runJob({ mode: 'capture', pages: [p.name], scale: 1 })
+        await runJob({ mode: 'capture', pages: [p.name], scale: 1 }, opts)
         await sleep(300)
         await frame()
         const el = captureRoot(p.name)
@@ -107,7 +141,7 @@ export async function capturePagesPng(onProgress?: (done: number, total: number,
       }
       // larger than the window and/or high resolution (2× / 3×): render the page CSS-scaled (re-rasterized, sharp),
       // capture it in window-sized tiles and stitch them
-      await runJob({ mode: 'capture', pages: [p.name], scale: resolution })
+      await runJob({ mode: 'capture', pages: [p.name], scale: resolution }, opts)
       await sleep(300)
       await frame()
       const png = await captureTiled(p, resolution)
@@ -169,10 +203,10 @@ async function captureTiled(p: ExportPageInfo, scale: number): Promise<Uint8Arra
 }
 
 /** Render the selected pages (report order) in the print layout and print the window to PDF bytes (vector). */
-export async function printPagesPdf(opts: PageExportOptions = {}): Promise<Uint8Array> {
+export async function printPagesPdf(opts: CaptureOptions = {}): Promise<Uint8Array> {
   const pages = ensurePages(opts.pages)
   return inPrintRoute(async () => {
-    await runJob({ mode: 'pdf', pages: pages.map((p) => p.name), scale: 1 })
+    await runJob({ mode: 'pdf', pages: pages.map((p) => p.name), scale: 1 }, opts)
     await sleep(300)
     await frame()
     const first = pages[0]

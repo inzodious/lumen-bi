@@ -124,7 +124,7 @@ describe('baking icons into PBIR', () => {
     visual(back, 'card1').visual.objects.image[0].properties.imageUrl = { expr: { Literal: { Value: "'https://example.com/a.png'" } } }
     expect(activeIcon(back, visual(back, 'img1'), IMAGE_VISUAL_SLOT)).toBeUndefined()
     expect(activeIcon(back, visual(back, 'card1'), cardImageSlot('image'))).toBeUndefined()
-    expect(pruneStaleIcons(back)).toEqual({ stale: 2, removed: 0, removedSets: [] })
+    expect(pruneStaleIcons(back)).toEqual({ stale: 2, removed: 0, removedSets: [], moved: 0 })
     expect(visual(back, 'img1').annotations).toBeUndefined()
     expect(visual(back, 'card1').annotations).toBeUndefined()
     // the replacement images are untouched
@@ -162,7 +162,7 @@ describe('baking icons into PBIR', () => {
     expect(readIconBindings(card).map((b) => b.icon.set)).toEqual(['fluent-color'])
 
     const back = roundTrip(r)
-    expect(pruneStaleIcons(back)).toEqual({ stale: 0, removed: 2, removedSets: ['iconpark', 'tabler'] })
+    expect(pruneStaleIcons(back)).toEqual({ stale: 0, removed: 2, removedSets: ['iconpark', 'tabler'], moved: 0 })
     // reference gone, picture kept where Power BI and Lumen read it
     expect(visual(back, 'img1').annotations).toBeUndefined()
     expect(imageVisualItem(visual(back, 'img1'))).toBe(item)
@@ -172,7 +172,7 @@ describe('baking icons into PBIR', () => {
     expect(readIconBindings(visual(back, 'card1')).map((b) => b.icon)).toEqual([pie])
     expect(activeIcon(back, visual(back, 'card1'), cardImageSlot('cardImage'))?.icon).toEqual(pie)
     // idempotent
-    expect(pruneStaleIcons(back)).toEqual({ stale: 0, removed: 0, removedSets: [] })
+    expect(pruneStaleIcons(back)).toEqual({ stale: 0, removed: 0, removedSets: [], moved: 0 })
   })
 
   it('re-bakes on a theme change: theme colours follow, literal and fixed colours do not; old baked resource released', () => {
@@ -239,7 +239,7 @@ describe('baking icons into PBIR', () => {
     expect(readIconBindings(v2)).toEqual([])
     const r = report()
     r.pages[0].visuals.push({ name: 'v2', json: v2 })
-    expect(pruneStaleIcons(r)).toEqual({ stale: 0, removed: 0, removedSets: [] })
+    expect(pruneStaleIcons(r)).toEqual({ stale: 0, removed: 0, removedSets: [], moved: 0 })
     expect(v2.annotations).toHaveLength(1)
     expect(fingerprint('a')).not.toBe(fingerprint('b'))
     expect(fingerprint('abc')).toMatch(/^[0-9a-f]{16}$/)

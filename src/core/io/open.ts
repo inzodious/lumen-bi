@@ -44,7 +44,8 @@ function project(name: string, source: ProjectSource, model: SemanticModel, data
   if (report) {
     // Lumen icons whose baked image was replaced outside Lumen (e.g. in Power BI): the image wins; icons of sets
     // Lumen no longer offers keep their picture as a plain image (docs/ICONS.md)
-    const { stale, removed, removedSets } = pruneStaleIcons(report)
+    const { stale, removed, removedSets, moved } = pruneStaleIcons(report)
+    if (moved) diagnostics.push({ level: 'info', message: `${moved} card icon${moved === 1 ? '' : 's'} saved by an earlier Lumen build moved to the image settings the card reads (they now show).` })
     if (stale) diagnostics.push({ level: 'info', message: `${stale} icon${stale === 1 ? '' : 's'} replaced by another image outside Lumen now show as plain images.` })
     if (removed) diagnostics.push({ level: 'info', message: `${removed} icon${removed === 1 ? '' : 's'} from an icon set Lumen no longer offers (${removedSets.join(', ')}) now show${removed === 1 ? 's' : ''} as ${removed === 1 ? 'a plain image' : 'plain images'}; pick a new icon to edit ${removed === 1 ? 'it' : 'them'} again.` })
     doc.report = report

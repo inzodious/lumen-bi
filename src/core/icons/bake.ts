@@ -32,7 +32,8 @@
  * a plain image. Bindings that use theme colours are re-baked when the theme changes (rebakeIcons).
  */
 import type { ReportDocument } from '../report/types'
-import type { ObjectEntry, Selector } from '../report/props'
+import { isDataBound, type ObjectEntry, type ObjectsBag, type Selector } from '../report/props'
+import { entryGroupKey, groupEntries, primaryEntry, readEntryProp, writeEntryProp } from '../report/entries'
 import { decodeLiteral } from '../report/literal'
 import { bytesToBase64, findResource } from '../pbir/resources'
 import { fingerprint } from './hash'
@@ -61,6 +62,11 @@ export interface IconBinding {
   bake: string
   /** resource item name (form 'resource') */
   resource?: string
+  /**
+   * form 'dataUri': the slot's source properties before the icon (raw PBIR values, null = absent), written back when
+   * the icon is removed (see writeDataUri)
+   */
+  restore?: Record<string, unknown>
 }
 
 /** The image visual's single image slot. */
@@ -72,27 +78,18 @@ export function cardImageSlot(object: 'image' | 'cardImage', selector?: Selector
 }
 
 // ---------------------------------------------------------------------------------------------
-// Objects bag helpers (same semantics as the Format pane's: selector compared as sorted-key JSON)
+// Objects bag helpers. Which entry a slot lives in is decided by core/report/entries.ts, the rule every Format pane
+// edit follows too: `{ id: 'default' }` (what current Power BI writes for the new card) and no selector are the same
+// entry, `{ metadata: m, id: 'default' }` the same as `{ metadata: m }`, and edits go to the first entry of the group
+// (the one the card reads). A slot's selector is the logical one the Format pane passes (none, or a series).
 // ---------------------------------------------------------------------------------------------
 
-function stable(v: unknown): string {
-  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? ''
-  if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`
-  const o = v as Record<string, unknown>
-  return `{${Object.keys(o)
-    .sort()
-    .filter((k) => o[k] !== undefined)
-    .map((k) => `${JSON.stringify(k)}:${stable(o[k])}`)
-    .join(',')}}`
-}
-
-const selKey = (s: Selector | undefined) => (s && Object.keys(s).length ? stable(s) : '')
-
 export function slotKey(slot: Pick<IconSlot, 'object' | 'property' | 'selector'>): string {
-  return `${slot.object}.${slot.property}${selKey(slot.selector) ? '#' + selKey(slot.selector) : ''}`
+  const k = entryGroupKey(slot.selector)
+  return `${slot.object}.${slot.property}${k ? '#' + k : ''}`
 }
 
-function objectsOf(visualJson: any, create = false): Record<string, ObjectEntry[]> | undefined {
+function objectsOf(visualJson: any, create = false): ObjectsBag | undefined {
   const v = visualJson?.visual
   if (!v) return undefined
   if (create) v.objects ??= {}
@@ -100,17 +97,7 @@ function objectsOf(visualJson: any, create = false): Record<string, ObjectEntry[
 }
 
 function entryOf(visualJson: any, object: string, selector: Selector | undefined, create = false): ObjectEntry | undefined {
-  const bag = objectsOf(visualJson, create)
-  if (!bag) return undefined
-  const entries = bag[object] ?? (create ? (bag[object] = []) : undefined)
-  if (!entries) return undefined
-  let e = entries.find((x) => selKey(x.selector) === selKey(selector))
-  if (!e && create) {
-    e = { properties: {}, ...(selKey(selector) ? { selector } : {}) }
-    entries.push(e)
-  }
-  if (e && create) e.properties ??= {}
-  return e
+  return primaryEntry(objectsOf(visualJson, create), object, selector, create)
 }
 
 const lit = (v: string) => ({ expr: { Literal: { Value: v } } })
@@ -157,7 +144,8 @@ function readRawBindings(visualJson: any): RawBinding[] {
       continue
     }
     const slot: IconSlot = { object: s.object, property: s.property, form: s.form, ...(s.selector && typeof s.selector === 'object' ? { selector: s.selector } : {}) }
-    out.push({ binding: { slot, icon, bake: b.bake, ...(typeof b.resource === 'string' ? { resource: b.resource } : {}) } })
+    const restore = b.restore && typeof b.restore === 'object' && !Array.isArray(b.restore) ? (b.restore as Record<string, unknown>) : undefined
+    out.push({ binding: { slot, icon, bake: b.bake, ...(typeof b.resource === 'string' ? { resource: b.resource } : {}), ...(restore ? { restore } : {}) } })
   }
   return out
 }
@@ -179,7 +167,7 @@ export function writeIconBindings(visualJson: any, bindings: IconBinding[]): voi
   }
   const value = JSON.stringify({
     version: 2,
-    icons: bindings.map((b) => ({ slot: { object: b.slot.object, property: b.slot.property, form: b.slot.form, ...(b.slot.selector ? { selector: b.slot.selector } : {}) }, icon: serializeIconRef(b.icon), bake: b.bake, ...(b.resource ? { resource: b.resource } : {}) }))
+    icons: bindings.map((b) => ({ slot: { object: b.slot.object, property: b.slot.property, form: b.slot.form, ...(b.slot.selector ? { selector: b.slot.selector } : {}) }, icon: serializeIconRef(b.icon), bake: b.bake, ...(b.resource ? { resource: b.resource } : {}), ...(b.restore ? { restore: b.restore } : {}) }))
   })
   if (i >= 0) list[i] = { name: ICON_ANNOTATION, value }
   else list.push({ name: ICON_ANNOTATION, value })
@@ -208,8 +196,8 @@ export function currentSlotFingerprint(report: ReportDocument, visualJson: any, 
     const file = findResource(report, { PackageName: 'RegisteredResources', PackageType: 1, ItemName: item })
     return file ? fingerprint(file.bytes) : undefined
   }
-  const e = entryOf(visualJson, binding.slot.object, binding.slot.selector)
-  const v = literalString(e?.properties?.[binding.slot.property])
+  // what the card reads for the slot (first entry of the selector's group holding the property)
+  const v = literalString(readEntryProp(objectsOf(visualJson), binding.slot.object, binding.slot.property, binding.slot.selector))
   return v ? fingerprint(v) : undefined
 }
 
@@ -307,6 +295,43 @@ function writeResourceImage(report: ReportDocument, visualJson: any, svg: string
   return item
 }
 
+/** Properties of a card image slot that an icon replaces (and that removing the icon restores). */
+const CARD_SOURCE_PROPS = ['imageType', 'imageUrl', 'imageData'] as const
+
+const isTrue = (raw: any) => raw?.expr?.Literal?.Value === 'true'
+
+/**
+ * Store a data URI in a card image slot (form 'dataUri'), in the entry the card reads for the slot's selector (the
+ * same entry a Format pane edit of `imageType` / `show` there goes to: core/report/entries.ts), and make it the
+ * image shown: `imageType` 'imageUrl', `show` on.
+ *
+ * A data-bound source in that entry (`imageData` = "Select from data", or a measure-bound `imageUrl`) is REMOVED, not
+ * left beside the literal: Lumen's card reader goes by `imageType`, but whether Power BI ever prefers a binding that
+ * is still present cannot be checked here, and a stale binding would also keep its query running. What the slot held
+ * before the first icon (`imageType`, `imageUrl`, `imageData`, absent = null) is kept in the binding (`restore`, saved
+ * in the Lumen_Icon annotation) and written back when the icon is removed or the source is switched back to "Select
+ * from data" / "Image URL" — so the user's binding comes back, also after save and reopen. Undo restores the entry
+ * exactly (the edit is one immer step). Re-bakes keep the first `restore`. Returns it.
+ */
+function writeDataUri(visualJson: any, slot: IconSlot, uri: string, restore?: Record<string, unknown>): Record<string, unknown> | undefined {
+  const bag = objectsOf(visualJson, true)!
+  const { object, selector } = slot
+  const read = (p: string) => readEntryProp(bag, object, p, selector)
+  if (!restore) {
+    restore = {}
+    for (const p of new Set<string>([...CARD_SOURCE_PROPS, slot.property])) {
+      const raw = read(p)
+      // a plain copy (the entry is an immer draft and the bound value is about to be removed from it)
+      restore[p] = raw === undefined ? null : JSON.parse(JSON.stringify(raw))
+    }
+  }
+  writeEntryProp(bag, object, slot.property, strLit(uri), selector)
+  writeEntryProp(bag, object, 'imageType', strLit('imageUrl'), selector)
+  for (const p of CARD_SOURCE_PROPS) if (p !== slot.property && p !== 'imageType' && isDataBound(read(p))) writeEntryProp(bag, object, p, undefined, selector)
+  if (!isTrue(read('show'))) writeEntryProp(bag, object, 'show', lit('true'), selector)
+  return restore
+}
+
 /**
  * Bake `ref` into `slot` of a visual (mutates the report draft): stores `svg` (the icon's picture, a standalone SVG
  * document rendered from the icon component) where Power BI reads the image, and the Lumen binding next to it.
@@ -322,12 +347,9 @@ export function bakeIcon(report: ReportDocument, visualJson: any, slot: IconSlot
     binding = { slot, icon: ref, bake: fp, resource: item }
   } else {
     const uri = svgDataUriOf(svg)
-    const e = entryOf(visualJson, slot.object, slot.selector, true)!
-    e.properties[slot.property] = strLit(uri)
-    // the slot shows its URL (not a data-bound image) and is switched on
-    e.properties['imageType'] = strLit('imageUrl')
-    if (!e.properties['show']) e.properties['show'] = lit('true')
-    binding = { slot, icon: ref, bake: fingerprint(uri) }
+    // a binding saved before `restore` existed only ever replaced the URL
+    const restore = writeDataUri(visualJson, slot, uri, prev ? (prev.restore ?? { [slot.property]: null }) : undefined)
+    binding = { slot, icon: ref, bake: fingerprint(uri), ...(restore ? { restore } : {}) }
   }
   writeIconBindings(visualJson, [...bindings.filter((b) => b !== prev), binding])
   if (prev?.resource && prev.resource !== binding.resource) releaseIconResource(report, prev.resource)
@@ -359,8 +381,11 @@ export function removeIcon(report: ReportDocument, visualJson: any, slot: IconSl
     if (sf?.image?.url?.expr?.ResourcePackageItem?.ItemName === b.resource) delete visualJson.visual.objects.image[0].properties.sourceFile
     releaseIconResource(report, b.resource)
   } else {
-    const e = entryOf(visualJson, slot.object, slot.selector)
-    if (e) delete e.properties[slot.property]
+    // back to what the slot held before the icon (source type, URL, data binding): see writeDataUri
+    const bag = objectsOf(visualJson)
+    if (!bag) return
+    const restore = b.restore ?? { [slot.property]: null }
+    for (const [prop, raw] of Object.entries(restore)) writeEntryProp(bag, slot.object, prop, raw ?? undefined, slot.selector)
   }
 }
 
@@ -392,15 +417,52 @@ export interface IconPruneResult {
   removed: number
   /** those sets' ids (sorted) */
   removedSets: string[]
+  /** card icons an earlier build stored in an entry the card does not read, moved onto the one it does */
+  moved: number
+}
+
+/**
+ * The first icons build matched entries by exact selector, so on a card whose image settings live in a
+ * `{ id: 'default' }` entry (what current Power BI writes) it baked the icon into a NEW selector-less entry behind it,
+ * which the card never read for `imageType` (the icon did not show). Move such an icon's properties onto the entry
+ * the card reads (writeDataUri, which also sets aside a data-bound source there) and drop the stray entry when that
+ * leaves it empty. The fingerprint does not change (same data URI). Mutates; returns how many were moved.
+ */
+function migrateMisplacedIcons(visualJson: any): number {
+  const bag = objectsOf(visualJson)
+  if (!bag) return 0
+  let moved = 0
+  const next = readIconBindings(visualJson).map((b) => {
+    if (b.slot.form !== 'dataUri') return b
+    const group = groupEntries(bag, b.slot.object, b.slot.selector)
+    const holder = group.find((e) => {
+      const v = literalString(e.properties?.[b.slot.property])
+      return v !== undefined && fingerprint(v) === b.bake
+    })
+    if (!holder || holder === group[0]) return b
+    const uri = literalString(holder.properties[b.slot.property])!
+    for (const p of new Set([b.slot.property, 'imageType', 'show'])) delete holder.properties[p]
+    if (!Object.keys(holder.properties).length) {
+      const entries = bag[b.slot.object]!
+      entries.splice(entries.indexOf(holder), 1)
+    }
+    const restore = writeDataUri(visualJson, b.slot, uri, b.restore)
+    moved++
+    return { ...b, ...(restore ? { restore } : {}) }
+  })
+  if (moved) writeIconBindings(visualJson, next)
+  return moved
 }
 
 /**
  * Drop bindings whose image no longer matches (changed in Power BI, or replaced by an image edit): the image wins.
- * Also drops bindings to sets Lumen no longer offers, keeping their pictures as plain images. Mutates.
+ * Also drops bindings to sets Lumen no longer offers, keeping their pictures as plain images, and first moves card
+ * icons stored in the wrong entry by an earlier build (migrateMisplacedIcons). Mutates.
  */
 export function pruneStaleIcons(report: ReportDocument): IconPruneResult {
-  const res: IconPruneResult = { stale: 0, removed: 0, removedSets: [] }
+  const res: IconPruneResult = { stale: 0, removed: 0, removedSets: [], moved: 0 }
   for (const v of visualsOf(report)) {
+    res.moved += migrateMisplacedIcons(v.json)
     const raw = readRawBindings(v.json)
     const all = raw.flatMap((r) => (r.binding ? [r.binding] : []))
     const removed = raw.filter((r) => r.removedSet)

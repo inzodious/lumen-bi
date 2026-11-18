@@ -81,7 +81,15 @@ only stores the string.
   newer `objects.image[0].properties.sourceFile` shape keeps it). Image fit stays `imageScaling.imageScalingType`.
 * **New card** callout image (`image`) and card image (`cardImage`): those slots take a URL or a data-bound value,
   not an uploaded resource, so the SVG is a data URI in the URL property:
-  `imageType: 'imageUrl'`, `imageUrl: 'data:image/svg+xml;base64,…'`. Position, size and alignment settings are untouched.
+  `imageType: 'imageUrl'`, `imageUrl: 'data:image/svg+xml;base64,…'`, `show` on. Position, size and alignment settings
+  are untouched. The icon goes into the entry the card reads (and a Format pane edit of the same card writes):
+  current Power BI stores the card's settings under `selector: { id: 'default' }`, which is the same entry as no
+  selector (`core/report/entries.ts`). A data-bound source in that entry (`imageData` from "Select from data", or a
+  measure-bound `imageUrl`) is removed so nothing can prefer it over the icon; what the slot held before
+  (`imageType`, `imageUrl`, `imageData`) is kept in the binding's `restore` and written back when the icon is removed
+  or the Image source is switched back (also after save and reopen). Icons that the first build put into a stray
+  selector-less entry behind a `{ id: 'default' }` one (where the card never showed them) are moved onto the right
+  entry on open.
 * **The reference**: the visual's `annotations` (visualContainer schema: `[{ name, value: string }]`, preserved and
   ignored by Power BI), name `Lumen_Icon`:
 
@@ -92,7 +100,9 @@ only stores the string.
 }]
 ```
 
-`bake` is a fingerprint of the stored bytes (resource) or of the data URI string.
+`bake` is a fingerprint of the stored bytes (resource) or of the data URI string. A slot's `selector` is the logical
+one (none, or a series `metadata`); `id: 'default'` is ignored when slots are compared. Card bindings also carry
+`restore` (raw PBIR values of the slot's source properties before the icon, `null` = absent).
 
 * **On open** a binding whose slot no longer holds what was baked (the picture was replaced in Power BI, or by an
   image edit in Lumen) is stale: the image wins and the binding is dropped. A binding to a set Lumen no longer offers

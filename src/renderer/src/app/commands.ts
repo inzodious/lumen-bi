@@ -308,6 +308,12 @@ export function describeSampleRun(project: ProjectDocument, r: SyntheticResult):
         ' Real values can be allowed in Options ▸ Data load ▸ Sample data.'
     )
   }
+  // coverage (core/data/synthetic-coverage.ts): say when older periods could not be covered for every member
+  const partial = (r.coverage ?? []).filter((c) => c.partialPeriods > 0)
+  if (partial.length)
+    parts.push(
+      `Every slicer member has rows in the recent periods; in older periods ${partial.length === 1 ? `${partial[0].table} covers` : `${partial.length} tables cover`} only the busiest members (size limit).`
+    )
   parts.push('All values are invented — refresh from the source for real data.')
   return parts.join(' ')
 }

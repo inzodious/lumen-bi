@@ -11,6 +11,10 @@
 #                     ids are never copied into the data (generated stand-ins answer filters pinned to them)
 #   --app-defaults    with --sample-data: the app's default seed and fact-table size, but literals are reused
 #   --pages a,b       only these pages (name, display name or 1-based index)
+#   --selections      selection audit: per page, a seeded sample of each slicer's items (first, middle, last + 3
+#                     pseudo-random; all when ≤ 8) applied one at a time on the saved state; counts the visuals that
+#                     had data and lose it (report.json pages[].selections; summary.tsv sel_* columns). Capped at 60
+#                     selections / 60 s per page
 #   --dax 'EVALUATE …' run a DAX query in the app after loading (repeatable; results in report.json .dax)
 #
 # Always runs with WBI_BLOCK_CACHE=1: PBIP `.pbi/cache.abf` files are never decoded (the renderer refuses
@@ -18,14 +22,15 @@
 # newer than src/). Uses a private Xvfb display when available. WBI_TIMEOUT (ms) bounds each report.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-[ $# -ge 2 ] || { sed -n '2,18p' "$0"; exit 2; }
+[ $# -ge 2 ] || { sed -n '2,22p' "$0"; exit 2; }
 SRC="$(realpath -m "$1")"; OUT="$(realpath -m "$2")"; shift 2
-SAMPLE=0; PRIVATE=0; APPDEF=0; PAGES=""; SIZE="1800x1200"; BUILD=1; DAX=()
+SAMPLE=0; PRIVATE=0; APPDEF=0; SELECTIONS=0; PAGES=""; SIZE="1800x1200"; BUILD=1; DAX=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --sample-data) SAMPLE=1 ;;
     --private) PRIVATE=1 ;;
     --app-defaults) APPDEF=1 ;;
+    --selections) SELECTIONS=1 ;;
     --pages) PAGES="$2"; shift ;;
     --dax) DAX+=("$2"); shift ;;
     --size) SIZE="$2"; shift ;;
@@ -55,7 +60,7 @@ enc() { node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$1"
 
 mkdir -p "$OUT"
 SUMMARY="$OUT/summary.tsv"
-printf "report\tpages\tvisuals\tok\terror\tnodata\tloading\tunsupported\tempty\tblank\topen_ms\terror_msg\tnoitems\n" > "$SUMMARY"
+printf "report\tpages\tvisuals\tok\terror\tnodata\tloading\tunsupported\tempty\tblank\topen_ms\terror_msg\tnoitems\tselections\tsel_emptied\tsel_emptied_selections\n" > "$SUMMARY"
 for T in "${TARGETS[@]}"; do
   NAME="$(basename "$T")"; NAME="${NAME%.*}"
   DIR="$OUT/$NAME"; rm -rf "$DIR"; mkdir -p "$DIR"
@@ -63,6 +68,7 @@ for T in "${TARGETS[@]}"; do
   [ "$SAMPLE" = 1 ] && ROUTE="$ROUTE&synthetic=1"
   [ "$PRIVATE" = 1 ] && ROUTE="$ROUTE&private=1"
   [ "$APPDEF" = 1 ] && ROUTE="$ROUTE&appDefaults=1"
+  [ "$SELECTIONS" = 1 ] && ROUTE="$ROUTE&selections=1"
   [ -n "$PAGES" ] && ROUTE="$ROUTE&pages=$(enc "$PAGES")"
   for q in "${DAX[@]}"; do ROUTE="$ROUTE&dax=$(enc "$q")"; done
   START=$(date +%s)
@@ -73,8 +79,11 @@ for T in "${TARGETS[@]}"; do
     let r; try { r = JSON.parse(fs.readFileSync(dir + "/report.json", "utf8")) } catch { r = { pages: [], totals: {}, error: "no report.json (crash or timeout; see console.log)" } }
     const t = r.totals || {}; const n = Object.values(t).reduce((a, b) => a + b, 0)
     const row = [name, r.pages.length, n, t.ok || 0, t.error || 0, t.nodata || 0, t["loading-stuck"] || 0, t.unsupported || 0, t.empty || 0, t.blank || 0, r.openMs ?? "", (r.error || (r.inProgress ? "stuck on page " + r.inProgress : "")).replace(/\s+/g, " "), t.noitems || 0]
+    const st = r.selectionTotals
+    row.push(st ? st.selections : "", st ? st.emptied : "", st ? st.emptiedSelections : "")
     fs.appendFileSync(sum, row.join("\t") + "\n")
     console.log(`${name}: ${r.pages.length} page(s) in ${secs}s  ${JSON.stringify(t)}${r.error ? "  ERROR " + r.error : ""}${r.inProgress ? "  STUCK on page " + r.inProgress : ""}${r.cacheBlocked === false ? "  (cache guard OFF!)" : ""}`)
+    if (st) console.log(`  selections: ${st.selections} on ${st.slicers} slicer(s), ${st.emptiedSelections} emptied ${st.emptied} visual(s) that had data${st.cappedPages ? ` (${st.cappedPages} page(s) capped)` : ""}`)
   ' "$DIR" "$NAME" "$(( $(date +%s) - START ))" "$SUMMARY"
 done
 echo "summary: $SUMMARY"

@@ -56,6 +56,8 @@ export interface ProbeOptions {
   pages?: string[]
   /** row cap for the grouped query (default 2000) */
   limit?: number
+  /** compute grand totals (default true); the selection audit only needs the row count */
+  totals?: boolean
   /** supply filters from the live canvas instead of the saved state (app sweep) */
   filtersFor?(page: PageDocument, visual: VisualDocument): SQFilter[] | undefined
   /** progress hook (called before each visual is probed) */
@@ -164,7 +166,7 @@ export function probeVisual(engine: QueryEngine, report: ReportDocument, page: P
       probe.rows = r.rows.length
       if (r.warnings?.length) warnings.push(...r.warnings)
     }
-    if (values.length) {
+    if (values.length && opts.totals !== false) {
       const r = engine.summarize({ groupBy: [], values: values.map((v, i) => ({ id: `v${i}`, expr: { kind: 'sq', expr: v.expr } })), filters, keepBlankRows: true })
       if (r.warnings?.length) warnings.push(...r.warnings)
       const row = r.rows[0] ?? []

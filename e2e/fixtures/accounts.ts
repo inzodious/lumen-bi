@@ -5,6 +5,10 @@
  *
  * Shape under test: two facts share the account dimension and the calendar, so a quarter selection must not empty
  * the account slicer; the saved account selection reads as a generated stand-in.
+ *
+ * Page 2 ("By account"): a quarter slicer saved to the previous quarter, an account slicer, and a table of account
+ * names with the Amount measure (rows whose measure is blank are dropped, as in Power BI): picking any account under
+ * the saved quarter must leave the table with rows (sample data covers every account in every quarter).
  */
 import { join } from 'node:path'
 import { saveProject } from '../../src/core/io/open'
@@ -65,6 +69,12 @@ function dropdown(name: string, y: number, entity: string, prop: string, title: 
   })
 }
 
+/** The quarter before `today` as the calendar's `year_quarter` label ("2026-Q3"). */
+export function previousQuarter(today = new Date()): string {
+  const q = Math.floor(today.getMonth() / 3) // 0-based current quarter
+  return q === 0 ? `${today.getFullYear() - 1}-Q4` : `${today.getFullYear()}-Q${q}`
+}
+
 export async function writeAccountsProject(dir: string): Promise<string> {
   const report = emptyReport()
   const page = report.pages[0]
@@ -79,6 +89,20 @@ export async function writeAccountsProject(dir: string): Promise<string> {
       visualContainerObjects: { title: [{ properties: { show: lit('true'), text: lit("'Amount by segment'") } }] }
     })
   ] as typeof page.visuals
+  report.pages.push({
+    name: 'ByAccount',
+    json: { name: 'ByAccount', displayName: 'By account', displayOption: 'FitToPage', height: 720, width: 1280 },
+    visuals: [
+      dropdown('slicerQuarter2', 20, 'calendar', 'year_quarter', 'Quarter', previousQuarter()),
+      dropdown('slicerAccount2', 100, 'accounts', 'account_name', 'Account'),
+      visual('tableByAccount', 320, 20, 420, 300, {
+        visualType: 'tableEx',
+        query: { queryState: { Values: { projections: [proj('accounts', 'account_name'), proj('visits', 'Amount', true)] } } },
+        visualContainerObjects: { title: [{ properties: { show: lit('true'), text: lit("'Amount by account'") } }] }
+      })
+    ]
+  } as (typeof report.pages)[number])
+  report.pagesMeta.pageOrder.push('ByAccount')
   const project: ProjectDocument = { id: 'accounts', name: 'Accounts', source: { kind: 'new' }, model: accountsModel(), data: emptyDataStore(), report, diagnostics: [], dirty: false }
   const target = join(dir, 'Accounts.pbip')
   await saveProject(project, target, nodeFs, { format: 'pbip' })

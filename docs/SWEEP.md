@@ -34,6 +34,16 @@ node scripts/sweep-summary.mjs <outdir> [--cards] [--all] [--json]
   The renderer refuses to open anything if the guard is missing (`report.json` → `cacheBlocked`).
   `scripts/capture.sh` sets the same flag by default. Code: `src/shared/cacheGuard.ts` (+ tests in
   `src/shared/__tests__/cacheGuard.test.ts`).
+* `--selections` adds a **selection audit** (`src/renderer/src/app/sweep/selectionAudit.ts`): on each page, every
+  slicer that offers items (list, dropdown, tile, button, hierarchy; not range / relative / text slicers) gets a
+  deterministic sample of its items picked, one at a time, on top of the page's saved state (the slicer's saved
+  selection replaced, every other slicer kept): all items when there are 8 or fewer, otherwise first, middle, last and
+  3 pseudo-random ones (seed = the app's sample-data seed). Every data-bound visual is queried again with the engine
+  probe; a visual that returned rows under the saved state and none under the selection is *emptied*. Capped at 60
+  selections and 60 s per page (`capped`). Results: `report.json` → `pages[].selections` (counts, the emptied visuals
+  per selection, first 40 trials) and `selectionTotals`; `summary.tsv` → `selections`, `sel_emptied` (selection × visual
+  pairs) and `sel_emptied_selections`; `sweep-summary.mjs` lists each emptying selection. Use it with
+  `--sample-data --private` to measure whether sample data stays populated under the report's own selections.
 * `WBI_TIMEOUT` (ms) bounds each report (default 15 min). `WBI_USE_DESKTOP=1` shows the window on your desktop.
 
 ### What the in-app sweep does (`src/renderer/src/app/sweep/`)

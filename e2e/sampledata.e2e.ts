@@ -8,9 +8,9 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Page } from 'playwright-core'
-import { OUT_DIR, dataPaneRow, lumenEval, openFile, settle, stubSaveDialog, untilNode, untilVisualText, useLumen, visualByTitle, visualText, waitIdle } from './harness'
+import { OUT_DIR, dataPaneRow, goToPage, lumenEval, openFile, settle, stubSaveDialog, untilNode, untilVisualText, useLumen, visualByTitle, visualText, waitIdle } from './harness'
 import { SURVEY_TABLES as T, writeSurveyProject } from './fixtures/survey'
-import { PINNED_ACCOUNT, writeAccountsProject } from './fixtures/accounts'
+import { PINNED_ACCOUNT, previousQuarter, writeAccountsProject } from './fixtures/accounts'
 
 const dir = mkdtempSync(join(OUT_DIR, 'survey-'))
 const pbip = join(dir, 'Survey.pbip')
@@ -355,5 +355,30 @@ describe('a report filled with sample data is interactive', () => {
     await popup(page).getByRole('option', { name: 'Inactive', exact: true }).click()
     await page.keyboard.press('Escape')
     await untilVisualText(page, table, (t) => t !== all && hasNumber(t))
+  })
+
+  it('under the saved quarter, any account picked keeps the table populated', async () => {
+    const { page } = lumen()
+    await goToPage(page, 'By account')
+    const table = await visualByTitle(page, 'Amount by account')
+    const quarter = slicer(page, 'slicerQuarter2')
+    await expect.poll(() => quarter.innerText()).toContain(previousQuarter())
+    await untilVisualText(page, table, hasNumber)
+    // first, middle and last accounts of the list, plus two more: each has visits in the saved quarter
+    const names = (await openDropdown(page, 'slicerAccount2')).filter((n) => n !== 'Select all')
+    await page.keyboard.press('Escape')
+    expect(names.length).toBeGreaterThan(8)
+    const picks = [...new Set([0, 3, Math.floor(names.length / 2), names.length - 4, names.length - 1].map((i) => names[i]))]
+    let previous = ''
+    for (const name of picks) {
+      await openDropdown(page, 'slicerAccount2')
+      await popup(page).getByRole('option', { name, exact: true }).click()
+      await page.keyboard.press('Escape')
+      // the table shows that account's row, with an amount
+      const text = await untilVisualText(page, table, (t) => t !== previous && t.includes(name) && hasNumber(t))
+      expect(text, name).toContain(name)
+      previous = text
+      await settle(page)
+    }
   })
 })

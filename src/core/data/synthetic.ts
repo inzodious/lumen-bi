@@ -23,6 +23,10 @@
  *    month-end (or weekly / daily) snapshot days, every mined snapshot date included, with one row per
  *    entity per day;
  *  - every dimension member referenced by a fact has fact rows (facts grow when a dimension is large);
+ *  - dense where the report is sliced (./synthetic-slices.ts, ./synthetic-coverage.ts): every member of a dimension
+ *    the report's slicers, filter cards or visuals select on has rows in every period of the grain its date slicers
+ *    select (quarter, month, week…), saved selections and recent periods first within a row budget; snapshots list
+ *    every entity on every snapshot day; header facts (cases ← sessions) count as facts (SyntheticResult.coverage);
  *  - calculated tables that combine imported tables (UNION / SELECTCOLUMNS / FILTER…, see
  *    ./synthetic-lineage.ts) are traced to their source columns: a relationship, a mined value or a
  *    conjunction on the calculated table applies to the imported columns it is computed from, so its keys
@@ -73,6 +77,8 @@ import {
 } from './synthetic-mine'
 import { decodeEnterDataTable, isEnterDataPartition } from './synthetic-enterdata'
 import { modelLineage, type LineageBranch } from './synthetic-lineage'
+import { mineSliceable, type SliceableField } from './synthetic-slices'
+import { layoutCoverage, layoutSnapshot, type CoverStats, type PeriodBucket } from './synthetic-coverage'
 import {
   CATEGORICAL_TOKENS,
   COMPANY_NAME_COUNT,
@@ -151,7 +157,25 @@ export interface SyntheticOptions {
   conjunctions?: Conjunction[]
   /** pre-computed ratio implications (default: mineModel(project).implications; [] when only `domains` is given) */
   implications?: Implication[]
+  /** where the report is sliced (default: mineSliceable(project)): drives fact coverage (see SyntheticResult.coverage) */
+  sliceable?: SliceableField[]
+  /**
+   * Coverage rows per fact table at most (default 40 000, and 120 000 shared by all fact tables, each keeping at least a
+   * quarter of its own; 0 turns coverage off): the rows that give every member of a sliceable dimension rows in every
+   * period the report's date slicers select (./synthetic-coverage.ts).
+   */
+  coverageRows?: number
 }
+
+/** Default coverage budget per fact table (rows); see SyntheticOptions.coverageRows. */
+export const DEFAULT_COVERAGE_ROWS = 40_000
+/** Coverage rows shared by all fact tables (each gets at least a quarter of its own budget). */
+const COVERAGE_TOTAL = 120_000
+/**
+ * A period grain finer than this (days on average over the activity window) is not covered pairwise: a list slicer of
+ * single days. Weeks pass (6, not 7: the partial weeks at both ends of the window lower the average).
+ */
+const MIN_PERIOD_DAYS = 6
 
 // ---------------------------------------------------------------------------------------------
 // Planning types
@@ -193,6 +217,14 @@ export interface SyntheticResult {
    * and saved slicer selections pinned to such a literal read the stand-in instead (counts only).
    */
   standIns: Array<{ table: string; column: string; literals: number }>
+  /**
+   * Fact tables made dense where the report is sliced (./synthetic-coverage.ts): every member of each related sliceable
+   * dimension (`columns`: the fact's key columns to them) has rows in each period of `grain` (the report's date slicer
+   * columns, `all` = the whole activity window) — fully in `fullPeriods` (saved selections and the most recent periods),
+   * partly in `partialPeriods` (the most popular members) when the budget ran out. `rows` coverage rows were added.
+   * `kind: 'snapshot'`: a periodic snapshot laid out as one row per entity (`columns[0]`) per snapshot day.
+   */
+  coverage: Array<{ table: string; kind: 'events' | 'snapshot'; grain: string; columns: string[] } & CoverStats>
 }
 
 /** A relationship as the generator sees it: calculated-table ends are replaced by the columns they are computed from. */
@@ -219,6 +251,21 @@ interface TablePlan {
   isManySide: boolean
   /** periodic snapshot fact: rows are grouped by snapshot day (calendar index), one entity per row per day */
   snapshot?: { col: ColumnDef; days: number[]; entity?: ColumnDef }
+  /** coverage layout (planCoverage) */
+  cover?: Cover
+}
+
+/** Rows laid out by planCoverage: per row, the anchor day and the members of the covered key columns (-1: drawn as usual). */
+interface Cover {
+  day: Int32Array
+  /** lower-case column name → per row domain index */
+  members: Map<string, Int32Array>
+  /** the date column the period slicers filter through: its covered rows take the anchor day as is */
+  dateCol?: ColumnDef
+  /** rows from here on are coverage rows: protected from later rewrites (conjunction seeding, needs) */
+  from: number
+  /** snapshot: the entity column, restored after the rewrites (one row per entity per day) */
+  snapshotEntity?: string
 }
 
 interface Member {
@@ -663,6 +710,8 @@ class SyntheticGenerator {
   /** the withheld literals themselves, per generated column (`table[column]`): stand-ins are chosen for them after generation */
   private readonly withheldLiterals = new Map<string, { table: string; column: string; values: Scalar[] }>()
   private readonly reuseIdentifying: boolean
+  readonly sliceable: SliceableField[]
+  readonly coverage: SyntheticResult['coverage'] = []
 
   constructor(
     readonly project: ProjectDocument,
@@ -704,6 +753,7 @@ class SyntheticGenerator {
     this.nDays = dayDiff(this.calStart, calEnd) + 1
     this.todayIdx = dayDiff(this.calStart, this.today)
     this.windowStart = dayDiff(this.calStart, defaultStart)
+    this.sliceable = opts.sliceable ?? mineSliceable(project)
     this.cal = { today: this.today, fiscalStartMonth: Math.min(12, Math.max(1, Math.round(opts.fiscalYearStartMonth ?? 7))), weekEndDow: this.minedWeekEndDow() }
     this.buildTrend()
     this.lineage = modelLineage(this.model)
@@ -951,6 +1001,7 @@ class SyntheticGenerator {
       this.plans.set(lname, plan)
     }
 
+    this.promoteHeaderFacts()
     // fact sizes
     const facts = [...this.plans.values()].filter((p) => p.role === 'fact')
     const factRows = Math.max(1, Math.round(this.opts.factRows ?? 20000))
@@ -968,6 +1019,45 @@ class SyntheticGenerator {
         const d = this.domains.get(domainKey(p.def.name, c.name))
         if (d && d.values.length > p.rows && d.values.length <= 2000 && effectiveType(c) === 'string') p.rows = d.values.length
       }
+    }
+  }
+
+  /**
+   * Header facts (cases ← sessions, orders ← order lines): a table on the "one" side of relationships whose other ends
+   * are all facts, which is itself on the many side of an active relationship to the calendar (through a date column)
+   * and of one to a dimension. It records events, not entities: it is sized and covered as a fact, not as a dimension.
+   */
+  private promoteHeaderFacts(): void {
+    for (let pass = 0; pass < 3; pass++) {
+      let changed = false
+      for (const plan of this.plans.values()) {
+        if (plan.role !== 'dim' || !plan.isOneSide || !plan.isManySide) continue
+        const name = plan.def.name.toLowerCase()
+        const roleOf = (t: string) => this.plans.get(t.toLowerCase())?.role
+        let dated = false
+        let toDim = false
+        let childrenFacts = true
+        for (const r of this.rels) {
+          const from = r.fromTable.toLowerCase() === name
+          const to = r.toTable.toLowerCase() === name
+          if (!from && !to) continue
+          const selfOne = from ? r.fromOne : r.toOne
+          const otherOne = from ? r.toOne : r.fromOne
+          const other = from ? r.toTable : r.fromTable
+          const selfCol = plan.cols.find((c) => c.name.toLowerCase() === (from ? r.fromColumn : r.toColumn).toLowerCase())
+          if (selfOne && !otherOne) {
+            if (roleOf(other) !== 'fact') childrenFacts = false
+          } else if (!selfOne && otherOne) {
+            if (roleOf(other) === 'date' && r.active && selfCol && effectiveType(selfCol) === 'dateTime') dated = true
+            else if (roleOf(other) === 'dim') toDim = true
+          }
+        }
+        if (dated && toDim && childrenFacts) {
+          plan.role = 'fact'
+          changed = true
+        }
+      }
+      if (!changed) break
     }
   }
 
@@ -1350,7 +1440,7 @@ class SyntheticGenerator {
     const daily = tableToks.includes('daily') || tableToks.includes('day')
     const weekly = tableToks.includes('weekly') || tableToks.includes('week')
     const set = new Set<number>()
-    if (daily) for (let i = Math.max(this.windowStart, this.todayIdx - 179); i <= this.todayIdx; i++) set.add(i)
+    if (daily) for (let i = this.windowStart; i <= this.todayIdx; i++) set.add(i)
     else if (weekly) for (let i = this.todayIdx; i >= this.windowStart; i -= 7) set.add(i)
     else {
       for (let i = this.windowStart; i <= this.todayIdx; i++) {
@@ -1373,6 +1463,260 @@ class SyntheticGenerator {
     })
     plan.rows = Math.max(plan.rows, days.length * 5)
     plan.snapshot = { col, days, entity }
+  }
+
+  // --- coverage (./synthetic-coverage.ts) -------------------------------------------------------
+
+  /**
+   * Make facts dense where the report is sliced: coverage rows give every member of each related sliceable dimension
+   * rows in every period of the report's date-slicer grain; periodic snapshots list every entity on every snapshot day.
+   * Within `coverageRows` per table (saved selections and recent periods first). Fills `this.coverage`.
+   */
+  planCoverage(): void {
+    const perTable = Math.max(0, Math.round(this.opts.coverageRows ?? DEFAULT_COVERAGE_ROWS))
+    if (!perTable) return
+    const sliced = this.slicedDimensionTables()
+    const work = [...this.plans.values()]
+      .filter((p) => p.role === 'fact' && p.rows > 0)
+      .map((plan) => ({ plan, cols: this.coverColumns(plan, sliced) }))
+      .filter((w) => w.cols.length || (w.plan.snapshot?.entity && w.plan.snapshot.days.length))
+    // the tables share a total, so a model with many facts stays responsive
+    const budget = Math.min(perTable, Math.max(Math.floor(perTable / 4), Math.floor(COVERAGE_TOTAL / Math.max(1, work.length))))
+    for (const { plan, cols } of work) {
+      const snap = plan.snapshot
+      if (snap?.entity && snap.days.length) {
+        this.layoutSnapshotPlan(plan, cols, budget)
+        continue
+      }
+      if (!cols.length) continue
+      const spec = this.periodSpec(plan)
+      const rng = this.rng(plan.def.name, '#cover')
+      const lay = layoutCoverage(spec.buckets, cols, budget, () => rng.next(), (d) => {
+        const dow = this.dayAt(d).getUTCDay()
+        return dow === 0 || dow === 6
+      })
+      if (!lay.rows) continue
+      const base = plan.rows
+      const total = base + lay.rows
+      const day = new Int32Array(total).fill(-1)
+      day.set(lay.day, base)
+      const members = new Map<string, Int32Array>()
+      cols.forEach((c, j) => {
+        const a = new Int32Array(total).fill(-1)
+        a.set(lay.members[j], base)
+        members.set(c.col.name.toLowerCase(), a)
+      })
+      plan.rows = total
+      plan.cover = { day, members, dateCol: spec.dateCol, from: base }
+      this.growUniqueKeys(plan)
+      const { day: _d, members: _m, ...stats } = lay
+      this.coverage.push({ table: plan.def.name, kind: 'events', grain: spec.grain, columns: cols.map((c) => c.col.name), ...stats })
+    }
+  }
+
+  /**
+   * Generated tables a slicer, filter card or cross-filtering visual of the report selects on, plus the dimensions they
+   * reach through relationships between dimensions (a slicer on a region table filters the organisations of the region).
+   * Facts and date tables are not dimensions here; a calculated table counts through the imported tables it is made of.
+   */
+  private slicedDimensionTables(): Set<string> {
+    const isDim = (name: string): boolean => {
+      const p = this.plans.get(name)
+      return !p || (p.role !== 'fact' && p.role !== 'date' && p.role !== 'measure')
+    }
+    const start = new Set<string>()
+    for (const f of this.sliceable) {
+      const k = f.table.toLowerCase()
+      for (const b of this.lineage.get(k) ?? []) if (isDim(b.table.toLowerCase())) start.add(b.table.toLowerCase())
+      if (isDim(k)) start.add(k)
+    }
+    const adj = new Map<string, Set<string>>()
+    const link = (a: string, b: string): void => {
+      if (a === b || !isDim(a) || !isDim(b)) return
+      ;(adj.get(a) ?? adj.set(a, new Set()).get(a)!).add(b)
+      ;(adj.get(b) ?? adj.set(b, new Set()).get(b)!).add(a)
+    }
+    for (const r of this.model.relationships) link(r.fromTable.toLowerCase(), r.toTable.toLowerCase())
+    for (const r of this.rels) link(r.fromTable.toLowerCase(), r.toTable.toLowerCase())
+    const out = new Set(start)
+    let frontier = [...start]
+    for (let depth = 0; depth < 3 && frontier.length; depth++) {
+      const next: string[] = []
+      for (const t of frontier) for (const u of adj.get(t) ?? []) if (!out.has(u)) (out.add(u), next.push(u))
+      frontier = next
+    }
+    return out
+  }
+
+  /** The fact's foreign keys to sliced dimensions, with their members in popularity order. */
+  private coverColumns(plan: TablePlan, sliced: Set<string>): Array<{ col: ColumnDef; order: Int32Array }> {
+    const out: Array<{ col: ColumnDef; order: Int32Array }> = []
+    for (const c of plan.cols) {
+      const link = this.compOf.get(keyOf(plan.def.name, c.name))
+      if (!link || link.comp.kind === 'date' || !link.member.many || link.member.one) continue
+      const hit = [...link.member.targets].some((t) => sliced.has(t.table.name.toLowerCase()) && (!t.plan || (t.plan.role !== 'fact' && t.plan.role !== 'date')))
+      if (!hit) continue
+      const n = Math.min(link.member.limit, link.comp.values.length)
+      if (n <= 0) continue
+      out.push({ col: c, order: this.compSampler(link.comp, n).perm })
+    }
+    return out
+  }
+
+  /**
+   * Periods of the grain the report slices this fact by: the columns of its slicers / filter cards (else of its
+   * cross-filtering visuals) on the date table the fact's active relationship reaches — or date-hierarchy levels on the
+   * fact's own date column (auto date/time) — the finest one spanning about a week or more on average
+   * (MIN_PERIOD_DAYS), combined with coarser ones that do not split its periods below that. One period (the activity window) when the report does not slice by date.
+   */
+  private periodSpec(plan: TablePlan): { buckets: PeriodBucket[]; grain: string; dateCol?: ColumnDef } {
+    const lname = plan.def.name.toLowerCase()
+    const tableByName = new Map(this.model.tables.map((t) => [t.name.toLowerCase(), t]))
+    type Anchor = { col: ColumnDef; table: TableDef; key?: ColumnDef }
+    const anchors: Anchor[] = []
+    const seen = new Set<string>()
+    const consider = (factCol: string, other: string, otherCol: string): void => {
+      const col = plan.cols.find((c) => c.name.toLowerCase() === factCol.toLowerCase())
+      const t = tableByName.get(other.toLowerCase())
+      const key = t?.columns.find((c) => c.name.toLowerCase() === otherCol.toLowerCase())
+      if (!col || !t || !key || effectiveType(col) !== 'dateTime' || effectiveType(key) !== 'dateTime') return
+      const p = this.plans.get(t.name.toLowerCase())
+      const dateLike = p?.role === 'date' || (!p && isCalculatedTable(t) && (t.dataCategory?.toLowerCase() === 'time' || /date|calendar/i.test(t.name)))
+      const k = `${col.name}>${t.name}`
+      if (!dateLike || seen.has(k)) return
+      seen.add(k)
+      anchors.push({ col, table: t, key })
+    }
+    for (const r of this.model.relationships) {
+      if (r.isActive === false) continue
+      if (r.fromTable.toLowerCase() === lname && r.toCardinality !== 'many') consider(r.fromColumn, r.toTable, r.toColumn)
+      if (r.toTable.toLowerCase() === lname && r.fromCardinality === 'one') consider(r.toColumn, r.fromTable, r.fromColumn)
+    }
+    for (const r of this.rels) {
+      if (!r.active) continue
+      if (r.fromTable.toLowerCase() === lname && r.toOne) consider(r.fromColumn, r.toTable, r.toColumn)
+      if (r.toTable.toLowerCase() === lname && r.fromOne) consider(r.toColumn, r.fromTable, r.fromColumn)
+    }
+    // auto date/time: hierarchy levels on the fact's own date columns
+    for (const c of plan.cols) if (effectiveType(c) === 'dateTime' && this.sliceable.some((f) => f.table.toLowerCase() === lname && f.column === c.name && f.level)) anchors.push({ col: c, table: plan.def })
+
+    type Derive = { name: string; fn: (d: Date) => Scalar | undefined; field: SliceableField; type: DataType }
+    const derivesFor = (a: Anchor, sources: Array<SliceableField['source']>): Derive[] => {
+      const out: Derive[] = []
+      for (const f of this.sliceable) {
+        if (f.range || !sources.includes(f.source) || f.table.toLowerCase() !== a.table.name.toLowerCase()) continue
+        if (f.level) {
+          if (f.column.toLowerCase() !== (a.key ?? a.col).name.toLowerCase()) continue
+          const lv = f.level
+          const fn = lv.startsWith('year')
+            ? (d: Date) => d.getUTCFullYear()
+            : lv.startsWith('quarter') || lv.startsWith('qtr')
+              ? (d: Date) => Math.floor(d.getUTCMonth() / 3) + 1
+              : lv.startsWith('month')
+                ? (d: Date) => d.getUTCMonth() + 1
+                : undefined
+          if (fn) out.push({ name: `${f.column}.${lv}`, fn, field: f, type: 'int64' })
+          continue
+        }
+        const col = a.table.columns.find((c) => c.name === f.column)
+        if (!col || (a.key && col === a.key)) continue
+        const type = effectiveType(col)
+        if (calendarValue(col.name, type, this.calStart, this.cal) === undefined) continue
+        out.push({ name: col.name, fn: (d) => calendarValue(col.name, type, d, this.cal), field: f, type })
+      }
+      return out
+    }
+    const memberLimit = (c: ColumnDef): number => this.compOf.get(keyOf(plan.def.name, c.name))?.member.limit || this.nDays
+    let best: { a: Anchor; derives: Derive[] } | undefined
+    for (const sources of [['slicer', 'filter'], ['category']] as Array<Array<SliceableField['source']>>) {
+      for (const a of anchors) {
+        const d = derivesFor(a, sources)
+        if (d.length && (!best || d.length > best.derives.length)) best = { a, derives: d }
+      }
+      if (best) break
+    }
+    const maxDay = Math.min(this.todayIdx, this.nDays - 1, (best ? memberLimit(best.a.col) : this.nDays) - 1)
+    const windowDays: number[] = []
+    for (let i = this.windowStart; i <= maxDay; i++) windowDays.push(i)
+    if (!best) return { buckets: [{ key: 'all', days: windowDays, saved: false }], grain: 'all' }
+    // the finest column that passes first (picking a week also picks inside its month), then coarser ones while the
+    // combination still spans MIN_PERIOD_DAYS on average (week × month would split weeks: month is then left out)
+    const span = Math.max(1, windowDays.length)
+    const distinct = (fs: Derive[]): number => {
+      const keys = new Set<string>()
+      for (const i of windowDays) keys.add(fs.map((f) => valueKey(f.fn(this.dayAt(i)) ?? null)).join('|'))
+      return keys.size
+    }
+    const ranked = best.derives.map((f) => ({ f, n: distinct([f]) })).sort((a, b) => b.n - a.n)
+    const chosen: Derive[] = []
+    for (const { f } of ranked) if (span / distinct([...chosen, f]) >= MIN_PERIOD_DAYS) chosen.push(f)
+    if (!chosen.length) return { buckets: [{ key: 'all', days: windowDays, saved: false }], grain: 'all', dateCol: undefined }
+    const keyOfDay = (i: number): string => {
+      const d = this.dayAt(i)
+      return chosen.map((f) => valueKey(f.fn(d) ?? null)).join('|')
+    }
+    // saved selections: values of the chosen columns, and dates pinned on the date key (range slicers, filter cards)
+    const savedKeys = new Set<string>()
+    const savedVals = chosen.map((f) => new Set(f.field.saved.map((v) => valueKey(coerceTo(v, f.type) ?? null))))
+    const savedDates = new Set<number>()
+    for (const f of this.sliceable) {
+      if (f.table.toLowerCase() !== best.a.table.name.toLowerCase()) continue
+      for (const v of f.saved) if (v instanceof Date) savedDates.add(dayDiff(this.calStart, v))
+    }
+    const lastSaved = Math.min(this.todayIdx, this.nDays - 1)
+    for (let i = 0; i <= lastSaved; i++) {
+      const d = this.dayAt(i)
+      if (savedDates.has(i) || chosen.some((f, j) => savedVals[j].size > 0 && savedVals[j].has(valueKey(f.fn(d) ?? null)))) savedKeys.add(keyOfDay(i))
+    }
+    const buckets = new Map<string, PeriodBucket>()
+    const push = (i: number): void => {
+      const k = keyOfDay(i)
+      let b = buckets.get(k)
+      if (!b) buckets.set(k, (b = { key: k, days: [], saved: savedKeys.has(k) }))
+      b.days.push(i)
+    }
+    for (let i = 0; i < this.windowStart && i <= maxDay; i++) if (savedKeys.has(keyOfDay(i))) push(i)
+    for (const i of windowDays) push(i)
+    return { buckets: [...buckets.values()], grain: chosen.map((f) => f.name).join(' × '), dateCol: best.a.col }
+  }
+
+  /** A fact that grew (header facts have unique keys, e.g. case ids): their key domains must have a value per row. */
+  private growUniqueKeys(plan: TablePlan): void {
+    for (const c of plan.cols) {
+      const link = this.compOf.get(keyOf(plan.def.name, c.name))
+      if (link?.member.one && link.comp.kind !== 'date') this.ensureDomain(link.comp, plan.rows)
+    }
+  }
+
+  /** Periodic snapshot: every entity on every snapshot day (budget permitting), see layoutSnapshot. */
+  private layoutSnapshotPlan(plan: TablePlan, cols: Array<{ col: ColumnDef; order: Int32Array }>, budget: number): void {
+    const snap = plan.snapshot!
+    const entity = snap.entity!
+    const link = this.compOf.get(keyOf(plan.def.name, entity.name))
+    if (!link) return
+    const n = Math.min(link.member.limit, link.comp.values.length)
+    if (n <= 0) return
+    const order = this.compSampler(link.comp, n).perm
+    const others = cols.filter((c) => c.col !== entity)
+    const saved = new Set<number>()
+    const mined = new Set(this.minedDatesFor(plan.def, snap.col).map((d) => dayDiff(this.calStart, d)))
+    for (const d of snap.days) if (mined.has(d)) saved.add(d)
+    // snapshot days inside saved periods of the report's date slicers
+    const spec = this.periodSpec(plan)
+    for (const b of spec.buckets) {
+      if (!b.saved) continue
+      const inside = new Set(b.days)
+      for (const d of snap.days) if (inside.has(d)) saved.add(d)
+    }
+    const lay = layoutSnapshot(snap.days, saved, { order }, others, budget)
+    if (!lay.rows) return
+    const members = new Map<string, Int32Array>([[entity.name.toLowerCase(), lay.entity]])
+    others.forEach((c, j) => members.set(c.col.name.toLowerCase(), lay.members[j]))
+    plan.rows = lay.rows
+    plan.cover = { day: lay.day, members, from: lay.rows, snapshotEntity: entity.name.toLowerCase() }
+    this.growUniqueKeys(plan)
+    const { day: _d, entity: _e, members: _m, ...stats } = lay
+    this.coverage.push({ table: plan.def.name, kind: 'snapshot', grain: 'snapshot day', columns: [entity.name, ...others.map((c) => c.col.name)], ...stats })
   }
 
   /**
@@ -1505,7 +1849,11 @@ class SyntheticGenerator {
         if (!days) {
           days = new Int32Array(rows)
           const snap = plan.snapshot
-          if (snap && snap.days.length) {
+          const cover = plan.cover
+          if (cover) {
+            // coverage layout (planCoverage): laid-out rows take their day, the others are drawn as usual
+            for (let i = 0; i < rows; i++) days[i] = cover.day[i] >= 0 ? cover.day[i] : this.windowStart + this.trendSampler.draw(rng)
+          } else if (snap && snap.days.length) {
             // periodic snapshot: rows grouped by snapshot day, equal-sized groups in date order
             for (let i = 0; i < rows; i++) days[i] = snap.days[Math.min(snap.days.length - 1, Math.floor((i * snap.days.length) / rows))]
           } else for (let i = 0; i < rows; i++) days[i] = this.windowStart + this.trendSampler.draw(rng)
@@ -1588,6 +1936,7 @@ class SyntheticGenerator {
     }
     const table: TableData = { columns, rowCount: rows }
     const protect = new Uint8Array(rows)
+    if (plan.cover && !plan.cover.snapshotEntity) protect.fill(1, plan.cover.from)
     this.seedConjunctions(plan, table, protect)
     const rng = this.rng(plan.def.name, '#needs')
     for (const c of columns) {
@@ -1597,7 +1946,27 @@ class SyntheticGenerator {
     this.applyImplications(plan, table)
     this.alignScoreGroups(plan, table, protect)
     this.applySortBy(plan, columns)
+    this.restoreSnapshotEntities(plan, table)
     return table
+  }
+
+  /**
+   * Snapshot facts: conjunction seeding and needs may have rewritten the entity of some rows; put the laid-out entity
+   * back so each snapshot day lists every entity once (the seeded conditions still hold for those entities' own rows).
+   */
+  private restoreSnapshotEntities(plan: TablePlan, table: TableData): void {
+    const cover = plan.cover
+    if (!cover?.snapshotEntity) return
+    const laid = cover.members.get(cover.snapshotEntity)
+    const col = table.columns.find((c) => c.name.toLowerCase() === cover.snapshotEntity)
+    const link = col && this.compOf.get(keyOf(plan.def.name, col.name))
+    if (!laid || !col || !link) return
+    const type = effectiveType(plan.cols.find((c) => c.name === col.name)!)
+    for (let r = 0; r < table.rowCount; r++) {
+      if (laid[r] < 0) continue
+      const v = coerceTo(link.comp.values[laid[r]], type)
+      col.values[r] = v === undefined ? null : v
+    }
   }
 
   /**
@@ -2205,9 +2574,10 @@ class SyntheticGenerator {
       if (comp.calendarBacked) {
         const offset = plan.snapshot?.col === col ? 0 : dateOffsetDays(col)
         const max = plan.snapshot ? member.limit - 1 : Math.min(this.todayIdx, member.limit - 1)
+        const anchored = plan.cover?.dateCol === col ? plan.cover.day : undefined
         for (let r = 0; r < rows; r++) {
           let i = h.baseDay(r)
-          if (offset > 0) i += Math.floor(rng.next() * offset)
+          if (offset > 0 && !(anchored && anchored[r] >= 0)) i += Math.floor(rng.next() * offset)
           out[r] = valueOfDay(Math.max(0, Math.min(max, i)))
         }
         // mined dates (slicers, filters, DAX) get a realistic number of rows each
@@ -2237,7 +2607,14 @@ class SyntheticGenerator {
       return
     }
     const snap = plan.snapshot
-    if (snap && snap.entity === col && snap.days.length) {
+    const laid = plan.cover?.members.get(col.name.toLowerCase())
+    if (laid) {
+      // coverage layout: laid-out rows take their member, the others are drawn as usual
+      for (let r = 0; r < rows; r++) {
+        const i = laid[r]
+        out[r] = conv(comp.values[i >= 0 ? i : Math.min(perm[sampler.draw(rng)], n - 1)])
+      }
+    } else if (snap && snap.entity === col && snap.days.length) {
       // periodic snapshot: within each snapshot day, consecutive entities (each at most once per day)
       const group = Math.max(1, Math.ceil(rows / snap.days.length))
       for (let r = 0; r < rows; r++) {
@@ -2560,10 +2937,12 @@ class SyntheticGenerator {
     const offset = dateOffsetDays(col)
     const future = has('due', 'expected', 'renewal', 'expiration', 'expiry', 'scheduled', 'target', 'planned', 'forecast')
     const maxIdx = future ? Math.min(this.nDays - 1, this.todayIdx + 120) : this.todayIdx
+    const anchored = plan.cover?.dateCol === col ? plan.cover.day : undefined
     return (r) => {
-      if (optional && rng.next() < 0.8) return null
+      const fixed = !!anchored && anchored[r] >= 0
+      if (optional && !fixed && rng.next() < 0.8) return null
       let i = h.baseDay(r)
-      if (offset > 0) i += Math.floor(rng.next() * offset)
+      if (offset > 0 && !fixed) i += Math.floor(rng.next() * offset)
       i = Math.max(0, Math.min(maxIdx, i))
       return time(this.dayAt(i))
     }
@@ -2750,7 +3129,8 @@ export function generateSyntheticData(project: ProjectDocument, opts: SyntheticO
   gen.plan()
   gen.buildComponents()
   gen.resolveSizes()
+  gen.planCoverage()
   const tables = gen.generate()
   const standIns = gen.standIns(tables)
-  return { tables, skipped: gen.skipped, seed: gen.seed, withheld: gen.withheld, standIns }
+  return { tables, skipped: gen.skipped, seed: gen.seed, withheld: gen.withheld, standIns, coverage: gen.coverage }
 }

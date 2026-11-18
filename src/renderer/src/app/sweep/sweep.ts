@@ -1,5 +1,5 @@
 /**
- * In-app sweep mode: `#/?sweep=<outdir>&open=<path>[&synthetic=1[&private=1|&appDefaults=1]][&blockCache=1][&pages=a,b][&start=0]`
+ * In-app sweep mode: `#/?sweep=<outdir>&open=<path>[&synthetic=1[&private=1|&appDefaults=1]][&blockCache=1][&pages=a,b][&selections=1][&start=0]`
  * (driven by scripts/sweep.sh with WBI_SWEEP=1 so the main process keeps the hidden window alive).
  *
  *  1. refuses to start when `blockCache=1` is requested but the WBI_BLOCK_CACHE guard is not active;
@@ -10,6 +10,8 @@
  *     and then for the DOM to settle (no "Loading…" visuals, stable markup), captures a PNG of the page
  *     and classifies every visual from the DOM (ok / error / no-data / loading-stuck / unsupported /
  *     empty / hidden) with its displayed text, plus an engine probe (query time, warnings, totals);
+ *  3b. with `selections=1`, a selection audit per page (selectionAudit.ts): each slicer's items applied one at a time on
+ *     top of the saved state, counting the visuals that had data and lose it;
  *  4. writes `<outdir>/<NN>-<page>.png` + `<outdir>/report.json` (rewritten after every page so a crash
  *     keeps partial results), then closes the window.
  */
@@ -21,6 +23,7 @@ import { orderedPages, pageInfo, visualTypeOf, isGroup, isEffectivelyHidden, isS
 import { liveContext } from '../../report/host'
 import { probeVisual, CARD_TYPES, type VisualProbe } from './probe'
 import { slicerItems } from './slicerItems'
+import { auditPageSelections, type PageSelectionAudit } from './selectionAudit'
 import { BLOCK_CACHE_GLOBAL } from '@shared/cacheGuard'
 import { holdBusy, isBusy } from '../readiness'
 
@@ -66,6 +69,8 @@ export interface SweepPage {
   visuals: SweepVisual[]
   counts: Record<string, number>
   consoleErrors: string[]
+  /** `selections=1`: selection audit of the page (trials capped at 40 in the file) */
+  selections?: PageSelectionAudit
 }
 
 export interface SweepReport {
@@ -83,6 +88,8 @@ export interface SweepReport {
   dax?: Array<{ query: string; rows?: unknown[][]; error?: string }>
   pages: SweepPage[]
   totals: Record<string, number>
+  /** `selections=1`: audit totals over the pages (see selectionAudit.ts) */
+  selectionTotals?: { slicers: number; selections: number; emptied: number; emptiedSelections: number; emptiedVisuals: number; cappedPages: number; ms: number }
   error?: string
   /** page being rendered when report.json was last written (set while a page renders: a hang leaves it behind) */
   inProgress?: string
@@ -368,6 +375,24 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
         }
         visuals.push(sv)
       }
+      let selections: PageSelectionAudit | undefined
+      if (params.get('selections') === '1' && engine) {
+        // engine level, under the saved state of the page (a seeded, capped sample of each slicer's items)
+        try {
+          const a = auditPageSelections(engine, report, page, { seed: DEFAULT_OPTIONS.syntheticSeed })
+          selections = { ...a, trials: a.trials.slice(0, 40) }
+          const t = (rep.selectionTotals ??= { slicers: 0, selections: 0, emptied: 0, emptiedSelections: 0, emptiedVisuals: 0, cappedPages: 0, ms: 0 })
+          t.slicers += a.slicers
+          t.selections += a.selections
+          t.emptied += a.emptied
+          t.emptiedSelections += a.emptiedSelections
+          t.emptiedVisuals += a.emptiedVisuals.length
+          t.cappedPages += a.capped ? 1 : 0
+          t.ms += a.ms
+        } catch (e) {
+          consoleBuf.push(`[selections] ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
       rep.pages.push({
         name: page.name,
         displayName: info.displayName,
@@ -381,7 +406,8 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
         readyTimedOut: !ready,
         visuals,
         counts: countStates(visuals),
-        consoleErrors: [...new Set(consoleBuf)].slice(0, 40)
+        consoleErrors: [...new Set(consoleBuf)].slice(0, 40),
+        selections
       })
       for (const [k, n] of Object.entries(countStates(visuals))) rep.totals[k] = (rep.totals[k] ?? 0) + n
       rep.inProgress = undefined

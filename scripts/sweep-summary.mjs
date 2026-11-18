@@ -32,12 +32,18 @@ for (const { name, r } of reports) {
   const t = r.totals ?? {}
   console.log(`\n## ${name}  open ${r.openMs ?? '?'} ms${r.synthetic ? `, synthetic ${r.synthetic.tables} tables` : ''}  ${JSON.stringify(t)}${r.error ? `  ERROR: ${r.error}` : ''}${r.engineError ? `  ENGINE: ${r.engineError}` : ''}`)
   if (r.cacheBlocked === false) console.log('   !! cache guard was OFF')
+  const st = r.selectionTotals
+  if (st) console.log(`   selections: ${st.selections} on ${st.slicers} slicer(s); ${st.emptiedSelections} emptied ${st.emptied} visual(s) that had data (${st.emptiedVisuals} distinct)${st.cappedPages ? `; ${st.cappedPages} page(s) capped` : ''}`)
   if (r.inProgress) console.log(`   !! did not finish: stuck rendering page ${r.inProgress} (renderer hang or timeout)`)
   for (const d of r.diagnostics ?? []) if (d.level !== 'info') console.log(`   diag ${d.level}: ${one(d.message, 200)}`)
   for (const p of r.pages) {
     const flagsTxt = [p.kind !== 'normal' ? p.kind : '', p.hidden ? 'hidden' : '', p.readyTimedOut ? 'READY-TIMEOUT' : '', p.renderMs > 5000 ? `slow ${p.renderMs} ms` : ''].filter(Boolean).join(', ')
     console.log(` - ${p.displayName}${flagsTxt ? ` (${flagsTxt})` : ''}  ${JSON.stringify(p.counts)}`)
     for (const c of p.consoleErrors ?? []) console.log(`     console: ${one(c, 220)}`)
+    for (const t of p.selections?.trials ?? []) {
+      const names = t.emptied.map((n) => p.visuals.find((v) => v.name === n)).map((v, i) => (v ? `${v.visualType}${v.title ? ` "${one(v.title, 40)}"` : ''}` : t.emptied[i]))
+      console.log(`     selection ${one(t.item, 40)} (slicer ${t.slicer}) empties ${names.join(', ')}`)
+    }
     for (const v of p.visuals) {
       const bad = v.state !== 'ok' && v.state !== 'hidden'
       const probeBad = v.probe?.error || v.probe?.warnings?.length || (v.probe?.ms ?? 0) > 300

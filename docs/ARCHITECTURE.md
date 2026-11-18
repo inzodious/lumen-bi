@@ -91,7 +91,10 @@ Most real models import from Fabric SQL endpoints. Order of preference when open
    Only definitions are read; literals compared to name-like / id-like / free-text columns are never copied
    into the data (`SyntheticOptions.identifyingLiterals`, Options ▸ Data load); filters and saved slicer selections
    pinned to such a literal read a generated stand-in in memory (`data/standIns.ts`, `DataStore.literalStandIns`;
-   slicers show a "Sample stand-in" notice). "Regenerate sample data"
+   slicers show a "Sample stand-in" notice). Facts are dense where the report is sliced (`data/synthetic-slices.ts`
+   mines slicer / filter-card / grouping fields, `data/synthetic-coverage.ts` lays out coverage rows): every member of
+   a sliced dimension has rows in every period of the report's date-slicer grain, periodic snapshots list every entity
+   on every snapshot day, within a row budget (`SyntheticResult.coverage` says what was covered). "Regenerate sample data"
    (status-bar badge, Data pane menu, command search) draws a new seed for the sample tables; a `.wbi`
    bundle keeps the generated rows.
 

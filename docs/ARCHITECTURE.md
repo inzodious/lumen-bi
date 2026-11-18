@@ -8,7 +8,7 @@ you view, edit, model, query and export them with a Power BI Desktop look and fe
 ┌──────────── Electron main (src/main) ─────────────┐   ┌──────────── Renderer (src/renderer/src) ─────────────┐
 │ window (frameless), menu accelerators, dialogs     │   │ app/      title bar, ribbon, backstage, view switcher │
 │ ipc/fs.ts          filesystem                      │◄─►│ panes/    Data, Visualizations+Format, Filters,      │
-│ ipc/connectors.ts  SQL (tedious+Entra ID), HTTP    │IPC│           Selection, Bookmarks, Sync slicers         │
+│ ipc/connectors*    SQL Server, HTTP + connectors/* │IPC│           Selection, Bookmarks, Sync slicers         │
 │ export: printToPDF, capturePage                    │   │ report/   canvas, visual container chrome, interactions│
 │ headless capture mode (WBI_CAPTURE)                │   │ visuals/  one module per visualType (registry)        │
 └────────────────────────────────────────────────────┘   │ views/    data, model, dax query, powerquery           │
@@ -37,10 +37,10 @@ you view, edit, model, query and export them with a Power BI Desktop look and fe
 | `src/core/report/types.ts` | `ReportDocument` — PBIR JSON kept as-is (report.json, page.json, visual.json, bookmarks, resources) |
 | `src/core/report/sq.ts` | SQ field expressions + filters, `fieldInfo`, `fieldKey`, `DataPointIdentity`, `identitiesToFilter` |
 | `src/core/report/literal.ts` | PBIR literal encode/decode (`'text'`, `12L`, `1.5D`, `datetime'…'`) |
-| `src/core/report/props.ts` | formatting property resolution (visual objects → theme visualStyles → default), `setObjectProp` |
+| `src/core/report/props.ts` | formatting property resolution (visual `objects` / `visualContainerObjects` → theme `visualStyles[type]['*']` → `visualStyles['*']['*']` (also the `'*'` object wildcard) → renderer default), `setObjectProp` |
 | `src/core/report/entries.ts` | **which objects-bag entry a property write goes to** — the one rule for every writer (Format pane `setRaw`, conditional formatting, icons, `setObjectProp`): `{ id: 'default' }` ≡ no selector, writes go to the first entry of the selector's group (the one readers use) |
 | `src/core/report/theme.ts` | theme merge (base CY24SU10 + custom), theme colors, shading |
-| `src/core/dax/tabular/` | production DAX engine (columnar, dictionary-encoded); `src/core/dax/*.ts` is the vendored Parity engine kept as a reference/oracle |
+| `src/core/dax/tabular/` | production DAX engine (columnar, dictionary-encoded); `src/core/dax/*.ts` is the vendored Parity engine kept as a reference/oracle (still used by the `#/modeling-test` harness, `views/dev/devEngine.ts`, and by gallery mock engines for number formatting) |
 | `src/core/engine/api.ts` | `QueryEngine` — `summarize`, `distinctValues`, `evaluateScalar`, `runDaxQuery`, `validateExpression`, `format`, `processCalculated`, `describeField`, `resolveFieldParameter` |
 | `src/core/io/fs.ts` | async `FileSystem` (Node impl `nodefs.ts`; renderer uses `window.wbi.fs`) |
 | `src/core/io/open.ts` | `openProject(path, fs)` / `saveProject(project, path, fs, {format})` |
@@ -50,7 +50,7 @@ you view, edit, model, query and export them with a Power BI Desktop look and fe
 | `src/shared/host.ts` | `window.wbi` bridge (fs, dialogs, app, window, connectors, exporter) |
 | `src/renderer/src/visuals/contract.ts` | `VisualDefinition`, `VisualProps`, `VisualHostContext` (filters, selection, drill, tooltips, actions) |
 | `src/renderer/src/visuals/common/query.ts` | visual field wells → `engine.summarize` |
-| `src/renderer/src/state/store.ts` | zustand document store: project, engine, view, page, selection, undo/redo (`mutateReport`, `mutateModel`, `mutateModelSidecars`) |
+| `src/renderer/src/state/store.ts` | zustand document store: project, engine, view, page, selection, undo/redo (`mutateReport`, `mutateModel`, `mutateModelSidecars`; non-undoable `patchReport`, `patchModelSidecar`) |
 
 Changing a contract: additive changes are fine (new optional fields/methods). Breaking changes must
 be coordinated — note them prominently in your final report.
@@ -76,7 +76,7 @@ be coordinated — note them prominently in your final report.
   built on the renderers' exported constants. `effectiveDefaults.test.tsx` renders every gallery fixture with an empty
   format definition while recording the fallbacks and fails when a control shows anything else. A reader that resolves a
   default outside `getProp` (e.g. `optStr(...) ?? x`) is invisible to both — pass the default as the fallback instead.
-* **Saving**: PBIR JSON round-trips (we mutate it in place). TMDL is regenerated from `SemanticModel`
+* **Saving**: PBIR JSON round-trips (edits are immer copy-on-write recipes over the JSON as read, `autoFreeze` off; untouched files are written back unchanged). TMDL is regenerated from `SemanticModel`
   (with preserved `extra`/annotations). PBIX can't be written (proprietary DataModel); "Save" of a PBIX
   offers Save As PBIP or `.wbi` (Lumen bundle = PBIP + cached data).
 
@@ -84,7 +84,7 @@ be coordinated — note them prominently in your final report.
 
 Most real models import from Fabric SQL endpoints. Order of preference when opening:
 1. Data embedded in the file (PBIX DataModel, PBIP `.pbi/cache.abf`, `.wbi` bundle).
-2. Refresh from source (M engine; SQL via tedious + Entra ID device-code/CLI auth; files; web).
+2. Refresh from source (M engine; SQL Server via tedious with Entra ID (device code, Azure CLI, interactive browser, "default" = the Azure CLI login else device code, or a raw token) or a SQL login — Windows authentication is refused on Linux; files; web; the connectors below).
 3. Synthetic data generated from the schema (keys consistent across relationships — also through
    calculated tables that combine imported ones, `data/synthetic-lineage.ts` —, value domains mined from
    DAX/filter literals so measures produce non-empty results, survey scores skewed like real ones).
@@ -104,7 +104,7 @@ Most real models import from Fabric SQL endpoints. Order of preference when open
 |---|---|---|
 | Production DAX engine | `src/core/dax/tabular/` | columnar, dictionary-encoded; grouped scans, fused aggregations, measure caching, compiled row path; `queryBudgetMs` (default 15 s) returns partial results instead of hanging |
 | Visual calculations | `src/core/engine` + `visuals/common/visualCalcs.ts` | PBIR `NativeVisualCalculation` projections evaluated over the visual's result lattice |
-| Connectors | `src/main/ipc/connectors/*` (Node side), `src/core/m/lib/{connectors,delta,sqldialect,fold}.ts` | PostgreSQL, MySQL, SQLite, Firestore, S3, SQL Server/Fabric, Delta/lakehouse folders, network shares, REST/OAuth; credentials encrypted with `safeStorage` in the main process (never sent to the renderer) |
+| Connectors | `src/main/ipc/connectors/*` (Node side), `src/core/m/lib/{connectors,delta,sqldialect,fold}.ts` | PostgreSQL, MySQL, SQLite, DuckDB, Firestore, S3, SQL Server/Fabric, Delta/lakehouse folders, network shares, REST/OAuth; credentials encrypted with `safeStorage` in the main process (never sent to the renderer) |
 | Data windowing | `visuals/tables/windowQuery.ts` | tables/matrices query 500-row windows (PBI data reduction); totals come from their own queries |
 | Readiness | `src/renderer/src/app/readiness.ts` | ref-counted busy tracker → `body.dataset.wbiBusy` / `wbiReady`, used by headless capture and the sweep |
 | Cache guard | `src/shared/cacheGuard.ts`, `tests/setup.ts` | `WBI_BLOCK_CACHE=1` (app) / always in tests: PBIP `.pbi/cache.abf` files are never decoded |
@@ -209,11 +209,14 @@ an untouched model round-trips byte-identically and a project without the file b
 
 | Env var | Enables |
 |---|---|
-| *(none)* | unit + integration tests (≈2,200), all offline |
+| *(none)* | unit + integration tests (≈3,000 in ≈210 files), all offline |
 | `LUMEN_SAMPLES_DIR=<dir of .pbix>` | real-data regression on Microsoft's public sample PBIX files (published-value oracle, every visual's query, perf budget) |
 | `LUMEN_PERF_STRICT=1` | strict 300 ms per-visual budget (run the samples file alone) |
 | `LUMEN_CORPUS_DIR=<dir of PBIP reports>` | parse/round-trip/evaluate a private corpus of real PBIP projects (assertions are generic; no corpus content in the repo) |
-| `LUMEN_IT=1` | live connector tests against Docker containers (Postgres, MySQL, MinIO, Firestore emulator) |
+| `LUMEN_IT=1` | live connector tests against Docker containers (Postgres, MySQL, MinIO, Firestore emulator; the MinIO and Firestore suites run only when their images are already pulled) |
+| `WBI_PERF=1` | the 1-million-row summarize performance test |
+
+The complete list (verbose and dump switches included) is in [reference/command-line-and-environment.md](reference/command-line-and-environment.md); `node scripts/docs/check-env-vars.mjs` checks it against the code. `npm run typecheck` does not cover `e2e/` (it has its own `e2e/tsconfig.json`).
 
 ### End-to-end UI journeys (`e2e/`)
 
@@ -237,3 +240,5 @@ DOM conditions or store state — no fixed sleeps. On failure a screenshot + ren
 | `LUMEN_E2E_WORKERS` | parallel app instances (default 3; `1` runs files serially) |
 | `LUMEN_E2E_APP` | built main entry to launch (default `out/e2e/main/index.js`) |
 | `LUMEN_E2E_USE_DISPLAY` | use the current `DISPLAY` instead of a private Xvfb (watch the journeys run) |
+| `LUMEN_E2E_SHOTS` | folder for screenshots of key states (`icons.e2e.ts`, `model.e2e.ts`) |
+| `CI` | when set, the `default` vitest reporter instead of `verbose` |

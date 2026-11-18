@@ -93,7 +93,10 @@ it measures. A visual's score is the weighted sum of its severities, used only f
 
 Noise floor: comparing Lumen with a PDF printed from its own render (same data, rasterised at another
 resolution) gives visual scores ≤ ~0.7 and a page pixel difference of ~2 %. Scores below ~1 are not worth
-looking at; the ranking matters more than the numbers.
+looking at; the ranking matters more than the numbers. The floor assumes the page rectangle was detected exactly:
+comparing a sweep PNG with itself, detection once placed the page at `-1,-1` and every score rose (page pixel
+difference about 9 %, a table at 1.2). When all scores look uniformly raised, check the detected rectangle (printed by the tool, and `pages[].referenceRect` in
+`compare.json`) and pass `--crop x,y,w,h`.
 
 What the tool **cannot** tell you: whether numbers are right (different data on purpose), anything inside
 tooltips, hover states or other pages, font family identity, and which of two plausible renderings Power BI

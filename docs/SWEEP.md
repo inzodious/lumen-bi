@@ -18,10 +18,12 @@ node scripts/sweep-summary.mjs <outdir> [--cards] [--all] [--json]
 ```
 
 * `<file-or-folder>` is a `.pbix` / `.pbit` / `.pbip` / `.wbi` file, a `*.Report` folder, or a folder
-  searched to depth 4 for those. Each report runs in its own Electron process on a private Xvfb display.
+  searched to depth 4 for `.pbix` / `.pbit` / `.wbi` files and `*.Report` folders (a PBIP project is found through
+  its `*.Report` folder; `.pbip` files themselves are not searched for). Each report runs in its own Electron process
+  on a private Xvfb display.
 * Output: `<outdir>/<report>/NN-<page>.png`, `report.json` (rewritten after each page; per page `pngPage` gives
   the page origin and pixels per page unit inside the PNG), `console.log`
-  (renderer console) and `<outdir>/summary.tsv` (one line per report).
+  (renderer console), `electron.log` (Electron's own stdout / stderr) and `<outdir>/summary.tsv` (one line per report).
 * `--sample-data` fills tables that have no data with synthetic rows (`src/core/data/synthetic.ts`). Use it
   for PBIP projects without a data cache. The sweep reuses every literal of the definitions, including names
   and ids that filters or formulas mention, so visuals pinned to them render. Add `--private` to use the app's

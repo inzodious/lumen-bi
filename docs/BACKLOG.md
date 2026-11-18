@@ -2,8 +2,9 @@
 
 Items the user has raised for after the initial build. "Discuss" = agree the design with the user before building.
 
-## In progress
-- **Formula bar everywhere + better-than-PBI DAX IntelliSense** — formula bar in Report view on measure select / New measure;
+## Built (kept for reference)
+- **Formula bar everywhere + better-than-PBI DAX IntelliSense** — built: `src/renderer/src/editors/FormulaBar.tsx` and
+  `src/renderer/src/editors/dax/` (completion, signature help, hover, formatter, diagnostics). Original request: formula bar in Report view on measure select / New measure;
   Tab-to-accept with fuzzy ranking (`CALC` → `CALCULATE(`), auto-indent, signature help, hover docs, snippets,
   format-on-demand/commit, live value preview, quick fixes. (modeling-views workstream)
 
@@ -11,6 +12,8 @@ Items the user has raised for after the initial build. "Discuss" = agree the des
 - **Smarter sizing and snapping** — snap to *equal spacing* (Figma-style distance guides, e.g. keep the gaps between KPI
   cards identical), match-size guides (same width/height as a neighbour), margin/gutter presets for the page, distribute
   with a fixed gap, "tidy up" grid for a row of cards, keyboard resize, numeric position/size in the format pane.
+  *Status:* equal spacing, match size, margin/gutter guides, tidy up and distribute with a gap are built
+  (`report/geometry.ts`, `report/layoutGuides.ts`; see ARCHITECTURE ▸ "Snapping & layout").
 - **More slicer dropdown options** — richer dropdown slicer (search, select-all, single/multi toggle, chips for
   selections, hierarchy in dropdown, date presets), plus whatever else the user lists.
 - General improvements list (to be collected with the user).

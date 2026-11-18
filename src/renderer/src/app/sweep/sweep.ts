@@ -17,7 +17,7 @@ import { useApp } from '../../state/store'
 import { useShell, PANE_ORDER } from '../shellState'
 import { openPath } from '../commands'
 import { generateSyntheticData } from '@core/data/synthetic'
-import { orderedPages, pageInfo, visualTypeOf, isGroup, isEffectivelyHidden } from '../../report/pbir'
+import { orderedPages, pageInfo, visualTypeOf, isGroup, isEffectivelyHidden, absoluteRect, positionOf } from '../../report/pbir'
 import { liveContext } from '../../report/host'
 import { probeVisual, CARD_TYPES, type VisualProbe } from './probe'
 import { BLOCK_CACHE_GLOBAL } from '@shared/cacheGuard'
@@ -39,6 +39,10 @@ export interface SweepVisual {
   /** live filter context (JSON, truncated) for visuals that came out empty or broken — triage aid */
   filters?: string
   probe?: Omit<VisualProbe, 'page' | 'pageDisplayName' | 'visual' | 'visualType' | 'title' | 'hidden'>
+  /** the visual's rectangle in page units, from the definition (group offsets applied) — used by scripts/compare.sh */
+  rect?: { x: number; y: number; w: number; h: number }
+  /** stacking order from the definition */
+  z?: number
 }
 
 export interface SweepPage {
@@ -49,6 +53,8 @@ export interface SweepPage {
   width: number
   height: number
   png?: string
+  /** where the page sits in `png`: page origin (x, y) in PNG pixels and PNG pixels per page unit */
+  pngPage?: { x: number; y: number; scale: number }
   renderMs: number
   readyTimedOut: boolean
   visuals: SweepVisual[]
@@ -181,14 +187,21 @@ function fitZoom(width: number, height: number): number {
   return Math.min(1, aw / width, ah / height)
 }
 
-async function capturePage(path: string): Promise<boolean> {
+/** Captures the page; returns the captured rectangle (CSS px) or null. */
+async function capturePage(path: string): Promise<{ x: number; y: number; width: number; height: number; pngWidth: number } | null> {
   const el = document.querySelector<HTMLElement>('.wbi-page-outer')
-  if (!el) return false
+  if (!el) return null
   const r = el.getBoundingClientRect()
   const rect = { x: Math.max(0, Math.floor(r.left)), y: Math.max(0, Math.floor(r.top)), width: Math.ceil(Math.min(r.width, window.innerWidth - r.left)), height: Math.ceil(Math.min(r.height, window.innerHeight - r.top)) }
   const png = await host().exporter.capturePng(rect)
   await host().fs.writeFile(path, png)
-  return true
+  return { ...rect, pngWidth: pngWidth(png) }
+}
+
+/** PNG width in pixels, read from the IHDR chunk (0 when not a PNG). */
+function pngWidth(png: Uint8Array): number {
+  if (png.length < 24 || png[1] !== 0x50 || png[2] !== 0x4e || png[3] !== 0x47) return 0
+  return ((png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19]) >>> 0
 }
 
 function countStates(vs: SweepVisual[]): Record<string, number> {
@@ -292,9 +305,16 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
       await settle(15000)
       const renderMs = Math.round(performance.now() - t1)
       const pngName = `${String(idx).padStart(2, '0')}-${safeName(info.displayName)}.png`
-      const captured = await capturePage(`${outDir}/${pngName}`).catch(() => false)
+      const captured = await capturePage(`${outDir}/${pngName}`).catch(() => null)
       const outerEl = document.querySelector<HTMLElement>('.wbi-page-outer')
       const innerEl = document.querySelector<HTMLElement>('.wbi-page')
+      let pngPage: SweepPage['pngPage']
+      if (captured && innerEl) {
+        // page origin and scale inside the captured PNG (device pixels may differ from CSS px)
+        const k = captured.pngWidth > 0 ? captured.pngWidth / captured.width : window.devicePixelRatio || 1
+        const ir = innerEl.getBoundingClientRect()
+        pngPage = { x: Math.round((ir.left - captured.x) * k * 100) / 100, y: Math.round((ir.top - captured.y) * k * 100) / 100, scale: Math.round(((ir.width * k) / info.width) * 10000) / 10000 }
+      }
       const rr = (el: Element | null) => (el ? (({ x, y, width, height }) => ({ x: Math.round(x), y: Math.round(y), w: Math.round(width), h: Math.round(height) }))(el.getBoundingClientRect()) : null)
       console.info(`[sweep] page ${info.displayName}: outers=${document.querySelectorAll('.wbi-page-outer').length} outer=${JSON.stringify(rr(outerEl))} inner=${JSON.stringify(rr(innerEl))} zoom=${useApp.getState().zoom} win=${window.innerWidth}x${window.innerHeight} dpr=${window.devicePixelRatio}`)
       const engine = useApp.getState().engine
@@ -319,6 +339,9 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
           if (!sv.title && t) sv.title = t
           if (probe.groups.length || probe.values.length) sv.probe = probe
         }
+        const ar = absoluteRect(page, v)
+        sv.rect = { x: ar.x, y: ar.y, w: ar.width, h: ar.height }
+        sv.z = positionOf(v).z
         if (sv.state === 'ok' && CARD_TYPES.has(type) && /\(Blank\)/.test(sv.text ?? '')) sv.state = 'blank'
         if (sv.state === 'nodata' || sv.state === 'blank' || sv.state === 'error') {
           const live = liveContext(page.name, v.name)
@@ -334,6 +357,7 @@ export async function runSweep(params: URLSearchParams): Promise<void> {
         width: info.width,
         height: info.height,
         png: captured ? pngName : undefined,
+        pngPage,
         renderMs,
         readyTimedOut: !ready,
         visuals,

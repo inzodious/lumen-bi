@@ -15,6 +15,7 @@ Read `docs/ARCHITECTURE.md` before changing anything — it lists the contracts 
   `LUMEN_SAMPLES_DIR=<dir of Microsoft sample .pbix>` enables the sample-file journeys; failure screenshots/logs go to `$LUMEN_E2E_OUT` (default a temp dir).
   New UI features need a journey in `e2e/*.e2e.ts` (helpers in `e2e/harness.ts`; wait on `wbiReady`/`wbiBusy`/DOM, never fixed sleeps)
 - `scripts/sweep.sh <file-or-folder> <outdir> [--sample-data]` — render every page of reports; `node scripts/sweep-summary.mjs <outdir>`
+- `scripts/compare.sh <reference.png|.pdf> <report> <outdir> [--page p] [--sample-data --private] [--same-data]` — compare a Power BI screenshot / Export-to-PDF with Lumen's render, visual by visual (review page `<outdir>/index.html`; see `docs/COMPARE.md`)
 - `LUMEN_IT=1 npx vitest run src/main/ipc/connectors` — live connector tests (Docker)
 - `scripts/install-desktop.sh [--pin]` — desktop entry + file associations
 

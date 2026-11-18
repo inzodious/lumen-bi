@@ -8,6 +8,9 @@ table and measure names never appear here.
 
 ## How to run
 
+To compare the renders with Power BI itself (a screenshot or an Export-to-PDF), use `scripts/compare.sh`, which
+builds on the sweep: see [COMPARE.md](COMPARE.md).
+
 ```bash
 npm run build                                          # sweep.sh rebuilds by itself when src/ is newer than out/
 scripts/sweep.sh <file-or-folder> <outdir> [--sample-data] [--pages 1,3] [--size 1800x1200] [--no-build]
@@ -16,7 +19,8 @@ node scripts/sweep-summary.mjs <outdir> [--cards] [--all] [--json]
 
 * `<file-or-folder>` is a `.pbix` / `.pbit` / `.pbip` / `.wbi` file, a `*.Report` folder, or a folder
   searched to depth 4 for those. Each report runs in its own Electron process on a private Xvfb display.
-* Output: `<outdir>/<report>/NN-<page>.png`, `report.json` (rewritten after each page), `console.log`
+* Output: `<outdir>/<report>/NN-<page>.png`, `report.json` (rewritten after each page; per page `pngPage` gives
+  the page origin and pixels per page unit inside the PNG), `console.log`
   (renderer console) and `<outdir>/summary.tsv` (one line per report).
 * `--sample-data` fills tables that have no data with synthetic rows (`src/core/data/synthetic.ts`). Use it
   for PBIP projects without a data cache. The sweep reuses every literal of the definitions, including names
@@ -46,7 +50,8 @@ shown inactive. A hidden window stops painting, which makes `capturePage` return
    "Can't display the visual" / "Something's wrong with one or more fields" + message), `nodata`,
    `loading-stuck`, `unsupported` (placeholder), `empty` (no text and no marks; text inside same-origin
    iframes counts), `hidden` or `not-rendered`. The record also keeps its visible text
-   (card values, totals) and an **engine probe** (`probe.ts`): the visual's fields are run against the
+   (card values, totals), its rectangle from the definition (`rect`, page units, group offsets applied; `z`)
+   and an **engine probe** (`probe.ts`): the visual's fields are run against the
    engine under the live filter context, recording query time, engine warnings, errors and grand totals.
 
 ### Fast regression (no Electron)

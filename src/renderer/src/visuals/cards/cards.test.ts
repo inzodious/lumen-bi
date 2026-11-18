@@ -192,18 +192,16 @@ describe('cardVisual GA features', () => {
     expect(cardTextDefaults(sized).label).toEqual({ family: 'Segoe UI', size: 13, color: sized.foregroundNeutralSecondary })
   })
 
-  it('centres the label + value block whatever layout.alignment says and spaces label and value', () => {
+  it('aligns the label + value block vertically by layout.alignment (centred when unset) and spaces label and value', () => {
     const fields = cardFields(card([proj(S.m('Orders'), '_m.Orders')]), () => 'Orders', () => true)
     const vals: CardValues = { get: () => ({ value: 12, formatString: '0' }) }
-    for (const a of ["'top'", "'bottom'", "'middle'"]) {
-      const json = card([proj(S.m('Orders'), '_m.Orders')], { layout: [{ properties: { alignment: lit(a) } }] })
+    for (const [a, want] of [["'top'", 'top'], ["'bottom'", 'bottom'], ["'middle'", 'middle'], [undefined, 'middle'], ["'right'", 'middle']] as const) {
+      const json = card([proj(S.m('Orders'), '_m.Orders')], a ? { layout: [{ properties: { alignment: lit(a) } }] } : {})
       const m = buildCardVisualModel(json, theme, memoryFormat, planCardQuery(json, theme, fields), vals)
-      expect(m.layout.alignment).toBe('middle')
+      expect(m.layout.alignment).toBe(want)
+      expect(m.layout.justify).toBe(a === "'right'" ? 'right' : 'left')
       expect(m.callouts[0].labelGap).toBe(DEFAULT_LABEL_SPACING)
     }
-    // GA horizontal values still align the cards
-    const right = card([proj(S.m('Orders'), '_m.Orders')], { layout: [{ properties: { alignment: lit("'right'") } }] })
-    expect(buildCardVisualModel(right, theme, memoryFormat, planCardQuery(right, theme, fields), vals).layout.justify).toBe('right')
     // an explicit spacing wins
     const tight = card([proj(S.m('Orders'), '_m.Orders')], { spacing: [{ properties: { verticalSpacing: lit('2L') }, selector: { id: 'default' } }] })
     expect(buildCardVisualModel(tight, theme, memoryFormat, planCardQuery(tight, theme, fields), vals).callouts[0].labelGap).toBe(2)

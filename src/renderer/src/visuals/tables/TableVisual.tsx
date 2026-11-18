@@ -7,7 +7,7 @@ import { promptDialog } from '../../app/ui'
 import { CellContent, Grid, HeaderLabel, headerSeparator, ResizeHandle } from './Grid'
 import { applySort, buildTableModel, nextSort, type TableColumn } from './tableModel'
 import { headerAlignment, outlineBorders } from './tableFormat'
-import { cellPadX, computeWidths, contentWidth, CELL_PAD_X, MIN_COLUMN_WIDTH, type WidthInput } from './widths'
+import { cellPadX, computeWidths, contentWidth, CELL_PAD_X, MIN_COLUMN_WIDTH, WRAP_TEXT, type WidthInput } from './widths'
 import { resetColumnWidth, setColumnWidth as setWidth, visualObjects } from './columnWidths'
 import type { CellModel } from './cellModel'
 import { copyToClipboard, copyValueText, isCopyKey, toTsv } from './copy'
@@ -150,7 +150,7 @@ export function TableVisual({ visual, width, height, ctx }: VisualProps) {
               align={align}
               sort={c.sort}
               color={ov?.fontColor ?? f.header.font.color}
-              textStyle={f.header.wordWrap ? { whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: align } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              textStyle={f.header.wordWrap ? { ...WRAP_TEXT, textAlign: align } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
             />
             {editable ? (
               <ResizeHandle

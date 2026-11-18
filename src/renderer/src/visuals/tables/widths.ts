@@ -13,9 +13,22 @@
  * shares the leftover between the other columns; the Fixed width default is 120 px when no Default width is
  * set; a legacy "Auto-size width: off" visual keeps the content width for a column without a stored width.
  */
+import type { CSSProperties } from 'react'
 import { measureText, type FontSpec } from '../common/textStyle'
 
-export const CELL_PAD_X = 6
+/**
+ * Horizontal padding of table / matrix cells (headers, row headers, values), px per side. Not published by Microsoft;
+ * inferred from Power BI Desktop renders of two tables (10pt text): a header exactly 8.6px narrower than its stored
+ * column width (and dates 11px narrower) stay on one line, while a header 3.5px narrower than its column wraps — so
+ * the padding is between 2 and 4px per side; 3px is used.
+ */
+export const CELL_PAD_X = 3
+
+/**
+ * Word wrap in table / matrix cells: lines break at spaces only; a single word wider than the column is clipped at the
+ * cell's padding, never split mid-word (Power BI behaviour: "word wrap" does not break words).
+ */
+export const WRAP_TEXT: CSSProperties = { whiteSpace: 'normal', overflowWrap: 'normal', wordBreak: 'normal', overflow: 'hidden', minWidth: 0 }
 /** narrowest width a column can be dragged to */
 export const MIN_COLUMN_WIDTH = 16
 /** Fixed width without a Default width (approximation, see the file comment) */

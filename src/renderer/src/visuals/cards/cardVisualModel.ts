@@ -171,10 +171,7 @@ export interface CardLayoutModel {
   border?: { color: string; width: number; style: string }
   radius: Corners
   overflow: { style: 'scroll' | 'paginate'; direction: 'vertical' | 'horizontal' }
-  /**
-   * vertical alignment of the callout content (label + value) in the callout area: always centred.
-   * `layout.alignment` does not drive it — see readCardLayout.
-   */
+  /** vertical alignment of the callout content (label + value) in the callout area (`layout.alignment` top / middle / bottom) */
   alignment: 'top' | 'middle' | 'bottom'
   /** horizontal alignment of the card grid when cards don't fill the width */
   justify: 'left' | 'center' | 'right'
@@ -431,9 +428,9 @@ function readCorners(props: CardProps, object: string, scope: CardScope, fallbac
 }
 
 /**
- * Default space between the category label and the value (`spacing.verticalSpacing`), px. Approximation:
- * the default is not published; on a Power BI Desktop render (14pt label above a 16pt value, nothing set)
- * the baselines are ≈ 38px apart, which this gap reproduces with the card's 1.2 line height.
+ * Default space between the category label and the value (`spacing.verticalSpacing`), px. Not published; inferred
+ * from Power BI Desktop renders of three reports (14pt label above a 16pt value, nothing set): label and value are
+ * ≈ 36–38px apart centre to centre, which this gap reproduces with the card's 1.2 line height.
  */
 export const DEFAULT_LABEL_SPACING = 12
 
@@ -557,10 +554,10 @@ export function readCardLayout(props: CardProps, n: number, anyRefs: boolean, an
   const gap = props.num('layout', 'cellPadding', 8)
   const customSpacing = props.bool('layout', 'customizePadding', false)
   const style = props.str('layout', 'style', 'Cards').toLowerCase() === 'table' ? 'table' : 'cards'
-  // `layout.alignment` is the horizontal alignment of the cards in the GA schema (left/center/right).
-  // Power BI writes 'top' there on nearly every card it saves, and a Power BI Desktop render of such a
-  // card still centres the label + value block in the callout area (the label sits well below the
-  // top-aligned callout image), so top/middle/bottom do not align the callout content: it is centred.
+  // `layout.alignment` holds two settings. left / center / right (the GA theme schema's enum) align the cards
+  // horizontally; top / middle / bottom (what Power BI Desktop writes from "Callout > Layout", which Learn says
+  // "controls the vertical alignment and size of the callout within the callout section of each card") align the
+  // label + value block vertically in the callout area. Nothing stored: centred.
   const align = props.str('layout', 'alignment', 'middle').toLowerCase()
   const isH = align === 'left' || align === 'center' || align === 'right'
   const order = props.str('layout', 'contentOrder', 'callout_referenceLabel_image').split('_') as CardArea[]
@@ -592,7 +589,7 @@ export function readCardLayout(props: CardProps, n: number, anyRefs: boolean, an
     border: props.optNum('layout', 'borderWidth') ? { color: props.color('layout', 'borderColor', '#E1DFDD'), width: props.num('layout', 'borderWidth', 1), style: lineStyleOf(props.str('layout', 'borderStyle', 'solid')) } : undefined,
     radius: readCorners(props, 'layout', {}, 0),
     overflow: readOverflow(props, 'overFlow', 'overflow'),
-    alignment: 'middle',
+    alignment: isH ? 'middle' : vAlignOf(align, 'middle'),
     justify: isH ? alignOf(align, 'left') : 'left',
     calloutSize: Math.max(5, Math.min(100, props.num('layout', 'calloutSize', 50))),
     areas: { referenceLabel: anyRefs, image: anyCardImage },

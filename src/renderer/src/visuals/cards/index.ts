@@ -138,9 +138,9 @@ export const cardVisualDef: VisualDefinition = {
             { value: 'left', label: 'Left' },
             { value: 'center', label: 'Center' },
             { value: 'right', label: 'Right' },
-            { value: 'top', label: 'Top (preview)' },
-            { value: 'middle', label: 'Middle (preview)' },
-            { value: 'bottom', label: 'Bottom (preview)' }
+            { value: 'top', label: 'Top (callout)' },
+            { value: 'middle', label: 'Middle (callout)' },
+            { value: 'bottom', label: 'Bottom (callout)' }
           ]
         },
         { name: 'calloutSize', displayName: 'Callout size (%)', type: 'number', min: 0, max: 100, default: 50 },

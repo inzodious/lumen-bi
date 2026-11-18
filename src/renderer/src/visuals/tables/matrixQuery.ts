@@ -323,6 +323,15 @@ export function loadMatrix(visualJson: any, ctx: VisualHostContext, format: Tabl
     }
   }
 
+  completeRowNodes(blocks, win, neededRowDepth, values.length + extras.length, rowsShowAll(visualJson), sort)
+  if (!calcItems.slice(0, neededColDepth).some((x) => x)) {
+    try {
+      completeColNodes(blocks, ctx, colFields.map((p) => p.expr), neededColDepth, neededRowDepth, values.length + extras.length, cols.allowed ? cols.prefixes : undefined)
+    } catch (err) {
+      warnings.push(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   // visual calculations: one evaluation over the visual matrix (rows × columns, every level), whatever is loaded.
   // Cells fill the blank calc slots of every block (subtotals and totals are lattice cells too); with both axes,
   // densified combinations (no base data, non-blank calculation, PBI DENSIFY) are added with blank base values.
@@ -447,6 +456,110 @@ export function loadMatrix(visualJson: any, ctx: VisualHostContext, format: Tabl
     columnsCapped: cols.capped,
     columnWindow,
     fullStats
+  }
+}
+
+/** "Show items with no data" on the Rows well (`queryState.Rows.showAll`, or on a row projection). */
+export function rowsShowAll(visualJson: any): boolean {
+  const rows = visualJson?.visual?.query?.queryState?.Rows
+  return rows?.showAll === true || (rows?.projections ?? []).some((p: any) => p?.showAll === true)
+}
+
+/**
+ * Row nodes the matrix shows, level by level (the `d:0` blocks the row tree is built from). A group whose own
+ * subtotal is blank is still shown when a descendant has data (Power BI lists the parents of every row that has
+ * a value: e.g. a measure that is blank at the group level but not on its detail rows), and with "Show items with
+ * no data" on the Rows every group of the row window is shown, values or not. Missing nodes are added with blank
+ * values, in the window's display order.
+ */
+export function completeRowNodes(
+  blocks: Map<string, MatrixBlock>,
+  win: RowWindow,
+  depth: number,
+  valueWidth: number,
+  showAll: boolean,
+  sort: MatrixSort
+): void {
+  let below: Scalar[][] = []
+  for (let d = depth; d >= 1; d--) {
+    const block = blocks.get(blockKey(d, 0))
+    const visible = win.byDepth[d]
+    if (!block) {
+      below = []
+      continue
+    }
+    const have = new Set(block.rows.map((r) => pathKey(r.slice(0, d))))
+    const wanted: Scalar[][] = showAll && visible ? visible.tuples : below.map((r) => r.slice(0, d))
+    let added = false
+    for (const path of wanted) {
+      const k = pathKey(path)
+      if (have.has(k) || (visible && !visible.keys.has(k))) continue
+      have.add(k)
+      block.rows.push([...path, ...Array.from({ length: valueWidth }, () => null)])
+      block.formats?.push([])
+      added = true
+    }
+    if (added && visible) {
+      // the window lists siblings in display order (group sort direction applied); the row tree re-reverses a
+      // descending group sort, so keep the block ascending in that case
+      const order = new Map(visible.tuples.map((t, i) => [pathKey(t), i]))
+      const desc = sort?.kind === 'group' && sort.dir === 'desc'
+      const idx = block.rows.map((r, i) => ({ i, o: order.get(pathKey(r.slice(0, d))) ?? Number.MAX_SAFE_INTEGER }))
+      idx.sort((a, b) => (desc ? b.o - a.o : a.o - b.o) || a.i - b.i)
+      const rows = idx.map(({ i }) => block.rows[i])
+      const formats = block.formats ? idx.map(({ i }) => block.formats![i] ?? []) : undefined
+      block.rows = rows
+      block.formats = formats
+    }
+    below = block.rows
+  }
+}
+
+/**
+ * Column groups, like row nodes (see completeRowNodes): the column tree is built from the `0:e` blocks (column
+ * totals over all rows), so a column group whose total is blank but that has values in some row is added with
+ * blank totals. Order: the columns' own ascending order (a group-only query, like the column window).
+ */
+export function completeColNodes(
+  blocks: Map<string, MatrixBlock>,
+  ctx: VisualHostContext,
+  colExprs: SQExpr[],
+  depth: number,
+  rowDepth: number,
+  valueWidth: number,
+  allowed?: Array<TupleSet | undefined>
+): void {
+  let below: Scalar[][] = []
+  for (let e = depth; e >= 1; e--) {
+    const block = blocks.get(blockKey(0, e))
+    if (!block) {
+      below = []
+      continue
+    }
+    const have = new Set(block.rows.map((r) => pathKey(r.slice(0, e))))
+    const missing = new Map<string, Scalar[]>()
+    const want = (path: Scalar[]) => {
+      const k = pathKey(path)
+      if (have.has(k) || missing.has(k) || (allowed?.[e] && !allowed[e]!.keys.has(k))) return
+      missing.set(k, path)
+    }
+    for (const r of below) want(r.slice(0, e))
+    for (let d = 1; d <= rowDepth; d++) for (const r of blocks.get(blockKey(d, e))?.rows ?? []) want(r.slice(d, d + e))
+    if (missing.size) {
+      for (const path of missing.values()) {
+        block.rows.push([...path, ...Array.from({ length: valueWidth }, () => null)])
+        block.formats?.push([])
+      }
+      const groupBy = colExprs.slice(0, e).map((expr) => ({ kind: 'sq' as const, expr }))
+      const ordered = ctx.engine.summarize({ groupBy, values: [], filters: ctx.filters, orderBy: groupBy.map((_, i) => ({ target: { group: i }, direction: 'asc' as const })) }).rows
+      const order = new Map(ordered.map((r, i) => [pathKey(r.slice(0, e)), i]))
+      const idx = block.rows.map((r, i) => ({ i, o: order.get(pathKey(r.slice(0, e))) ?? Number.MAX_SAFE_INTEGER }))
+      idx.sort((a, b) => a.o - b.o || a.i - b.i)
+      const formats = block.formats ? idx.map(({ i }) => block.formats![i] ?? []) : undefined
+      block.rows = idx.map(({ i }) => block.rows[i])
+      block.formats = formats
+    }
+    below = block.rows
   }
 }
 

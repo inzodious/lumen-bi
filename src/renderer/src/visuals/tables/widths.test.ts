@@ -1,4 +1,4 @@
-import { cellPadX, computeWidths, contentWidth, DEFAULT_FIXED_WIDTH, MIN_COLUMN_WIDTH } from './widths'
+import { CELL_PAD_X, cellPadX, computeWidths, contentWidth, DEFAULT_FIXED_WIDTH, MIN_COLUMN_WIDTH, WRAP_TEXT } from './widths'
 import { steppedHeaderWidth } from './MatrixVisual'
 
 const font = { family: 'Segoe UI', size: 10, color: '#000' }
@@ -68,5 +68,14 @@ describe('column widths', () => {
     expect(cellPadX(0)).toBe(0)
     expect(cellPadX(100)).toBeGreaterThan(0)
     expect(computeWidths([col(['x'], 0)], { behavior: 'fitToContent', wrapHeader: false, available: 100 })).toEqual([0])
+  })
+  it('cells are padded 3px per side; word wrap breaks at spaces only and clips a longer word', () => {
+    expect(CELL_PAD_X).toBe(3)
+    expect(cellPadX(83)).toBe(3)
+    expect(cellPadX(6)).toBe(0)
+    // fit to content: the widest text + 2 × padding (+1px rounding guard)
+    const w = computeWidths([col(['12345'])], { behavior: 'fitToContent', wrapHeader: false, available: 1000 })[0]
+    expect(w - 2 * CELL_PAD_X - 1).toBeGreaterThanOrEqual(0)
+    expect(WRAP_TEXT).toMatchObject({ whiteSpace: 'normal', overflowWrap: 'normal', wordBreak: 'normal', overflow: 'hidden' })
   })
 })

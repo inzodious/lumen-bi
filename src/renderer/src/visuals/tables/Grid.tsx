@@ -10,7 +10,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { CellModel } from './cellModel'
 import { CFIcon } from './cfIcons'
 import { sparklineGeometry, type MarkerShape, type SparkPoint, type SparklineFormat } from './sparklineModel'
-import { MIN_COLUMN_WIDTH } from './widths'
+import { MIN_COLUMN_WIDTH, WRAP_TEXT } from './widths'
 import { rgba } from '../common/color'
 
 export interface GridProps {
@@ -170,7 +170,7 @@ export function CellContent({
     return <Sparkline points={cell.spark.points} format={cell.spark.format} width={Math.max(20, contentWidth ?? 100)} height={h} />
   }
   const justify = align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'
-  const textStyle: CSSProperties = wrap ? { whiteSpace: 'normal', overflowWrap: 'anywhere' } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
+  const textStyle: CSSProperties = wrap ? WRAP_TEXT : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
   let text: ReactNode = cell.hideText ? null : cell.text
   if (cell.image) {
     text = (

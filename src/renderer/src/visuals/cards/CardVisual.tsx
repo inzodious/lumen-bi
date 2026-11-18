@@ -603,10 +603,13 @@ function RefLabels({ refs, layout, align, area, extra }: { refs: RefLabelModel[]
   let inner: ReactNode
   if (!refs.length) inner = null
   else if (R.arrangement === 'columns') {
+    // "Horizontal" labels: the reference-label area is split into equal columns, one per label (title above value),
+    // each aligned inside its column. Inferred from a Power BI Desktop render (three labels at the left, middle and
+    // right thirds of the card); the split is not documented.
     inner = (
-      <div style={{ display: 'flex', gap: 12 + R.labelSpace, justifyContent: HJUSTIFY[align] }}>
+      <div className="wbi-card-ref-columns" style={{ display: 'grid', gridTemplateColumns: `repeat(${refs.length}, minmax(0, 1fr))`, columnGap: R.labelSpace }}>
         {refs.map((r) => (
-          <div key={r.id} style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: align }}>
+          <div key={r.id} className="wbi-card-ref-column" style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: align }}>
             {r.title.show && <span style={textBlock(r.title.text, fontStyle(r.title.font), r.title.wrap)}>{r.title.text}</span>}
             {r.value.show && <span style={textBlock(r.value.text, fontStyle(r.value.font), r.value.wrap)}>{r.value.text}</span>}
             {r.detail && <span style={{ ...textBlock(r.detail.text, fontStyle(r.detail.font), r.detail.wrap), background: r.detail.background, padding: '0 3px', alignSelf: HJUSTIFY[align] }}>{r.detail.text}</span>}

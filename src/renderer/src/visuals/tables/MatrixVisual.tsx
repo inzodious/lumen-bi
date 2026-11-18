@@ -22,7 +22,7 @@ import { CellContent, Grid, HeaderLabel, headerSeparator, LinkIcon, ResizeHandle
 import { buildMatrixView, formatLabel, matrixIdentity } from './matrixView'
 import { applySort } from './tableModel'
 import { headerAlignment, outlineBorders, scopedWidth, type TotalStyle } from './tableFormat'
-import { cellPadX, computeWidths, contentWidth, CELL_PAD_X, maxTextWidth, type WidthInput } from './widths'
+import { cellPadX, computeWidths, contentWidth, CELL_PAD_X, maxTextWidth, WRAP_TEXT, type WidthInput } from './widths'
 import { clearScopedWidths, resetColumnWidth, scopeSelector, setColumnWidth, totalSelector, visualObjects, type WidthTarget } from './columnWidths'
 import { Message, AUTOSIZE_SAMPLE_ROWS, validWidth } from './TableVisual'
 import { pinnedGrandTotalStart, type ColHeaderCell, type RowItem } from './matrixModel'
@@ -657,7 +657,7 @@ export function MatrixVisual({ visual, width, height, ctx }: VisualProps) {
                 {f.rowHeaders.urlIcon ? <LinkIcon size={rowHeaderPx} /> : label}
               </span>
             ) : (
-              <span style={f.rowHeaders.wordWrap ? { whiteSpace: 'normal', overflowWrap: 'anywhere' } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+              <span style={f.rowHeaders.wordWrap ? WRAP_TEXT : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
             )
           ) : null}
         </div>
@@ -793,7 +793,7 @@ function itemColumn(it: RowItem, rowLevels: number): number {
 
 function headerTextStyle(wrap: boolean, align: 'left' | 'center' | 'right' = 'left'): CSSProperties {
   return wrap
-    ? { whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: align, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }
+    ? { ...WRAP_TEXT, textAlign: align, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }
     : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
 }
 

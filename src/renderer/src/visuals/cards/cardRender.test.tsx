@@ -139,8 +139,8 @@ describe('card visual rendering — KPI tile', () => {
     // default image position: right of the text (the text column comes first in the row)
     expect(html.indexOf('class="wbi-card-image"')).toBeGreaterThan(html.indexOf('class="wbi-card-value"'))
     expect(styleOf(html, 'wbi-card-image')).toMatch(/margin-left:0(px)?(;|$)/)
-    // the text block is centred in the callout area even though the file says alignment 'top'
-    expect(html).toMatch(/class="wbi-card-callout" style="display:flex;flex-direction:column;justify-content:center/)
+    // the file says alignment 'top': the text block starts at the top of the callout area
+    expect(html).toMatch(/class="wbi-card-callout" style="display:flex;flex-direction:column;justify-content:flex-start/)
     // theme callout class: 16pt regular (21.33px), not a bold 28pt default
     const value = styleOf(html, 'wbi-card-value')
     expect(value).toMatch(/font-size:21\.3\d*px/)
@@ -204,6 +204,22 @@ describe('card visual rendering — KPI tile', () => {
     const table = styleOf(packed, 'wbi-card-ref-table')
     expect(table).toContain('grid-template-columns:max-content minmax(0, max-content)')
     expect(table).toContain('justify-content:center')
+  })
+
+  it('spreads horizontal ("columns") reference labels over equal columns across the card', () => {
+    const html = render(kpiCard({ referenceLabelLayout: [{ properties: { position: lit("'below'"), arrangement: lit("'columns'"), labelSpace: lit('0D') }, selector: { id: 'default' } }] }))
+    const cols = styleOf(html, 'wbi-card-ref-columns')
+    expect(cols).toContain('display:grid')
+    expect(cols).toContain('grid-template-columns:repeat(2, minmax(0, 1fr))')
+    expect(html.match(/class="wbi-card-ref-column"/g)).toHaveLength(2)
+    // title above value inside each column, aligned like the callout value (left)
+    expect(/class="wbi-card-ref-column" style="([^"]*)"/.exec(html)?.[1]).toContain('text-align:left')
+  })
+
+  it('aligns the label + value block to the middle of the callout area when no alignment is stored', () => {
+    const json = kpiCard()
+    delete (json.visual.objects.layout[0].properties as Record<string, unknown>).alignment
+    expect(render(json)).toMatch(/class="wbi-card-callout" style="display:flex;flex-direction:column;justify-content:center/)
   })
 
   it('puts the label below the value when the visual says so', () => {

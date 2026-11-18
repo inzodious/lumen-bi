@@ -296,6 +296,47 @@ describe('tables and matrices', () => {
     await settle(page)
   })
 
+  it('header word wrap: text as wide as the column minus its padding stays on one line; a longer word is clipped, not split', async () => {
+    const { page } = lumen()
+    await goToPage(page, 'Products')
+    const name = await visualByTitle(page, 'Product details')
+    const vc = page.locator(`.wbi-page [data-visual="${name}"]`)
+    const fit = await columns(vc)
+    const header = vc.locator(`[role="columnheader"][data-col="${fit.cols[0].ref}"]`)
+    /** the header's text box (layout px) and the width its text needs on one line */
+    const geo = () =>
+      header.evaluate((h) => {
+        const text = h.querySelector(':scope > span > span') as HTMLElement
+        const cs = getComputedStyle(text)
+        const ctx = document.createElement('canvas').getContext('2d')!
+        ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+        const hs = getComputedStyle(h)
+        return { text: text.innerText, need: ctx.measureText(text.innerText).width, height: text.offsetHeight, clipped: text.scrollWidth > text.clientWidth, padX: parseFloat(hs.paddingLeft) + parseFloat(hs.paddingRight) }
+      })
+    const g0 = await geo()
+    expect(g0.text).not.toMatch(/\s/)
+    expect(g0.padX).toBe(6)
+    const setWidth = async (w: number) => {
+      await contextMenu(page, header, ['Set column width'])
+      const dialog = page.getByRole('dialog', { name: 'Set column width' })
+      await dialog.locator('input').fill(String(w))
+      await dialog.getByRole('button', { name: 'OK' }).click()
+      await expect.poll(async () => (await columns(vc)).cols[0].width).toBe(w)
+    }
+    // exactly as wide as the text + padding: one line
+    await setWidth(Math.ceil(g0.need) + g0.padX)
+    const exact = await geo()
+    expect(exact.height).toBe(g0.height)
+    expect(exact.clipped).toBe(false)
+    // narrower than the word: still one line (no mid-word break), the end of the word is clipped
+    await setWidth(Math.ceil(g0.need) + g0.padX - 8)
+    const narrow = await geo()
+    expect(narrow.height).toBe(g0.height)
+    expect(narrow.clipped).toBe(true)
+    await contextMenu(page, header, ['Reset column width'])
+    await expect.poll(async () => (await columns(vc)).cols[0].width).toBe(fit.cols[0].width)
+  })
+
   it('hierarchy slicer: Expand ▸ / Collapse ▸ (Selection, Entire level, All), Search and Clear selections from the context menu', async () => {
     const { page } = lumen()
     // a new page with a slicer on Category ▸ Subcategory

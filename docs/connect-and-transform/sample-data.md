@@ -46,11 +46,30 @@ Lumen reads only the model's and the report's *definitions*: tables, columns, da
 - **Calendars.** Date tables get a contiguous calendar (three years ending on December 31 of the current year by default) with derived columns such as year, month name and quarter, recognized by name. Fact dates follow a trend and a seasonality, dip on weekends, and never lie after today.
 - **Columns by name and type.** Names, e-mail addresses, cities, statuses, amounts, counts, durations, rates, scores and flags get values that look like what their names suggest.
 - **Values your formulas and filters need.** Category values, flags, thresholds and dates that DAX formulas and report filters compare columns to are reused, so a measure such as `CALCULATE ( SUM ( f[amount] ), f[stage] = "Won" )` returns a number. Conditions that appear together (one `CALCULATE`'s filters, a visual's filters with the page and report filters) are seeded so enough rows satisfy all of them at once.
+- **Dense where the report is sliced.** Lumen looks at the fields the report's slicers, filter-pane cards and grouping (cross-filtering) visuals select on. Every member of such a dimension, directly or through a chain of dimensions, gets fact rows in every period of the grain the report's date slicers select (quarter, month, week, year; the whole date range when the report has no date slicer). These *coverage rows* come on top of the ordinary rows, so popular members still have far more rows than the others. Periodic-snapshot facts (one row per entity per snapshot date) list every entity on every snapshot day. See [Coverage limits](#coverage-limits).
 - **Calculated tables** are computed by the DAX engine from the generated tables, and Lumen traces calculated tables that combine imported ones (`UNION`, `SELECTCOLUMNS`, `FILTER`) back to their sources so their keys match too.
 - **Survey-style columns** (ratings, scores, likelihood to recommend) are skewed to the top of their scale and correlated within a row, so net-promoter style measures come out positive and plausible.
 - **Entered data** (tables made with Enter data, and `DATATABLE` calculated tables) keeps its own rows.
 
 Measure tables and calculation groups get no rows. The fact table size is set by **Approximate fact table rows** (default 5,000).
+
+### Coverage limits
+
+Coverage rows have a budget: at most 40,000 per fact table, and 120,000 shared by all fact tables of the model (each keeps at least a quarter of its own budget). Periods are covered in this order:
+
+1. Periods that a saved slicer or filter selection points into: always fully covered.
+2. The most recent periods: fully covered while three quarters of the budget last.
+3. Older periods share the rest: each covers its busiest members first, so some members have no rows there.
+
+When older periods are only partly covered, the sample-data message adds the sentence "Every slicer member has rows in the recent periods; in older periods … cover only the busiest members (size limit)."
+
+Not covered:
+
+- Slicers of single days (a period grain shorter than about a week).
+- Slicers on a fact table's own columns.
+- Fact tables reached only through another fact table.
+
+The budget is fixed; there is no option for it in **Options**. A project that already has sample data keeps its rows until you select **Regenerate sample data**.
 
 ## The privacy rule: names and ids are never copied
 
@@ -94,7 +113,7 @@ To get the same rows again later, set the same **Random seed** in Options and se
 
 ## Considerations and limitations
 
-- **Exercised for this documentation.** The screenshots come from a small invented PBIP project of Lumen's test fixtures (`e2e/fixtures/accounts.ts`). Lumen's end-to-end tests of this feature (fill, regenerate, stand-in slicer, `.wbi` round trip) passed on the build documented here.
+- **Exercised for this documentation.** The screenshots come from a small invented PBIP project of Lumen's test fixtures (`e2e/fixtures/accounts.ts`). Lumen's end-to-end tests of this feature (fill, regenerate, stand-in slicer, coverage: any account picked under the saved quarter keeps the table populated, `.wbi` round trip) passed on the build documented here. The screenshots were taken before slice coverage was added; the generated values in them may differ from what you see.
 - Formulas that compare a column to a withheld name or id stay blank (see above).
 - Calculated date tables (`CALENDAR(…)`, `CALENDARAUTO()`) are not evaluated while generating, so fact dates related to them use the default date range.
 - Key values are shared per group of related tables, so two dimension tables of different sizes in one group nest (the smaller one's keys are a subset of the larger one's) rather than being independent.

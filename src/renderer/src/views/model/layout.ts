@@ -8,6 +8,7 @@
  * Unknown properties are preserved on write.
  */
 import type { SemanticModel, TableDef } from '@core/model/types'
+import { arrange, suggestArrangement, tableInfo, type ArrangeInput } from './arrange'
 
 export const LAYOUT_FILE = 'diagramLayout.json'
 export const DEFAULT_CARD_WIDTH = 234
@@ -87,97 +88,24 @@ export function defaultCardHeight(t: TableDef): number {
 }
 
 /**
- * Auto-layout (star/snowflake aware): fact tables (on the many side, never on the one side) in the
- * middle band, their dimensions alternating above/below, deeper snowflake levels further out, and
- * unrelated tables (measure tables, parameters) in a grid to the right.
+ * Auto-layout of a diagram that stores no positions (no `diagramLayout.json`): the arrangement Auto arrange would
+ * suggest for the model's shape (see ./arrange — star / snowflake for a few facts, layered for many, a grid without
+ * relationships), with Power BI's default card size. Tables without relationships go in a block at the right.
  */
 export function autoLayout(model: SemanticModel, gap = 60): DiagramNode[] {
   const tables = diagramTables(model)
   const names = new Set(tables.map((t) => t.name))
-  const rels = model.relationships.filter((r) => names.has(r.fromTable) && names.has(r.toTable))
-  const oneSide = new Map<string, Set<string>>() // fact -> dims
-  const isOne = new Set<string>()
-  const isMany = new Set<string>()
-  for (const r of rels) {
-    const manyT = r.fromCardinality === 'one' && r.toCardinality === 'many' ? r.toTable : r.fromTable
-    const oneT = manyT === r.fromTable ? r.toTable : r.fromTable
-    isMany.add(manyT)
-    isOne.add(oneT)
-    if (!oneSide.has(manyT)) oneSide.set(manyT, new Set())
-    oneSide.get(manyT)!.add(oneT)
+  const input: ArrangeInput = {
+    tables: tables.map((t) => ({ name: t.name, width: DEFAULT_CARD_WIDTH, height: defaultCardHeight(t), info: tableInfo(t) })),
+    links: model.relationships
+      .filter((r) => names.has(r.fromTable) && names.has(r.toTable))
+      .map((r) => ({ from: r.fromTable, to: r.toTable, fromMany: r.fromCardinality === 'many', toMany: r.toCardinality === 'many', both: r.crossFilteringBehavior === 'bothDirections' }))
   }
-  const level = new Map<string, number>()
-  const facts = tables.filter((t) => isMany.has(t.name) && !isOne.has(t.name)).map((t) => t.name)
-  // tables in a pure cycle / many-many only: treat the many-est as facts
-  if (!facts.length) for (const t of tables) if (isMany.has(t.name)) facts.push(t.name)
-  for (const f of facts) level.set(f, 0)
-  let frontier = [...facts]
-  while (frontier.length) {
-    const next: string[] = []
-    for (const t of frontier) {
-      for (const d of oneSide.get(t) ?? []) {
-        if (!level.has(d)) {
-          level.set(d, (level.get(t) ?? 0) + 1)
-          next.push(d)
-        }
-      }
-    }
-    frontier = next
-  }
-  const byName = new Map(tables.map((t) => [t.name, t]))
-  const w = DEFAULT_CARD_WIDTH
-  const nodes: DiagramNode[] = []
-  const place = (name: string, x: number, y: number) => {
-    const t = byName.get(name)!
-    nodes.push({ location: { x, y }, nodeIndex: name, nodeLineageTag: t.lineageTag, size: { height: defaultCardHeight(t), width: w }, zIndex: nodes.length })
-  }
-  // Facts form the middle column (stacked); dimensions alternate left/right of it, deeper snowflake
-  // levels further out. Each side wraps into several columns so wide models stay compact.
-  const colW = w + gap * 2
-  const rowH = (t: string) => defaultCardHeight(byName.get(t)!) + gap
-  const maxLevel = Math.max(0, ...level.values())
-  const sides = new Map<number, string[]>() // column index: 0 = facts, -L left, +L right
-  sides.set(0, [...facts])
-  let flip = false
-  for (let L = 1; L <= maxLevel; L++) {
-    const atL = [...level.entries()].filter(([, l]) => l === L).map(([n]) => n)
-    for (const n of atL) {
-      const c = flip ? L : -L
-      sides.set(c, [...(sides.get(c) ?? []), n])
-      flip = !flip
-    }
-  }
-  const factsHeight = facts.reduce((s, f) => s + rowH(f), 0)
-  const perCol = Math.max(3, Math.ceil(Math.sqrt(tables.length)), Math.ceil(factsHeight / (DEFAULT_CARD_HEIGHT + gap)))
-  // expand every logical column into physical sub-columns of at most perCol cards
-  const physical: Array<{ key: number; list: string[] }> = []
-  for (const key of [...sides.keys()].sort((a, b) => a - b)) {
-    const list = sides.get(key)!
-    const chunks: string[][] = []
-    for (let i = 0; i < list.length; i += key === 0 ? Math.max(perCol, list.length) : perCol) chunks.push(list.slice(i, i + (key === 0 ? Math.max(perCol, list.length) : perCol)))
-    // left side: outermost chunk furthest left
-    if (key < 0) chunks.reverse()
-    for (const c of chunks) physical.push({ key, list: c })
-  }
-  let maxRight = 0
-  const heights = physical.map((p) => p.list.reduce((s, n) => s + rowH(n), 0))
-  const tallest = Math.max(0, ...heights)
-  physical.forEach((p, ci) => {
-    let y = (tallest - heights[ci]) / 2
-    const x = ci * colW
-    for (const n of p.list) {
-      place(n, x, Math.round(y))
-      y += rowH(n)
-    }
-    maxRight = Math.max(maxRight, x + w)
+  const result = arrange(input, suggestArrangement(input), { gapX: gap, gapY: gap * 1.5 })
+  return tables.map((t, i) => {
+    const p = result.positions.get(t.name) ?? { x: 0, y: 0 }
+    return { location: { x: p.x, y: p.y }, nodeIndex: t.name, nodeLineageTag: t.lineageTag, size: { height: defaultCardHeight(t), width: DEFAULT_CARD_WIDTH }, zIndex: i }
   })
-  const bandH = DEFAULT_CARD_HEIGHT + gap
-  // unrelated tables: grid on the right
-  const rest = tables.filter((t) => !level.has(t.name))
-  const cols = Math.max(1, Math.ceil(Math.sqrt(rest.length)))
-  const startX = nodes.length ? maxRight + gap * 2 : 0
-  rest.forEach((t, i) => place(t.name, startX + (i % cols) * (w + gap), Math.floor(i / cols) * bandH))
-  return nodes
 }
 
 /**

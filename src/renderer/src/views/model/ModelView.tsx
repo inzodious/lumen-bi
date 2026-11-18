@@ -44,12 +44,14 @@ import { TableCard, cardRows, rowY, type CardRow } from './TableCard'
 import { EdgeLayer, HandleLayer, type EdgeView } from './EdgeLayer'
 import { GroupBox, GROUP_COLOR_LABELS } from './GroupBox'
 import { DiagramToolbar, LINE_STYLE_LABELS, LineStyleIcon } from './DiagramToolbar'
-import { autoEndToward, buildRoute, edgeDecor, insertWaypoint, moveWaypoint, nearestAnchor, nearestOnRoute, removeWaypoint, resolveEnds, type End, type Pt } from './routing'
+import { autoEndToward, buildRoute, edgeDecor, insertWaypoint, moveWaypoint, nearestAnchor, nearestOnRoute, removeWaypoint, resolveEnds, routeAfterArrange, spreadAlongSide, type End, type Pt } from './routing'
 import { snapFraction, snapPoint } from './snapping'
 import { GROUP_PALETTE, cardsInMarquee, chipRect, fitGroup, membershipAfterDrop, manualBounds, rectFromPoints, resizeGroup, union, type DropGroup, type ResizeHandle } from './groups'
 import { DEFAULT_LINE_STYLE, applyFollow, createGroup, effectiveStyle, followMove, groupOf, patchGroup, setLineStyle, setMembership, setRoute, ungroup } from './diagramOps'
 import { exportDiagram } from './exportDiagram'
+import { ARRANGEMENTS, ARRANGEMENT_LABELS, arrange, suggestArrangement, tableInfo, type ArrangeInput, type Arrangement } from './arrange'
 import { useDiagramPrefs } from './diagramPrefs'
+import { FormulaBar } from '../../editors/FormulaBar'
 import '../../dialogs/modeling/ribbonTabs'
 import './model-view.css'
 
@@ -147,10 +149,19 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
   const [linkTarget, setLinkTarget] = useState<{ table: string; column: string | null } | null>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [dragging, setDragging] = useState<Drag['kind'] | null>(null)
+  const [tips, setTips] = useState(false)
+  /** an Auto arrange animation in progress (cancelled on unmount) */
+  const anim = useRef<number | null>(null)
+  /** fit the view once the arranged positions are in the document */
+  const fitAfterCommit = useRef(false)
   const hostRef = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
   const fitted = useRef<string | null>(null)
   const spaceDown = useRef(false)
+  /** "+" marker following the pointer along the hovered line (moved directly, no re-render per mouse move) */
+  const markerRef = useRef<SVGGElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const fbarRef = useRef<HTMLDivElement>(null)
 
   const tablesByName = useMemo(() => new Map(diagramTables(model).map((t) => [t.name, t])), [model])
   const lineageTags = useMemo(() => new Map(model.tables.map((t) => [t.name, t.lineageTag])), [model.tables])
@@ -237,7 +248,15 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
   // ---------------------------------------------------------------- relationship lines
   const visibleRels = useMemo(() => model.relationships.filter((r) => cardRects.has(r.fromTable) && cardRects.has(r.toTable)), [model.relationships, cardRects])
   const edges: EdgeView[] = useMemo(() => {
-    const out: EdgeView[] = []
+    interface Pending {
+      r: (typeof visibleRels)[number]
+      ends: { from: End; to: End }
+      route: RouteDef | undefined
+      chip: { from: boolean; to: boolean }
+      ga: GroupView | undefined
+      gb: GroupView | undefined
+    }
+    const pending: Pending[] = []
     for (const r of visibleRels) {
       const ga = hiddenIn.get(r.fromTable)
       const gb = hiddenIn.get(r.toTable)
@@ -245,19 +264,46 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
       if (ga && ga === gb) continue
       const a = ga ? ga.rect : cardRects.get(r.fromTable)!
       const b = gb ? gb.rect : cardRects.get(r.toTable)!
-      const editable = !ga && !gb
       const storedRoute = draft?.routes?.[r.name] ?? stored.routes?.[r.name]
-      // lines to a collapsed group's chip are routed automatically (their stored routing returns on expand)
-      const route = editable ? storedRoute : storedRoute?.style ? { style: storedRoute.style } : undefined
+      // A line to a collapsed group's chip keeps its pinch points and style (they are the relationship's, so they
+      // survive collapsing and expanding); only the manual end on the hidden card is ignored while the chip
+      // stands in for it — that end is attached automatically to the chip.
+      let route = storedRoute
+      if (route && ((ga && route.from) || (gb && route.to))) {
+        route = { ...route }
+        if (ga) delete route.from
+        if (gb) delete route.to
+      }
       const ay = ga || collapsed.has(r.fromTable) ? null : rowY(rowsByTable.get(r.fromTable) ?? [], r.fromColumn)
       const by = gb || collapsed.has(r.toTable) ? null : rowY(rowsByTable.get(r.toTable) ?? [], r.toColumn)
       const ends = resolveEnds(a, ay === null ? null : a.y + ay, b, by === null ? null : b.y + by, route)
+      pending.push({ r, ends, route, chip: { from: !!ga, to: !!gb }, ga, gb })
+    }
+    // lines sharing a side of a chip would all start in one point and overlap: spread them along that side
+    const shared = new Map<string, Array<{ p: Pending; end: 'from' | 'to'; toward: Pt }>>()
+    for (const p of pending)
+      for (const end of ['from', 'to'] as const) {
+        const g = end === 'from' ? p.ga : p.gb
+        const e = p.ends[end]
+        if (!g || e.side === 'center') continue
+        const wps = p.route?.waypoints ?? []
+        const other = end === 'from' ? (wps[0] ?? p.ends.to.point) : (wps[wps.length - 1] ?? p.ends.from.point)
+        const key = `${g.id}|${e.side}`
+        shared.set(key, [...(shared.get(key) ?? []), { p, end, toward: other }])
+      }
+    for (const [key, list] of shared) {
+      if (list.length < 2) continue
+      const g = groups.find((x) => x.id === key.slice(0, key.lastIndexOf('|')))!
+      const side = list[0].p.ends[list[0].end].side as AnchorSide
+      const pts = spreadAlongSide(g.rect, side, list.map((x) => x.toward))
+      list.forEach((x, i) => (x.p.ends[x.end] = { ...x.p.ends[x.end], point: pts[i] }))
+    }
+    return pending.map(({ r, ends, route, chip }) => {
       const style = effectiveStyle(stored, route, fallbackStyle)
       const geom = buildRoute(ends.from, ends.to, route?.waypoints ?? [], style)
-      out.push({ rel: r, geom, decor: edgeDecor(geom), style, route, editable })
-    }
-    return out
-  }, [visibleRels, hiddenIn, cardRects, draft?.routes, stored, collapsed, rowsByTable, fallbackStyle])
+      return { rel: r, geom, decor: edgeDecor(geom), style, route, editable: true, chip }
+    })
+  }, [visibleRels, hiddenIn, cardRects, draft?.routes, stored, collapsed, rowsByTable, fallbackStyle, groups])
   const edgeByRel = useMemo(() => new Map(edges.map((e) => [e.rel.name, e])), [edges])
   const activeRel = hoverRel ?? relSel
   const highlightedFields = useMemo(() => {
@@ -282,6 +328,20 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
     return s
   }, [selectedTable, model.relationships])
 
+  // ---------------------------------------------------------------- formula bar overlay
+  // The formula bar floats over the top of the diagram (it would otherwise push the whole view down and the
+  // diagram would jump under the cursor). The toolbar and tips move below it: --wbi-mv-top = the bar's height.
+  useLayoutEffect(() => {
+    const bar = fbarRef.current
+    const wrap = wrapRef.current
+    if (!bar || !wrap) return
+    const apply = () => wrap.style.setProperty('--wbi-mv-top', `${bar.offsetHeight ? bar.offsetHeight + 6 : 0}px`)
+    const ro = new ResizeObserver(apply)
+    ro.observe(bar)
+    apply()
+    return () => ro.disconnect()
+  }, [])
+
   // ---------------------------------------------------------------- view (zoom / fit)
   useLayoutEffect(() => {
     const el = hostRef.current
@@ -297,12 +357,19 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
     for (const e of edges) for (const w of e.geom.waypoints) all.push({ x: w.x, y: w.y, width: 0, height: 0 })
     return bounds(all)
   }, [rects, groups, edges])
-  const fit = useCallback(() => setView(fitView(content, size.w, size.h, { min: 0.35, max: 1 })), [content, size])
+  /** fit everything below the floating toolbar; `min` lower after Auto arrange so the whole result shows */
+  const fit = useCallback((min = 0.35) => setView(fitView(content, size.w, size.h, { min, max: 1, top: 36 + (wrapRef.current ? parseFloat(wrapRef.current.style.getPropertyValue('--wbi-mv-top')) || 0 : 0) })), [content, size])
   useEffect(() => {
     if (fitted.current === activeDiagram || size.w < 50 || size.h < 50) return
     fitted.current = activeDiagram
     fit()
   }, [activeDiagram, fit, size.w])
+  useEffect(() => {
+    if (!fitAfterCommit.current) return
+    fitAfterCommit.current = false
+    fit(0.2)
+  }, [content, fit])
+  useEffect(() => () => void (anim.current !== null && cancelAnimationFrame(anim.current)), [])
 
   // ---------------------------------------------------------------- persistence (undoable)
   /**
@@ -387,6 +454,36 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
   const begin = (d: Drag) => {
     drag.current = d
     setDragging(d.kind)
+    hideMarker()
+  }
+  const hideMarker = () => markerRef.current?.removeAttribute('data-on')
+  /** pointer over a line: put the "+" marker on the nearest point of the line */
+  const hoverLine = (e: React.MouseEvent, ev: EdgeView) => {
+    const m = markerRef.current
+    if (!m) return
+    if (drag.current) return hideMarker()
+    const hit = nearestOnRoute(ev.geom, toWorld(e.clientX, e.clientY))
+    m.setAttribute('transform', `translate(${hit.x},${hit.y})`)
+    m.setAttribute('data-on', '1')
+  }
+  /** start bending a line from a "+" handle: the pinch point exists at once and follows the pointer */
+  const addPointDown = (e: React.MouseEvent, ev: EdgeView, seg: number, at: Pt) => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    e.preventDefault()
+    selectRel(ev.rel.name)
+    const base = insertWaypoint(stored.routes?.[ev.rel.name], seg, { x: Math.round(at.x), y: Math.round(at.y) })
+    const index = Math.min(Math.max(0, seg), (base.waypoints?.length ?? 1) - 1)
+    begin({ kind: 'waypoint', rel: ev.rel.name, index, base, created: true, moved: false, sx: e.clientX, sy: e.clientY, next: base })
+    setWpSel({ rel: ev.rel.name, index })
+    setDraft({ routes: { [ev.rel.name]: base } })
+  }
+  const lineDown = (e: React.MouseEvent, ev: EdgeView) => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    selectRel(ev.rel.name)
+    setWpSel(null)
+    if (ev.editable) begin({ kind: 'bend', rel: ev.rel.name, sx: e.clientX, sy: e.clientY })
   }
   /** snap candidates for a pinch point of `rel`: every other pinch point, the card centres, this line's ends */
   const snapTargets = (rel: string, index: number): { xs: number[]; ys: number[] } => {
@@ -553,7 +650,9 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
         if (target) openNewRelationship({ table1: d.table, column1: d.column, table2: target.table, ...(target.column ? { column2: target.column } : {}) })
       } else if (d.kind === 'waypoint') {
         setGuides(null)
-        if (d.moved) editRoute(d.created ? 'Bend relationship line' : 'Move pinch point', d.rel, d.next)
+        // a "+" handle clicked without dragging still adds its pinch point
+        if (d.moved || d.created) editRoute(d.created ? (d.moved ? 'Bend relationship line' : 'Add pinch point') : 'Move pinch point', d.rel, d.next)
+        else setDraft(null)
       } else if (d.kind === 'anchor') {
         if (d.moved) editRoute('Move line end', d.rel, d.next)
       } else if (d.kind === 'gresize') {
@@ -679,6 +778,79 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
     if (relSel && !model.relationships.some((r) => r.name === relSel)) setRelSel(null)
   }, [stored, groups, model.relationships, wpSel, groupSel, relSel])
 
+  // ---------------------------------------------------------------- auto arrange
+  /** what Auto arrange works on: the given tables (whole groups included), else every card of this layout */
+  const arrangeInput = (only?: string[]): ArrangeInput => {
+    const names = new Set(only?.length ? only : [...cardRects.keys()])
+    // a group is arranged as a unit: selecting one member takes the whole group along
+    for (const g of groups) if (g.members.some((m) => names.has(m))) for (const m of g.members) names.add(m)
+    const tables = [...names].filter((n) => cardRects.has(n) && tablesByName.has(n)).map((n) => ({ name: n, width: cardRects.get(n)!.width, height: cardRects.get(n)!.height, info: tableInfo(tablesByName.get(n)!) }))
+    const links = model.relationships
+      .filter((r) => names.has(r.fromTable) && names.has(r.toTable))
+      .map((r) => ({ from: r.fromTable, to: r.toTable, fromMany: r.fromCardinality === 'many', toMany: r.toCardinality === 'many', both: r.crossFilteringBehavior === 'bothDirections' }))
+    return { tables, links, groups: groups.filter((g) => g.members.some((m) => names.has(m))).map((g) => ({ id: g.id, name: g.name, tables: g.members, collapsed: g.collapsed })) }
+  }
+  /**
+   * Auto arrange: compute the new positions, animate the cards there (~¼ s), then write them in ONE undo step
+   * together with the routing clean-up (pinch points and manual ends of moved lines go; group extents refit).
+   */
+  const runArrange = (which: Arrangement | 'auto', only?: string[]) => {
+    const input = arrangeInput(only)
+    if (input.tables.length < 2 || anim.current !== null) return
+    const kind = which === 'auto' ? suggestArrangement(input) : which
+    const t0 = performance.now()
+    const result = arrange(input, kind)
+    console.info(`[model] Auto arrange (${kind}): ${input.tables.length} tables in ${(performance.now() - t0).toFixed(1)} ms`)
+    // keep the arranged block where the arranged tables were (top-left of their current extent)
+    const old = bounds(input.tables.map((t) => cardRects.get(t.name)!))!
+    const target: Record<string, CardOverride> = {}
+    for (const [n, p] of result.positions) target[n] = { x: p.x + Math.round(old.x), y: p.y + Math.round(old.y) }
+    const moved = new Set(Object.keys(target).filter((n) => cardRects.get(n)!.x !== target[n].x || cardRects.get(n)!.y !== target[n].y))
+    const start = new Map([...moved].map((n) => [n, { x: cardRects.get(n)!.x, y: cardRects.get(n)!.y }]))
+    const finish = () => {
+      anim.current = null
+      commit(only?.length ? 'Arrange selection' : 'Auto arrange', {
+        cards: target,
+        lumen: (d) => {
+          for (const r of model.relationships) if (moved.has(r.fromTable) || moved.has(r.toTable)) setRoute(d, r.name, routeAfterArrange(d.routes?.[r.name]))
+          for (const g of d.groups ?? []) if (g.tables.some((m) => moved.has(m.name))) delete g.bounds
+        },
+        pin: true
+      })
+      fitAfterCommit.current = !only?.length
+    }
+    setRelSel(null)
+    setWpSel(null)
+    const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduce || !moved.size) return finish()
+    // pinch points of moving lines would trail behind: hide them during the animation
+    const cleared: Record<string, RouteDef> = {}
+    for (const r of model.relationships) if ((moved.has(r.fromTable) || moved.has(r.toTable)) && stored.routes?.[r.name]) cleared[r.name] = routeAfterArrange(stored.routes[r.name]) ?? {}
+    setDraft({ routes: cleared })
+    const t1 = performance.now()
+    const DURATION = 240
+    const step = () => {
+      const k = Math.min(1, (performance.now() - t1) / DURATION)
+      const e = 1 - (1 - k) ** 3
+      const next: Record<string, CardOverride> = {}
+      for (const [n, s0] of start) next[n] = { x: Math.round(s0.x + (target[n].x - s0.x) * e), y: Math.round(s0.y + (target[n].y - s0.y) * e) }
+      setOverrides(next)
+      if (k < 1) anim.current = requestAnimationFrame(step)
+      else finish()
+    }
+    anim.current = requestAnimationFrame(step)
+  }
+  const arrangeItems = (): MenuItem[] => {
+    const all = arrangeInput()
+    const suggested = suggestArrangement(all)
+    const items: MenuItem[] = ARRANGEMENTS.map((a) => ({ label: `${ARRANGEMENT_LABELS[a]}${a === suggested ? ' (suggested)' : ''}`, onClick: () => runArrange(a) }))
+    if (selectedTables.length > 1) {
+      const selSuggested = suggestArrangement(arrangeInput(selectedTables))
+      items.push({ separator: true }, { label: `Arrange ${selectedTables.length} selected tables`, submenu: ARRANGEMENTS.map((a) => ({ label: `${ARRANGEMENT_LABELS[a]}${a === selSuggested ? ' (suggested)' : ''}`, onClick: () => runArrange(a, selectedTables) })) })
+    }
+    return items
+  }
+
   // ---------------------------------------------------------------- menus
   const lineStyleItems = (current: LineStyle | undefined, pick: (s: LineStyle | undefined) => void, withDefault: boolean): MenuItem[] => [
     ...(withDefault ? [{ label: `Layout default (${LINE_STYLE_LABELS[viewStyle]})`, checked: current === undefined, onClick: () => pick(undefined) } as MenuItem, { separator: true } as MenuItem] : []),
@@ -727,9 +899,14 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
       { label: 'Delete from model', onClick: () => void deleteField({ kind: row.kind as 'column', table, name: row.name }) }
     ])
   }
-  const relMenu = (e: React.MouseEvent, ev: EdgeView) => {
+  const relMenu = (e: React.MouseEvent, hit: EdgeView) => {
     e.preventDefault()
     e.stopPropagation()
+    // Where several lines overlap (e.g. all the lines fanning out of a collapsed group's chip), Chromium can deliver
+    // `contextmenu` to a different stroke than the mousedown / hover at the very same point. The menu must act on
+    // the line the user sees highlighted, so the hovered line wins.
+    const hovered = hoverRel ? edgeByRel.get(hoverRel) : undefined
+    const ev = hovered ?? hit
     const r = ev.rel
     selectRel(r.name)
     const route = stored.routes?.[r.name]
@@ -844,10 +1021,12 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
           })
       },
       { separator: true },
+      { label: 'Auto arrange', disabled: rects.size < 2, submenu: arrangeItems() },
+      { separator: true },
       { label: 'Group selected tables', shortcut: 'Ctrl+G', disabled: !selectedTables.length, onClick: () => groupTables(selectedTables) },
       { label: 'Select all tables', shortcut: 'Ctrl+A', onClick: () => setSelTables([...rects.keys()]) },
       { separator: true },
-      { label: 'Fit to screen', onClick: fit }
+      { label: 'Fit to screen', onClick: () => fit() }
     ])
   }
   const toggleCollapse = (t: string) =>
@@ -947,11 +1126,26 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
       }))
     })
 
+  const statusText: string | null =
+    dragging === 'bend' || dragging === 'waypoint'
+      ? 'Bending the line: release to drop the pinch point · hold Alt to place it freely · Esc cancels'
+      : dragging === 'anchor'
+        ? 'Moving the line end around its table · release to attach it there · Esc cancels'
+        : dragging
+          ? null
+          : wpSel
+            ? 'Pinch point selected: drag it to move · Delete or double-click removes it'
+            : hoverRel
+              ? 'Drag the line to bend it (adds a pinch point) · double-click to edit the relationship · right-click for more'
+              : relSel
+                ? 'Line selected: drag a + handle or the line itself to add a pinch point · drag a square end to move it along the table'
+                : null
+
   return (
     <div className="wbi-mv">
       <ViewAsBanner />
       <div className="wbi-mv__main">
-        <div className="wbi-mv__canvaswrap">
+        <div className="wbi-mv__canvaswrap" ref={wrapRef}>
           <div
             ref={hostRef}
             className={cx('wbi-mv__canvas', linkDrag?.active && 'is-linking', mode === 'select' && 'is-select', dragging && `is-drag-${dragging}`)}
@@ -1022,14 +1216,12 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
                 zoom={view.zoom}
                 preview={linkPreview}
                 onEnter={(rel) => !drag.current && setHoverRel(rel)}
-                onLeave={(rel) => setHoverRel((h) => (h === rel ? null : h))}
-                onDown={(e, ev) => {
-                  if (e.button !== 0) return
-                  e.stopPropagation()
-                  selectRel(ev.rel.name)
-                  setWpSel(null)
-                  if (ev.editable) begin({ kind: 'bend', rel: ev.rel.name, sx: e.clientX, sy: e.clientY })
+                onLeave={(rel) => {
+                  hideMarker()
+                  setHoverRel((h) => (h === rel ? null : h))
                 }}
+                onHover={hoverLine}
+                onDown={lineDown}
                 onDoubleClick={(ev) => openEditRelationship(ev.rel.name)}
                 onMenu={relMenu}
               />
@@ -1091,12 +1283,23 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
               <HandleLayer
                 edges={edges}
                 activeRel={activeRel}
+                selectedRel={relSel}
+                busy={!!dragging}
+                markerRef={markerRef}
+                onAddDown={addPointDown}
+                onLineDown={lineDown}
+                onLineDoubleClick={(ev) => openEditRelationship(ev.rel.name)}
+                onLineMenu={relMenu}
+                onLineHover={hoverLine}
                 selectedWaypoint={wpSel}
                 zoom={view.zoom}
                 guides={guides}
                 marquee={marquee}
                 onEnter={(rel) => !drag.current && setHoverRel(rel)}
-                onLeave={(rel) => setHoverRel((h) => (h === rel ? null : h))}
+                onLeave={(rel) => {
+                  hideMarker()
+                  setHoverRel((h) => (h === rel ? null : h))
+                }}
                 onWaypointDown={(e, ev, index) => {
                   if (e.button !== 0) return
                   e.stopPropagation()
@@ -1138,7 +1341,19 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
             snap={snap}
             onSnap={(on) => prefs.set({ snap: on })}
             onExport={doExport}
+            onArrange={(e) => showContextMenu(e, arrangeItems())}
+            tips={tips}
+            onTips={setTips}
           />
+          <div className="wbi-mv__fbar" ref={fbarRef}>
+            <FormulaBar className="wbi-formula-bar--overlay" />
+          </div>
+          {tips && <DiagramTips onClose={() => setTips(false)} />}
+          {statusText && (
+            <div className="wbi-mv__status" role="status">
+              {statusText}
+            </div>
+          )}
           <MiniMap rects={[...rects.values()]} groups={groups.map((g) => g.rect)} content={content} view={view} size={size} onNavigate={(cx0, cy0) => setView((v) => ({ ...v, panX: size.w / 2 - cx0 * v.zoom, panY: size.h / 2 - cy0 * v.zoom }))} />
           <div className="wbi-mv__zoom">
             <button type="button" onClick={() => zoomBy(1 / 1.2)} aria-label="Zoom out" title="Zoom out">
@@ -1149,7 +1364,7 @@ function ModelDiagram({ model }: { model: SemanticModel }) {
               <ZoomInRegular />
             </button>
             <span className="wbi-mv__zoompct">{Math.round(view.zoom * 100)}%</span>
-            <button type="button" onClick={fit} aria-label="Fit to screen" title="Fit to screen">
+            <button type="button" onClick={() => fit()} aria-label="Fit to screen" title="Fit to screen">
               <ArrowMaximizeRegular />
             </button>
           </div>
@@ -1249,5 +1464,27 @@ function MiniMap({ rects, groups, content, view, size, onNavigate }: { rects: Re
       ))}
       <rect x={ox + vp.x * s} y={oy + vp.y * s} width={vp.width * s} height={vp.height * s} className="wbi-mv__mmview" />
     </svg>
+  )
+}
+
+/** The toolbar's "Editing tips" card: every diagram gesture in one place. */
+function DiagramTips({ onClose }: { onClose(): void }) {
+  return (
+    <div className="wbi-mv__tips" role="note" aria-label="Diagram editing tips" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="wbi-mv__tipshead">
+        <span>Editing the diagram</span>
+        <button type="button" className="wbi-iconbtn" aria-label="Close tips" onClick={onClose}>
+          <DismissRegular />
+        </button>
+      </div>
+      <ul>
+        <li><b>Bend a line:</b> drag it anywhere; a pinch point appears under the pointer. Or click the line and drag one of its + handles, or right-click it ▸ Add pinch point.</li>
+        <li><b>Move a pinch point:</b> drag it (Alt: no snapping). <b>Remove it:</b> double-click it, or click it and press Delete.</li>
+        <li><b>Move a line end:</b> click the line, then drag a square end along its table. Double-click the end to attach it automatically again.</li>
+        <li><b>Line style:</b> curved, orthogonal or straight from this toolbar (whole layout) or the line's right-click menu (one line).</li>
+        <li><b>Group tables:</b> select them (Ctrl+click or Shift+drag a box) and press Ctrl+G. Drag cards in or out of a group; drag the group's label bar to move it with its tables; the chevron collapses it.</li>
+        <li><b>Auto arrange:</b> the flowchart button lays the tables out as a star, in layers or in a grid (Ctrl+Z undoes it).</li>
+      </ul>
+    </div>
   )
 }

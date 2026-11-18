@@ -309,7 +309,8 @@ export function App() {
         <>
           <Ribbon />
           <NoticeArea />
-          {(view === 'report' || view === 'data' || view === 'model') && <FormulaBar className="wbi-formula-bar--shell" />}
+          {/* Model view floats the formula bar over its diagram (views/model/ModelView.tsx) instead of pushing it down */}
+          {(view === 'report' || view === 'data') && <FormulaBar className="wbi-formula-bar--shell" />}
           <div className="wbi-body">
             <NavRail />
             <main className="wbi-main">

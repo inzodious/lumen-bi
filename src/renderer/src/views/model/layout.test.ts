@@ -23,9 +23,13 @@ describe('diagram layout', () => {
     expect(nodes.map((n) => n.nodeIndex).sort()).toEqual(['Category', 'Customer', 'Date', 'Measures', 'Product', 'Sales'])
     for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) expect(overlaps(nodes[i], nodes[j]), `${nodes[i].nodeIndex}/${nodes[j].nodeIndex}`).toBe(false)
     const x = (n: string) => nodes.find((v) => v.nodeIndex === n)!.location.x
-    // dims are in a different column than the fact; the snowflake level is further out
-    expect(x('Product')).not.toBe(x('Sales'))
-    expect(Math.abs(x('Category') - x('Sales'))).toBeGreaterThan(Math.abs(x('Product') - x('Sales')))
+    const c = (n: string) => {
+      const v = nodes.find((w) => w.nodeIndex === n)!
+      return { x: v.location.x + v.size.width / 2, y: v.location.y + v.size.height / 2 }
+    }
+    const far = (n: string) => Math.hypot(c(n).x - c('Sales').x, c(n).y - c('Sales').y)
+    // dims are around the fact; the snowflake level is further out
+    expect(far('Category')).toBeGreaterThan(far('Product'))
     // the unrelated measure table is placed to the right of everything else
     expect(x('Measures')).toBeGreaterThan(Math.max(x('Sales'), x('Product'), x('Category'), x('Customer'), x('Date')))
   })

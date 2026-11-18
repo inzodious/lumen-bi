@@ -173,6 +173,20 @@ an untouched model round-trips byte-identically and a project without the file b
 * **When cards move**: line ends follow their cards (automatic ends re-pick the facing side); pinch points stay where the
   user put them, unless both tables of the relationship move together (multi-selection or group drag), then they travel
   along. Lines to a collapsed group's chip are routed automatically; their stored routing returns on expand.
+* **Collapsed groups**: lines to a collapsed group's chip stay editable — their pinch points and style are the
+  relationship's own route (so they survive collapse / expand); only a manual end on a hidden card is ignored while
+  the chip stands in for it. Lines sharing a side of the chip are spread along it (`routing.spreadAlongSide`).
+* **Discoverability**: hovering a line shows a halo, a grab cursor, a "+" marker under the pointer and a status line;
+  a selected line is repeated faintly above the cards with a grab area there, "+" handles in the middle of each
+  stretch (`routing.segmentMidpoints`) and its square end handles. The toolbar's "?" lists every gesture.
+* **Auto arrange** (`views/model/arrange.ts`, pure TS): classifies tables (fact / dimension / bridge; loose tables
+  as measure / parameter / calculation group / date / calculated), lays out each connected component as a star or
+  in layers (barycentre ordering + constrained centring, wide rows wrapped) or packs a compact grid; table groups
+  are arranged as units; loose tables go in a block at the right. One undo step (`commit` with all card positions);
+  pinch points and manual ends of moved lines are cleared (`routing.routeAfterArrange`), group extents refit.
+  A diagram without stored positions (`diagramLayout.json`) is first laid out with the suggested arrangement.
+* **Formula bar**: Model view mounts it itself, floating over the top of the canvas (`.wbi-mv__fbar`); the toolbar
+  moves below it through `--wbi-mv-top`. Report and Table view keep the shell's in-flow formula bar.
 * **Per-user preferences** (not in the file): `views/model/diagramPrefs.ts` (localStorage) — preferred default line style
   for layouts that store none, pointer mode, snapping.
 

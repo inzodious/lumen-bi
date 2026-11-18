@@ -36,11 +36,24 @@
 
 /* relationship lines */
 .wbi-mv__handles { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.wbi-mv-edge { pointer-events: auto; cursor: pointer; }
+.wbi-mv-edge { pointer-events: auto; cursor: grab; }
 .wbi-mv-edge__hit { stroke: transparent; stroke-width: 14; fill: none; pointer-events: stroke; stroke-linecap: round; stroke-linejoin: round; }
 .wbi-mv-edge__line { stroke: var(--wbi-border-strong, #8a8886); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .wbi-mv-edge.is-inactive .wbi-mv-edge__line { stroke-dasharray: 6 4; }
 .wbi-mv-edge.is-active .wbi-mv-edge__line { stroke: var(--wbi-fg, #252423); stroke-width: 2.5; }
+/* hover: a soft halo along the line says "this can be grabbed" (Lumen addition) */
+.wbi-mv-edge.is-active .wbi-mv-edge__hit { stroke: rgba(242, 200, 17, .28); }
+/* the hovered / selected line repeated faintly above the cards, the selected line's grab area, "+" handles */
+.wbi-mv-ghost { fill: none; stroke: var(--wbi-fg, #252423); stroke-opacity: .35; stroke-dasharray: 5 4; pointer-events: none; stroke-linecap: round; }
+.wbi-mv-selhit { fill: none; stroke: transparent; pointer-events: stroke; cursor: grab; stroke-linecap: round; stroke-linejoin: round; }
+.wbi-mv-add { pointer-events: auto; cursor: copy; }
+.wbi-mv-add__hit { fill: transparent; }
+.wbi-mv-add__dot { fill: var(--wbi-bg, #fff); stroke: var(--wbi-fg, #252423); }
+.wbi-mv-add__plus { stroke: var(--wbi-fg, #252423); fill: none; stroke-linecap: round; }
+.wbi-mv-add:hover .wbi-mv-add__dot { fill: var(--wbi-brand, #f2c811); }
+.wbi-mv-addmark { display: none; pointer-events: none; }
+.wbi-mv-addmark[data-on] { display: inline; }
+.wbi-mv-addmark .wbi-mv-add__dot { fill: var(--wbi-brand, #f2c811); }
 .wbi-mv-edge__card { font-size: 13px; font-weight: 600; fill: #605e5c; text-anchor: middle; dominant-baseline: central; font-family: 'Segoe UI', 'Open Sans', sans-serif; pointer-events: none; paint-order: stroke; stroke: #f0f0f0; stroke-width: 3px; stroke-linejoin: round; }
 .wbi-mv-edge.is-active .wbi-mv-edge__card { fill: var(--wbi-fg, #252423); }
 .wbi-mv-edge__dir { pointer-events: none; }
@@ -48,7 +61,7 @@
 .wbi-mv-edge.is-active .wbi-mv-edge__dir path { fill: var(--wbi-fg, #252423); }
 .wbi-mv-link { stroke: var(--wbi-fg, #252423); stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; pointer-events: none; }
 .wbi-mv__canvas.is-drag-waypoint, .wbi-mv__canvas.is-drag-waypoint .wbi-mv-edge { cursor: grabbing; }
-.wbi-mv__canvas.is-drag-bend .wbi-mv-edge { cursor: grabbing; }
+.wbi-mv__canvas.is-drag-bend, .wbi-mv__canvas.is-drag-bend .wbi-mv-edge { cursor: grabbing; }
 
 /* pinch points (waypoints) and draggable line ends */
 .wbi-mv-wp, .wbi-mv-end { pointer-events: auto; }
@@ -97,7 +110,7 @@
 .wbi-mv-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid transparent; box-sizing: border-box; }
 
 /* diagram toolbar */
-.wbi-mv__toolbar { position: absolute; left: 12px; top: 10px; display: flex; align-items: center; gap: 2px; background: var(--wbi-bg, #fff); border: 1px solid var(--wbi-border, #e1dfdd); border-radius: var(--wbi-radius, 4px); padding: 3px; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08); }
+.wbi-mv__toolbar { position: absolute; left: 12px; top: calc(var(--wbi-mv-top, 0px) + 10px); display: flex; align-items: center; gap: 2px; background: var(--wbi-bg, #fff); border: 1px solid var(--wbi-border, #e1dfdd); border-radius: var(--wbi-radius, 4px); padding: 3px; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.08); }
 .wbi-mv__tool { width: 28px; height: 28px; border: 0; background: transparent; display: grid; place-items: center; color: var(--wbi-fg, #252423); border-radius: 2px; padding: 0; font-size: 18px; }
 .wbi-mv__tool:hover:not(:disabled) { background: var(--wbi-hover, #f3f2f1); }
 .wbi-mv__tool.is-on { background: var(--wbi-checked, #e1dfdd); }
@@ -133,3 +146,15 @@
 .wbi-mv__tabx:hover { background: #e1dfdd; }
 .wbi-mv__tabadd { padding: 0 8px; }
 .wbi-mv__addtable { width: 200px; display: flex; align-items: center; margin-left: 12px; }
+
+/* status line while hovering / dragging lines, editing tips (Lumen additions) */
+.wbi-mv__status { position: absolute; left: 50%; bottom: 54px; transform: translateX(-50%); max-width: calc(100% - 40px); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: rgba(37, 36, 35, .88); color: #fff; font-size: 12px; padding: 5px 12px; border-radius: 4px; pointer-events: none; box-shadow: 0 1.6px 3.6px rgba(0,0,0,.16); }
+.wbi-mv__tips { position: absolute; left: 12px; top: calc(var(--wbi-mv-top, 0px) + 52px); width: 360px; max-width: calc(100% - 24px); background: var(--wbi-bg, #fff); border: 1px solid var(--wbi-border, #e1dfdd); border-radius: var(--wbi-radius, 4px); box-shadow: 0 6.4px 14.4px rgba(0,0,0,.13), 0 1.2px 3.6px rgba(0,0,0,.1); font-size: 12px; color: var(--wbi-fg, #252423); z-index: 3; }
+.wbi-mv__tipshead { display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 2px 12px; font-weight: 600; font-size: 13px; }
+.wbi-mv__tips ul { margin: 0; padding: 4px 14px 10px 28px; display: grid; gap: 6px; line-height: 1.4; }
+
+/* formula bar floating over the diagram (Model view only; Report / Table view keep it in the page flow) */
+.wbi-mv__fbar { position: absolute; left: 8px; right: 8px; top: 6px; z-index: 4; pointer-events: none; }
+.wbi-mv__fbar:empty { display: none; }
+.wbi-mv__fbar > * { pointer-events: auto; }
+.wbi-formula-bar--overlay { border: 1px solid #c8c6c4; border-radius: 6px; overflow: hidden; box-shadow: 0 6.4px 14.4px rgba(0,0,0,.13), 0 1.2px 3.6px rgba(0,0,0,.1); }

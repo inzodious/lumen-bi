@@ -25,10 +25,21 @@ export function bounds(rects: Rect[]): Rect | null {
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
 }
 
-/** Zoom & pan that fit `content` into a viewport of `vw`×`vh` with padding. */
-export function fitView(content: Rect | null, vw: number, vh: number, opts: { padding?: number; min?: number; max?: number } = {}): { zoom: number; panX: number; panY: number } {
+/**
+ * Zoom & pan that fit `content` into a viewport of `vw`×`vh` with padding; `top` keeps an extra band free at the
+ * top (the floating diagram toolbar).
+ */
+export function fitView(content: Rect | null, vw: number, vh0: number, opts: { padding?: number; min?: number; max?: number; top?: number } = {}): { zoom: number; panX: number; panY: number } {
   const pad = opts.padding ?? 40
-  if (!content || vw <= 0 || vh <= 0) return { zoom: 1, panX: pad, panY: pad }
+  const top = opts.top ?? 0
+  const vh = vh0 - top
+  if (!content || vw <= 0 || vh <= 0) return { zoom: 1, panX: pad, panY: pad + top }
+  const r = fitIn(content, vw, vh, pad, opts.min, opts.max)
+  return { ...r, panY: r.panY + top }
+}
+
+function fitIn(content: Rect, vw: number, vh: number, pad: number, min: number | undefined, max: number | undefined): { zoom: number; panX: number; panY: number } {
+  const opts = { min, max }
   const z = Math.min((vw - pad * 2) / Math.max(1, content.width), (vh - pad * 2) / Math.max(1, content.height))
   const zoom = Math.max(opts.min ?? 0.1, Math.min(opts.max ?? 1, z))
   const panX = (vw - content.width * zoom) / 2 - content.x * zoom

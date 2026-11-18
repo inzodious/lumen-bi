@@ -451,3 +451,68 @@ export function translateRoute(route: RouteDef, dx: number, dy: number): RouteDe
   if (!route.waypoints?.length) return route
   return { ...route, waypoints: route.waypoints.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy })) }
 }
+
+/**
+ * Where a new pinch point can be added on each stretch of the line: the middle (by length) of every stretch
+ * between the ends and the existing pinch points. `seg` is the stretch, as `insertWaypoint` takes it.
+ */
+export function segmentMidpoints(g: RouteGeometry): Array<Pt & { seg: number }> {
+  const out: Array<Pt & { seg: number }> = []
+  const s = g.samples
+  const segs = g.waypoints.length + 1
+  for (let k = 0; k < segs; k++) {
+    // the stretch runs from the k-th control point to the next (ends and waypoints, in order)
+    const a = k === 0 ? g.from.point : g.waypoints[k - 1]
+    const b = k === segs - 1 ? g.to.point : g.waypoints[k]
+    const la = nearestLen(s, a)
+    const lb = nearestLen(s, b)
+    if (lb - la < 24) continue
+    const p = pointAtLength(g, (la + lb) / 2)
+    out.push({ x: p.x, y: p.y, seg: k })
+  }
+  return out
+}
+
+function nearestLen(s: Sample[], p: Pt): number {
+  let best = 0
+  let bd = Infinity
+  for (const q of s) {
+    const d = (q.x - p.x) ** 2 + (q.y - p.y) ** 2
+    if (d < bd) (bd = d), (best = q.len)
+  }
+  return best
+}
+
+/**
+ * Spread line ends that share one side of a box (several relationships drawn to a collapsed group's chip) evenly
+ * along that side, in the order of the points the lines head to, so they no longer start in one point and
+ * overlap: each can be seen, hovered and grabbed. Returns the new points in the input order.
+ */
+export function spreadAlongSide(r: Rect, side: AnchorSide, toward: Pt[]): Pt[] {
+  const n = toward.length
+  const vertical = side === 'left' || side === 'right'
+  const order = toward.map((p, i) => ({ i, k: vertical ? p.y : p.x })).sort((a, b) => a.k - b.k || a.i - b.i)
+  const out: Pt[] = new Array(n)
+  const inset = Math.min(vertical ? 6 : EDGE_INSET, (vertical ? r.height : r.width) / 4)
+  order.forEach(({ i }, rank) => {
+    const f = n === 1 ? 0.5 : rank / (n - 1)
+    if (vertical) out[i] = { x: side === 'left' ? r.x : r.x + r.width, y: r.y + inset + f * (r.height - 2 * inset) }
+    else out[i] = { x: r.x + inset + f * (r.width - 2 * inset), y: side === 'top' ? r.y : r.y + r.height }
+  })
+  return out
+}
+
+/**
+ * Routing after the cards of a line were re-arranged: pinch points and manual ends belonged to the old
+ * positions, so they go (the line re-attaches to the sides facing each other); the line's own style stays.
+ */
+export function routeAfterArrange(route: RouteDef | undefined): RouteDef | undefined {
+  if (!route) return undefined
+  const next: RouteDef = { ...route }
+  delete next.waypoints
+  delete next.from
+  delete next.to
+  return isEmptyRoute(next) ? undefined : next
+}
+
+const isEmptyRoute = (r: RouteDef): boolean => Object.keys(r).length === 0

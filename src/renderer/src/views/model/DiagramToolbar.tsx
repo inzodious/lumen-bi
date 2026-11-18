@@ -3,7 +3,7 @@
  * with a marquee), the layout's relationship line style, group / ungroup, snapping and "export as image".
  */
 import type { ReactElement, ReactNode } from 'react'
-import { GridDotsRegular, GroupDismissRegular, GroupRegular, HandRightRegular, ImageRegular, SelectObjectRegular } from '@fluentui/react-icons'
+import { FlowchartRegular, GridDotsRegular, GroupDismissRegular, GroupRegular, HandRightRegular, ImageRegular, QuestionCircleRegular, SelectObjectRegular } from '@fluentui/react-icons'
 import type { LineStyle } from '@core/io/diagramSidecar'
 import { Tip, cx } from '../../app/ui'
 
@@ -28,7 +28,7 @@ const LINE_STYLE_HELP: Record<LineStyle, string> = {
   straight: 'Straight relationship lines'
 }
 
-function ToolButton({ label, description, pressed, disabled, onClick, children, name }: { label: string; description?: string; pressed?: boolean; disabled?: boolean; onClick(): void; children: ReactNode; name: string }) {
+function ToolButton({ label, description, pressed, disabled, onClick, children, name }: { label: string; description?: string; pressed?: boolean; disabled?: boolean; onClick(e: React.MouseEvent): void; children: ReactNode; name: string }) {
   return (
     <Tip title={label} description={description}>
       <button type="button" className={cx('wbi-mv__tool', pressed && 'is-on')} aria-label={label} aria-pressed={pressed} disabled={disabled} data-tool={name} onMouseDown={(e) => {
@@ -54,6 +54,10 @@ export interface DiagramToolbarProps {
   snap: boolean
   onSnap(on: boolean): void
   onExport(): void
+  /** opens the Auto arrange menu at the button */
+  onArrange(e: React.MouseEvent): void
+  tips: boolean
+  onTips(on: boolean): void
 }
 
 export function DiagramToolbar(p: DiagramToolbarProps) {
@@ -79,11 +83,18 @@ export function DiagramToolbar(p: DiagramToolbarProps) {
         <GroupDismissRegular />
       </ToolButton>
       <span className="wbi-mv__toolsep" />
+      <ToolButton name="arrange" label="Auto arrange" description="Lay out the tables of this layout automatically: star / snowflake, layered or a compact grid. One undo step; nothing is saved until you save." onClick={p.onArrange}>
+        <FlowchartRegular />
+      </ToolButton>
+      <span className="wbi-mv__toolsep" />
       <ToolButton name="snap" label="Snap pinch points" description="Snap pinch points to the grid and to alignment with other points and table centres. Hold Alt while dragging to turn snapping off." pressed={p.snap} onClick={() => p.onSnap(!p.snap)}>
         <GridDotsRegular />
       </ToolButton>
       <ToolButton name="export" label="Export diagram as image" description="Save this layout — tables, relationship lines and groups — as a PNG or SVG file." onClick={p.onExport}>
         <ImageRegular />
+      </ToolButton>
+      <ToolButton name="tips" label="Editing tips" description="How to bend relationship lines, move their ends and group tables." pressed={p.tips} onClick={() => p.onTips(!p.tips)}>
+        <QuestionCircleRegular />
       </ToolButton>
     </div>
   )

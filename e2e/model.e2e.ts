@@ -2,14 +2,17 @@
  * Model view — Lumen's diagram additions:
  *  (a) relationship lines: bend by dragging (pinch point), undo / redo, line style, save → reopen;
  *  (b) table groups: group two tables, rename, move (tables follow), save → reopen, collapse / expand, ungroup;
- *  (c) dragging a column onto another table's column previews the line and opens the relationship dialog.
+ *  (c) dragging a column onto another table's column previews the line and opens the relationship dialog;
+ *  (d) regressions on invented models: lines to a collapsed group's chip can be bent (and keep their pinch points
+ *      through expand / collapse), every line's right-click menu offers "Add pinch point", "+" handles and the hover
+ *      marker, Auto arrange (one undo step, no overlaps), and the formula bar floating over the diagram.
  * `LUMEN_E2E_SHOTS=<dir>` additionally saves screenshots of the key states.
  */
 import { describe, expect, it } from 'vitest'
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Page } from 'playwright-core'
-import { useLumen, lumenEval, openFile, stubSaveDialog, untilNode } from './harness'
+import { useLumen, lumenEval, openFile, stubSaveDialog, untilNode, waitIdle } from './harness'
 
 const SIDECAR = 'diagramLayout.lumen.json'
 const SHOTS = process.env['LUMEN_E2E_SHOTS'] ?? ''
@@ -66,7 +69,9 @@ async function grabbablePointOnEdge(page: Page, index: number, fraction: number)
           if (g <= 0.03 || g >= 0.97) continue
           const q = p.getPointAtLength(len * g)
           const s = { x: q.x * m.a + q.y * m.c + m.e, y: q.x * m.b + q.y * m.d + m.f }
-          if (document.elementFromPoint(s.x, s.y)?.closest('.wbi-mv-edge') === p.closest('.wbi-mv-edge')) return s
+          const el = document.elementFromPoint(s.x, s.y)
+          // (a selected line also has a grab area above the cards)
+          if (el?.closest('.wbi-mv-edge') === p.closest('.wbi-mv-edge') || el?.getAttribute('data-rel') === p.closest<HTMLElement>('.wbi-mv-edge')!.dataset['rel']) return s
         }
       return null
     },
@@ -476,7 +481,9 @@ describe('model view: table groups', () => {
     // drag Region far out of the container: it leaves the group, the container shrinks around Customer
     const title = await box(page, '.wbi-mv-card[data-table="Region"] .wbi-mv-card__title')
     const from = { x: title.x + title.width / 2, y: title.y + title.height / 2 }
-    await drag(page, from, { x: from.x - 30, y: from.y - 260 }, {
+    // (sideways: the arranged layout may have Region at the top of the view)
+    const gbox = await box(page, '.wbi-mv-group')
+    await drag(page, from, { x: from.x + gbox.width + 40, y: from.y }, {
       steps: 14,
       hold: async () => {
         await expect.poll(() => group.getAttribute('class')).toContain('is-leave')
@@ -498,5 +505,277 @@ describe('model view: table groups', () => {
       }
     })
     await expect.poll(members).toEqual(['Customer', 'Region'])
+  })
+})
+
+
+// ---------------------------------------------------------------------------------------------
+// invented models (never a real one): a star schema written as a model.bim into the run's scratch folder
+// ---------------------------------------------------------------------------------------------
+
+const DIMS = ['Customer', 'Product', 'Store', 'Calendar', 'Promotion', 'Currency', 'Channel']
+function inventedStar(dir: string, opts: { snowflake?: boolean } = {}): string {
+  const col = (name: string, dataType = 'int64') => ({ name, dataType, sourceColumn: name })
+  const part = (t: string) => [{ name: t, mode: 'import', source: { type: 'm', expression: `let Source = #table({}, {}) in Source` } }]
+  const tables = [
+    { name: 'Sales', columns: [...DIMS.map((d) => col(`${d}Key`)), col('Amount', 'double')], measures: [{ name: 'Total amount', expression: 'SUM(Sales[Amount])' }], partitions: part('Sales') },
+    ...DIMS.map((d) => ({ name: d, columns: [col(`${d}Key`), col(`${d} name`, 'string'), ...(d === 'Product' ? [col('CategoryKey')] : [])], partitions: part(d) })),
+    ...(opts.snowflake ? [{ name: 'Category', columns: [col('CategoryKey'), col('Category name', 'string')], partitions: part('Category') }] : []),
+    { name: 'Key figures', columns: [col('Value')], measures: [{ name: 'Answer', expression: '42' }], partitions: part('Key figures') }
+  ]
+  const relationships = [
+    ...DIMS.map((d, i) => ({ name: `rel-${i}`, fromTable: 'Sales', fromColumn: `${d}Key`, toTable: d, toColumn: `${d}Key`, ...(d === 'Currency' ? { isActive: false } : {}) })),
+    ...(opts.snowflake ? [{ name: 'rel-cat', fromTable: 'Product', fromColumn: 'CategoryKey', toTable: 'Category', toColumn: 'CategoryKey' }] : [])
+  ]
+  mkdirSync(dir, { recursive: true })
+  const file = join(dir, 'Invented.bim')
+  writeFileSync(file, JSON.stringify({ name: 'Invented', compatibilityLevel: 1567, model: { culture: 'en-US', tables, relationships } }, null, 2))
+  return file
+}
+
+/** Screen point on line `rel` not covered by anything else, near `fraction` of its length (null if none). */
+async function grabPointOf(page: Page, rel: string, fraction = 0.5): Promise<{ x: number; y: number } | null> {
+  return page.evaluate(
+    ([name, f]) => {
+      const g = document.querySelector<SVGGElement>(`.wbi-mv-edge[data-rel="${CSS.escape(name)}"]`)
+      const p = g?.querySelector<SVGPathElement>('.wbi-mv-edge__line')
+      if (!g || !p) return null
+      const m = p.getScreenCTM()!
+      const len = p.getTotalLength()
+      for (let d = 0; d <= 0.45; d += 0.02)
+        for (const k of [f - d, f + d]) {
+          if (k <= 0.06 || k >= 0.94) continue
+          const q = p.getPointAtLength(len * k)
+          const s = { x: q.x * m.a + q.y * m.c + m.e, y: q.x * m.b + q.y * m.d + m.f }
+          const el = document.elementFromPoint(s.x, s.y)
+          if (el?.closest('.wbi-mv-edge') === g || (el?.classList.contains('wbi-mv-selhit') && el.getAttribute('data-rel') === name)) return s
+        }
+      return null
+    },
+    [rel, fraction] as const
+  )
+}
+const relNames = (page: Page): Promise<string[]> => page.locator('.wbi-mv-edge').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset['rel']!))
+const waypointsOf = (page: Page, rel: string) => page.locator(`.wbi-mv-edge[data-rel="${rel}"]`).getAttribute('data-waypoints')
+
+/**
+ * Open an invented model and go to Model view. (Opening shows Report view, which for a model-only project never
+ * reports "ready" — it waits for a report canvas — so this waits for the open command itself, then for the cards.)
+ */
+async function openInvented(page: Page, file: string): Promise<void> {
+  expect(await lumenEval(page, (l, p) => l.openPath(p, { skipConfirm: true }), file)).toBe(true)
+  await toModelView(page)
+  await page.locator('.wbi-mv-card[data-table="Sales"]').waitFor()
+  await waitIdle(page)
+}
+
+describe('model view: line editing on an invented star model', () => {
+  const lumen = useLumen({ route: { sample: '1' } })
+
+  it('lines to a collapsed group can be hovered, bent and given pinch points; they survive expand / collapse', async () => {
+    const { page, tmp } = lumen()
+    await openInvented(page, inventedStar(join(tmp, 'star')))
+    await expect.poll(() => page.locator('.wbi-mv-edge').count()).toBe(DIMS.length)
+
+    // group the seven dimensions (click + Ctrl+click, Ctrl+G) and collapse the group to its chip
+    for (const [i, d] of DIMS.entries()) await page.locator(`.wbi-mv-card[data-table="${d}"] .wbi-mv-card__title`).click(i ? { modifiers: ['Control'] } : {})
+    await expect.poll(() => page.locator('.wbi-mv-card.is-selected').count()).toBe(DIMS.length)
+    await page.keyboard.press('Control+G')
+    const group = page.locator('.wbi-mv-group')
+    await expect.poll(() => group.count()).toBe(1)
+    await group.getByRole('button', { name: 'Collapse group' }).click()
+    await expect.poll(() => group.getAttribute('data-collapsed')).toBe('1')
+    await expect.poll(() => page.locator('.wbi-mv-edge[data-chip="1"]').count()).toBe(DIMS.length)
+    // the lines no longer start in one point of the chip: each has its own end
+    const starts = await page.locator('.wbi-mv-edge .wbi-mv-edge__line').evaluateAll((els) => els.map((e) => e.getAttribute('d')!.split(' ').slice(0, 1).join()))
+    const ends = await page.locator('.wbi-mv-edge .wbi-mv-edge__line').evaluateAll((els) => els.map((e) => e.getAttribute('d')!.split(' ').pop()!))
+    expect(Math.max(new Set(starts).size, new Set(ends).size)).toBe(DIMS.length)
+
+    // hover: highlighted line, "+" marker under the pointer, a status line that says what dragging does
+    const rels = await relNames(page)
+    const rel = rels[0]
+    const at = (await grabPointOf(page, rel))!
+    expect(at).not.toBeNull()
+    await page.mouse.move(at.x, at.y)
+    await expect.poll(() => page.locator(`.wbi-mv-edge[data-rel="${rel}"]`).getAttribute('class')).toContain('is-active')
+    await expect.poll(() => page.locator('.wbi-mv-addmark[data-on]').count()).toBe(1)
+    await expect.poll(() => page.locator('.wbi-mv__status').innerText()).toMatch(/Drag the line to bend it/)
+    await shot(page, 'chip-line-hover')
+
+    // bend it with the mouse: a pinch point appears and is stored under the relationship's name
+    const depth = await undoDepth(page)
+    await drag(page, at, { x: at.x + 60, y: at.y + 80 }, {
+      hold: async () => {
+        await expect.poll(() => page.locator('.wbi-mv__status').innerText()).toMatch(/Bending the line/)
+      }
+    })
+    await expect.poll(() => waypointsOf(page, rel)).toBe('1')
+    expect(await undoDepth(page)).toBe(depth + 1)
+    expect((await sidecar(page))!.diagrams[0].routes![rel].waypoints).toHaveLength(1)
+    await shot(page, 'chip-line-bent')
+
+    // right-click another chip line (they overlap near the chip): the menu acts on the highlighted line, and
+    // "Add pinch point" is there and enabled
+    const other = rels[3]
+    const at2 = (await grabPointOf(page, other))!
+    await page.mouse.move(at2.x, at2.y)
+    await expect.poll(() => page.locator(`.wbi-mv-edge[data-rel="${other}"]`).getAttribute('class')).toContain('is-active')
+    await page.mouse.click(at2.x, at2.y, { button: 'right' })
+    const add = page.getByRole('menuitem', { name: 'Add pinch point' })
+    await add.waitFor()
+    expect(await add.isDisabled()).toBe(false)
+    await add.click()
+    await expect.poll(() => waypointsOf(page, other)).toBe('1')
+
+    // expand: the lines go to their cards and keep their pinch points; collapse again: still there
+    await group.getByRole('button', { name: 'Expand group' }).click()
+    await expect.poll(() => page.locator('.wbi-mv-edge[data-chip="1"]').count()).toBe(0)
+    expect(await waypointsOf(page, rel)).toBe('1')
+    expect(await waypointsOf(page, other)).toBe('1')
+    await group.getByRole('button', { name: 'Collapse group' }).click()
+    await expect.poll(() => page.locator('.wbi-mv-edge[data-chip="1"]').count()).toBe(DIMS.length)
+    expect(await waypointsOf(page, rel)).toBe('1')
+  })
+
+  it('every line offers "Add pinch point" on right-click; a selected line shows "+" handles that add one', async () => {
+    const { page, tmp } = lumen()
+    await openInvented(page, inventedStar(join(tmp, 'star2'), { snowflake: true }))
+    const rels = await relNames(page)
+    expect(rels.length).toBe(DIMS.length + 1)
+    let tried = 0
+    for (const rel of rels) {
+      const at = await grabPointOf(page, rel)
+      if (!at) continue
+      tried++
+      await page.mouse.click(at.x, at.y, { button: 'right' })
+      const add = page.getByRole('menuitem', { name: 'Add pinch point' })
+      await add.waitFor()
+      expect(await add.isDisabled(), rel).toBe(false)
+      await page.keyboard.press('Escape')
+      await expect.poll(() => add.count()).toBe(0)
+    }
+    expect(tried).toBeGreaterThanOrEqual(rels.length - 1)
+
+    // click a line: it is selected and shows "+" handles in the middle of its stretch
+    const rel = rels[1]
+    const at = (await grabPointOf(page, rel))!
+    await page.mouse.click(at.x, at.y)
+    const plus = page.locator(`.wbi-mv-add[data-rel="${rel}"]`)
+    await expect.poll(() => plus.count()).toBe(1)
+    await expect.poll(() => page.locator('.wbi-mv__status').innerText()).toMatch(/Line selected/)
+    await shot(page, 'line-selected-handles')
+    // drag the "+" handle: a pinch point follows the pointer; then two handles (one per stretch)
+    const h = (await plus.locator('.wbi-mv-add__dot').boundingBox())!
+    const from = { x: h.x + h.width / 2, y: h.y + h.height / 2 }
+    await drag(page, from, { x: from.x - 50, y: from.y + 90 })
+    await expect.poll(() => waypointsOf(page, rel)).toBe('1')
+    // one handle per stretch long enough to hold one
+    await expect.poll(() => plus.count()).toBeGreaterThanOrEqual(1)
+    // a plain click on a "+" handle adds a pinch point where it is
+    const h2 = (await plus.first().locator('.wbi-mv-add__dot').boundingBox())!
+    await page.mouse.click(h2.x + h2.width / 2, h2.y + h2.height / 2)
+    await expect.poll(() => waypointsOf(page, rel)).toBe('2')
+  })
+
+  it('Auto arrange lays the tables out without overlaps in one undo step and clears pinch points of moved lines', async () => {
+    const { page, tmp } = lumen()
+    await openInvented(page, inventedStar(join(tmp, 'star3'), { snowflake: true }))
+    // bend one line first
+    const rel = (await relNames(page))[2]
+    const at = (await grabPointOf(page, rel))!
+    await drag(page, at, { x: at.x + 40, y: at.y - 70 })
+    await expect.poll(() => waypointsOf(page, rel)).toBe('1')
+    const before = await page.locator('.wbi-mv-card').evaluateAll((els) => els.map((e) => [(e as HTMLElement).dataset['table'], (e as HTMLElement).style.left, (e as HTMLElement).style.top].join()))
+    const depth = await undoDepth(page)
+    await shot(page, 'arrange-before')
+    // (a model without stored positions already opens in its suggested arrangement — star here — so start with the grid)
+    for (const [i, [label, name]] of ([
+      ['Compact grid', 'arrange-grid'],
+      ['Star / snowflake', 'arrange-star'],
+      ['Layered', 'arrange-layered']
+    ] as const).entries()) {
+      await toolbar(page).getByRole('button', { name: 'Auto arrange' }).click()
+      await page.getByRole('menuitem', { name: new RegExp(`^${label.replace('/', '\\/')}`) }).click()
+      // committed (after the short move animation) as one undo step
+      await expect.poll(() => undoDepth(page)).toBe(depth + i + 1)
+      await expect.poll(() => lumenEval(page, (l) => l.useApp.getState().undoStack.at(-1)?.label)).toBe('Auto arrange')
+      // no two cards overlap
+      const boxes = await page.locator('.wbi-mv-card').evaluateAll((els) => els.map((e) => ({ x: (e as HTMLElement).offsetLeft, y: (e as HTMLElement).offsetTop, w: (e as HTMLElement).offsetWidth, h: (e as HTMLElement).offsetHeight })))
+      for (let i = 0; i < boxes.length; i++)
+        for (let j = i + 1; j < boxes.length; j++) {
+          const a = boxes[i]
+          const b = boxes[j]
+          expect(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h, `${label}: cards ${i} and ${j} overlap`).toBe(false)
+        }
+      expect(await waypointsOf(page, rel)).toBe('0')
+      await shot(page, name)
+    }
+    expect(await undoDepth(page)).toBe(depth + 3)
+    // three undos bring the original positions and the pinch point back
+    for (let i = 0; i < 3; i++) await page.keyboard.press('Control+Z')
+    await expect.poll(() => waypointsOf(page, rel)).toBe('1')
+    const after = await page.locator('.wbi-mv-card').evaluateAll((els) => els.map((e) => [(e as HTMLElement).dataset['table'], (e as HTMLElement).style.left, (e as HTMLElement).style.top].join()))
+    expect(after).toEqual(before)
+    // the canvas menu offers it too, and "Arrange selection" once several tables are selected
+    await page.locator('.wbi-mv-card[data-table="Customer"] .wbi-mv-card__title').click()
+    await page.locator('.wbi-mv-card[data-table="Store"] .wbi-mv-card__title').click({ modifiers: ['Control'] })
+    const canvas = await box(page, '.wbi-mv__canvas')
+    await page.mouse.click(canvas.x + canvas.width - 60, canvas.y + canvas.height / 2, { button: 'right' })
+    await page.getByRole('menuitem', { name: 'Auto arrange' }).hover()
+    await page.getByRole('menuitem', { name: /Arrange 2 selected tables/ }).waitFor()
+    await page.keyboard.press('Escape')
+  })
+})
+
+describe('model view: formula bar floats over the diagram', () => {
+  const lumen = useLumen({ route: { sample: '1' } })
+
+  it('selecting a measure opens the formula bar without moving the diagram; the toolbar stays usable', async () => {
+    const { page } = lumen()
+    await toModelView(page)
+    const card = page.locator('.wbi-mv-card').first()
+    const measure = page.locator('.wbi-mv-field[data-kind="measure"]').first()
+    await measure.waitFor()
+    const table = await measure.evaluate((e) => (e.closest('.wbi-mv-card') as HTMLElement).dataset['table']!)
+    const target = page.locator(`.wbi-mv-card[data-table="${table}"]`)
+    const cardBefore = await card.boundingBox()
+    const targetBefore = await target.boundingBox()
+    const canvasBefore = await box(page, '.wbi-mv__canvas')
+    await measure.click()
+    const bar = page.locator('.wbi-mv__fbar [data-testid="formula-bar"]')
+    await bar.waitFor()
+    expect(await page.locator('[data-testid="formula-bar"]').count()).toBe(1)
+    // nothing moved
+    expect(await card.boundingBox()).toEqual(cardBefore)
+    expect(await target.boundingBox()).toEqual(targetBefore)
+    expect(await box(page, '.wbi-mv__canvas')).toEqual(canvasBefore)
+    // the bar floats over the top of the canvas; the toolbar moved below it and still works
+    const b = (await bar.boundingBox())!
+    expect(b.y).toBeGreaterThanOrEqual(canvasBefore.y)
+    expect(b.y).toBeLessThan(canvasBefore.y + 20)
+    const tb = await box(page, '.wbi-mv__toolbar')
+    expect(tb.y).toBeGreaterThanOrEqual(b.y + b.height)
+    await toolbar(page).getByRole('button', { name: 'Editing tips' }).click()
+    await page.getByRole('note', { name: 'Diagram editing tips' }).waitFor()
+    await toolbar(page).getByRole('button', { name: 'Editing tips' }).click()
+    await shot(page, 'formula-bar-overlay')
+    // expanding grows it downwards over the diagram; still nothing moves
+    await bar.getByRole('button', { name: 'Expand' }).click()
+    await expect.poll(async () => (await bar.boundingBox())!.height).toBeGreaterThan(b.height + 50)
+    expect(await card.boundingBox()).toEqual(cardBefore)
+    await expect.poll(async () => (await box(page, '.wbi-mv__toolbar')).y).toBeGreaterThan(b.y + b.height + 50)
+    await bar.getByRole('button', { name: 'Expand' }).click()
+    // pan the diagram outside the bar with the mouse (pan mode is the default)
+    const c = await box(page, '.wbi-mv__canvas')
+    const startPan = { x: c.x + c.width - 40, y: c.y + c.height - 80 }
+    await drag(page, startPan, { x: startPan.x - 30, y: startPan.y - 20 })
+    await expect.poll(async () => (await card.boundingBox())!.x).toBeLessThan(cardBefore!.x - 20)
+    await drag(page, { x: startPan.x - 30, y: startPan.y - 20 }, startPan)
+    await expect.poll(async () => (await card.boundingBox())!.x).toBe(cardBefore!.x)
+    // a click on the empty canvas clears the selection: the bar closes, still nothing moved
+    await page.mouse.click(startPan.x, startPan.y)
+    await expect.poll(() => page.locator('[data-testid="formula-bar"]').count()).toBe(0)
+    expect(await card.boundingBox()).toEqual(cardBefore)
+    expect((await box(page, '.wbi-mv__toolbar')).y).toBe(tb.y - b.height - 6)
   })
 })

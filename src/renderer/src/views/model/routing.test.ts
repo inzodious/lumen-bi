@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anchorPoint, autoEndToward, autoEnds, buildRoute, edgeDecor, insertWaypoint, moveWaypoint, nearestAnchor, nearestOnRoute, pointAtLength, removeWaypoint, resolveEnds, translateRoute, type End, type Pt } from './routing'
+import { anchorPoint, autoEndToward, autoEnds, buildRoute, edgeDecor, insertWaypoint, moveWaypoint, nearestAnchor, nearestOnRoute, pointAtLength, removeWaypoint, resolveEnds, translateRoute, segmentMidpoints, spreadAlongSide, routeAfterArrange, type End, type Pt } from './routing'
 
 const A = { x: 0, y: 0, width: 200, height: 300 }
 const B = { x: 400, y: 100, width: 200, height: 300 }
@@ -290,5 +290,41 @@ describe('hit-testing and markers', () => {
     expect(d.mid.x).toBe(300)
     expect(d.mid.y).toBe(175)
     expect(Math.abs(d.mid.angle)).toBe(90)
+  })
+})
+
+describe('pinch point handles and shared ends', () => {
+  const ends = (a = A, b = B) => resolveEnds(a, null, b, null, undefined)
+  it('offers a "+" handle in the middle of every stretch, on the line', () => {
+    for (const style of ['curved', 'orthogonal', 'straight'] as const) {
+      const e = ends()
+      const g = buildRoute(e.from, e.to, [{ x: 300, y: 600 }], style)
+      const mids = segmentMidpoints(g)
+      expect(mids.map((m) => m.seg)).toEqual([0, 1])
+      for (const m of mids) expect(nearestOnRoute(g, m).dist).toBeLessThan(1)
+      // inserting at a handle keeps the existing pinch point and puts the new one before / after it
+      expect(insertWaypoint({ waypoints: [{ x: 300, y: 600 }] }, mids[0].seg, mids[0]).waypoints![1]).toEqual({ x: 300, y: 600 })
+      expect(insertWaypoint({ waypoints: [{ x: 300, y: 600 }] }, mids[1].seg, mids[1]).waypoints![0]).toEqual({ x: 300, y: 600 })
+    }
+  })
+  it('skips stretches too short to hold a handle', () => {
+    const e = resolveEnds({ x: 0, y: 0, width: 100, height: 40 }, null, { x: 110, y: 0, width: 100, height: 40 }, null, undefined)
+    expect(segmentMidpoints(buildRoute(e.from, e.to, [], 'straight'))).toEqual([])
+  })
+  it('spreads lines sharing one side of a chip, ordered by where they go (no crossing at the start)', () => {
+    const chip = { x: 0, y: 0, width: 220, height: 40 }
+    const pts = spreadAlongSide(chip, 'right', [{ x: 600, y: 500 }, { x: 600, y: -300 }, { x: 600, y: 20 }])
+    expect(pts.every((p) => p.x === 220)).toBe(true)
+    expect(pts[1].y).toBeLessThan(pts[2].y)
+    expect(pts[2].y).toBeLessThan(pts[0].y)
+    expect(new Set(pts.map((p) => p.y)).size).toBe(3)
+    expect(pts[1].y).toBeGreaterThanOrEqual(0)
+    expect(pts[0].y).toBeLessThanOrEqual(40)
+    expect(spreadAlongSide(chip, 'bottom', [{ x: 5, y: 900 }])[0]).toEqual({ x: 110, y: 40 })
+  })
+  it('clears pinch points and manual ends after an arrange, keeps the style', () => {
+    expect(routeAfterArrange({ style: 'straight', waypoints: [{ x: 1, y: 2 }], from: { side: 'top', t: 0.5 } })).toEqual({ style: 'straight' })
+    expect(routeAfterArrange({ waypoints: [{ x: 1, y: 2 }] })).toBeUndefined()
+    expect(routeAfterArrange(undefined)).toBeUndefined()
   })
 })

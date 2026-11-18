@@ -11,7 +11,7 @@ import type { LineStyle, RouteDef } from '@core/io/diagramSidecar'
 import type { RelationshipDef } from '@core/model/types'
 import { cx } from '../../app/ui'
 import type { Rect } from './edges'
-import type { EdgeDecor, RouteGeometry } from './routing'
+import { segmentMidpoints, type EdgeDecor, type RouteGeometry } from './routing'
 
 export interface EdgeView {
   rel: RelationshipDef
@@ -19,8 +19,10 @@ export interface EdgeView {
   decor: EdgeDecor
   style: LineStyle
   route: RouteDef | undefined
-  /** false when an end sits on a collapsed group's chip: the line is drawn automatically there */
+  /** every drawn line can be bent (kept for callers that draw read-only diagrams) */
   editable: boolean
+  /** ends drawn to a collapsed group's chip instead of the (hidden) table card: those ends cannot be moved */
+  chip?: { from: boolean; to: boolean }
 }
 
 export interface EdgeLayerProps {
@@ -34,6 +36,14 @@ export interface EdgeLayerProps {
   onDown(e: React.MouseEvent, edge: EdgeView): void
   onDoubleClick(edge: EdgeView): void
   onMenu(e: React.MouseEvent, edge: EdgeView): void
+  /** the pointer moves along a line (shows where a pinch point would be added) */
+  onHover?(e: React.MouseEvent, edge: EdgeView): void
+}
+
+/** Tooltip of a relationship line: what can be done with it. */
+export function lineTitle(ev: EdgeView): string {
+  const chip = ev.chip?.from || ev.chip?.to
+  return `Drag to bend this line (adds a pinch point) · double-click to edit the relationship · right-click for line style, pinch points and more${chip ? ' · this line ends on a collapsed group: expand the group to move that end' : ''}`
 }
 
 /** Filter flows from the one side to the many side; `from` is the many side unless the relationship says otherwise. */
@@ -56,13 +66,15 @@ export function EdgeLayer(p: EdgeLayerProps) {
             data-rel={r.name}
             data-style={ev.style}
             data-waypoints={g.waypoints.length}
+            data-chip={ev.chip?.from || ev.chip?.to ? '1' : undefined}
             onMouseEnter={() => p.onEnter(r.name)}
             onMouseLeave={() => p.onLeave(r.name)}
+            onMouseMove={(e) => p.onHover?.(e, ev)}
             onMouseDown={(e) => p.onDown(e, ev)}
             onDoubleClick={() => p.onDoubleClick(ev)}
             onContextMenu={(e) => p.onMenu(e, ev)}
           >
-            <title>{ev.editable ? 'Drag to bend this line · double-click to edit the relationship · right-click for line style and more' : 'Expand the group to edit this line'}</title>
+            <title>{lineTitle(ev)}</title>
             <path d={g.d} className="wbi-mv-edge__hit" style={{ strokeWidth: Math.max(12, 14 / p.zoom) }} />
             <path d={g.d} className="wbi-mv-edge__line" />
             <text x={ev.decor.l1.x} y={ev.decor.l1.y} className="wbi-mv-edge__card">
@@ -92,6 +104,12 @@ export function EdgeLayer(p: EdgeLayerProps) {
 export interface HandleLayerProps {
   edges: EdgeView[]
   activeRel: string | null
+  /** the selected line: drawn on top (ghost + grab area) with "+" handles to add pinch points */
+  selectedRel: string | null
+  /** hide the "+" handles (while something is dragged) */
+  busy: boolean
+  /** the "add a pinch point here" marker that follows the pointer along the hovered line (positioned by the view) */
+  markerRef: React.Ref<SVGGElement>
   selectedWaypoint: { rel: string; index: number } | null
   zoom: number
   guides: { x?: number; y?: number } | null
@@ -103,6 +121,13 @@ export interface HandleLayerProps {
   onWaypointMenu(e: React.MouseEvent, edge: EdgeView, index: number): void
   onEndDown(e: React.MouseEvent, edge: EdgeView, end: 'from' | 'to'): void
   onEndDoubleClick(edge: EdgeView, end: 'from' | 'to'): void
+  /** mouse down on a "+" handle: add a pinch point on stretch `seg` at `at` (and drag it) */
+  onAddDown(e: React.MouseEvent, edge: EdgeView, seg: number, at: { x: number; y: number }): void
+  /** the selected line's grab area above the cards: same gestures as the line itself */
+  onLineDown(e: React.MouseEvent, edge: EdgeView): void
+  onLineDoubleClick(edge: EdgeView): void
+  onLineMenu(e: React.MouseEvent, edge: EdgeView): void
+  onLineHover(e: React.MouseEvent, edge: EdgeView): void
 }
 
 const FAR = 100000
@@ -116,13 +141,40 @@ export function HandleLayer(p: HandleLayerProps) {
       {p.guides?.y !== undefined && <line x1={-FAR} y1={p.guides.y} x2={FAR} y2={p.guides.y} className="wbi-mv-guide" style={{ strokeWidth: k }} />}
       {p.edges.map((ev) => {
         const active = p.activeRel === ev.rel.name
+        const selected = p.selectedRel === ev.rel.name
         if (!ev.editable) return null
         return (
           <g key={ev.rel.name} onMouseEnter={() => p.onEnter(ev.rel.name)} onMouseLeave={() => p.onLeave(ev.rel.name)}>
+            {/* the hovered / selected line is repeated faintly above the cards, so the stretches it runs behind them show */}
+            {(active || selected) && <path d={ev.geom.d} className="wbi-mv-ghost" style={{ strokeWidth: 1.5 * k }} />}
+            {selected && (
+              <path
+                d={ev.geom.d}
+                className="wbi-mv-selhit"
+                data-rel={ev.rel.name}
+                style={{ strokeWidth: 10 * k }}
+                onMouseDown={(e) => p.onLineDown(e, ev)}
+                onMouseMove={(e) => p.onLineHover(e, ev)}
+                onDoubleClick={() => p.onLineDoubleClick(ev)}
+                onContextMenu={(e) => p.onLineMenu(e, ev)}
+              >
+                <title>{lineTitle(ev)}</title>
+              </path>
+            )}
+            {selected &&
+              !p.busy &&
+              segmentMidpoints(ev.geom).map((m) => (
+                <g key={`add${m.seg}`} className="wbi-mv-add" data-rel={ev.rel.name} data-seg={m.seg} onMouseDown={(e) => p.onAddDown(e, ev, m.seg, m)}>
+                  <title>Add a pinch point here (drag to bend the line)</title>
+                  <circle cx={m.x} cy={m.y} r={9 * k} className="wbi-mv-add__hit" />
+                  <circle cx={m.x} cy={m.y} r={6 * k} className="wbi-mv-add__dot" style={{ strokeWidth: 1.25 * k }} />
+                  <path d={`M${m.x - 3 * k},${m.y} H${m.x + 3 * k} M${m.x},${m.y - 3 * k} V${m.y + 3 * k}`} className="wbi-mv-add__plus" style={{ strokeWidth: 1.5 * k }} />
+                </g>
+              ))}
             {active &&
               (['from', 'to'] as const).map((end) => {
                 const e = ev.geom[end]
-                if (e.side === 'center') return null
+                if (e.side === 'center' || ev.chip?.[end]) return null
                 return (
                   <g key={end} className={cx('wbi-mv-end', e.manual && 'is-manual')} data-rel={ev.rel.name} data-end={end} onMouseDown={(me) => p.onEndDown(me, ev, end)} onDoubleClick={() => p.onEndDoubleClick(ev, end)}>
                     <title>{e.manual ? 'Drag to move this end around the table · double-click to attach automatically' : 'Drag to choose where the line attaches to the table'}</title>
@@ -155,6 +207,11 @@ export function HandleLayer(p: HandleLayerProps) {
           </g>
         )
       })}
+      {/* follows the pointer along the hovered line: "a pinch point goes here if you drag" */}
+      <g ref={p.markerRef} className="wbi-mv-addmark" aria-hidden="true">
+        <circle r={6 * k} className="wbi-mv-add__dot" style={{ strokeWidth: 1.25 * k }} />
+        <path d={`M${-3 * k},0 H${3 * k} M0,${-3 * k} V${3 * k}`} className="wbi-mv-add__plus" style={{ strokeWidth: 1.5 * k }} />
+      </g>
       {p.marquee && <rect x={p.marquee.x} y={p.marquee.y} width={p.marquee.width} height={p.marquee.height} className="wbi-mv-marquee" style={{ strokeWidth: k }} />}
     </svg>
   )

@@ -78,6 +78,23 @@ const immer = new Immer({ autoFreeze: false })
 less than one second apart (`COALESCE_MS`) into one undo step. Keyboard nudges and repeated resizes use it, so one
 **Undo** restores the state before the whole burst.
 
+## Drafts, deep copies and failed edits
+
+Inside `mutateReport`, `mutateModel`, `patchReport` and `mutateModelSidecars`, every object the mutator reads from
+the document is an immer draft (a Proxy), including objects reached through a spread such as `{ ...draft }`.
+
+- **Deep copies.** `structuredClone` throws `DataCloneError` on a draft. Use `cloneDeep` from `src/core/clone.ts`
+  (`import { cloneDeep } from '@core/clone'`), which unwraps drafts at any depth. `src/core/clone.test.ts` fails if
+  `structuredClone(` or `JSON.parse(JSON.stringify(` appears anywhere under `src/`.
+- **Failed edits.** A mutator that throws changes nothing: no undo step is recorded and the document stays as it was.
+  The store reports the failure once with `reportMutationError` (`src/renderer/src/state/store.ts`): an error toast
+  titled *Couldn't complete "<label>"* with "Nothing was changed." and the error message, plus a console entry.
+  Callers do not catch; they continue as after an edit that changed nothing (menus close, for example).
+- **Audit.** `src/renderer/src/report/__tests__/draftAudit.test.ts` runs every exported edit operation of the
+  edit-op modules on a draft, and fails on a new export until it is exercised or classified.
+
+The contract is in [ARCHITECTURE.md](../ARCHITECTURE.md).
+
 ## How `mutateModel` works
 
 `mutateModel(label, mutator)` also uses `immer.produce`, for a second reason: the TMDL writer remembers each

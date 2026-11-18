@@ -159,7 +159,8 @@ To keep your work, save the report with **File > Save as** as a Power BI project
 ## Considerations and limitations
 
 - The numbers come from the sample's generated data and can differ slightly between Lumen versions.
-- If a field you drag doesn't appear in the well, check the order of the steps (see the note in step 6).
+- If an edit fails, Lumen shows an error message titled *Couldn't complete "…"* and leaves the page unchanged; see
+  [Frequently asked questions](../troubleshooting/faq.md#using-lumen).
 
 ## Related content
 

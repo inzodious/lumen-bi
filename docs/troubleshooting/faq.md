@@ -89,6 +89,12 @@ desktop's keyring.
 **Does Lumen save automatically?**
 No. Save with Ctrl+S. There is no auto-recovery in this version.
 
+**An edit showed "Couldn't complete …". What happened?**
+When a change to the report or the model fails, Lumen shows an error message titled *Couldn't complete "<action>"*
+(for example *Couldn't complete "Duplicate page"*) with "Nothing was changed." and the reason. The edit is not applied
+and the undo history is not touched, so the report stays as it was. Try again; if it keeps failing, the reason in the
+message and the developer tools console (Ctrl+Shift+I) help when you report it.
+
 **Can I change keyboard shortcuts?**
 No. See [Keyboard shortcuts](../reference/keyboard-shortcuts.md) for the ones that exist.
 

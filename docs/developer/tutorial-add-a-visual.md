@@ -330,6 +330,7 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { resolveTheme } from '@core/report/theme'
 import { recordFallbacks } from '@core/report/props'
+import { cloneDeep } from '@core/clone'
 import { createMockHost, createMockState } from '../common/mockHost'
 import { createSampleEngine } from '../common/sampleData'
 import { getVisual } from '../registry'
@@ -360,7 +361,7 @@ describe('rank list', () => {
 
   it('resolves explicit formatting over the defaults', () => {
     const lit = (v: string) => ({ expr: { Literal: { Value: v } } })
-    const styled = structuredClone(json)
+    const styled = cloneDeep(json)
     styled.visual.objects = {
       rankList: [{ properties: { maxItems: lit('3L') } }],
       dataPoint: [{ properties: { fill: { solid: { color: lit("'#E66C37'") } } } }]

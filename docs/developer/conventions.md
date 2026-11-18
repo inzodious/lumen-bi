@@ -83,6 +83,15 @@ The files listed under "Contracts" in [ARCHITECTURE.md](../ARCHITECTURE.md) (`Se
 - **Breaking changes** (renaming, removing, changing a type or a meaning) need agreement first and must be called
   out in the pull request description.
 
+## Deep copies of state use `cloneDeep`
+
+Edits run on immer drafts (see [State and store](state-and-store.md#drafts-deep-copies-and-failed-edits)), and
+`structuredClone` throws on a draft. Copy report JSON, model objects, layouts and themes only with `cloneDeep` from
+`src/core/clone.ts`, which unwraps drafts and otherwise behaves like `structuredClone`. Never call
+`structuredClone(` or `JSON.parse(JSON.stringify(` directly anywhere under `src/`, tests included:
+`src/core/clone.test.ts` searches the sources and fails on either. The contract is in
+[ARCHITECTURE.md](../ARCHITECTURE.md).
+
 ## File formats round-trip
 
 - Report JSON is mutated in place and written back as it was read; untouched files save byte-identically.

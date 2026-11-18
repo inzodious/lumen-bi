@@ -104,6 +104,7 @@ These also work in reading view:
 | Where | Keys | Action |
 |---|---|---|
 | A page tab being renamed | Enter, Esc | Confirm, cancel |
+| The page tab context menu | Esc | Close it |
 | Data pane, Selection pane, Bookmarks pane: an item being renamed | Enter, Esc | Confirm, cancel |
 | Performance analyzer row | Enter or Space | Expand or collapse it |
 | Number box in the Format pane | Up, Down | Step the value up, down |

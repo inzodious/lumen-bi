@@ -274,6 +274,7 @@ type Sem =
   | 'email'
   | 'phone'
   | 'url'
+  | 'image'
   | 'zip'
   | 'address'
   | 'city'
@@ -364,6 +365,8 @@ export function columnSemantics(col: ColumnDef, table: TableDef): ColumnSemantic
     if (numeric || has('case', 'file', 'account', 'org', 'claim', 'policy', 'order', 'invoice', 'member', 'employee', 'ticket', 'access', 'system')) return { sem: 'idCode', toks }
   }
 
+  // image columns (data category "Image URL"): visuals show them as pictures, so they need a renderable value
+  if (type === 'string' && col.dataCategory?.toLowerCase() === 'imageurl') return { sem: 'image', toks }
   if (has('email', 'mail')) return { sem: 'email', toks }
   if (has('phone', 'fax', 'mobile', 'tel', 'telephone')) return { sem: 'phone', toks }
   if (has('url', 'website', 'link', 'href', 'uri')) return { sem: 'url', toks }
@@ -449,8 +452,20 @@ function singularToken(t: string): string {
   return t
 }
 
+/**
+ * Stand-in pictures for image-URL columns: the real images live in the source, so sample data shows a
+ * neutral "picture" glyph (in a few tints) where the report would show the actual icon / photo.
+ */
+export const PLACEHOLDER_IMAGES: readonly string[] = ['#8A8886', '#605E5C', '#A19F9D', '#C8C6C4'].map(
+  (c) =>
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M4 18l5-5 3.5 3.5L15 14l5 4"/></svg>`
+    )
+)
+
 function isFreeForm(sem: Sem): boolean {
-  return ['email', 'phone', 'url', 'zip', 'address', 'firstName', 'lastName', 'person', 'company', 'entityName', 'text', 'guid', 'idCode', 'idSeq'].includes(sem)
+  return ['email', 'phone', 'url', 'image', 'zip', 'address', 'firstName', 'lastName', 'person', 'company', 'entityName', 'text', 'guid', 'idCode', 'idSeq'].includes(sem)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1819,6 +1834,8 @@ class SyntheticGenerator {
         return () => `(${rng.int(201, 989)}) 555-${pad(rng.int(100, 9999), 4)}`
       case 'url':
         return (r) => `https://www.${h.company(r).toLowerCase().replace(/[^a-z]+/g, '')}.com/${rng.pick(['about', 'contact', 'products', 'services', 'home'])}`
+      case 'image':
+        return (r) => PLACEHOLDER_IMAGES[r % PLACEHOLDER_IMAGES.length]
       case 'zip':
         return numeric ? (r) => Number(h.place(r)[2] + pad(rng.int(1, 99), 2)) : (r) => h.place(r)[2] + pad(rng.int(1, 99), 2)
       case 'address':

@@ -11,7 +11,7 @@ import type { ValueFormatter } from '@core/engine/api'
 import type { ResolvedTheme } from '@core/report/theme'
 import { formatWithUnits } from '../common/displayUnits'
 import { ptToPx, type FontSpec } from '../common/textStyle'
-import { CardProps, cardPrecision, legacyAutoUnit, toPt } from './cardProps'
+import { CardProps, cardPrecision, cardTextDefaults, legacyAutoUnit, toPt } from './cardProps'
 import { kpiIconFor } from '../tables/iconSet'
 
 export interface LegacyCardModel {
@@ -42,7 +42,8 @@ export function buildLegacyCardModel(visualJson: any, theme: ResolvedTheme, form
   const units = unitsProp === 0 ? legacyAutoUnit(raw) : unitsProp
   const precision = p.optNum('labels', 'labelPrecision')
   const text = raw === null ? '(Blank)' : formatWithUnits(raw, format, { formatString: v?.formatString, dataType: v?.dataType, units, precision: cardPrecision(units, precision, v?.formatString) })
-  const labelCls = theme.textClasses?.label ?? {}
+  // category label = the "large and light" label class: label face, label size + 2pt (12pt on the classic theme)
+  const categoryText = cardTextDefaults(theme).label
   return {
     text,
     raw,
@@ -58,8 +59,8 @@ export function buildLegacyCardModel(visualJson: any, theme: ResolvedTheme, form
       show: p.bool('categoryLabels', 'show', true),
       text: label,
       font: {
-        family: p.str('categoryLabels', 'fontFamily', labelCls.fontFace ?? 'Segoe UI'),
-        size: toPt(p.get('categoryLabels', 'fontSize', 12), 12),
+        family: p.str('categoryLabels', 'fontFamily', categoryText.family),
+        size: toPt(p.get('categoryLabels', 'fontSize', categoryText.size), categoryText.size),
         color: p.color('categoryLabels', 'color', theme.foregroundNeutralSecondary),
         bold: p.bool('categoryLabels', 'bold', false),
         italic: p.bool('categoryLabels', 'italic', false),

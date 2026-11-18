@@ -171,7 +171,7 @@ export const cardVisualDef: VisualDefinition = {
       properties: [
         ...font(),
         { name: 'horizontalAlignment', displayName: 'Horizontal alignment', type: 'alignment', default: 'left' },
-        { name: 'textWrap', displayName: 'Wrap text', type: 'bool', default: true },
+        { name: 'textWrap', displayName: 'Wrap text', type: 'bool', default: false },
         { name: 'labelDisplayUnits', displayName: 'Display units', type: 'displayUnits', options: UNITS },
         { name: 'labelPrecision', displayName: 'Value decimal places', type: 'integer', min: 0, max: 15 },
         { name: 'customFormatString', displayName: 'Format code', type: 'text' },
@@ -185,7 +185,7 @@ export const cardVisualDef: VisualDefinition = {
       properties: [
         ...font(),
         { name: 'text', displayName: 'Text', type: 'text' },
-        { name: 'position', displayName: 'Position', type: 'enum', options: [{ value: 'aboveValue', label: 'Above value' }, { value: 'belowValue', label: 'Below value' }] },
+        { name: 'position', displayName: 'Position', type: 'enum', options: [{ value: 'aboveValue', label: 'Above value' }, { value: 'belowValue', label: 'Below value' }], default: 'aboveValue' },
         { name: 'matchValueAlignment', displayName: 'Match value alignment', type: 'bool', default: true },
         { name: 'horizontalAlignment', displayName: 'Horizontal alignment', type: 'alignment' },
         { name: 'textWrap', displayName: 'Wrap text', type: 'bool', default: true }

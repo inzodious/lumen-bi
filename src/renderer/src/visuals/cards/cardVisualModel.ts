@@ -9,17 +9,31 @@
  *   - Microsoft Learn "Create a card visual" (GA notes): card padding 12px ("Normal"), reference
  *     labels get their own area that takes 50% of the card with a default background, an area used
  *     by one card is reserved on every card, "Fit to space" (autoGrid) on.
- *   - Measured from the Learn GA screenshot (classic theme): value left-aligned & vertically
- *     centred with the category label below it, 1px card outline in the theme's backgroundLight,
- *     ~4px corner radius, ~8px between cards.
- *   - Not verifiable from public docs (closest observed look, noted): callout value Segoe UI
- *     Semibold 28pt, category label Segoe UI 12pt secondary colour, padding presets
- *     Narrow 8 / Wide 20, overflow style 0 = continuous scroll / 1 = paginate.
+ *   - Measured from the Learn GA screenshot (classic theme): value left-aligned, 1px card outline
+ *     in the theme's backgroundLight, ~4px corner radius, ~8px between cards.
+ *   - Text defaults come from the report theme's text classes, like every Power BI visual (Learn
+ *     "Create custom report themes" > "Set formatted text defaults": "Cards and KPIs: callout";
+ *     card category labels use the "large and light" label class):
+ *       callout value   = `callout` class font face + size (classic base theme: DIN 45pt), theme foreground;
+ *       category label  = `label` class font face, label size + 2pt (the derived `largeLightLabel`
+ *                         class), second-level colour (foregroundNeutralSecondary);
+ *       reference label = `label` class face + size (value in the semibold label face).
+ *     A custom theme that redefines `textClasses.callout` / `label` therefore restyles every card.
+ *     The category label sits ABOVE the value by default (Learn card walkthrough screenshots and the
+ *     preview "build a new card" screenshots on a classic-theme report); "Below value" is the option.
+ *   - Approximations (not verifiable from public docs, closest observed look): the +2pt of the
+ *     category label and the reference-label size are read off Learn screenshots; padding presets
+ *     Narrow 8 / Wide 20; overflow style 0 = continuous scroll / 1 = paginate; reference labels in
+ *     the "tabular" style put titles in a left-aligned column and values in a right-aligned column
+ *     spanning the reference-label area (`valueArea`% wide when set).
  *
  * Each card has up to three areas — callout (value + label + optional callout image), reference
  * labels, card image — ordered by `layout.contentOrder` and arranged along
  * `referenceLabelLayout.position` (below = vertical, right = horizontal), the callout taking
  * `layout.calloutSize`% (collage: the first area takes its share, the other two stack across).
+ * The shares are fixed: content that does not fit its area is clipped at the area's edge (Learn
+ * FAQ "Why is the reference label obscuring the text in the callout?" — the reference-label area
+ * keeps its share and covers what overflows the callout).
  *
  * Categories (multi-category layout, "small multiples" of cards): one section per category tuple
  * with a selectable header; each section lays out its cards with the multi-card layout.
@@ -33,7 +47,9 @@ import type { ResolvedTheme } from '@core/report/theme'
 import { compileColorRule, evalColorRule, ruleInputs, type ColorRule } from '../common/conditionalFormatting'
 import { formatWithUnits } from '../common/displayUnits'
 import type { FontSpec } from '../common/textStyle'
-import { CardProps, cardPrecision, imageSrc, toPt, type CardScope, type CardState } from './cardProps'
+import { CardProps, cardPrecision, cardTextDefaults, imageSrc, toPt, type CardScope, type CardState } from './cardProps'
+
+export { cardTextDefaults, type CardTextDefaults } from './cardProps'
 
 export interface Box {
   top: number
@@ -64,7 +80,8 @@ export interface RefLabelModel {
 export type ImageFit = 'fit' | 'stretch' | 'fill' | 'center'
 
 export interface ImageModel {
-  src: string
+  /** undefined: the image is switched on but its source resolves to nothing — the area stays reserved */
+  src?: string
   fit: ImageFit
   radius: Corners
   /** 0..1 */
@@ -86,6 +103,7 @@ export interface CalloutImageModel extends ImageModel {
 
 /** Card-level image area ("Image"; PBIR object `cardImage`). */
 export interface CardImageModel extends ImageModel {
+  src: string
   padding: Box
   background?: string
   /** fixed image height in px (0 = fill the area) */
@@ -649,6 +667,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
   const hasStateEntries = (state: CardState) =>
     Object.values(props.pc.objects ?? {}).some((entries: any[]) => entries.some((e) => typeof e?.selector?.id === 'string' && (state === 'hover' ? /hover$/.test(e.selector.id) : /selected$/.test(e.selector.id))))
   const hoverDefined = hasStateEntries('hover')
+  const text = cardTextDefaults(theme)
 
   const fmtValue = (raw: Scalar, v: { formatString?: string; dataType?: DataType } | undefined, units: number, precision: number | undefined, custom: string, blankAs: string | undefined) => {
     if (raw === null || raw === undefined) return blankAs ?? '(Blank)'
@@ -661,8 +680,10 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     const type = props.str('image', 'imageType', 'imageData', s).toLowerCase()
     const urlLit = props.get<any>('image', 'imageUrl', undefined, s)
     const bound = boundValue('image', 'imageData', s) ?? boundValue('image', 'imageUrl', s)
+    // No usable source (blank / non-image field value): the image area is kept empty so the callout
+    // text keeps its place. Approximation — not verified against Power BI, which sizes the area from
+    // the settings (`imageAreaSize` / `size`), not from the picture.
     const src = imageSrc(type === 'imageurl' && typeof urlLit === 'string' ? urlLit : bound ?? (typeof urlLit === 'string' ? urlLit : undefined))
-    if (!src) return undefined
     const fixed = props.bool('image', 'fixedSize', false, s)
     return {
       src,
@@ -744,10 +765,10 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     const units = props.optNum('value', 'labelDisplayUnits', s) ?? 0
     const precision = props.optNum('value', 'labelPrecision', s)
     const blankAs = props.get<any>('value', 'showBlankAs', undefined, s)
-    const text = fmtValue(raw, v, units, precision, props.str('value', 'customFormatString', '', s), typeof blankAs === 'string' && blankAs !== '' ? blankAs : undefined)
+    const valueText = fmtValue(raw, v, units, precision, props.str('value', 'customFormatString', '', s), typeof blankAs === 'string' && blankAs !== '' ? blankAs : undefined)
     const valueFont: FontSpec = {
-      family: props.str('value', 'fontFamily', 'Segoe UI Semibold', s),
-      size: toPt(props.get('value', 'fontSize', 28, s), 28),
+      family: props.str('value', 'fontFamily', text.value.family, s),
+      size: toPt(props.get('value', 'fontSize', text.value.size, s), text.value.size),
       color: withAlpha(ruleColor('value', 'fontColor', s) ?? props.color('value', 'fontColor', theme.foreground, s), props.num('value', 'transparency', 0, s)),
       bold: props.bool('value', 'bold', false, s),
       italic: props.bool('value', 'italic', false, s),
@@ -755,14 +776,14 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     }
     const valueAlign = alignOf(props.str('value', 'horizontalAlignment', 'left', s), 'left')
     const labelFont: FontSpec = {
-      family: props.str('label', 'fontFamily', 'Segoe UI', s),
-      size: toPt(props.get('label', 'fontSize', 12, s), 12),
+      family: props.str('label', 'fontFamily', text.label.family, s),
+      size: toPt(props.get('label', 'fontSize', text.label.size, s), text.label.size),
       color: withAlpha(ruleColor('label', 'fontColor', s) ?? props.color('label', 'fontColor', theme.foregroundNeutralSecondary, s), props.num('label', 'transparency', 0, s)),
       bold: props.bool('label', 'bold', false, s),
       italic: props.bool('label', 'italic', false, s),
       underline: props.bool('label', 'underline', false, s)
     }
-    const labelPos = props.str('label', 'position', 'belowValue', s).toLowerCase()
+    const labelPos = props.str('label', 'position', 'aboveValue', s).toLowerCase()
     const customLabel = props.str('label', 'text', '', s)
     const matchAlign = props.bool('label', 'matchValueAlignment', true, s)
 
@@ -793,8 +814,8 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
             typeof dBlank === 'string' && dBlank !== '' ? dBlank : undefined
           ),
           font: {
-            family: props.str('referenceLabelDetail', 'detailFontFamily', 'Segoe UI', rs),
-            size: toPt(props.get('referenceLabelDetail', 'detailFontSize', 10, rs), 10),
+            family: props.str('referenceLabelDetail', 'detailFontFamily', text.refTitle.family, rs),
+            size: toPt(props.get('referenceLabelDetail', 'detailFontSize', text.refTitle.size, rs), text.refTitle.size),
             color: withAlpha(ruleColor('referenceLabelDetail', 'detailFontColor', rs) ?? props.color('referenceLabelDetail', 'detailFontColor', theme.foregroundNeutralSecondary, rs), props.num('referenceLabelDetail', 'detailTransparency', 0, rs)),
             bold: props.bool('referenceLabelDetail', 'detailBold', false, rs),
             italic: props.bool('referenceLabelDetail', 'detailItalic', false, rs),
@@ -813,8 +834,8 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
           text: titleText,
           wrap: props.bool('referenceLabelTitle', 'textWrap', false, rs),
           font: {
-            family: props.str('referenceLabelTitle', 'titleFontFamily', 'Segoe UI', rs),
-            size: toPt(props.get('referenceLabelTitle', 'titleFontSize', 12, rs), 12),
+            family: props.str('referenceLabelTitle', 'titleFontFamily', text.refTitle.family, rs),
+            size: toPt(props.get('referenceLabelTitle', 'titleFontSize', text.refTitle.size, rs), text.refTitle.size),
             color: withAlpha(ruleColor('referenceLabelTitle', 'titleFontColor', rs) ?? props.color('referenceLabelTitle', 'titleFontColor', theme.foregroundNeutralSecondary, rs), props.num('referenceLabelTitle', 'titleTransparency', 0, rs)),
             bold: props.bool('referenceLabelTitle', 'titleBold', false, rs),
             italic: props.bool('referenceLabelTitle', 'titleItalic', false, rs),
@@ -827,8 +848,8 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
           wrap: props.bool('referenceLabelValue', 'textWrap', false, rs),
           text: fmtValue(rraw, rv, vUnits, vPrec, props.str('referenceLabelValue', 'customFormatString', '', rs), typeof vBlank === 'string' && vBlank !== '' ? vBlank : undefined),
           font: {
-            family: props.str('referenceLabelValue', 'valueFontFamily', 'Segoe UI Semibold', rs),
-            size: toPt(props.get('referenceLabelValue', 'valueFontSize', 12, rs), 12),
+            family: props.str('referenceLabelValue', 'valueFontFamily', text.refValue.family, rs),
+            size: toPt(props.get('referenceLabelValue', 'valueFontSize', text.refValue.size, rs), text.refValue.size),
             color: withAlpha(ruleColor('referenceLabelValue', 'valueFontColor', rs) ?? props.color('referenceLabelValue', 'valueFontColor', theme.foreground, rs), props.num('referenceLabelValue', 'valueTransparency', 0, rs)),
             bold: props.bool('referenceLabelValue', 'valueBold', false, rs),
             italic: props.bool('referenceLabelValue', 'valueItalic', false, rs),
@@ -855,12 +876,13 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     return {
       queryRef: f.queryRef,
       raw,
-      value: { show: props.bool('value', 'show', true, s), text, font: valueFont, align: valueAlign, wrap: props.bool('value', 'textWrap', true, s) },
+      // "Text wrap" defaults to off for the value (assumed from Learn's card format-pane screenshot, where it is off)
+      value: { show: props.bool('value', 'show', true, s), text: valueText, font: valueFont, align: valueAlign, wrap: props.bool('value', 'textWrap', false, s) },
       label: {
         show: props.bool('label', 'show', true, s),
         text: customLabel || f.label,
         font: labelFont,
-        position: labelPos.startsWith('above') ? 'above' : 'below',
+        position: labelPos.startsWith('below') ? 'below' : 'above',
         align: matchAlign ? valueAlign : alignOf(props.str('label', 'horizontalAlignment', valueAlign, s), valueAlign),
         wrap: props.bool('label', 'textWrap', true, s)
       },

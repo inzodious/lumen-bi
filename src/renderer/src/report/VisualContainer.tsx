@@ -184,6 +184,19 @@ export function autoTitle(visualJson: any, ctx: VisualHostContext | null): strin
   return join(values.length ? values : cats)
 }
 
+/**
+ * Visuals whose container title is not generated: the card names its values with the category label,
+ * so a title that is switched on (e.g. by a theme) without a text of its own shows nothing and takes
+ * no room — otherwise the field name would appear twice. (`autoTitle` still names the visual for
+ * export file names and the Performance analyzer.)
+ */
+const NO_GENERATED_TITLE = new Set(['cardVisual'])
+
+/** Text displayed by a title without an explicit text. */
+export function generatedTitle(visualJson: any, ctx: VisualHostContext | null): string {
+  return NO_GENERATED_TITLE.has(visualJson?.visual?.visualType) ? '' : autoTitle(visualJson, ctx)
+}
+
 function textStyle(t: TextSpec): CSSProperties {
   return {
     color: t.color,
@@ -322,7 +335,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, canRenderVisual])
 
-  const titleText = chrome.title.show ? (chrome.title.boundExpr ? evalBoundText(chrome.title.boundExpr, ctx) : (chrome.title.text ?? autoTitle(visual.json, ctx))) : undefined
+  const titleText = chrome.title.show ? (chrome.title.boundExpr ? evalBoundText(chrome.title.boundExpr, ctx) : (chrome.title.text ?? generatedTitle(visual.json, ctx))) : undefined
   const subText = chrome.subTitle.show ? (chrome.subTitle.boundExpr ? evalBoundText(chrome.subTitle.boundExpr, ctx) : chrome.subTitle.text) : undefined
   const engineError = useApp((s) => s.engineError)
   // fields that no longer resolve against the model → PBI's field error state

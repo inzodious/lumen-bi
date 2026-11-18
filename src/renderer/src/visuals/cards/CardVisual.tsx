@@ -62,6 +62,7 @@ const radius = (c: Corners) => `${c[0]}px ${c[1]}px ${c[2]}px ${c[3]}px`
 const JUSTIFY = { top: 'flex-start', middle: 'center', bottom: 'flex-end' } as const
 const HJUSTIFY = { left: 'flex-start', center: 'center', right: 'flex-end' } as const
 const OBJECT_FIT: Record<ImageFit, CSSProperties['objectFit']> = { fit: 'contain', fill: 'cover', stretch: 'fill', center: 'none' }
+const OBJECT_Y = { top: 'top', middle: 'center', bottom: 'bottom' } as const
 const NAV_H = 22
 
 export function CardVisualView({ visual, width, height, ctx }: VisualProps) {
@@ -365,7 +366,8 @@ function tileCss(t: TileStyle): CSSProperties {
   }
 }
 
-function Img({ img, style }: { img: { src: string; fit: ImageFit; radius?: Corners; opacity: number }; style?: CSSProperties }) {
+function Img({ img, style }: { img: { src?: string; fit: ImageFit; radius?: Corners; opacity: number }; style?: CSSProperties }) {
+  if (!img.src) return null
   return (
     <img
       src={img.src}
@@ -407,12 +409,12 @@ export function CalloutTile({ c, layout, ctx, width, height, cellStyle }: { c: C
   )
   const imageArea = <CardImageArea key="image" img={cardImage} />
   const node = (a: CardArea) => (a === 'callout' ? calloutArea : a === 'referenceLabel' ? refArea : imageArea)
-  // The callout area takes `calloutSize`% but never less than its content (value + category label):
-  // when the card is short, PBI pushes the reference labels down (they clip at the card edge) instead
-  // of drawing them over the category label.
-  const keepContent = (a: CardArea) => a === 'callout' && multi && !rowAxis
+  // Every area keeps its share of the card (`calloutSize`% for the callout, the rest for the others)
+  // and clips what does not fit, so a tall callout never pushes or overlaps the reference labels.
+  // Approximation: Power BI lets the neighbouring area cover the overflow; without an area background
+  // the texts would overlap there — clipping is the readable equivalent.
   const wrap = (a: CardArea, flex: string) => (
-    <div key={a} style={{ flex, minWidth: 0, minHeight: keepContent(a) ? 'auto' : 0, display: 'flex', flexDirection: 'column' }}>
+    <div key={a} className={`wbi-card-area wbi-card-area-${a}`} style={{ flex, minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {node(a)}
     </div>
   )
@@ -519,7 +521,8 @@ function CalloutArea({ c, image, layout }: { c: CalloutModel; image?: CalloutIma
         }}
       >
         <div style={{ width: horizontal ? '100%' : image.size ?? '100%', height: horizontal ? image.size ?? '100%' : '100%', maxHeight: '100%', maxWidth: '100%' }}>
-          <Img img={image} />
+          {/* the image is fitted inside its area and anchored by the alignment settings (top / middle / bottom, left / center / right) */}
+          <Img img={image} style={{ objectPosition: `${image.horizontalAlignment} ${OBJECT_Y[image.verticalAlignment]}` }} />
         </div>
       </div>
     )
@@ -610,16 +613,21 @@ function RefLabels({ refs, layout, align, area, extra }: { refs: RefLabelModel[]
       </div>
     )
   } else {
-    // tabular: titles in one column, values (+ details) in the next
-    const cols = R.valueArea ? `minmax(0, ${100 - R.valueArea}fr) minmax(0, ${R.valueArea}fr)` : 'max-content minmax(0, 1fr)'
+    // Tabular: a two-column table across the reference-label area — titles left-aligned in the first
+    // column, values (+ details) right-aligned in the second (`valueArea`% wide when set, else as wide
+    // as the values need). An explicit horizontal alignment packs both columns to that side instead.
+    // Approximation: the default column split is not documented; with content-sized values the look is
+    // the same whenever titles and values fit.
+    const packed = R.horizontalAlignment !== undefined
+    const cols = R.valueArea ? `minmax(0, ${100 - R.valueArea}fr) minmax(0, ${R.valueArea}fr)` : packed ? 'max-content minmax(0, max-content)' : 'minmax(0, 1fr) minmax(0, max-content)'
     inner = (
-      <div style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 8, rowGap: 2 + R.labelSpace, alignContent: 'start', justifyContent: HJUSTIFY[align] }}>
+      <div className="wbi-card-ref-table" style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 8, rowGap: 2 + R.labelSpace, alignContent: 'start', justifyContent: packed ? HJUSTIFY[align] : undefined }}>
         {refs.map((r) => [
-          <span key={r.id + 't'} style={{ ...textBlock(r.title.text || ' ', fontStyle(r.title.font), r.title.wrap), visibility: r.title.show ? 'visible' : 'hidden' }}>
+          <span key={r.id + 't'} className="wbi-card-ref-title" style={{ ...textBlock(r.title.text || ' ', fontStyle(r.title.font), r.title.wrap), textAlign: 'left', visibility: r.title.show ? 'visible' : 'hidden' }}>
             {r.title.text}
           </span>,
-          <span key={r.id + 'v'} style={{ display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
-            <span style={{ ...textBlock(r.value.text, fontStyle(r.value.font), r.value.wrap), visibility: r.value.show ? 'visible' : 'hidden' }}>{r.value.text}</span>
+          <span key={r.id + 'v'} className="wbi-card-ref-value" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', minWidth: 0 }}>
+            <span style={{ ...textBlock(r.value.text, fontStyle(r.value.font), r.value.wrap), textAlign: 'right', visibility: r.value.show ? 'visible' : 'hidden' }}>{r.value.text}</span>
             {detail(r)}
           </span>
         ])}

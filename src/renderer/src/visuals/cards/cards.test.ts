@@ -7,7 +7,7 @@ import { createMockHost } from '../common/mockHost'
 import { memoryFormat } from '../common/memoryEngine'
 import { computeCardVisual } from './CardVisual'
 import { computeLegacyCard, computeMultiRow } from './LegacyCards'
-import { buildCardVisualModel, cardFields, gridGeometry, planCardQuery, readCardLayout, type CardValues } from './cardVisualModel'
+import { buildCardVisualModel, cardFields, cardTextDefaults, gridGeometry, planCardQuery, readCardLayout, type CardValues } from './cardVisualModel'
 import { CardProps, cardPrecision, legacyAutoUnit } from './cardProps'
 import { buildLegacyCardModel, fitFontSize, fitWrappedFontSize, wrapLines, buildMultiRowRecords, multiRowStyle } from './legacyCardModel'
 import { imageSrc } from './cardProps'
@@ -122,7 +122,7 @@ describe('cardVisual model', () => {
     expect(plan.imageValueId).toBeDefined()
     const vals: CardValues = { get: (id) => (id === plan.imageValueId ? { value: svg } : id.startsWith('v0') ? { value: 12, formatString: '0' } : undefined) }
     const m = buildCardVisualModel(json, theme, memoryFormat, plan, vals)
-    expect(m.callouts[0].image?.src.startsWith('data:image/svg+xml')).toBe(true)
+    expect(m.callouts[0].image?.src?.startsWith('data:image/svg+xml')).toBe(true)
     expect(m.callouts[0].image?.areaSize).toBe(15)
     expect(m.callouts[0].image?.verticalAlignment).toBe('top')
     expect(m.callouts[0].tile).toMatchObject({ fill: '#0F6CBD', radius: [8, 8, 8, 8], accentBar: { color: theme.dataColors[0] } })
@@ -137,18 +137,80 @@ describe('cardVisual model', () => {
 
 describe('cardVisual GA features', () => {
   const svgA = 'data:image/svg+xml;utf8,%3Csvg%3E%3C/svg%3E'
-  it('applies GA defaults: left-aligned value, label below, backgroundLight outline, 12px padding, 8px gaps', () => {
+  it('applies GA defaults: left-aligned value, label above, backgroundLight outline, 12px padding, 8px gaps', () => {
     const m = computeCardVisual(card([proj(S.m('Total Sales'), '_m.Total Sales')]), host())
     const c = m.callouts[0]
     expect(c.value.align).toBe('left')
-    expect(c.value.font.size).toBe(28)
-    expect(c.label.position).toBe('below')
+    // classic base theme text classes: callout = DIN 45pt, label = Segoe UI 10pt (+2 for the category label)
+    expect(c.value.font).toMatchObject({ family: 'DIN', size: 45, color: theme.foreground })
+    expect(c.value.wrap).toBe(false)
+    expect(c.label.font).toMatchObject({ family: 'Segoe UI', size: 12, color: theme.foregroundNeutralSecondary })
+    expect(c.label.position).toBe('above')
     expect(c.tile.outline).toEqual({ color: theme.backgroundLight, width: 1 })
     expect(c.tile.padding).toEqual({ top: 12, right: 12, bottom: 12, left: 12 })
     expect(c.tile.radius).toEqual([4, 4, 4, 4])
     expect(m.layout.gap).toBe(8)
     expect(m.layout.calloutSize).toBe(50)
     expect(m.layout.overflow).toEqual({ style: 'scroll', direction: 'vertical' })
+  })
+
+  it('takes the default fonts from the report theme text classes (custom theme callout / label)', () => {
+    // shape of a brand theme: small regular callout, larger label — no font set on the visual itself
+    const brand = resolveTheme(undefined, {
+      foreground: '#101060',
+      textClasses: { callout: { fontFace: 'Segoe UI', fontSize: 16, color: '#101060' }, label: { fontFace: 'Segoe UI', fontSize: 12, color: '#101060' } }
+    })
+    const json = card([proj(S.m('Total Sales'), '_m.Total Sales')], {
+      // the visual only overrides alignment + colour, like a card formatted through "Apply settings to: All"
+      value: [{ properties: { horizontalAlignment: lit("'left'"), fontColor: color('#12239E') }, selector: { id: 'default' } }, { properties: { show: lit('true') } }],
+      referenceLabel: [{ properties: { value: { expr: S.m('Orders') } }, selector: { metadata: '_m.Total Sales', id: 'field-a', order: 0 } }]
+    })
+    const c = computeCardVisual(json, createMockHost({ engine, theme: brand })).callouts[0]
+    expect(c.value.font).toMatchObject({ family: 'Segoe UI', size: 16, color: '#12239E' })
+    expect(c.value.font.bold).toBe(false)
+    // category label: label face, +2pt (large light label), second-level colour — not the label class colour
+    expect(c.label.font).toMatchObject({ family: 'Segoe UI', size: 14, color: brand.foregroundNeutralSecondary })
+    // reference labels: label class size; value in the semibold label face
+    expect(c.refLabels[0].title.font).toMatchObject({ family: 'Segoe UI', size: 12 })
+    expect(c.refLabels[0].value.font).toMatchObject({ family: 'Segoe UI Semibold', size: 12 })
+    expect(cardTextDefaults(brand)).toEqual({
+      value: { family: 'Segoe UI', size: 16 },
+      label: { family: 'Segoe UI', size: 14 },
+      refTitle: { family: 'Segoe UI', size: 12 },
+      refValue: { family: 'Segoe UI Semibold', size: 12 }
+    })
+    // explicit derived classes in the theme win over the derivation
+    const explicit = resolveTheme(undefined, { textClasses: { largeLightLabel: { fontFace: 'Arial', fontSize: 11 }, semiboldLabel: { fontFace: 'Arial Bold', fontSize: 9 } } })
+    expect(cardTextDefaults(explicit)).toMatchObject({ label: { family: 'Arial', size: 11 }, refValue: { family: 'Arial Bold', size: 9 } })
+  })
+
+  it('explicit fonts and "Below value" on the visual still win over the theme', () => {
+    const json = card([proj(S.m('Orders'), '_m.Orders')], {
+      value: [{ properties: { fontSize: lit('20D'), fontFamily: lit("'Segoe UI Semibold'"), textWrap: lit('true') }, selector: { id: 'default' } }],
+      label: [{ properties: { fontSize: lit('9D'), position: lit("'belowValue'") }, selector: { id: 'default' } }]
+    })
+    const c = computeCardVisual(json, host()).callouts[0]
+    expect(c.value.font).toMatchObject({ family: 'Segoe UI Semibold', size: 20 })
+    expect(c.value.wrap).toBe(true)
+    expect(c.label.font.size).toBe(9)
+    expect(c.label.position).toBe('below')
+  })
+
+  it('keeps the callout image area when the bound image value is not an image', () => {
+    const fields = cardFields(card([proj(S.m('Orders'), '_m.Orders')]), () => 'Orders', () => true)
+    const json = card([proj(S.m('Orders'), '_m.Orders')], {
+      image: [{ properties: { show: lit('true'), imageType: lit("'imageData'"), imageData: { expr: { Aggregation: { Expression: S.col('Region'), Function: 3 } } }, imageAreaSize: lit('15L'), padding: lit('0L'), verticalAlignment: lit("'top'") }, selector: { id: 'default' } }]
+    })
+    const plan = planCardQuery(json, theme, fields)
+    const blank: CardValues = { get: (id) => (id.startsWith('v0') ? { value: 12, formatString: '0' } : { value: null }) }
+    const noImage = buildCardVisualModel(json, theme, memoryFormat, plan, blank).callouts[0].image
+    expect(noImage).toMatchObject({ position: 'left', areaSize: 15, gap: 0, verticalAlignment: 'top' })
+    expect(noImage!.src).toBeUndefined()
+    const text: CardValues = { get: (id) => (id.startsWith('v0') ? { value: 12, formatString: '0' } : { value: 'not a picture' }) }
+    expect(buildCardVisualModel(json, theme, memoryFormat, plan, text).callouts[0].image!.src).toBeUndefined()
+    // switched off: no image area at all
+    const off = card([proj(S.m('Orders'), '_m.Orders')], { image: [{ properties: { show: lit('false') }, selector: { id: 'default' } }] })
+    expect(buildCardVisualModel(off, theme, memoryFormat, planCardQuery(off, theme, fields), blank).callouts[0].image).toBeUndefined()
   })
 
   it('reads GA padding margins (individual) and divider names', () => {
@@ -298,6 +360,19 @@ describe('legacy card', () => {
     expect(m.font.size).toBe(45)
     expect(m.font.family).toBe('DIN')
     expect(m.category.show).toBe(false)
+  })
+
+  it('category label follows the theme label class (+2pt, "large and light")', () => {
+    const json = { visual: { visualType: 'card', objects: {} } }
+    const classic = buildLegacyCardModel(json, theme, memoryFormat, 'S', { value: 1 })
+    expect(classic.category.font).toMatchObject({ family: 'Segoe UI', size: 12, color: theme.foregroundNeutralSecondary })
+    const brand = resolveTheme(undefined, { textClasses: { callout: { fontFace: 'Segoe UI', fontSize: 16 }, label: { fontFace: 'Arial', fontSize: 12 } } })
+    const m = buildLegacyCardModel(json, brand, memoryFormat, 'S', { value: 1 })
+    expect(m.font).toMatchObject({ family: 'Segoe UI', size: 16 })
+    expect(m.category.font).toMatchObject({ family: 'Arial', size: 14 })
+    // an explicit size on the visual wins
+    const set = buildLegacyCardModel({ visual: { visualType: 'card', objects: { categoryLabels: [{ properties: { fontSize: lit('9D') } }] } } }, brand, memoryFormat, 'S', { value: 1 })
+    expect(set.category.font.size).toBe(9)
   })
 
   it('fitFontSize shrinks to width and height, never grows', () => {

@@ -38,6 +38,8 @@ export interface SqlRequest {
   auth: SqlAuth
   timeoutMs?: number
   maxRows?: number
+  /** lets `connectors.cancel(cancelId)` stop this request (refresh Cancel) */
+  cancelId?: string
 }
 
 export interface SqlResult {
@@ -180,6 +182,8 @@ export interface HttpRequest {
   headers?: Record<string, string>
   body?: Uint8Array | string
   timeoutMs?: number
+  /** lets `connectors.cancel(cancelId)` stop this request (refresh Cancel) */
+  cancelId?: string
 }
 
 export interface HttpResponse {
@@ -266,6 +270,11 @@ export interface WbiHost {
      * https://microsoft.com/devicelogin and enter the code XXXX"). Additive — may be absent in old preloads.
      */
     onAuthPrompt?(cb: (prompt: AuthPrompt) => void): () => void
+    /**
+     * Stop an in-flight sqlQuery / sqlListItems / http request started with this `cancelId` (cancels the SQL
+     * request or the pending Entra ID sign-in, aborts the HTTP fetch). Unknown ids are ignored. Additive.
+     */
+    cancel?(cancelId: string): Promise<void>
     /** Forget cached Entra ID credentials / tokens (all, or for one tenant). */
     clearCredentials?(tenantId?: string): Promise<void>
     /** PostgreSQL / MySQL / SQLite / Firestore / S3 requests of the M engine (credentials from the store). */

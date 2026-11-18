@@ -162,6 +162,29 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new DOMException("The operation was aborted.", "AbortError");
 }
 
+/**
+ * Settles with `p`, or rejects as soon as `signal` aborts: a cancelled refresh must not wait for a fetch
+ * the host cannot interrupt (a SQL query or sign-in running in another process).
+ */
+function abortable<T>(p: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return p;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason instanceof Error ? signal.reason : new DOMException("The operation was aborted.", "AbortError"));
+    if (signal.aborted) return onAbort();
+    signal.addEventListener("abort", onAbort, { once: true });
+    p.then(
+      (v) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(v);
+      },
+      (e) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(e);
+      },
+    );
+  });
+}
+
 function failureOf(e: unknown): CacheEntry {
   if (e instanceof MError) return { ok: false, reason: e.reason, message: e.message, detail: typeof e.detail === "string" ? e.detail : undefined };
   const message = e instanceof Error ? e.message : String(e);
@@ -203,7 +226,7 @@ export async function runWithData<T>(evaluate: (host: CachingHost) => T, fetch: 
         const [key, req] = batch[next++]!;
         throwIfAborted(opts.signal);
         try {
-          cache.set(key, { ok: true, value: await fetch(req, opts.signal) });
+          cache.set(key, { ok: true, value: await abortable(fetch(req, opts.signal), opts.signal) });
         } catch (e) {
           throwIfAborted(opts.signal);
           cache.set(key, failureOf(e));

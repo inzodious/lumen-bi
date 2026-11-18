@@ -51,6 +51,26 @@ function connectors(): ConnectorService {
 }
 
 const SQL_SCOPE = 'https://database.windows.net/.default'
+
+// ---------------------------------------------------------------------------------------------
+// Cancellation: the renderer tags requests with a cancelId and calls conn:cancel when the user cancels
+
+const inflight = new Map<string, AbortController>()
+
+function cancelled(): Error {
+  return Object.assign(new Error('The request was cancelled.'), { name: 'AbortError' })
+}
+
+/** Run `f` with a signal that `conn:cancel <cancelId>` aborts (no id: never aborted). */
+async function cancellable<T>(cancelId: string | undefined, f: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const ctl = new AbortController()
+  if (cancelId) inflight.set(cancelId, ctl)
+  try {
+    return await f(ctl.signal)
+  } finally {
+    if (cancelId && inflight.get(cancelId) === ctl) inflight.delete(cancelId)
+  }
+}
 const DEFAULT_MAX_ROWS = 5_000_000
 const IDLE_CLOSE_MS = 120_000
 
@@ -96,21 +116,21 @@ function credentialFor(auth: SqlAuth): TokenCredential {
   return c
 }
 
-async function accessToken(auth: SqlAuth): Promise<string> {
+async function accessToken(auth: SqlAuth, signal?: AbortSignal): Promise<string> {
   if (auth.kind === 'token') {
     if (!auth.token) throw new Error('No access token was provided.')
     return auth.token
   }
   const cred = credentialFor(auth)
   try {
-    const t = await cred.getToken(SQL_SCOPE)
+    const t = await cred.getToken(SQL_SCOPE, { abortSignal: signal })
     if (!t) throw new Error('Microsoft Entra ID returned no token.')
     if (auth.kind === 'device-code' || auth.kind === 'azure-default' || auth.kind === 'interactive') sendPrompt({ kind: 'info', message: 'Signed in.', state: 'done' })
     return t.token
   } catch (e) {
-    sendPrompt({ kind: 'info', message: e instanceof Error ? e.message : String(e), state: 'failed' })
+    sendPrompt({ kind: 'info', message: signal?.aborted ? 'Sign-in cancelled.' : e instanceof Error ? e.message : String(e), state: 'failed' })
     credentials.delete(`${auth.kind}|${auth.tenantId ?? ''}`)
-    throw e
+    throw signal?.aborted ? cancelled() : e
   }
 }
 
@@ -126,13 +146,13 @@ interface Pooled {
 
 const pool = new Map<string, Promise<Pooled>>()
 
-async function connect(server: string, database: string, auth: SqlAuth, timeoutMs?: number): Promise<Connection> {
+async function connect(server: string, database: string, auth: SqlAuth, timeoutMs?: number, signal?: AbortSignal): Promise<Connection> {
   const addr = parseServer(server)
   if (auth.kind === 'windows-unsupported') throw new Error('Windows (integrated) authentication is not available on Linux. Use a SQL login or Microsoft Entra ID.')
   const authentication: ConnectionConfiguration['authentication'] =
     auth.kind === 'sql'
       ? { type: 'default', options: { userName: auth.user ?? '', password: auth.password ?? '' } }
-      : { type: 'azure-active-directory-access-token', options: { token: await accessToken(auth) } }
+      : { type: 'azure-active-directory-access-token', options: { token: await accessToken(auth, signal) } }
   const config: ConnectionConfiguration = {
     server: addr.host,
     authentication,
@@ -149,10 +169,20 @@ async function connect(server: string, database: string, auth: SqlAuth, timeoutM
       appName: 'Lumen'
     }
   }
+  if (signal?.aborted) throw cancelled()
   return new Promise<Connection>((resolve, reject) => {
     const conn = new Connection(config)
     conn.on('error', () => undefined)
-    conn.connect((err) => (err ? reject(new Error(explainSqlError(err.message, addr.host))) : resolve(conn)))
+    const onAbort = () => {
+      conn.close()
+      reject(cancelled())
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    conn.connect((err) => {
+      signal?.removeEventListener('abort', onAbort)
+      if (err) reject(signal?.aborted ? cancelled() : new Error(explainSqlError(err.message, addr.host)))
+      else resolve(conn)
+    })
   })
 }
 
@@ -160,11 +190,11 @@ function poolKey(req: { server: string; database: string; auth: SqlAuth }): stri
   return JSON.stringify([req.server.toLowerCase(), req.database.toLowerCase(), req.auth.kind, req.auth.tenantId ?? '', req.auth.user ?? '', req.auth.token ? 't' : ''])
 }
 
-async function withConnection<T>(req: { server: string; database: string; auth: SqlAuth; timeoutMs?: number }, f: (c: Connection) => Promise<T>): Promise<T> {
+async function withConnection<T>(req: { server: string; database: string; auth: SqlAuth; timeoutMs?: number }, f: (c: Connection) => Promise<T>, signal?: AbortSignal): Promise<T> {
   const key = poolKey(req)
   let entry = pool.get(key)
   if (!entry) {
-    entry = connect(req.server, req.database, req.auth, req.timeoutMs).then((conn) => {
+    entry = connect(req.server, req.database, req.auth, req.timeoutMs, signal).then((conn) => {
       const p: Pooled = { conn, queue: Promise.resolve(), closed: false }
       conn.on('end', () => {
         p.closed = true
@@ -178,10 +208,14 @@ async function withConnection<T>(req: { server: string; database: string; auth: 
   const p = await entry
   if (p.closed) {
     pool.delete(key)
-    return withConnection(req, f)
+    return withConnection(req, f, signal)
   }
   if (p.timer) clearTimeout(p.timer)
-  const run = p.queue.then(() => f(p.conn))
+  // a request cancelled while queued behind another one never runs
+  const run = p.queue.then(() => {
+    if (signal?.aborted) throw cancelled()
+    return f(p.conn)
+  })
   p.queue = run.catch(() => undefined)
   try {
     return await run
@@ -193,13 +227,18 @@ async function withConnection<T>(req: { server: string; database: string; auth: 
   }
 }
 
-function runQuery(conn: Connection, sql: string, maxRows: number): Promise<SqlResult> {
+function runQuery(conn: Connection, sql: string, maxRows: number, signal?: AbortSignal): Promise<SqlResult> {
   return new Promise<SqlResult>((resolve, reject) => {
+    // tedious: cancel() sends an attention packet; the request then completes with an ECANCEL error
+    const onAbort = () => conn.cancel()
+    signal?.addEventListener('abort', onAbort, { once: true })
     const columns: SqlResult['columns'] = []
     const rows: unknown[][] = []
     let types: string[] = []
     let tooMany = false
     const request = new Request(sql, (err) => {
+      signal?.removeEventListener('abort', onAbort)
+      if (signal?.aborted) return reject(cancelled())
       if (tooMany) return reject(new Error(`The query returned more than ${maxRows.toLocaleString()} rows (the row limit). Filter the source or raise the limit.`))
       if (err) return reject(err)
       resolve({ columns, rows })
@@ -237,7 +276,9 @@ async function sqlQuery(sender: WebContents, req: SqlRequest): Promise<SqlResult
   promptTarget = sender
   // passwords / tokens are kept in the credential store, not in the renderer
   req = { ...req, auth: connectors().sqlServerSecrets(req.server, req.database, req.auth) }
-  return withConnection(req, (conn) => runQuery(conn, navigationSql(req), req.maxRows ?? DEFAULT_MAX_ROWS)).catch((e) => {
+  const sql = navigationSql(req)
+  return cancellable(req.cancelId, (signal) => withConnection(req, (conn) => runQuery(conn, sql, req.maxRows ?? DEFAULT_MAX_ROWS, signal), signal)).catch((e) => {
+    if (e instanceof Error && e.name === 'AbortError') throw e
     throw new Error(explainSqlError(e instanceof Error ? e.message : String(e), parseServer(req.server).host))
   })
 }
@@ -262,7 +303,10 @@ export function registerConnectorIpc(): void {
     }
   })
   // Web.Contents: stored web credentials (API key, basic, bearer, OAuth 2.0) are applied by URL prefix
-  ipcMain.handle('conn:http', (_e, req: HttpRequest) => connectors().http(req))
+  ipcMain.handle('conn:http', (_e, req: HttpRequest) => cancellable(req.cancelId, (signal) => connectors().http(req, false, signal)))
+  ipcMain.handle('conn:cancel', (_e, cancelId: string) => {
+    inflight.get(cancelId)?.abort()
+  })
   ipcMain.handle('conn:request', (e, req: ConnectorRequest) => {
     promptTarget = e.sender
     return connectors().request(req)

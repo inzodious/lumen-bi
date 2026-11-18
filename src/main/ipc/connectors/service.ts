@@ -180,7 +180,7 @@ export function createConnectorService(opts: ConnectorServiceOptions) {
   }
 
   /** Web.Contents with the stored credential of the longest matching URL prefix. */
-  async function http(req: HttpRequest, retried = false): Promise<HttpResponse> {
+  async function http(req: HttpRequest, retried = false, signal?: AbortSignal): Promise<HttpResponse> {
     const headers: Record<string, string> = { ...(req.headers ?? {}) }
     const has = (h: string) => Object.keys(headers).some((k) => k.toLowerCase() === h)
     let url = req.url
@@ -208,11 +208,11 @@ export function createConnectorService(opts: ConnectorServiceOptions) {
           break
       }
     }
-    const res = await fetch(url, { method: req.method ?? 'GET', headers, body: req.body as BodyInit | undefined, signal: AbortSignal.timeout(req.timeoutMs ?? 120_000) })
+    const res = await fetch(url, { method: req.method ?? 'GET', headers, body: req.body as BodyInit | undefined, signal: signal ? AbortSignal.any([AbortSignal.timeout(req.timeoutMs ?? 120_000), signal]) : AbortSignal.timeout(req.timeoutMs ?? 120_000) })
     // an access token revoked early: refresh once
     if (res.status === 401 && e && a?.kind === 'oauth2' && !retried && (a.refreshToken || a.grant === 'client-credentials')) {
       store.update(e.key, { accessToken: undefined, expiresAt: 0 })
-      return http(req, true)
+      return http(req, true, signal)
     }
     const out: Record<string, string> = {}
     res.headers.forEach((v, k) => (out[k] = v))

@@ -28,6 +28,7 @@ export function RefreshDialog({ tables: requested, onClose }: { tables?: string[
   const [rows, setRows] = useState<Record<string, RowState>>(() => Object.fromEntries(tables.map((t) => [t, { state: 'queued' as const }])))
   const [running, setRunning] = useState(true)
   const [fatal, setFatal] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
   const abort = useRef<AbortController | null>(null)
   const started = useRef(false)
   const onCloseRef = useRef(onClose)
@@ -70,6 +71,11 @@ export function RefreshDialog({ tables: requested, onClose }: { tables?: string[
       .finally(() => setRunning(false))
   }, [tables])
 
+  const cancel = () => {
+    setCancelling(true)
+    abort.current?.abort()
+  }
+
   const list = Object.entries(rows)
   const done = list.filter(([, r]) => r.state === 'done' || r.state === 'error' || r.state === 'cancelled').length
   const failed = list.filter(([, r]) => r.state === 'error').map(([t]) => t)
@@ -80,7 +86,7 @@ export function RefreshDialog({ tables: requested, onClose }: { tables?: string[
   return (
     <Modal
       title="Refresh"
-      onClose={() => (running ? abort.current?.abort() : onClose())}
+      onClose={() => (running ? cancel() : onClose())}
       width={560}
       footerLeft={
         !running && anyFailed ? (
@@ -103,7 +109,9 @@ export function RefreshDialog({ tables: requested, onClose }: { tables?: string[
       }
       footer={
         running ? (
-          <Button onClick={() => abort.current?.abort()}>Cancel</Button>
+          <Button disabled={cancelling} onClick={cancel}>
+            {cancelling ? 'Cancelling…' : 'Cancel'}
+          </Button>
         ) : (
           <Button variant="primary" onClick={onClose}>
             Close
@@ -113,7 +121,7 @@ export function RefreshDialog({ tables: requested, onClose }: { tables?: string[
     >
       <div className="wbi-col" style={{ gap: 12 }}>
         <div className="wbi-row">
-          {running ? <Spinner label={`Refreshing ${tables.length} table${tables.length === 1 ? '' : 's'}…`} /> : <span style={{ fontWeight: 600 }}>{fatal ? 'Refresh failed' : failed.length ? `Refresh finished with ${failed.length} error${failed.length === 1 ? '' : 's'}` : 'Refresh complete'}</span>}
+          {running ? <Spinner label={cancelling ? 'Cancelling refresh…' : `Refreshing ${tables.length} table${tables.length === 1 ? '' : 's'}…`} /> : <span style={{ fontWeight: 600 }}>{fatal ? 'Refresh failed' : failed.length ? `Refresh finished with ${failed.length} error${failed.length === 1 ? '' : 's'}` : 'Refresh complete'}</span>}
         </div>
         {running && <ProgressBar value={tables.length ? done / tables.length : undefined} />}
         {fatal && <div className="wbi-dlg-error">{fatal}</div>}

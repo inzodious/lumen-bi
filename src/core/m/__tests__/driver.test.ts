@@ -103,6 +103,36 @@ describe("fetch-and-replay driver", () => {
     expect(r.value).toEqual({ t: "2026-11-17T12:00:00", b: "x" });
   });
 
+  it("rejects as soon as the signal aborts, even while a fetch never settles", async () => {
+    const ctl = new AbortController();
+    let started!: () => void;
+    const fetchStarted = new Promise<void>((r) => (started = r));
+    const run = runWithData(
+      (host: MHost) => host.request({ kind: "file", path: "/slow" }),
+      () => {
+        started();
+        return new Promise(() => undefined); // e.g. a sign-in nobody completes
+      },
+      { signal: ctl.signal },
+    );
+    await fetchStarted;
+    ctl.abort();
+    await expect(run).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("passes the signal to the fetcher and does not start fetches after an abort", async () => {
+    const ctl = new AbortController();
+    const seen: Array<AbortSignal | undefined> = [];
+    const fetch = async (_req: DataRequest, signal?: AbortSignal) => {
+      seen.push(signal);
+      ctl.abort();
+      return new Uint8Array();
+    };
+    const run = runWithData((host: MHost) => [host.request({ kind: "file", path: "/a" }), host.request({ kind: "file", path: "/b" })], fetch, { signal: ctl.signal, concurrency: 1 });
+    await expect(run).rejects.toMatchObject({ name: "AbortError" });
+    expect(seen).toEqual([ctl.signal]);
+  });
+
   it("stops after maxPasses", async () => {
     let n = 0;
     await expect(

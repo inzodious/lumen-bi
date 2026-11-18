@@ -221,7 +221,15 @@ export function createFetcher(host: RefreshHost): DataFetcher {
     return p
   }
 
-  return async (req) => {
+  let seq = 0
+  return async (req, signal) => {
+    // connector requests carry a cancelId; aborting the refresh asks the host to stop them
+    let cancelId: string | undefined
+    if (signal && host.connectors.cancel) {
+      const id = (cancelId = `r${Date.now().toString(36)}-${++seq}`)
+      const cancel = host.connectors.cancel.bind(host.connectors)
+      signal.addEventListener('abort', () => void cancel(id).catch(() => undefined), { once: true })
+    }
     switch (req.kind) {
       case 'file': {
         const local = await localOf(req.path)
@@ -260,13 +268,13 @@ export function createFetcher(host: RefreshHost): DataFetcher {
       }
       case 'sql-items':
         try {
-          return await host.connectors.sqlListItems({ server: req.server, database: req.database, auth: await authFor(req.server, req.database) })
+          return await host.connectors.sqlListItems({ server: req.server, database: req.database, auth: await authFor(req.server, req.database), cancelId })
         } catch (e) {
           throw sqlError(req.server, req.database, e)
         }
       case 'sql-databases':
         try {
-          const r = await host.connectors.sqlQuery({ server: req.server, database: 'master', query: 'SELECT name FROM sys.databases ORDER BY name', auth: await authFor(req.server) })
+          const r = await host.connectors.sqlQuery({ server: req.server, database: 'master', query: 'SELECT name FROM sys.databases ORDER BY name', auth: await authFor(req.server), cancelId })
           return r.rows.map((x) => String(x[0]))
         } catch (e) {
           throw sqlError(req.server, 'master', e)
@@ -275,7 +283,7 @@ export function createFetcher(host: RefreshHost): DataFetcher {
         const query = sqlTextOf(req)
         if (!query) throw new MError('Expression.Error', 'Sql.Database: nothing to read (no item and no query).')
         try {
-          const r = await host.connectors.sqlQuery({ server: req.server, database: req.database, query, auth: await authFor(req.server, req.database), maxRows })
+          const r = await host.connectors.sqlQuery({ server: req.server, database: req.database, query, auth: await authFor(req.server, req.database), maxRows, cancelId })
           return { columns: r.columns.map((c) => ({ name: c.name, type: c.type })), rows: r.rows } satisfies HostTable
         } catch (e) {
           throw sqlError(req.server, req.database, e)
@@ -283,7 +291,7 @@ export function createFetcher(host: RefreshHost): DataFetcher {
       }
       case 'http': {
         try {
-          return await host.connectors.http({ url: req.url, method: req.method, headers: req.headers, body: req.body })
+          return await host.connectors.http({ url: req.url, method: req.method, headers: req.headers, body: req.body, cancelId })
         } catch (e) {
           throw new MError('DataSource.Error', `Web.Contents failed to get contents from '${req.url}': ${e instanceof Error ? e.message : String(e)}`, req.url)
         }

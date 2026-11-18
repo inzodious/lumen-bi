@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -209,6 +209,27 @@ in
     const ctl = new AbortController()
     ctl.abort()
     await expect(refreshProject(p, host(files), { signal: ctl.signal })).rejects.toThrow()
+  })
+
+  it('cancels while a SQL request hangs (e.g. a pending sign-in) and asks the host to stop it', async () => {
+    const t = tbl('Hang', [col('id', 'int64')], `let Source = Sql.Database("srv.example", "db"), d = Source{[Schema="dbo",Item="deals"]}[Data] in d`)
+    const p = project({ tables: [t] })
+    const started: string[] = []
+    const cancelled: string[] = []
+    const h = host({})
+    h.connectors.sqlQuery = (req) => {
+      started.push(req.cancelId ?? '(none)')
+      return new Promise(() => undefined)
+    }
+    h.connectors.cancel = async (id) => void cancelled.push(id)
+    const ctl = new AbortController()
+    const run = refreshProject(p, h, { signal: ctl.signal })
+    await vi.waitFor(() => expect(started).toHaveLength(1))
+    ctl.abort()
+    await expect(run).rejects.toMatchObject({ name: 'AbortError' })
+    expect(started[0]).not.toBe('(none)')
+    expect(cancelled).toEqual(started)
+    expect(p.data.status.get('Hang')).toMatchObject({ state: 'empty', reason: 'Refresh cancelled' })
   })
 
   it('coerces values per data type like Power BI', () => {

@@ -54,6 +54,7 @@ const host: WbiHost = {
     http: (r) => invoke('conn:http', r),
     onAuthPrompt: (cb) => on('conn:authPrompt', cb),
     clearCredentials: (t) => invoke('conn:clearCredentials', t),
+    cancel: (id) => invoke('conn:cancel', id),
     request: (r) => invoke('conn:request', r),
     credentials: {
       status: () => invoke('cred:status'),

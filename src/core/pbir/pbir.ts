@@ -18,6 +18,7 @@ import type { BookmarkDocument, PageDocument, ReportDocument, ResourceFile, Visu
 import { joinPath, walk, type FileSystem } from '../io/fs'
 import { convertLegacyLayout } from './legacy'
 import { makeResource } from './resources'
+import { withBaseThemeResource } from './themeResources'
 import { PBIR_VERSION, SCHEMA } from './schemas'
 import { externalizeCode, internalizeCode } from '../codevisual/storage'
 
@@ -207,11 +208,12 @@ export function pbirToFiles(doc: ReportDocument): OutFileMap {
   // A legacy layout with no base theme renders with the Classic palette (see resolveThemes). Persist that as an
   // explicit SharedResources base theme so the saved PBIR reopens with the same colors here and in Power BI.
   const legacyTheme = doc.origin === 'pbix-legacy' && !doc.report?.themeCollection?.baseTheme
-  const reportJson = legacyTheme
+  const withClassic = legacyTheme
     ? { ...doc.report, themeCollection: { ...(doc.report?.themeCollection ?? {}), baseTheme: { name: 'Classic', type: 'SharedResources' } } }
     : doc.report
-  if (legacyTheme) out['StaticResources/SharedResources/BaseThemes/Classic.json'] = jsonText(legacyDefaultBaseTheme())
-  out['definition/report.json'] = jsonText(reportJson)
+  // the base theme reference is completed like Desktop writes it: reportVersionAtImport, file, resourcePackages item
+  const themed = withBaseThemeResource(withClassic, doc.resources, legacyTheme ? legacyDefaultBaseTheme() : undefined)
+  out['definition/report.json'] = jsonText(themed.report)
   const pagesMeta: Record<string, any> = { ...doc.pagesMeta, pageOrder: doc.pages.map((p) => p.name) }
   if (pagesMeta.activePageName && !pagesMeta.pageOrder.includes(pagesMeta.activePageName)) pagesMeta.activePageName = pagesMeta.pageOrder[0]
   if (!pagesMeta.$schema) pagesMeta.$schema = SCHEMA.pagesMetadata
@@ -233,7 +235,7 @@ export function pbirToFiles(doc: ReportDocument): OutFileMap {
     for (const b of doc.bookmarks) out[`definition/bookmarks/${b.name}.bookmark.json`] = jsonText(b.json)
   }
   if (doc.reportExtensions !== undefined) out['definition/reportExtensions.json'] = jsonText(doc.reportExtensions)
-  for (const r of Object.values(doc.resources) as ResourceFile[]) out[r.path] = r.bytes
+  for (const r of Object.values(themed.resources) as ResourceFile[]) out[r.path] = r.bytes
   for (const [p, c] of Object.entries(doc.extraFiles)) if (!(p in out) && p !== 'report.json') out[p] = c
   return out
 }

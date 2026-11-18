@@ -9,12 +9,14 @@
  *      (callouts, id prefixes, in-document links, absolute image paths);
  *   3. cover + table of contents + articles → one HTML file styled by scripts/docs/pdf.css (fonts embedded);
  *   4. Electron printToPDF (scripts/docs/pdf-print.cjs): A4, footer, PDF outline;
- *   5. pdfinfo page counts.
+ *   5. scripts/docs/pdf-compact.mjs: the tagged-PDF structure tree into compressed object streams (lossless);
+ *   6. pdfinfo page counts.
  * No npm dependencies beyond the repository's Electron.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { compactPdf } from './pdf-compact.mjs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -23,14 +25,20 @@ const ROOT = resolve(HERE, '../..')
 const DOCS = join(ROOT, 'docs')
 const FONTS = join(ROOT, 'src/renderer/src/assets/fonts/selawik')
 
-/** PDF editions: id, output file, title, sections (folders under docs/), audience line for the cover. */
+/**
+ * PDF editions: id, output file, title, sections (folders under docs/), audience line for the cover. `only` / `except`
+ * keep or drop the articles whose path (without .md) is, or is inside, one of the given paths; an edition with `only`
+ * has no section hub page and lists its articles at the top level of its table of contents.
+ */
 const EDITIONS = [
   { id: 'get-started', file: 'lumen-get-started.pdf', title: 'Get started', sections: ['get-started'], audience: 'Creators · Analysts · Developers' },
   { id: 'create-reports', file: 'lumen-create-reports.pdf', title: 'Create reports and visuals', sections: ['create-reports', 'visuals'], audience: 'Creators' },
   { id: 'data-and-modeling', file: 'lumen-data-and-modeling.pdf', title: 'Data, modeling and DAX', sections: ['connect-and-transform', 'model-data', 'dax'], audience: 'Analysts' },
   { id: 'files-and-compatibility', file: 'lumen-files-and-compatibility.pdf', title: 'Files and compatibility', sections: ['files-and-compatibility'], audience: 'Creators · Analysts · Developers' },
   { id: 'developer', file: 'lumen-developer-guide.pdf', title: 'Developer guide', sections: ['developer'], audience: 'Developers' },
-  { id: 'reference', file: 'lumen-reference.pdf', title: 'Reference', sections: ['reference'], audience: 'Creators · Analysts · Developers' },
+  { id: 'reference', file: 'lumen-reference.pdf', title: 'Reference', sections: ['reference'], except: ['reference/format-properties'], audience: 'Creators · Analysts · Developers' },
+  // the generated Format pane property tables (~150 pages) get their own edition; the combined edition keeps them
+  { id: 'format-properties', file: 'lumen-format-properties.pdf', title: 'Format properties reference', sections: ['reference'], only: ['reference/format-properties'], audience: 'Creators · Developers' },
   { id: 'troubleshooting', file: 'lumen-troubleshooting.pdf', title: 'Troubleshooting', sections: ['troubleshooting'], audience: 'Creators · Analysts · Developers' }
 ]
 const COMBINED = { id: 'documentation', file: 'lumen-documentation.pdf', title: 'Complete documentation', audience: 'Creators · Analysts · Developers' }
@@ -340,6 +348,15 @@ function editionHtml(edition, parts, withHub, work, info) {
     addPart('README.md', 'Lumen documentation')
   }
   for (const p of parts) {
+    if (p.bare) {
+      // filtered edition: no section page, articles at the top level of the contents
+      for (const a of p.articles) {
+        const html = renderArticle(a, idOf(a), 1, mapFile)
+        toc.push({ level: 1, id: idOf(a), title: stripTags(/<h2[^>]*>([\s\S]*?)<\/h2>/.exec(html)?.[1] ?? a) })
+        body.push(`<article class="doc" id="${idOf(a)}">${html}</article>`)
+      }
+      continue
+    }
     let title = p.section
     if (p.hub) {
       const html = renderArticle(p.hub, idOf(p.hub), 0, mapFile)
@@ -392,7 +409,13 @@ function main() {
   const known = new Set(EDITIONS.flatMap((e) => e.sections))
   for (const s of hubList) if (!known.has(s)) warnings.push(`section ${s}/ is in the hub but in no edition: it is only in the combined PDF`)
   const plan = EDITIONS.map((e) => {
-    const parts = sectionsOf(e.sections)
+    const under = (a, list) => list.some((x) => a === `${x}.md` || a.startsWith(`${x}/`))
+    const parts = sectionsOf(e.sections).map((p) => ({
+      ...p,
+      hub: e.only ? null : p.hub,
+      bare: !!e.only,
+      articles: p.articles.filter((a) => (!e.only || under(a, e.only)) && (!e.except || !under(a, e.except)))
+    }))
     for (const s of e.sections) if (!parts.some((p) => p.section === s)) warnings.push(`section ${s}/ does not exist yet: left out of ${e.file}`)
     return { edition: e, parts, withHub: false }
   })
@@ -439,7 +462,14 @@ function main() {
   const r = spawnSync(cmd, cmdArgs, { env, stdio: 'inherit' })
   if (r.status !== 0) die(`printing failed (exit ${r.status})`)
 
-  // 4. page counts
+  // 4. compress the structure tree (lossless; see pdf-compact.mjs), then page counts
+  for (const j of jobs) {
+    try {
+      writeFileSync(j.pdf, compactPdf(readFileSync(j.pdf)))
+    } catch (e) {
+      console.warn(`  ${j.pdf}: not compacted (${e.message})`)
+    }
+  }
   console.log('')
   console.log(`${'PDF'.padEnd(46)} pages      size`)
   for (const j of jobs) {
@@ -450,7 +480,8 @@ function main() {
       /* pdfinfo missing */
     }
     const kb = Math.round(statSync(j.pdf).size / 1024)
-    console.log(`${posix(relative(ROOT, j.pdf)).padEnd(46)} ${String(pages).padStart(5)} ${String(kb).padStart(7)} KB`)
+    const shown = j.pdf.startsWith(ROOT + sep) ? posix(relative(ROOT, j.pdf)) : j.pdf.split(sep).pop()
+    console.log(`${shown.padEnd(46)} ${String(pages).padStart(5)} ${String(kb).padStart(7)} KB`)
   }
   if (opt.keep) console.log(`HTML kept in ${work}`)
   else rmSync(work, { recursive: true, force: true })

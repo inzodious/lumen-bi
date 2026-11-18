@@ -202,6 +202,11 @@ How it works:
   app ships, callouts, tables that fit the page, images scaled to the text width) and printed by Electron's
   `printToPDF` (`scripts/docs/pdf-print.cjs`), which adds the footer (edition title and page number) and the PDF
   outline (bookmarks).
+- **Compaction.** Chromium writes a tagged PDF (the structure tree used by screen readers) as tens of thousands of small
+  uncompressed objects. `scripts/docs/pdf-compact.mjs` moves them into compressed object streams; nothing else in the
+  file changes. For the reference tables this cuts the file size by about two thirds.
+- **Editions.** An edition is one or more sections. The generated format properties pages are long (about 150 pages),
+  so they have their own edition and are left out of the reference edition; the combined edition has everything.
 
 A link to an article that is not in the same edition prints as its text followed by the article's path. Links to
 source files print as text.

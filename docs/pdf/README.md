@@ -14,7 +14,8 @@ documentation changes.
 | `lumen-data-and-modeling.pdf` | [Connect and transform data](../connect-and-transform/README.md), [Model data](../model-data/README.md) and [DAX](../dax/README.md) |
 | `lumen-files-and-compatibility.pdf` | [Files and compatibility](../files-and-compatibility/README.md) |
 | `lumen-developer-guide.pdf` | [Developer guide](../developer/README.md) |
-| `lumen-reference.pdf` | [Reference](../reference/README.md) |
+| `lumen-reference.pdf` | [Reference](../reference/README.md), without the format properties |
+| `lumen-format-properties.pdf` | The generated [format properties reference](../reference/format-properties.md): every Format pane card and property, per visual family |
 | `lumen-troubleshooting.pdf` | [Troubleshooting](../troubleshooting/README.md) |
 
 Each PDF has a cover with the commit and date it was built from, a table of contents with links, bookmarks (the PDF

@@ -366,14 +366,29 @@ function tileCss(t: TileStyle): CSSProperties {
   }
 }
 
+/**
+ * Neutral stand-in for a picture that is present but cannot be decoded (e.g. a field value that is not an
+ * image, or generated sample data): a light square with a picture glyph, fitted and anchored like the real
+ * image would be, so the card keeps Power BI's layout instead of showing the browser's broken-image icon.
+ */
+export const IMAGE_PLACEHOLDER =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect x="1" y="1" width="46" height="46" rx="4" fill="#F3F2F1" stroke="#C8C6C4"/><circle cx="17" cy="17" r="4" fill="#C8C6C4"/><path d="M8 38l11-13 8 9 5-6 8 10z" fill="#C8C6C4"/></svg>'
+  )
+
 function Img({ img, style }: { img: { src?: string; fit: ImageFit; radius?: Corners; opacity: number }; style?: CSSProperties }) {
+  const [failed, setFailed] = useState<string | undefined>(undefined)
   if (!img.src) return null
+  const broken = failed === img.src
   return (
     <img
-      src={img.src}
+      src={broken ? IMAGE_PLACEHOLDER : img.src}
       alt=""
       draggable={false}
-      style={{ width: '100%', height: '100%', objectFit: OBJECT_FIT[img.fit], borderRadius: img.radius ? radius(img.radius) : undefined, opacity: img.opacity, display: 'block', ...style }}
+      data-placeholder={broken || undefined}
+      onError={() => setFailed(img.src)}
+      style={{ width: '100%', height: '100%', objectFit: broken ? 'contain' : OBJECT_FIT[img.fit], borderRadius: img.radius ? radius(img.radius) : undefined, opacity: img.opacity, display: 'block', ...style }}
     />
   )
 }

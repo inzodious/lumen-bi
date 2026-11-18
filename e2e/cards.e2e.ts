@@ -16,6 +16,16 @@ async function labelSide(vc: Locator): Promise<'above' | 'below' | 'overlap'> {
   })
 }
 
+/** Label/value block in the callout area: space above, between and below (rendered boxes, px). */
+async function calloutRhythm(vc: Locator): Promise<{ above: number; between: number; below: number }> {
+  return vc.evaluate((el) => {
+    const area = el.querySelector('.wbi-card-callout')!.getBoundingClientRect()
+    const l = el.querySelector('.wbi-card-label')!.getBoundingClientRect()
+    const v = el.querySelector('.wbi-card-value')!.getBoundingClientRect()
+    return { above: l.top - area.top, between: v.top - l.bottom, below: area.bottom - v.bottom }
+  })
+}
+
 describe('card visual', () => {
   const lumen = useLumen({ route: { sample: '1' } })
 
@@ -28,6 +38,10 @@ describe('card visual', () => {
     expect(label.length).toBeGreaterThan(0)
     await expect(labelSide(vc)).resolves.toBe('above')
     await expect(vc.locator('.wbi-vc-titles').count()).resolves.toBe(0)
+    // Power BI's rhythm: the label + value block is centred in the callout area with a gap between them
+    const r = await calloutRhythm(vc)
+    expect(r.between).toBeGreaterThan(4)
+    expect(Math.abs(r.above - r.below)).toBeLessThan(3)
 
     // select the card and open its formatting
     await vc.locator('.wbi-card-label').first().click()

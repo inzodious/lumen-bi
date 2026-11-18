@@ -16,8 +16,9 @@
  *     card category labels use the "large and light" label class):
  *       callout value   = `callout` class font face + size (classic base theme: DIN 45pt), theme foreground;
  *       category label  = `label` class font face, label size + 2pt (the derived `largeLightLabel`
- *                         class), second-level colour (foregroundNeutralSecondary);
- *       reference label = `label` class face + size (value in the semibold label face).
+ *                         class), second-level colour (foregroundNeutralSecondary) unless the theme
+ *                         colours the `label` class (see cardTextDefaults);
+ *       reference label = `label` class face + size, regular weight for the value too.
  *     A custom theme that redefines `textClasses.callout` / `label` therefore restyles every card.
  *     The category label sits ABOVE the value by default (Learn card walkthrough screenshots and the
  *     preview "build a new card" screenshots on a classic-theme report); "Below value" is the option.
@@ -170,7 +171,10 @@ export interface CardLayoutModel {
   border?: { color: string; width: number; style: string }
   radius: Corners
   overflow: { style: 'scroll' | 'paginate'; direction: 'vertical' | 'horizontal' }
-  /** vertical alignment of the callout content */
+  /**
+   * vertical alignment of the callout content (label + value) in the callout area: always centred.
+   * `layout.alignment` does not drive it — see readCardLayout.
+   */
   alignment: 'top' | 'middle' | 'bottom'
   /** horizontal alignment of the card grid when cards don't fill the width */
   justify: 'left' | 'center' | 'right'
@@ -426,6 +430,13 @@ function readCorners(props: CardProps, object: string, scope: CardScope, fallbac
   ]
 }
 
+/**
+ * Default space between the category label and the value (`spacing.verticalSpacing`), px. Approximation:
+ * the default is not published; on a Power BI Desktop render (14pt label above a 16pt value, nothing set)
+ * the baselines are ≈ 38px apart, which this gap reproduces with the card's 1.2 line height.
+ */
+export const DEFAULT_LABEL_SPACING = 12
+
 /** Card padding presets (format pane "Padding > Size"). Normal = 12px per Microsoft Learn; Narrow/Wide estimated. */
 export const PADDING_PRESET: Record<string, number> = { narrow: 8, normal: 12, wide: 20 }
 
@@ -520,8 +531,10 @@ export function readCardLayout(props: CardProps, n: number, anyRefs: boolean, an
   const gap = props.num('layout', 'cellPadding', 8)
   const customSpacing = props.bool('layout', 'customizePadding', false)
   const style = props.str('layout', 'style', 'Cards').toLowerCase() === 'table' ? 'table' : 'cards'
-  // `layout.alignment` was the vertical alignment in preview builds (top/middle/bottom) and is the
-  // horizontal alignment of the cards in the GA schema (left/center/right): accept both.
+  // `layout.alignment` is the horizontal alignment of the cards in the GA schema (left/center/right).
+  // Power BI writes 'top' there on nearly every card it saves, and a Power BI Desktop render of such a
+  // card still centres the label + value block in the callout area (the label sits well below the
+  // top-aligned callout image), so top/middle/bottom do not align the callout content: it is centred.
   const align = props.str('layout', 'alignment', 'middle').toLowerCase()
   const isH = align === 'left' || align === 'center' || align === 'right'
   const order = props.str('layout', 'contentOrder', 'callout_referenceLabel_image').split('_') as CardArea[]
@@ -553,7 +566,7 @@ export function readCardLayout(props: CardProps, n: number, anyRefs: boolean, an
     border: props.optNum('layout', 'borderWidth') ? { color: props.color('layout', 'borderColor', '#E1DFDD'), width: props.num('layout', 'borderWidth', 1), style: lineStyleOf(props.str('layout', 'borderStyle', 'solid')) } : undefined,
     radius: readCorners(props, 'layout', {}, 0),
     overflow: readOverflow(props, 'overFlow', 'overflow'),
-    alignment: isH ? 'middle' : vAlignOf(align, 'middle'),
+    alignment: 'middle',
     justify: isH ? alignOf(align, 'left') : 'left',
     calloutSize: Math.max(5, Math.min(100, props.num('layout', 'calloutSize', 50))),
     areas: { referenceLabel: anyRefs, image: anyCardImage },
@@ -691,7 +704,10 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
       fit: fitOf(props.get<any>('image', 'fit', 'fit', s), 'fit'),
       radius: readCorners(props, 'image', s, 0),
       opacity: 1 - props.num('image', 'transparency', 0, s) / 100,
-      position: sideOf(props.str('image', 'position', 'Left', s), 'left'),
+      // Default "Right": real Power BI draws a callout image whose position was never set at the right edge
+      // of the callout, next to the label + value (measured on a Power BI Desktop render; reports in the
+      // wild never write `position`, so the default is what they show).
+      position: sideOf(props.str('image', 'position', 'Right', s), 'right'),
       areaSize: props.num('image', 'imageAreaSize', 50, s),
       size: fixed ? props.num('image', 'size', 40, s) : undefined,
       gap: props.num('image', 'padding', 8, s),
@@ -782,7 +798,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
     const labelFont: FontSpec = {
       family: props.str('label', 'fontFamily', text.label.family, s),
       size: toPt(props.get('label', 'fontSize', text.label.size, s), text.label.size),
-      color: withAlpha(ruleColor('label', 'fontColor', s) ?? props.color('label', 'fontColor', theme.foregroundNeutralSecondary, s), props.num('label', 'transparency', 0, s)),
+      color: withAlpha(ruleColor('label', 'fontColor', s) ?? props.color('label', 'fontColor', text.label.color, s), props.num('label', 'transparency', 0, s)),
       bold: props.bool('label', 'bold', false, s),
       italic: props.bool('label', 'italic', false, s),
       underline: props.bool('label', 'underline', false, s)
@@ -841,7 +857,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
           font: {
             family: props.str('referenceLabelTitle', 'titleFontFamily', text.refTitle.family, rs),
             size: toPt(props.get('referenceLabelTitle', 'titleFontSize', text.refTitle.size, rs), text.refTitle.size),
-            color: withAlpha(ruleColor('referenceLabelTitle', 'titleFontColor', rs) ?? props.color('referenceLabelTitle', 'titleFontColor', theme.foregroundNeutralSecondary, rs), props.num('referenceLabelTitle', 'titleTransparency', 0, rs)),
+            color: withAlpha(ruleColor('referenceLabelTitle', 'titleFontColor', rs) ?? props.color('referenceLabelTitle', 'titleFontColor', text.refTitle.color, rs), props.num('referenceLabelTitle', 'titleTransparency', 0, rs)),
             bold: props.bool('referenceLabelTitle', 'titleBold', false, rs),
             italic: props.bool('referenceLabelTitle', 'titleItalic', false, rs),
             underline: props.bool('referenceLabelTitle', 'titleUnderline', false, rs)
@@ -891,7 +907,7 @@ export function buildCallouts(visualJson: any, theme: ResolvedTheme, format: Val
         align: matchAlign ? valueAlign : labelAlign,
         wrap: props.bool('label', 'textWrap', true, s)
       },
-      labelGap: props.num('spacing', 'verticalSpacing', 0, s),
+      labelGap: props.num('spacing', 'verticalSpacing', DEFAULT_LABEL_SPACING, s),
       refLabels,
       image,
       imageHover: imageHover && JSON.stringify(imageHover) !== JSON.stringify(image) ? imageHover : undefined,

@@ -12,7 +12,7 @@
  */
 import type { Scalar } from '@core/model/data'
 import { decodeValue, isDataBound, noteFallback, rawProp as coreRawProp, makePropContext, type ObjectEntry, type PropContext } from '@core/report/props'
-import type { ResolvedTheme } from '@core/report/theme'
+import { DEFAULT_BASE_THEME, type ResolvedTheme } from '@core/report/theme'
 import { formatDecimals } from '../common/displayUnits'
 
 /** Interaction state of a card (format pane "States" dropdown). */
@@ -148,8 +148,8 @@ export class CardProps {
 
 export interface CardTextDefaults {
   value: { family: string; size: number }
-  label: { family: string; size: number }
-  refTitle: { family: string; size: number }
+  label: { family: string; size: number; color: string }
+  refTitle: { family: string; size: number; color: string }
   refValue: { family: string; size: number }
 }
 
@@ -157,8 +157,15 @@ export interface CardTextDefaults {
  * Default fonts of the card texts from the theme's text classes (Learn "Create custom report themes" >
  * "Set formatted text defaults": cards and KPIs use `callout`; card category labels the "large and
  * light" label class; see the cardVisualModel header for the evidence).
- * `largeLightLabel` / `semiboldLabel` are derived classes: Power BI computes them from `label`
- * (+2pt / semibold face) unless the theme spells them out.
+ * `largeLightLabel` is a derived class: Power BI computes it from `label` (+2pt) unless the theme spells
+ * it out.
+ *
+ * Colours of the "light" texts (category label, reference-label titles): the theme's second-level colour
+ * (#605E5C) — unless the report theme gives the `label` class a colour of its own, which Power BI then
+ * uses for them too (a Power BI Desktop render of a theme with a dark-blue `label` class draws both in
+ * that colour, as dark as the value; approximation: the derivation rule itself is not published).
+ * Reference-label values use the regular label face: on the same render they are no heavier than
+ * their titles.
  */
 export function cardTextDefaults(theme: ResolvedTheme): CardTextDefaults {
   const tc = theme.textClasses ?? {}
@@ -166,11 +173,14 @@ export function cardTextDefaults(theme: ResolvedTheme): CardTextDefaults {
   const label = tc.label ?? {}
   const labelFace = label.fontFace ?? 'Segoe UI'
   const labelSize = label.fontSize ?? 10
+  const baseLabel = DEFAULT_BASE_THEME?.textClasses?.label?.color
+  const ownLabelColor = typeof label.color === 'string' && (!baseLabel || label.color.toUpperCase() !== String(baseLabel).toUpperCase()) ? label.color : undefined
+  const light = ownLabelColor ?? theme.foregroundNeutralSecondary
   return {
     value: { family: callout.fontFace ?? 'DIN', size: callout.fontSize ?? 45 },
-    label: { family: tc.largeLightLabel?.fontFace ?? labelFace, size: tc.largeLightLabel?.fontSize ?? labelSize + 2 },
-    refTitle: { family: labelFace, size: labelSize },
-    refValue: { family: tc.semiboldLabel?.fontFace ?? 'Segoe UI Semibold', size: tc.semiboldLabel?.fontSize ?? labelSize }
+    label: { family: tc.largeLightLabel?.fontFace ?? labelFace, size: tc.largeLightLabel?.fontSize ?? labelSize + 2, color: tc.largeLightLabel?.color ?? light },
+    refTitle: { family: labelFace, size: labelSize, color: light },
+    refValue: { family: labelFace, size: labelSize }
   }
 }
 

@@ -130,13 +130,17 @@ describe('card visual rendering — KPI tile', () => {
     expect(none.image!.src).toBeUndefined()
   })
 
-  it('draws the icon in a 15% area anchored to the top, the label above the value', () => {
+  it('draws the icon in a 15% area at the right, anchored to the top, the label above the value', () => {
     const html = render(kpiCard(), [iconFilter('star.png')])
     expect(styleOf(html, 'wbi-card-image')).toContain('flex:0 0 15%')
     expect(html).toMatch(/<img[^>]*object-fit:contain[^>]*object-position:center top/)
     expect(html.indexOf('class="wbi-card-label"')).toBeGreaterThan(-1)
     expect(html.indexOf('class="wbi-card-label"')).toBeLessThan(html.indexOf('class="wbi-card-value"'))
-    expect(html.indexOf('class="wbi-card-image"')).toBeLessThan(html.indexOf('class="wbi-card-label"'))
+    // default image position: right of the text (the text column comes first in the row)
+    expect(html.indexOf('class="wbi-card-image"')).toBeGreaterThan(html.indexOf('class="wbi-card-value"'))
+    expect(styleOf(html, 'wbi-card-image')).toMatch(/margin-left:0(px)?(;|$)/)
+    // the text block is centred in the callout area even though the file says alignment 'top'
+    expect(html).toMatch(/class="wbi-card-callout" style="display:flex;flex-direction:column;justify-content:center/)
     // theme callout class: 16pt regular (21.33px), not a bold 28pt default
     const value = styleOf(html, 'wbi-card-value')
     expect(value).toMatch(/font-size:21\.3\d*px/)
@@ -146,6 +150,14 @@ describe('card visual rendering — KPI tile', () => {
     expect(styleOf(html, 'wbi-card-label')).toMatch(/font-size:18\.6\d*px/)
     expect(html).toContain('>Average score<')
     expect(html.match(/Average score/g)).toHaveLength(1)
+  })
+
+  it('puts the image left of the text when the visual says so', () => {
+    const json = kpiCard()
+    ;(json.visual.objects.image[0].properties as Record<string, unknown>).position = lit("'left'")
+    const html = render(json, [iconFilter('star.png')])
+    expect(html.indexOf('class="wbi-card-image"')).toBeLessThan(html.indexOf('class="wbi-card-label"'))
+    expect(styleOf(html, 'wbi-card-image')).toMatch(/margin-right:0(px)?(;|$)/)
   })
 
   it('keeps an empty image area when the picture is missing', () => {

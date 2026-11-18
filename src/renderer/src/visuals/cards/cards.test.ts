@@ -7,7 +7,7 @@ import { createMockHost } from '../common/mockHost'
 import { memoryFormat } from '../common/memoryEngine'
 import { computeCardVisual } from './CardVisual'
 import { computeLegacyCard, computeMultiRow } from './LegacyCards'
-import { buildCardVisualModel, cardFields, cardTextDefaults, gridGeometry, planCardQuery, readCardLayout, type CardValues } from './cardVisualModel'
+import { DEFAULT_LABEL_SPACING, buildCardVisualModel, cardFields, cardTextDefaults, gridGeometry, planCardQuery, readCardLayout, type CardValues } from './cardVisualModel'
 import { CardProps, cardPrecision, legacyAutoUnit } from './cardProps'
 import { buildLegacyCardModel, fitFontSize, fitWrappedFontSize, wrapLines, buildMultiRowRecords, multiRowStyle } from './legacyCardModel'
 import { imageSrc } from './cardProps'
@@ -168,20 +168,45 @@ describe('cardVisual GA features', () => {
     const c = computeCardVisual(json, createMockHost({ engine, theme: brand })).callouts[0]
     expect(c.value.font).toMatchObject({ family: 'Segoe UI', size: 16, color: '#12239E' })
     expect(c.value.font.bold).toBe(false)
-    // category label: label face, +2pt (large light label), second-level colour — not the label class colour
-    expect(c.label.font).toMatchObject({ family: 'Segoe UI', size: 14, color: brand.foregroundNeutralSecondary })
-    // reference labels: label class size; value in the semibold label face
-    expect(c.refLabels[0].title.font).toMatchObject({ family: 'Segoe UI', size: 12 })
-    expect(c.refLabels[0].value.font).toMatchObject({ family: 'Segoe UI Semibold', size: 12 })
+    // category label: label face, +2pt (large light label), in the theme's own label class colour
+    expect(c.label.font).toMatchObject({ family: 'Segoe UI', size: 14, color: '#101060' })
+    // reference labels: label class face and size, regular weight for the value too; titles in the label colour
+    expect(c.refLabels[0].title.font).toMatchObject({ family: 'Segoe UI', size: 12, color: '#101060' })
+    expect(c.refLabels[0].value.font).toMatchObject({ family: 'Segoe UI', size: 12, bold: false })
     expect(cardTextDefaults(brand)).toEqual({
       value: { family: 'Segoe UI', size: 16 },
-      label: { family: 'Segoe UI', size: 14 },
-      refTitle: { family: 'Segoe UI', size: 12 },
-      refValue: { family: 'Segoe UI Semibold', size: 12 }
+      label: { family: 'Segoe UI', size: 14, color: '#101060' },
+      refTitle: { family: 'Segoe UI', size: 12, color: '#101060' },
+      refValue: { family: 'Segoe UI', size: 12 }
     })
     // explicit derived classes in the theme win over the derivation
-    const explicit = resolveTheme(undefined, { textClasses: { largeLightLabel: { fontFace: 'Arial', fontSize: 11 }, semiboldLabel: { fontFace: 'Arial Bold', fontSize: 9 } } })
-    expect(cardTextDefaults(explicit)).toMatchObject({ label: { family: 'Arial', size: 11 }, refValue: { family: 'Arial Bold', size: 9 } })
+    const explicit = resolveTheme(undefined, { textClasses: { largeLightLabel: { fontFace: 'Arial', fontSize: 11, color: '#333333' } } })
+    expect(cardTextDefaults(explicit)).toMatchObject({ label: { family: 'Arial', size: 11, color: '#333333' } })
+  })
+
+  it('keeps the second-level colour for the light texts when the theme does not colour the label class', () => {
+    // classic base theme (label class #252423): category label and reference titles stay #605E5C
+    expect(cardTextDefaults(theme)).toMatchObject({ label: { color: theme.foregroundNeutralSecondary }, refTitle: { color: theme.foregroundNeutralSecondary } })
+    // a custom theme that only resizes the label class keeps it too
+    const sized = resolveTheme(undefined, { textClasses: { label: { fontSize: 11 } } })
+    expect(cardTextDefaults(sized).label).toEqual({ family: 'Segoe UI', size: 13, color: sized.foregroundNeutralSecondary })
+  })
+
+  it('centres the label + value block whatever layout.alignment says and spaces label and value', () => {
+    const fields = cardFields(card([proj(S.m('Orders'), '_m.Orders')]), () => 'Orders', () => true)
+    const vals: CardValues = { get: () => ({ value: 12, formatString: '0' }) }
+    for (const a of ["'top'", "'bottom'", "'middle'"]) {
+      const json = card([proj(S.m('Orders'), '_m.Orders')], { layout: [{ properties: { alignment: lit(a) } }] })
+      const m = buildCardVisualModel(json, theme, memoryFormat, planCardQuery(json, theme, fields), vals)
+      expect(m.layout.alignment).toBe('middle')
+      expect(m.callouts[0].labelGap).toBe(DEFAULT_LABEL_SPACING)
+    }
+    // GA horizontal values still align the cards
+    const right = card([proj(S.m('Orders'), '_m.Orders')], { layout: [{ properties: { alignment: lit("'right'") } }] })
+    expect(buildCardVisualModel(right, theme, memoryFormat, planCardQuery(right, theme, fields), vals).layout.justify).toBe('right')
+    // an explicit spacing wins
+    const tight = card([proj(S.m('Orders'), '_m.Orders')], { spacing: [{ properties: { verticalSpacing: lit('2L') }, selector: { id: 'default' } }] })
+    expect(buildCardVisualModel(tight, theme, memoryFormat, planCardQuery(tight, theme, fields), vals).callouts[0].labelGap).toBe(2)
   })
 
   it('explicit fonts and "Below value" on the visual still win over the theme', () => {
@@ -204,7 +229,8 @@ describe('cardVisual GA features', () => {
     const plan = planCardQuery(json, theme, fields)
     const blank: CardValues = { get: (id) => (id.startsWith('v0') ? { value: 12, formatString: '0' } : { value: null }) }
     const noImage = buildCardVisualModel(json, theme, memoryFormat, plan, blank).callouts[0].image
-    expect(noImage).toMatchObject({ position: 'left', areaSize: 15, gap: 0, verticalAlignment: 'top' })
+    // no position written: Power BI's default puts the image at the right of the label + value
+    expect(noImage).toMatchObject({ position: 'right', areaSize: 15, gap: 0, verticalAlignment: 'top' })
     expect(noImage!.src).toBeUndefined()
     const text: CardValues = { get: (id) => (id.startsWith('v0') ? { value: 12, formatString: '0' } : { value: 'not a picture' }) }
     expect(buildCardVisualModel(json, theme, memoryFormat, plan, text).callouts[0].image!.src).toBeUndefined()

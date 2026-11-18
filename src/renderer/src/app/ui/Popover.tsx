@@ -63,14 +63,20 @@ export function Popover({ anchor, open, onClose, children, className, matchWidth
       }
       onClose()
     }
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    // Escape closes the popover and nothing else: handled in the capture phase and not propagated, so it doesn't also
+    // reach the canvas shortcuts (which would deselect the visual whose color / dropdown is being edited)
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      onClose()
+    }
     const blur = () => onClose()
     window.addEventListener('mousedown', down, true)
-    window.addEventListener('keydown', key)
+    window.addEventListener('keydown', key, true)
     window.addEventListener('blur', blur)
     return () => {
       window.removeEventListener('mousedown', down, true)
-      window.removeEventListener('keydown', key)
+      window.removeEventListener('keydown', key, true)
       window.removeEventListener('blur', blur)
     }
   }, [open, onClose, ignoreOutside])

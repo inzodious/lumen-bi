@@ -5,7 +5,7 @@
  *  - no visual selected: page formatting (page information, canvas settings, canvas background,
  *    wallpaper, filter pane, filter cards) written to page.json.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { makePropContext, rawProp, type Selector } from '@core/report/props'
 import type { PageDocument, VisualDocument } from '@core/report/types'
 import type { ResolvedTheme } from '@core/report/theme'
@@ -17,10 +17,12 @@ import { useShell } from '../../app/shellState'
 import { absoluteRect, findPage, findVisual, visualTypeOf, type Rect } from '../../report/pbir'
 import * as editOps from '../../report/editOps'
 import { getVisual } from '../../visuals/registry'
-import { CollapsibleCard, Dropdown, NumberField, Pivot, SearchBox, Toggle } from '../../app/ui'
+import { CollapsibleCard, Dropdown, Pivot, SearchBox, Toggle } from '../../app/ui'
 import { pageBag, visualBag } from './objects'
 import { ANALYTICS_OBJECTS, CONTAINER_CARDS, type GroupedCard } from './containerCards'
-import { FormatCardView, PropRow, TextInput, matchesSearch, type BagTarget } from './PropEditor'
+import { FormatCardView, PropRow, PropRows, TextInput, matchesSearch, type BagTarget } from './PropEditor'
+import { SpinField } from './controls'
+import { rendererDefault } from './effective'
 import { roleProjections, isValueProjection, nativeName } from './wells'
 import { CfDialogHost } from './cf/CfDialog'
 import { CellElementsCard } from './cf/FxControls'
@@ -31,6 +33,8 @@ export function visualTarget(pageName: string, visual: VisualDocument, container
     bag: visualBag(visual.json, container),
     locate: (r) => visualBag(findVisual(findPage(r, pageName), visual.name)?.json, container, true),
     resolveRaw: (object, prop, sel) => rawProp(pc, object, prop, sel),
+    // what the renderer uses when nothing is set: shown instead of an empty control (effective.ts)
+    defaults: (object, prop) => rendererDefault(object, prop, theme, visualTypeOf(visual), container),
     theme,
     label: 'Format visual',
     cf: { pageName, visualName: visual.name, visualType: visualTypeOf(visual), container }
@@ -92,8 +96,10 @@ function VisualFormat({ page, visual, theme, mobile = false }: { page: PageDocum
   const visualCards = own.filter((c) => c.tab !== 'general' && !c.container)
   const builtinObjects = new Set(CONTAINER_CARDS.map((c) => c.object))
   const extraGeneral = own.filter((c) => (c.tab === 'general' || c.container) && !(c.container && builtinObjects.has(c.object)))
-  const vt = mobile ? mobileTarget(page.name, visual, false, theme) : visualTarget(page.name, visual, false, theme)
-  const ct = mobile ? mobileTarget(page.name, visual, true, theme) : visualTarget(page.name, visual, true, theme)
+  // mobile formatting shows the same effective defaults as desktop (the phone canvas uses the same renderers)
+  const mobileWithDefaults = (container: boolean): BagTarget => ({ ...mobileTarget(page.name, visual, container, theme), defaults: (object, prop) => rendererDefault(object, prop, theme, type, container) })
+  const vt = mobile ? mobileWithDefaults(false) : visualTarget(page.name, visual, false, theme)
+  const ct = mobile ? mobileWithDefaults(true) : visualTarget(page.name, visual, true, theme)
   const overrides = mobile ? mobileOverrides(visual) : []
 
   const effectiveTab = isGroup ? 'general' : tab
@@ -168,7 +174,8 @@ function GroupedCards({ cards, target, search }: { cards: GroupedCard[]; target:
         const anyMatch = matchesSearch(search, g.name) || g.cards.some((c) => matchesSearch(search, c.displayName) || c.properties.some((p) => matchesSearch(search, p.displayName)))
         if (!anyMatch) return null
         return (
-          <CollapsibleCard key={g.name} title={g.name} defaultOpen={!!search}>
+          // remount when a search starts / ends so the group opens on its matches (and closes again)
+          <CollapsibleCard key={`${g.name}${search ? ':q' : ''}`} title={g.name} defaultOpen={!!search}>
             <div className="wbi-fmt__sub">
               {g.cards.map((c) => (
                 <FormatCardView key={c.displayName} card={c} target={target} search={matchesSearch(search, g.name) ? '' : search} level={2} />
@@ -207,12 +214,16 @@ function PropertiesCard({ page, visual, vt, ct, search, extra }: { page: PageDoc
   }
   const num = (name: string, displayName: string): FormatPropDef => ({ name, displayName, type: 'integer', min: 0, max: 100, default: name === 'top' || name === 'left' || name === 'right' || name === 'bottom' ? 5 : 0 })
   return (
-    <CollapsibleCard title="Properties" defaultOpen={!!search}>
+    <CollapsibleCard key={search ? 'q' : 'n'} title="Properties" defaultOpen={!!search}>
       <div className="wbi-fmt__sub">
         <CollapsibleCard title="Size" level={2} defaultOpen>
           <div className="wbi-fmt__pair">
-            <NumberField label="Height" size="small" value={round2(abs.height)} min={10} onChange={(v) => setPos('height', v)} />
-            <NumberField label="Width" size="small" value={round2(abs.width)} min={10} onChange={(v) => setPos('width', v)} />
+            <Labeled label="Height">
+              <SpinField label="Height" value={round2(abs.height)} min={10} onChange={(v) => setPos('height', v)} />
+            </Labeled>
+            <Labeled label="Width">
+              <SpinField label="Width" value={round2(abs.width)} min={10} onChange={(v) => setPos('width', v)} />
+            </Labeled>
           </div>
           <div className="wbi-fmt__row is-inline">
             <div className="wbi-fmt__label">
@@ -223,8 +234,12 @@ function PropertiesCard({ page, visual, vt, ct, search, extra }: { page: PageDoc
         </CollapsibleCard>
         <CollapsibleCard title="Position" level={2} defaultOpen>
           <div className="wbi-fmt__pair">
-            <NumberField label="Horizontal" size="small" value={round2(abs.x)} onChange={(v) => setPos('x', v)} />
-            <NumberField label="Vertical" size="small" value={round2(abs.y)} onChange={(v) => setPos('y', v)} />
+            <Labeled label="Horizontal">
+              <SpinField label="Horizontal" value={round2(abs.x)} onChange={(v) => setPos('x', v)} />
+            </Labeled>
+            <Labeled label="Vertical">
+              <SpinField label="Vertical" value={round2(abs.y)} onChange={(v) => setPos('y', v)} />
+            </Labeled>
           </div>
         </CollapsibleCard>
         <CollapsibleCard title="Padding" level={2}>
@@ -243,6 +258,18 @@ function PropertiesCard({ page, visual, vt, ct, search, extra }: { page: PageDoc
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
+
+/** A control with its label above (the two-column Size / Position pairs). */
+function Labeled({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="wbi-fmt__row">
+      <div className="wbi-fmt__label">
+        <span title={label}>{label}</span>
+      </div>
+      {children}
+    </div>
+  )
+}
 
 function setLockAspect(r: any, pageName: string, visualName: string, on: boolean): void {
   const vis = findVisual(findPage(r, pageName), visualName)
@@ -398,8 +425,12 @@ function PageFormat({ page, theme }: { page: PageDocument; theme: ResolvedTheme 
               />
             </div>
             <div className="wbi-fmt__pair">
-              <NumberField label="Height (px)" size="small" value={h} min={100} max={10000} onChange={(v) => v && edit('Canvas size', (pj) => (pj.height = Math.round(v)))} />
-              <NumberField label="Width (px)" size="small" value={w} min={100} max={10000} onChange={(v) => v && edit('Canvas size', (pj) => (pj.width = Math.round(v)))} />
+              <Labeled label="Height (px)">
+                <SpinField label="Height (px)" integer value={h} min={100} max={10000} onChange={(v) => v && edit('Canvas size', (pj) => (pj.height = Math.round(v)))} />
+              </Labeled>
+              <Labeled label="Width (px)">
+                <SpinField label="Width (px)" integer value={w} min={100} max={10000} onChange={(v) => v && edit('Canvas size', (pj) => (pj.width = Math.round(v)))} />
+              </Labeled>
             </div>
             <div className="wbi-fmt__row">
               <div className="wbi-fmt__label">
@@ -456,9 +487,7 @@ function PageFormat({ page, theme }: { page: PageDocument; theme: ResolvedTheme 
                 onChange={(v) => setCardState(v as 'Available' | 'Applied')}
               />
             </div>
-            {FILTER_CARD_PROPS.map((p) => (
-              <PropRow key={p.name} def={p} object="filterCard" target={target} selector={filterSel} />
-            ))}
+            <PropRows defs={FILTER_CARD_PROPS} object="filterCard" target={target} selFor={() => filterSel} />
           </CollapsibleCard>
         )}
       </div>

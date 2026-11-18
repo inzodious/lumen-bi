@@ -50,7 +50,7 @@
   font: inherit; font-size: 12px; color: var(--wbi-fg); cursor: pointer;
 }
 .wbi-iconpicker__chip:hover:not(:disabled) { background: var(--wbi-hover); }
-.wbi-iconpicker__chip.is-on { background: var(--wbi-fg); border-color: var(--wbi-fg); color: #ffffff; }
+.wbi-iconpicker__chip.is-on, .wbi-iconpicker__chip.is-on:hover:not(:disabled) { background: var(--wbi-fg); border-color: var(--wbi-fg); color: #ffffff; }
 .wbi-iconpicker__chip:disabled { color: var(--wbi-fg-disabled); border-color: var(--wbi-border); cursor: default; }
 .wbi-iconpicker__chip:focus-visible { outline: 2px solid var(--wbi-focus); outline-offset: 1px; }
 .wbi-iconpicker__colors { display: flex; flex-direction: column; gap: 6px; }

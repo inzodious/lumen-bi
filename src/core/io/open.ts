@@ -16,7 +16,7 @@ import type { SemanticModel } from '../model/types'
 import { emptyModel } from '../model/types'
 import type { ReportDocument } from '../report/types'
 import { decodeText, readPbirFiles, readTree, writeFileMap, writePbirFolder, type FileMap } from '../pbir/pbir'
-import { readTmsl } from '../tmdl/tmsl'
+import { readTmsl, writeTmsl } from '../tmdl/tmsl'
 import { readPbix, type Diagnostic } from './pbix/container'
 import { readDataModel } from './pbix/datamodel/index'
 import { movePackageData, rememberPackageData } from './pbix/write/origin'
@@ -210,9 +210,10 @@ export async function openWbi(bytes: Uint8Array, path: string | undefined, opts:
 export interface SaveOptions {
   /**
    * 'pbip' writes <dir>/<name>.pbip + <name>.Report + <name>.SemanticModel; 'wbi' writes a single bundle with cached data;
+   * 'bim' writes the model alone as a TMSL `.bim` file (`targetPath` is the file);
    * 'pbix' / 'pbit' write a Power BI package (pbix/write/package.ts: experimental, not verified in Power BI Desktop)
    */
-  format: 'pbip' | 'wbi' | 'pbix' | 'pbit'
+  format: 'pbip' | 'wbi' | 'pbix' | 'pbit' | 'bim'
   /** report form inside a .pbix / .pbit: Desktop's legacy `Report/Layout` (default) or PBIR `Report/definition/**` */
   reportFormat?: 'legacy' | 'pbir'
   /** semantic model storage for PBIP (default: TMDL, or model.bim when the model was read from one) */
@@ -261,10 +262,26 @@ export async function saveProject(project: ProjectDocument, targetPath: string, 
     dir = targetPath
     name = project.name
   }
+  if (opts.format === 'bim') {
+    // a standalone model.bim saved in place (or to another .bim): the TMSL file only
+    const { json, diagnostics } = writeTmsl(project.model)
+    await fs.mkdirp(dirname(targetPath))
+    await writeFileMap(fs, dirname(targetPath), { [basename(targetPath)]: JSON.stringify(json, null, 2) })
+    for (const d of diagnostics) project.diagnostics.push({ level: 'warning', message: d })
+    project.source = { kind: 'semantic-model-folder', path: targetPath, modelPath: dirname(targetPath) }
+    project.dirty = false
+    return
+  }
   await fs.mkdirp(dir)
   const live = !!project.report?.pbir?.datasetReference?.byConnection && !project.model.tables.length
-  const modelDir = joinPath(dir, `${name}.SemanticModel`)
-  const reportDir = joinPath(dir, `${name}.Report`)
+  // Saving where the project already lives keeps its folders: a report may point at a model folder with another name
+  // (several reports sharing one model), and Power BI Desktop resolves the reference, not the name.
+  const src = project.source
+  const inPlace = (src.kind === 'pbip' || src.kind === 'pbir-folder' || src.kind === 'semantic-model-folder') && !!(src.reportPath ?? src.modelPath) && name === project.name
+  const srcReport = inPlace && src.reportPath && dirname(src.reportPath) === dir ? src.reportPath : undefined
+  const srcModel = inPlace && src.modelPath && dirname(src.modelPath) === dir && (srcReport || src.kind === 'semantic-model-folder') && !/\.bim$/i.test(src.path ?? '') ? src.modelPath : undefined
+  const modelDir = srcModel ?? joinPath(dir, `${name}.SemanticModel`)
+  const reportDir = srcReport ?? joinPath(dir, `${name}.Report`)
   const diagnostics: string[] = []
   if (!live) {
     const m = semanticModelFiles(project.model, name, { format: opts.modelFormat })
@@ -281,7 +298,7 @@ export async function saveProject(project: ProjectDocument, targetPath: string, 
     }
   }
   if (project.report) {
-    const files = reportFiles(project.report, name, live ? undefined : `../${name}.SemanticModel`)
+    const files = reportFiles(project.report, name, live ? undefined : `../${basename(modelDir)}`)
     const pbir = JSON.parse(files['definition.pbir'] as string)
     const platformText = files['.platform'] as string
     const doc: ReportDocument = { ...project.report, pbir, extraFiles: { ...project.report.extraFiles, '.platform': platformText } }
@@ -291,7 +308,7 @@ export async function saveProject(project: ProjectDocument, targetPath: string, 
     const pbipPath = joinPath(dir, `${name}.pbip`)
     let existing: unknown
     if (await fs.exists(pbipPath)) existing = await readJson(fs, pbipPath).catch(() => undefined)
-    await writeFileMap(fs, dir, { [`${name}.pbip`]: pbipJson(existing, `${name}.Report`) })
+    await writeFileMap(fs, dir, { [`${name}.pbip`]: pbipJson(existing, basename(reportDir), src.reportPath ? basename(src.reportPath) : undefined) })
   }
   for (const d of diagnostics) project.diagnostics.push({ level: 'warning', message: d })
   project.name = name
@@ -311,6 +328,30 @@ async function packageInput(project: ProjectDocument, fs: FileSystem): Promise<{
 /** How a `.pbix` / `.pbit` save of the project would be written (for the Save dialog). */
 export async function planPackageSave(project: ProjectDocument, format: 'pbix' | 'pbit', fs: FileSystem): Promise<PackagePlan> {
   return planPackage(format, await packageInput(project, fs))
+}
+
+/**
+ * What **Save** writes without asking: the format and target for the place the project came from, or null when the
+ * project has no saveable home (a `.pbix` / `.pbit`, a new report): then Save opens Save as.
+ */
+export function defaultSaveTarget(project: ProjectDocument): { format: 'pbip' | 'wbi' | 'bim'; target: string } | null {
+  const p = project.source.path
+  if (!p) return null
+  switch (project.source.kind) {
+    case 'wbi':
+      return { format: 'wbi', target: p }
+    case 'pbip':
+      return /\.pbip$/i.test(p) ? { format: 'pbip', target: p } : { format: 'pbip', target: joinPath(p, `${project.name}.pbip`) }
+    case 'pbir-folder':
+    case 'semantic-model-folder': {
+      // a standalone model.bim is saved back to itself (not to a new `model.bim.pbip` project)
+      if (/\.bim$/i.test(p)) return { format: 'bim', target: p }
+      const base = basename(p).replace(/\.(Report|SemanticModel)$/i, '')
+      return { format: 'pbip', target: `${dirname(p)}/${base}.pbip` }
+    }
+    default:
+      return null
+  }
 }
 
 /** Text of a file inside a project file map (helper for callers/tests). */

@@ -6,7 +6,8 @@
 import { nanoid } from 'nanoid'
 import { CODE_OBJECT, CODE_VISUAL_TYPE } from '@core/codevisual/model'
 import { insertCodeVisual } from '../visuals/code/editorHost'
-import { openProject, saveProject } from '@core/io/open'
+import { defaultSaveTarget, openProject, saveProject } from '@core/io/open'
+import { savePackage } from './savePackage'
 import { generateSyntheticData, type SyntheticResult } from '@core/data/synthetic'
 import { emptyModel } from '@core/model/types'
 import { emptyDataStore } from '@core/model/data'
@@ -173,34 +174,15 @@ async function openPathInner(path: string, opts: { skipConfirm?: boolean }): Pro
   }
 }
 
-function defaultSaveFormat(project: ProjectDocument): 'pbip' | 'wbi' | null {
-  if (project.source.kind === 'wbi') return 'wbi'
-  if (project.source.kind === 'pbip' || project.source.kind === 'pbir-folder' || project.source.kind === 'semantic-model-folder') return 'pbip'
-  return null
-}
-
-/** Target path for saveProject: the .pbip file path (PBIP) or the .wbi file path. */
-function saveTarget(project: ProjectDocument): string | null {
-  const p = project.source.path
-  if (!p) return null
-  if (project.source.kind === 'wbi' || project.source.kind === 'pbip') return p
-  if (project.source.kind === 'pbir-folder' || project.source.kind === 'semantic-model-folder') {
-    const base = basename(p).replace(/\.(Report|SemanticModel)$/i, '')
-    return `${dirname(p)}/${base}.pbip`
-  }
-  return null
-}
-
 export async function save(): Promise<boolean> {
   const { project } = useApp.getState()
   if (!project) return false
-  const format = defaultSaveFormat(project)
-  const target = saveTarget(project)
-  if (!format || !target) return saveAs()
-  return doSave(project, target, format)
+  const home = defaultSaveTarget(project)
+  if (!home) return saveAs()
+  return doSave(project, home.target, home.format)
 }
 
-export async function saveAs(preferred?: 'pbip' | 'wbi'): Promise<boolean> {
+export async function saveAs(preferred?: 'pbip' | 'wbi' | 'pbix' | 'pbit'): Promise<boolean> {
   const { project } = useApp.getState()
   if (!project) return false
   const docs = await host()
@@ -208,24 +190,25 @@ export async function saveAs(preferred?: 'pbip' | 'wbi'): Promise<boolean> {
     .catch(() => '')
   const baseDir = project.source.path ? dirname(project.source.path) : docs
   const name = project.name.replace(/[\\/:*?"<>|]/g, '_') || 'Untitled'
-  const filters =
-    preferred === 'wbi'
-      ? [{ name: `${APP_NAME} bundle (*.wbi)`, extensions: ['wbi'] }]
-      : preferred === 'pbip'
-        ? [{ name: 'Power BI project files (*.pbip)', extensions: ['pbip'] }]
-        : [
-            { name: 'Power BI project files (*.pbip)', extensions: ['pbip'] },
-            { name: `${APP_NAME} bundle with data (*.wbi)`, extensions: ['wbi'] }
-          ]
+  const all = {
+    pbip: { name: 'Power BI project files (*.pbip)', extensions: ['pbip'] },
+    wbi: { name: `${APP_NAME} bundle with data (*.wbi)`, extensions: ['wbi'] },
+    pbix: { name: 'Power BI file (*.pbix), experimental', extensions: ['pbix'] },
+    pbit: { name: 'Power BI template (*.pbit), experimental', extensions: ['pbit'] }
+  }
+  const filters = preferred ? [all[preferred]] : [all.pbip, all.wbi, all.pbix, all.pbit]
   const ext = preferred ?? 'pbip'
   const path = await host().dialog.saveFile({ title: 'Save as', defaultPath: `${baseDir}/${name}.${ext}`, filters })
   if (!path) return false
+  // Power BI packages: the dialog in savePackage.tsx states how the file will be written
+  if (/\.pbix$/i.test(path) || preferred === 'pbix') return savePackage('pbix', /\.pbix$/i.test(path) ? path : `${path}.pbix`)
+  if (/\.pbit$/i.test(path) || preferred === 'pbit') return savePackage('pbit', /\.pbit$/i.test(path) ? path : `${path}.pbit`)
   const format: 'pbip' | 'wbi' = /\.wbi$/i.test(path) ? 'wbi' : 'pbip'
   const target = format === 'pbip' && !/\.pbip$/i.test(path) ? `${path}.pbip` : path
   return doSave(project, target, format)
 }
 
-async function doSave(project: ProjectDocument, target: string, format: 'pbip' | 'wbi'): Promise<boolean> {
+async function doSave(project: ProjectDocument, target: string, format: 'pbip' | 'wbi' | 'bim'): Promise<boolean> {
   const app = useApp.getState()
   app.setBusy({ message: `Saving ${basename(target)}…` })
   try {
@@ -233,8 +216,9 @@ async function doSave(project: ProjectDocument, target: string, format: 'pbip' |
     await rebakeIconsBeforeSave()
     if (useApp.getState().project?.id === project.id) project = useApp.getState().project!
     await saveProject(project, target, host().fs, { format })
-    const name = basename(target).replace(/\.(pbip|wbi)$/i, '')
-    useApp.getState().markSaved({ kind: format === 'wbi' ? 'wbi' : 'pbip', path: target }, name)
+    const name = basename(target).replace(/\.(pbip|wbi|bim)$/i, '')
+    // saveProject updated project.source (the saved location: a .bim stays a standalone model)
+    useApp.getState().markSaved({ ...project.source }, format === 'bim' ? project.name : name)
     host()
       .app.addRecent(target, name)
       .catch(() => undefined)

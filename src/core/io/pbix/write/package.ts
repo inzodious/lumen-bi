@@ -119,7 +119,6 @@ export function dataModelSchema(model: SemanticModel): { json: Record<string, an
   if (!m.defaultPowerBIDataSourceVersion) {
     m.defaultPowerBIDataSourceVersion = 'powerBI_V3'
     if (!(Number(json.compatibilityLevel) >= 1550)) json.compatibilityLevel = 1550
-    diagnostics.push('Model upgraded to Power BI data source version 3 (compatibility level 1550) so the template can carry its Power Query expressions.')
   }
   return { json, diagnostics }
 }

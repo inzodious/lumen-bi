@@ -86,6 +86,7 @@ Read by the Electron main process (`src/main/index.ts`) or the preload (`src/pre
 | Variable | Read by | Default | Effect |
 |---|---|---|---|
 | `WBI_USE_DESKTOP` | `scripts/capture.sh`, `scripts/sweep.sh` | unset | Run on your current display instead of a private Xvfb display. |
+| `WBI_HARD_TIMEOUT` | `scripts/capture.sh` | `180` | Seconds before the app process is killed; `scripts/export-pbix.sh` sets it from `WBI_TIMEOUT` (default 300000 ms there). |
 | `LUMEN_E2E_USE_DISPLAY` | `e2e/run.sh` | unset | Run the journeys on your current display (watch them) instead of a private Xvfb display. |
 | `LUMEN_DOCS_USE_DISPLAY` | `scripts/docs/build-pdf.sh` | unset | Print the PDFs on your current display instead of a private Xvfb display. |
 | `NVM_DIR` | `scripts/lumen.sh` | `~/.nvm` | Where the launcher looks for a Node 20+ install when the `PATH` has none. Not checked by the script above (it is not a Lumen setting). |
@@ -171,7 +172,7 @@ Applied by `applyRouteOptions()` and `launch()` in `src/renderer/src/app/App.tsx
 | `data=sample` | Fill tables that have no data with sample data. |
 | `notice=1` | Show the missing-data notification bar. |
 | `perf=1` | Start Performance analyzer recording and refresh the visuals. |
-| `export=pdf|pptx|png|html&exportPath=/abs/path[&pngScale=2]` | Scripted export after the project opens; the app stays busy until it finishes. |
+| `export=pdf|pptx|png|html|pbix|pbit&exportPath=/abs/path[&pngScale=2][&refresh=1]` | Scripted export after the project opens; the app stays busy until it finishes. `pbix` / `pbit` save a Power BI file or template (experimental; `app/savePackage.tsx`), after a refresh from the sources with `refresh=1`; normally set by `scripts/export-pbix.sh`. |
 | `simdrag=<visual or type#n>:<dx>,<dy>[:<handle>]` | Show the smart guides of a simulated drag (read in `report/PageCanvas.tsx`). |
 | `mobile=1|auto` | Mobile layout (read in `report/mobile/index.tsx`). |
 | `cf=<object>.<prop>[@queryRef][&cfStyle=rules]` | Open the conditional-formatting dialog (read in `panes/visualizations/cf/CfDialog.tsx`). |

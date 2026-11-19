@@ -10,11 +10,15 @@ which Lumen-only data it adds to Power BI files, and what is known about schema 
 
 The renderer's **Save** and **Save as** commands live in `src/renderer/src/app/commands.ts`:
 
-1. `save()` picks a default format from `project.source.kind`: `wbi` for a bundle; `pbip` for a PBIP project, a
-   report folder or a semantic model folder. Anything else (`pbix`, `pbit`, `new`) has no save target, so `save()`
-   falls through to `saveAs()`.
-2. `saveAs(preferred?)` shows the native save dialog with two filters, **Power BI project files (\*.pbip)** and
-   **Lumen bundle with data (\*.wbi)**. The extension the user picks decides the format.
+1. `save()` asks `defaultSaveTarget(project)` (`src/core/io/open.ts`) for a format and target: `wbi` for a bundle;
+   `pbip` for a PBIP project, a report folder or a semantic model folder; `bim` (the same file) for a standalone
+   `model.bim`. Anything else (`pbix`, `pbit`, `new`) has no save target, so `save()` falls through to `saveAs()`.
+2. `saveAs(preferred?)` shows the native save dialog with four filters: **Power BI project files (\*.pbip)**,
+   **Lumen bundle with data (\*.wbi)**, **Power BI file (\*.pbix), experimental** and **Power BI template
+   (\*.pbit), experimental**. The extension the user picks decides the format. `.pbix` and `.pbit` go to
+   `savePackage` (`src/renderer/src/app/savePackage.tsx`). It shows the write path chosen by `planPackageSave`, with
+   the experimental label or the reason a `.pbix` can't be written, and then calls `saveProject` with
+   `format: 'pbix' | 'pbit'`.
 3. `doSave()` re-bakes theme-coloured icons (`rebakeIconsBeforeSave`, see [ICONS.md](../ICONS.md)), calls
    `saveProject(project, target, host().fs, { format })`, then `useApp.getState().markSaved(...)`, adds the file to
    the recent list and shows a toast. An exception becomes a **Couldn't save** dialog.
@@ -31,12 +35,15 @@ flowchart TD
   P -->|format pbip| W[reportFiles > writePbirFolder]
   P -->|format pbip| J[pbipJson > Name.pbip]
   P -->|format wbi| B[pbipProjectFiles + encodeDataStore > zip]
+  P -->|format pbix / pbit| X[writePackage > OPC zip]
   D --> K[markSaved + addRecent]
 ```
 
 *Diagram in words:* the Save commands end in `doSave`, which re-bakes icons and calls `saveProject`. For PBIP,
 `saveProject` writes the semantic model folder, the report folder and the `.pbip` file. For `.wbi`, it builds the
-same PBIP file map plus the encoded data and writes one zip. Then the store is marked saved.
+same PBIP file map plus the encoded data and writes one zip. For `.pbix` and `.pbit`, it calls `writePackage`
+(`src/core/io/pbix/write/package.ts`; see [Writing PBIX and PBIT](file-format-io.md#writing-pbix-and-pbit-experimental)).
+Then the store is marked saved, except after a `.pbit`, which is an export.
 
 ## What a PBIP save writes
 
@@ -52,7 +59,11 @@ Given `<dir>/<Name>.pbip` (or a directory, in which case the project name is use
 | `<Name>.Report/definition/**` | `version.json`, `report.json`, `pages/pages.json`, every `page.json`, `visual.json`, `mobile.json`, bookmarks, `reportExtensions.json` | `pbirToFiles` (`src/core/pbir/pbir.ts`) |
 | `<Name>.Report/StaticResources/**` | every report resource, bytes unchanged | `pbirToFiles` |
 | `<Name>.Report/<other>` | every file in `report.extraFiles`, unchanged | `pbirToFiles` |
-| `<Name>.pbip` | the existing file kept, with `artifacts` set to the report folder; created otherwise | `pbipJson` |
+| `<Name>.pbip` | the existing file kept; its entry for this report is updated in place and other artifacts are kept; created otherwise | `pbipJson` |
+
+Saving where the project already lives (same folder, same name) keeps the project's own folders: the `*.Report` and
+`*.SemanticModel` folders it was read from, and the report's reference to a model folder of another name. **Save
+as** under a new name writes `<Name>.Report` and `<Name>.SemanticModel`.
 
 A report connected live (`byConnection`, no tables) writes no semantic model folder and keeps its connection.
 
@@ -111,7 +122,7 @@ Lumen adds data of its own only where Power BI's formats leave room for it, and 
 | Model diagram customisations | `diagramLayout.lumen.json` beside `diagramLayout.json` (`src/core/io/diagramSidecar.ts`) | lines, groups or styles were customised; removed when nothing custom is left |
 | Sample-table marker | table annotation `Lumen_Sample = true` | tables of the built-in sample project only |
 | Code visual | `visual.json` with `visualType` `lumenCodeVisualC0DE5A1E7B3F4E2A9D6C8B1F0E4A7D3C` and objects `lumenCode`, `lumenParams`, `lumenCodeFormat`; the code as `code.html`, `code.css`, `code.jsx` beside `visual.json` (`src/core/codevisual/storage.ts`, see [Code visual internals](code-visual-internals.md#storage)) | a code visual is on a page; only the code layers in use get a file |
-| Classic base theme | `report.json` `themeCollection.baseTheme = { name: 'Classic', type: 'SharedResources' }` plus `StaticResources/SharedResources/BaseThemes/Classic.json` | a legacy layout without a base theme is saved as PBIR |
+| Classic base theme | `report.json` `themeCollection.baseTheme = { name: 'Classic', reportVersionAtImport, type: 'SharedResources' }`, `StaticResources/SharedResources/BaseThemes/Classic.json` and its `resourcePackages` item | a legacy layout without a base theme is saved as PBIR |
 
 Unknown report objects and visual annotations are designed to be ignored by Power BI Desktop. That Power BI Desktop
 opens these files and ignores the additions is **not verified**: the project has not tested a Lumen-saved report in
@@ -133,22 +144,16 @@ For this article, the built-in sample (`createSampleProject()` in `src/core/data
 | `.platform` (report and semantic model), `definition.pbir`, `definition.pbism` | valid |
 | `definition/version.json`, `pages/pages.json`, 3 `page.json` | valid |
 | 40 `visual.json` | valid |
-| `definition/report.json` | **invalid**: `/themeCollection/baseTheme must have required property 'reportVersionAtImport'` |
+| `definition/report.json` | **invalid** at the time of the check: `/themeCollection/baseTheme must have required property 'reportVersionAtImport'` |
 
-The cause is the base theme reference `{ "name": "CY24SU10", "type": "SharedResources" }`, written without
-`reportVersionAtImport`. The same reference is produced for a new blank report (`emptyReport()` in
-`src/core/report/types.ts`, validated separately with the same result), and the Classic base theme written for
-legacy layouts has the same shape. A custom theme applied from **View > Themes** does get
-`reportVersionAtImport` (`setReportTheme` in `src/renderer/src/app/themes/index.ts`).
-
-Two related observations from the same check:
-
-- The base theme's JSON file is not written into `StaticResources/SharedResources/BaseThemes/`, and `report.json`
-  gets no `resourcePackages` entry for it. Lumen itself resolves `CY24SU10` from its bundled copy, but reopening the
-  saved sample adds the warning *Theme 'CY24SU10' not found in the report resources* to the project diagnostics.
-- TMDL has no JSON schema; the TMDL files were not validated against Power BI's parser.
-
-Whether Power BI Desktop opens these files despite the schema error is not verified.
+The cause was the base theme reference `{ "name": "CY24SU10", "type": "SharedResources" }`, written without
+`reportVersionAtImport`, and without the theme file or a `resourcePackages` entry. That is fixed. `pbirToFiles`
+completes the reference with `withBaseThemeResource` (`src/core/pbir/themeResources.ts`): it adds
+`reportVersionAtImport`, the theme file (Lumen's bundled `CY24SU10`, minified, is byte-identical to the file Power BI
+Desktop writes) and its `resourcePackages` item. `emptyReport()` carries `reportVersionAtImport` too. Its value is an
+approximation (see the module comment), and the schema check has not been repeated since: it needs the published
+schemas, which are not in the repository. TMDL has no JSON schema; the TMDL files were not validated against Power
+BI's parser.
 
 ## The `.wbi` save
 
@@ -163,7 +168,12 @@ produces, but in memory) and `writeWbi(name, files, data, { kind })`, which adds
 - `src/core/io/__tests__/samples.test.ts` opens, saves and reopens Microsoft's sample PBIX files when
   `LUMEN_SAMPLES_DIR` is set, and checks that the Classic palette of a legacy layout without a base theme survives
   a PBIP round trip (one case uses a repository fixture and runs without the variable).
-- `e2e/saveexport.e2e.ts` drives **File > Save as** to PBIP and to `.wbi` in the real app and reopens the result.
+- `e2e/saveexport.e2e.ts` drives **File > Save as** to PBIP and to `.wbi` in the real app and reopens the result;
+  `e2e/pbix.e2e.ts` does the same for `.pbit` and `.pbix`.
+- `src/core/io/__tests__/saveTargets.test.ts` covers where **Save** writes: in-place PBIP saves keep folder names
+  and other `.pbip` artifacts, and a standalone `.bim` is saved to itself.
+- `src/core/io/pbix/write/*.test.ts` and `src/core/pbir/__tests__/toLegacy.test.ts` cover the `.pbix` / `.pbit`
+  writers (see [File format input and output](file-format-io.md#tests)).
 - `src/core/io/__tests__/corpus.test.ts` and `src/core/tmdl/__tests__/corpus.test.ts` round-trip a private corpus
   when `LUMEN_CORPUS_DIR` is set; their assertions are generic.
 
@@ -172,15 +182,10 @@ When you add a property Lumen writes, add a test that an untouched project still
 
 ## Considerations and limitations
 
-- **PBIX and PBIT cannot be written.** Their **Save** opens **Save as** for PBIP or `.wbi`.
-- **The report and model folder names follow the project name.** A PBIP save always writes `<Name>.Report` and
-  `<Name>.SemanticModel` next to `<Name>.pbip` and points `definition.pbir` at `../<Name>.SemanticModel`. A project
-  whose report references a model folder with another name (for example, several reports sharing one model) gets a
-  new `<Name>.SemanticModel` folder on save, and its reference is rewritten to it.
-- **A model opened from a `.bim` file** is saved by `save()` as `<folder>/model.bim.pbip` (the file name is not
-  stripped of `.bim` in `saveTarget`), which creates a new `model.bim.SemanticModel` folder rather than updating the
-  `.bim` file. This is read from the code; use **Save as** to choose the target.
-- **Schema validity** of `report.json` fails on the base theme reference, as described above.
+- **PBIX and PBIT writing is experimental.** Their **Save** opens **Save as**. A `.pbix` needs the project to come from
+  a `.pbix` with unchanged data and a model changed in its measures at most.
+- **Save as under a new name** writes `<Name>.Report` and `<Name>.SemanticModel` and points `definition.pbir` at
+  the new model folder; only an in-place save keeps other folder names.
 - **Power BI Desktop compatibility** of saved files is designed for but not verified.
 
 ## Related content

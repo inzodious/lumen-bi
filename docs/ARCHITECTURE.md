@@ -82,8 +82,7 @@ be coordinated — note them prominently in your final report.
   store (`reportMutationError`: error toast naming the action); callers don't catch. `report/__tests__/draftAudit.test.ts`
   runs every exported edit operation on a draft and fails on a new export until it is exercised or classified.
 * **Saving**: PBIR JSON round-trips (edits are immer copy-on-write recipes over the JSON as read, `autoFreeze` off; untouched files are written back unchanged). TMDL is regenerated from `SemanticModel`
-  (with preserved `extra`/annotations). PBIX can't be written (proprietary DataModel); "Save" of a PBIX
-  offers Save As PBIP or `.wbi` (Lumen bundle = PBIP + cached data).
+  (with preserved `extra`/annotations). `.pbix` / `.pbit` are written by `core/io/pbix/write` (experimental, not verified in Power BI Desktop: template, original DataModel kept, measure edits; no column data yet); "Save" of a PBIX opens Save As (PBIP, `.wbi`, `.pbix`, `.pbit`).
 
 ## Data when the source isn't reachable
 

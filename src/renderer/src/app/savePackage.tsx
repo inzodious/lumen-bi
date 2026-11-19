@@ -74,12 +74,29 @@ export async function savePackage(kind: PackageKind, target: string, opts: { con
   try {
     await rebakeIconsBeforeSave()
     if (useApp.getState().project?.id === project.id) project = useApp.getState().project!
+    const before = project.diagnostics.length
     await saveProject(project, target, host().fs, { format: kind })
+    // what the writer could not carry over (e.g. PBIR-only settings without a place in the legacy layout)
+    const notes = project.diagnostics.slice(before).map((d) => d.message)
     if (kind === 'pbix') useApp.getState().markSaved({ kind: 'pbix', path: target }, basename(target).replace(/\.pbix$/i, ''))
     host()
       .app.addRecent(target, basename(target))
       .catch(() => undefined)
     toast({ kind: 'success', message: `Saved to ${target}${plan.experimental ? ' (experimental: not yet verified in Power BI Desktop)' : ''}`, duration: 5000 })
+    for (const n of notes) console.warn(`[export] note: ${n}`)
+    if (notes.length && opts.confirm !== false)
+      await alertDialog(
+        'Saved, with notes',
+        <div className="wbi-col" data-testid="package-notes">
+          <div>The file was saved. Lumen could not carry over everything:</div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {notes.slice(0, 12).map((n, i) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ul>
+          {notes.length > 12 && <div>…and {notes.length - 12} more.</div>}
+        </div>
+      )
     return true
   } catch (e) {
     if (opts.confirm === false) throw e

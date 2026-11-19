@@ -123,7 +123,12 @@ export async function decodeXlsx(bytes: Uint8Array): Promise<WorkbookData> {
       const range2 = parseRange(m.tableRef ?? m.ref ?? '')
       if (!range2) continue
       const cells = grid(ws, range2.r1, range2.c1, range2.r2, range2.c2)
-      const header = m.headerRow === false ? null : cells.shift()
+      // exceljs reads a missing headerRowCount attribute (OOXML default 1: the table has a header row, which is how
+      // Excel writes most tables) as headerRow: false. Trust `false` only when the first row is not the header,
+      // i.e. its cells are not exactly the table's column names.
+      const first = cells[0]
+      const firstIsHeader = !!m.columns?.length && !!first && m.columns.every((c, i) => first[i] !== null && String(first[i]) === c.name)
+      const header = m.headerRow === false && !firstIsHeader ? null : cells.shift()
       if (m.totalsRow) cells.pop()
       const columns = m.columns?.length ? m.columns.map((c) => c.name) : (header ?? []).map((h, i) => (h === null ? `Column${i + 1}` : String(h)))
       data.tables!.push({ name: m.name, columns, rows: cells })

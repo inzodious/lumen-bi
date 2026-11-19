@@ -28,4 +28,17 @@ describe('decodeXlsx', () => {
     // with per-cell columnCount reads this took minutes (columnCount walks every row)
     expect(ms).toBeLessThan(20000)
   }, 60000)
+
+  it('drops the header row of a table whose XML omits headerRowCount (the OOXML default: one header row)', async () => {
+    const { zipSync, unzipSync, strFromU8, strToU8 } = await import('fflate')
+    const files = unzipSync(await workbook(3, 2))
+    const name = Object.keys(files).find((f) => /^xl\/tables\/table\d+\.xml$/.test(f))!
+    // Excel itself writes no headerRowCount attribute for a table with a header; exceljs writes headerRowCount="1"
+    files[name] = strToU8(strFromU8(files[name]!).replace(/\s+headerRowCount="1"/, ''))
+    expect(strFromU8(files[name]!)).not.toMatch(/headerRowCount/)
+    const data = await decodeXlsx(zipSync(files))
+    const table = data.tables!.find((t) => t.name === 'Big')!
+    expect(table.columns).toEqual(['C1', 'C2'])
+    expect(table.rows).toEqual([[0, 1], [2, 3], [4, 5]])
+  })
 })

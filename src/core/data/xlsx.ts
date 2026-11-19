@@ -85,9 +85,13 @@ function usedRange(ws: Sheet): { r1: number; c1: number; r2: number; c2: number 
   let c1 = Infinity
   let r2 = 0
   let c2 = 0
-  for (let r = 1; r <= ws.rowCount; r++) {
+  // exceljs computes `columnCount` by walking every row: read it (and rowCount) once, not per cell
+  // (per-cell reads made decoding quadratic: minutes for a 60,000-row sheet)
+  const rowCount = ws.rowCount
+  const columnCount = ws.columnCount
+  for (let r = 1; r <= rowCount; r++) {
     const row = ws.getRow(r)
-    for (let c = 1; c <= ws.columnCount; c++) {
+    for (let c = 1; c <= columnCount; c++) {
       const v = cellValue(row.getCell(c).value)
       if (v === null || v === '') continue
       if (r < r1) r1 = r

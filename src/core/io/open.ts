@@ -4,8 +4,9 @@
  * openProject accepts: `.pbix`, `.pbit`, `.pbip`, `.wbi`, `.bim`, a `*.Report` folder (model resolved
  * through `definition.pbir` byPath), a `*.SemanticModel` folder (model only), or a folder that contains
  * a `.pbip` / a single `*.Report` / a single `*.SemanticModel`.
- * saveProject writes PBIP (`<dir>/<Name>.pbip`, `<Name>.Report/`, `<Name>.SemanticModel/` with TMDL) or a
- * `.wbi` bundle (PBIP + cached data). Data is never written into PBIP folders.
+ * saveProject writes PBIP (`<dir>/<Name>.pbip`, `<Name>.Report/`, `<Name>.SemanticModel/` with TMDL), a
+ * `.wbi` bundle (PBIP + cached data), a standalone `.bim`, or a `.pbix` / `.pbit` (pbix/write, experimental).
+ * Data is never written into PBIP folders.
  */
 import type { FileSystem } from './fs'
 import { basename, dirname, joinPath, walk } from './fs'

@@ -111,7 +111,7 @@ export function compressStrings(strings: readonly string[]): CompressedStrings {
     return o
   })
   // a page whose strings are all empty still needs a code
-  if (freq.every((x) => x === 0)) freq[0] = 1
+  if (!freq.some((x) => x > 0)) freq[0] = 1
   const lengths = codeLengths(freq)
   const codes = canonicalCodes(lengths)
   let bits = 0

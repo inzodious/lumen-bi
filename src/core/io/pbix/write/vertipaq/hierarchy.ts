@@ -82,3 +82,91 @@ export function relationshipIndexStreams(fromIdCount: number, toRowOfId: (id: nu
   }
   return writePackedStreams(vals, [[0, fromIdCount]], { firstRunValue: 0xffffffff, sdos: true })
 }
+
+export interface UserHierarchyStreams {
+  multiLevelId: ColumnStreams
+  parentPos: ColumnStreams
+  firstChildPos: ColumnStreams
+  childCount: ColumnStreams
+  /** members (rows of the U$ table) */
+  members: number
+  /** position of each level's first member (HierarchyStorage.LevelDefinition) */
+  levelStarts: number[]
+}
+
+/**
+ * User hierarchy, table `U$<table> (<id>)$<hierarchy> (<id>)`, one row per member: the distinct paths of level values,
+ * level by level (breadth first), each parent's children in their level column's attribute-hierarchy order. Columns:
+ * MULTI_LEVEL_ID = the member's data id in its level column; PARENT_POS, FIRST_CHILD_POS, CHILD_COUNT stored as value
+ * + 1 (0 = none: the root level's parent, a leaf's children). One segment, 32-bit values with an extra word;
+ * `firstRunValue` 0 for MULTI_LEVEL_ID and 0xFFFFFFFF for the other three (real files).
+ * `HierarchyStorage.LevelDefinition` lists each level's column storage name and first member position.
+ *
+ * @param levelIds data ids per level column (row-aligned)
+ * @param levelRank sort position per data id, per level (from the level column's attribute hierarchy)
+ */
+export function userHierarchyStreams(levelIds: Uint32Array[], levelRank: ArrayLike<number>[], rows: number): UserHierarchyStreams {
+  interface Node {
+    id: number
+    parent: number
+    children: Node[]
+    childIndex: Map<number, Node>
+    pos: number
+  }
+  const root: Node = { id: 0, parent: -1, children: [], childIndex: new Map(), pos: -1 }
+  for (let r = 0; r < rows; r++) {
+    let node = root
+    for (let l = 0; l < levelIds.length; l++) {
+      const id = levelIds[l][r]
+      let c = node.childIndex.get(id)
+      if (!c) {
+        c = { id, parent: -1, children: [], childIndex: new Map(), pos: -1 }
+        node.childIndex.set(id, c)
+        node.children.push(c)
+      }
+      node = c
+    }
+  }
+  const levels: Node[][] = []
+  let frontier = [root]
+  for (let l = 0; l < levelIds.length; l++) {
+    const next: Node[] = []
+    for (const p of frontier) {
+      p.children.sort((a, b) => levelRank[l][a.id] - levelRank[l][b.id] || a.id - b.id)
+      next.push(...p.children)
+    }
+    levels.push(next)
+    frontier = next
+  }
+  const levelStarts: number[] = []
+  const all: Node[] = []
+  for (const lv of levels) {
+    levelStarts.push(all.length)
+    for (const n of lv) {
+      n.pos = all.length
+      all.push(n)
+    }
+  }
+  const m = all.length
+  const ml = new Uint32Array(m)
+  const pp = new Uint32Array(m)
+  const fc = new Uint32Array(m)
+  const cc = new Uint32Array(m)
+  for (const lv of levels) for (const n of lv) for (const c of n.children) c.parent = n.pos
+  for (const n of all) {
+    ml[n.pos] = n.id
+    pp[n.pos] = n.parent < 0 ? 0 : n.parent + 1
+    fc[n.pos] = n.children.length ? n.children[0].pos + 1 : 0
+    cc[n.pos] = n.children.length ? n.children.length + 1 : 0
+  }
+  const seg: Array<[number, number]> = [[0, m]]
+  const base = { width: 32, extraWord: true, sdos: true }
+  return {
+    multiLevelId: writePackedStreams(ml, seg, base),
+    parentPos: writePackedStreams(pp, seg, { ...base, firstRunValue: 0xffffffff }),
+    firstChildPos: writePackedStreams(fc, seg, { ...base, firstRunValue: 0xffffffff }),
+    childCount: writePackedStreams(cc, seg, { ...base, firstRunValue: 0xffffffff }),
+    members: m,
+    levelStarts
+  }
+}

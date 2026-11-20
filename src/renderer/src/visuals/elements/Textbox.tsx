@@ -3,7 +3,8 @@ import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from '
 import '@fontsource/open-sans/300.css'
 import type { VisualProps } from '../contract'
 import type { VisualHostContext } from '../contract'
-import { buildParagraphs, themeTextDefaults, bulletGlyph, caseRuns, dynamicKey, fitScale, fitsOneLineInPbi, paragraphsFromText, paragraphsText, type Paragraph, type TextRun } from './textboxModel'
+import { buildParagraphs, themeTextDefaults, bulletGlyph, caseRuns, dynamicKey, fitScale, fitsOneLineInPbi, type Paragraph, type TextRun } from './textboxModel'
+import { fillEditor, paragraphsFromEdit, readEditor, retagEditor, type EditorStyles } from './textboxEdit'
 import { evaluateField } from './evaluate'
 import { evaluateDynamicValue, valueDefs, type EvalResult, type TransformCache } from './narrativeQuery'
 
@@ -162,19 +163,32 @@ export function TextboxVisual({ visual, width, height, ctx }: VisualProps) {
   const [editing, setEditing] = useState(false)
   const valueUnderline = ctx.mode === 'edit' ? (ctx.theme.dataColors[0] ?? '#118DFF') : undefined
   const editRef = useRef<HTMLDivElement>(null)
+  const editStyles = useRef<EditorStyles>(new Map())
+
+  // The editor's content is plain DOM built once per edit session (see textboxEdit.ts): React renders no children
+  // into the contentEditable box, so the browser's own edits (deleting a whole paragraph) never desync React.
+  useLayoutEffect(() => {
+    const el = editRef.current
+    if (!editing || !el) return
+    editStyles.current = fillEditor(el, paragraphs, (run) => resolveRuns([run], resolve), valueUnderline)
+    el.focus()
+  }, [editing])
 
   const commit = () => {
     const el = editRef.current
     setEditing(false)
     if (!el) return
-    const text = el.innerText.replace(/\n$/, '')
-    if (text === paragraphsText(paragraphs)) return
+    retagEditor(el, editStyles.current)
+    const edited = readEditor(el)
+    const before = paragraphsOf(visual.json)
+    const next = paragraphsFromEdit(edited, before)
+    if (JSON.stringify(next) === JSON.stringify(before)) return
     ctx.updateVisual((vj) => {
       const v = vj.visual
       v.objects ??= {}
       v.objects.general ??= [{ properties: {} }]
       v.objects.general[0].properties ??= {}
-      v.objects.general[0].properties.paragraphs = paragraphsFromText(text, paragraphsOf(vj))
+      v.objects.general[0].properties.paragraphs = paragraphsFromEdit(edited, paragraphsOf(vj))
     })
   }
 
@@ -198,6 +212,7 @@ export function TextboxVisual({ visual, width, height, ctx }: VisualProps) {
   if (editing) {
     return (
       <div
+        key="edit"
         ref={editRef}
         style={{ ...box, outline: '1px dashed #118DFF', cursor: 'text' }}
         contentEditable
@@ -211,22 +226,18 @@ export function TextboxVisual({ visual, width, height, ctx }: VisualProps) {
           e.stopPropagation()
         }}
         onMouseDown={(e) => e.stopPropagation()}
-      >
-        {paragraphs.map((p, i) => (
-          <ParagraphView key={i} p={p} resolve={resolve} valueUnderline={valueUnderline} />
-        ))}
-      </div>
+      />
     )
   }
 
   return (
     <div
+      key="view"
       style={box}
       onClick={onLinkClick}
       onDoubleClick={() => {
         if (ctx.mode !== 'edit') return
         setEditing(true)
-        requestAnimationFrame(() => editRef.current?.focus())
       }}
     >
       {paragraphs.map((p, i) => (

@@ -159,10 +159,12 @@ function SaveAsPage({ run }: { run: Run }) {
   const fromPbix = project?.source.kind === 'pbix' || project?.source.kind === 'pbit'
   return (
     <Page title="Save as">
-      {fromPbix && <p className="wbi-bs-note">.pbix files can't be written (their data model format is proprietary). Save a Power BI project (PBIP) or a {APP_NAME} bundle that keeps the loaded data.</p>}
+      {fromPbix && <p className="wbi-bs-note">Saving a .pbix keeps the file's data model when Lumen can (experimental: not yet verified in Power BI Desktop). A Power BI project (PBIP) or a {APP_NAME} bundle always works.</p>}
       <div className="wbi-bs-list">
         <Tile icon={<FolderZipRegular fontSize={32} />} title="Power BI project (.pbip)" desc="Report (PBIR) + semantic model (TMDL) folders — opens in Power BI Desktop, works with Git" onClick={run(() => saveAs('pbip'))} />
         <Tile icon={<ArchiveRegular fontSize={32} />} title={`${APP_NAME} bundle (.wbi)`} desc="Single file: the PBIP project plus the cached data, so it opens without a refresh" onClick={run(() => saveAs('wbi'))} />
+        <Tile icon={<ArchiveRegular fontSize={32} />} title="Power BI file (.pbix)" desc="Experimental: the report with its data model and the data loaded now; not yet verified in Power BI Desktop" onClick={run(() => saveAs('pbix'))} />
+        <Tile icon={<DocumentAddRegular fontSize={32} />} title="Power BI template (.pbit)" desc="Experimental: model and report without data; Power BI loads the data from your sources when it opens the file" onClick={run(() => saveAs('pbit'))} />
       </div>
     </Page>
   )

@@ -17,5 +17,5 @@ if command -v xvfb-run >/dev/null 2>&1 && [ -z "${WBI_USE_DESKTOP:-}" ]; then
 fi
 rm -f "$OUT" "$OUT.log"
 env -u ELECTRON_RUN_AS_NODE WBI_BLOCK_CACHE="${WBI_BLOCK_CACHE:-1}" WBI_CAPTURE="$OUT" WBI_ROUTE="$ROUTE" WBI_OPEN="$OPEN" WBI_SIZE="$SIZE" WBI_CAPTURE_SHOW="$SHOW" \
-  timeout 180 "${RUN[@]}" ./node_modules/.bin/electron . >/dev/null 2>&1 || true
+  timeout "${WBI_HARD_TIMEOUT:-180}" "${RUN[@]}" ./node_modules/.bin/electron . >/dev/null 2>&1 || true
 [ -f "$OUT" ] && echo "captured $OUT" || { echo "capture failed"; exit 1; }

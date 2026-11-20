@@ -235,10 +235,213 @@ start of each blob.
 `readWbi` refuses a file without `manifest.json`, with another `format`, or with a `version` above
 `WBI_FORMAT_VERSION` (currently `1`), so an older Lumen does not misread a newer bundle.
 
+## Writing PBIX and PBIT (experimental)
+
+The writers live in `src/core/io/pbix/write/` and are pure TypeScript like the readers. `saveProject(project, path,
+fs, { format: 'pbix' | 'pbit' })` (`src/core/io/open.ts`) calls `writePackage` (`package.ts`). **No file they write
+has been opened in Power BI Desktop yet.** Each write path has a flag in `VERIFIED_IN_DESKTOP` (`package.ts`). While
+a flag is `false`, the Save dialog (`src/renderer/src/app/savePackage.tsx`) labels that path "Experimental: not yet
+verified in Power BI Desktop". Flip a flag only after the matching file of the test kit opens in Power BI Desktop.
+
+### Write paths
+
+`planPackage(kind, { project, source })` chooses a path, and the Save dialog shows it before anything is written:
+
+| Path | When | What is written |
+|---|---|---|
+| `pbit` | Any project with a local model | `DataModelSchema` (TMSL from `writeTmsl`, through `dataModelSchema()`), the report, `DiagramLayout`, `Settings`, `Metadata`; no data |
+| `pbix-original-model` | The project was read from a `.pbix`, the file on disk is the one that was read (path, size and mtime), the data is unchanged and the model equals the model in that file | The source `DataModel` part byte for byte; the report rewritten; every other part copied as raw zip entries |
+| `pbix-metadata` | As above, but measures were added, deleted or changed | The source `metadata.sqlitedb` edited in place (`metadataWrite.ts`), the ABF rebuilt (`abfwrite.ts`) and compressed again (`datamodelwrite.ts`) |
+| `pbix-lumen-data` | Any other project with a local model whose features `freshModelSupport` accepts and whose tables have data loaded (a PBIP project after a refresh, the built-in sample, a `.pbix` whose data or model changed) | The whole `DataModel` written by Lumen from the in-memory model and data (`fresh/`, see [Writing a DataModel](#writing-a-datamodel-stage-e)); the report and the template's parts around it |
+
+A model with a feature the stage E writer lacks gets no path: the dialog shows `CANNOT_WRITE_DATA` and lists each
+feature ("Not supported by Lumen's data model writer: ..."). The paths that keep the source data model are preferred
+when they apply, because they keep Desktop's own bytes.
+
+How Lumen detects a change:
+
+- **Model:** `classifyModelChanges` (`metadataEdit.ts`) compares the TMSL of the model read again from the source
+  file with the TMSL of the document's model. Measure differences become `MeasureChange`s. Any other difference, or
+  a change to a measure's KPI, dynamic format string, detail rows or changed-property list, is a blocker.
+- **Data:** the PBIX loader records the `TableData` objects it produced (`origin.ts`, `rememberPackageData`). Every
+  data change in Lumen (refresh, **Enter data**, sample data) replaces a table's `TableData` object, so a table whose
+  object differs counts as changed. Calculated tables and calculation groups are excluded: their definitions are
+  part of the model comparison. A store with no record counts as changed.
+
+### The package (OPC zip)
+
+`opc.ts` writes the zip the way the Desktop-saved files on hand are shaped: Microsoft's samples from 2017 to 2023
+and a file saved by Power BI Desktop in November 2025.
+
+| Aspect | Observed in Desktop's files | Written |
+|---|---|---|
+| Headers | version needed 2.0, made by 4.5 / MS-DOS, flags 0, no data descriptor, no comment | Same |
+| Local extra field | `0xA220` padding ("growth hint", System.IO.Packaging) | Not written (optional) |
+| Compression | every part deflated except `DataModel` (stored) | Same |
+| Text parts | `Version`, `DataModelSchema`, `DiagramLayout`, `Report/Layout`, `Settings`, `Metadata`: UTF-16LE without BOM | Same |
+| `[Content_Types].xml` | UTF-8 with BOM; `<Default Extension="json" ContentType="" />`; one empty-type `<Override>` per extension-less part, `application/json` for `/Settings` and `/Metadata` | Same, plus a `Default` per other extension used (Desktop's older files list `png` this way) |
+| Part order (November 2025) | `Version`, `[Content_Types].xml`, `DiagramLayout`, `Report/Layout`, `Settings`, `Metadata`, `Connections`, `Report/CustomVisuals/**`, `Report/StaticResources/**`, `SecurityBindings`, `DataModel` | Templates: `Version`, `[Content_Types].xml`, `DataModelSchema`, `DiagramLayout`, `Report/Layout`, `Settings`, `Metadata`, report resources. `.pbix`: the source's order, with regenerated report parts in place of the source's |
+| Part names | percent-encoded part URIs | Same (`encodePartName`) |
+| `Version` | `1.28` (November 2025), `1.25` (2023), `1.11` (2017) | `1.28` in templates; copied in `.pbix` |
+
+A `.pbix` keeps the source's raw entries (compressed bytes, CRC, timestamps) for every part it does not rewrite, so
+those parts are byte-identical. `SecurityBindings` is never written. That optional part holds data source permission
+settings encrypted with the Windows data protection API for one user, so a package written on another machine cannot
+carry a meaningful one, and templates have none. Power BI Desktop asks the person opening the file to confirm data
+source permissions.
+
+### The report inside a package
+
+The November 2025 file stores its report as the legacy `Report/Layout`, not as PBIR. Every Power BI Desktop
+version reads that form, while PBIR inside a `.pbix` needs a recent version (and, for some versions, the PBIR preview
+setting). So Lumen writes `Report/Layout` by default. `reportToLegacyLayout` (`src/core/pbir/toLegacy.ts`) is the
+inverse of `convertLegacyLayout`. It writes JSON-string members, Desktop's enum numbers and `prototypeQuery` with
+`From` aliases.
+
+When it gets the source layout as `base`, it changes only what changed:
+
+- objects whose PBIR conversion is unchanged are written back exactly, including Desktop's cached `query` and
+  `dataTransforms`;
+- changed objects keep the keys Lumen does not model;
+- an unchanged report keeps the source part's exact bytes.
+
+A `.pbix` whose source used PBIR (`Report/definition/**`) is written as PBIR again. `{ reportFormat: 'pbir' }` forces PBIR.
+A report with no legacy layout to start from gets `useNewFilterPaneExperience: true` and layout version `5.65`.
+PBIR-only report or visual settings that have no legacy form are listed as save diagnostics. The Save dialog shows
+them as "Saved, with notes".
+
+### The template model
+
+`dataModelSchema(model)` is `writeTmsl` with one adjustment. A model without `defaultPowerBIDataSourceVersion` (the
+2017 files, whose queries lived in `DataMashup`) is written as `powerBI_V3` at compatibility level 1550 or higher,
+because a template carries no `DataMashup`, so every import partition must hold its M expression. The PBIX reader
+upgrades those files' legacy query partitions to M partitions; it recognises both `SELECT * FROM [Query]` and
+`SELECT [Query].* FROM [Query]`. A partition left as a legacy query is reported, because Power BI Desktop could not
+load it.
+
+### The DataModel container (ABF + XPress9)
+
+The DataModel writers mirror the readers:
+
+- **`xpress9enc.ts`**: Lumen's own XPress9 compressor, derived from the decoder port: hash-chain LZ77 with MTF
+  references and canonical Huffman tables limited to 12 bits.
+  - Each 2 MiB block carries the header the decoder reads, including the CRC-32C of header bytes 0 to 27 at offset 28. Desktop's files carry it too, though the decoder port does not check it.
+  - The block flags match Desktop's blocks (window 2^22, 4 MTF entries).
+  - Output is deterministic.
+- **`datamodelwrite.ts`**: the framing current Desktop writes:
+  - the UTF-16LE signature "This backup was created using XPress9 compression." with a NUL (102 bytes);
+  - then `[u32 uncompressed][u32 compressed][block]` per 2 MiB, all blocks one session.
+
+  No Desktop file on hand uses the multithreaded framing, so Lumen does not write it.
+- **`abfwrite.ts`**: rebuilds an ABF from a parsed archive, with replaced inner files:
+  - It copies every byte and patches only the sizes and offsets that must change: the header's `m_cbOffsetHeader` and `DataSize`, and in the VirtualDirectory and backup log each file's `Size` and `m_cbOffsetHeader`.
+  - Without replacements it reproduces every Desktop file's ABF byte for byte.
+  - In archives with `ApplyCompression` (2017 files) a replaced file is written as XPress8 stored chunks, a chunk kind those files also contain. Such sources keep their bare-ABF framing.
+
+### Writing a DataModel (stage E)
+
+`writeFreshDataModel(model, data)` (`src/core/io/pbix/write/fresh/datamodel.ts`) writes a complete `DataModel` with no
+bytes from any source file. The pieces, in the order they run:
+
+| Module | Writes |
+|---|---|
+| `vertipaq/dictionary.ts` | Hash encoding: the distinct values of a column as a `.dictionary` and one data id per row (3 + index, 2 = BLANK). Text values that differ only in case are one value, spelled as first seen (Power BI's default collation is case-insensitive) |
+| `vertipaq/idf.ts`, `idfmeta.ts` | `.idf` segments (hybrid RLE + bit packing) and their `.idfmeta`; row-number columns |
+| `vertipaq/hierarchy.ts`, `sort.ts` | System tables: attribute hierarchies (`H$`, POS_TO_ID / ID_TO_POS), user hierarchies (`U$`, MULTI_LEVEL_ID / PARENT_POS / FIRST_CHILD_POS / CHILD_COUNT), relationship indexes (`R$`, INDEX) |
+| `fresh/model.ts` | Every `metadata.sqlitedb` row: the model objects (Model, Culture, QueryGroup, Expression, Table, Column, Partition, Measure, FormatStringDefinition, Hierarchy, Level, Relationship, CalculationGroup, CalculationItem, Role, TablePermission, Annotation, ExtendedProperty) and the storage rows (TableStorage, ColumnStorage, DictionaryStorage, PartitionStorage, SegmentMapStorage, ColumnPartitionStorage, SegmentStorage, AttributeHierarchy(Storage), HierarchyStorage, RelationshipStorage, RelationshipIndexStorage, StorageFolder, StorageFile) |
+| `fresh/schema.ts` | The `metadata.sqlitedb` schema of current Desktop (`SCHEMAVERSION` 115), generated from the catalog of a November 2025 file: table and column names only, which are the `TMSCHEMA_*` rowsets of Microsoft's [MS-SSAS-T] specification plus the engine's storage tables |
+| `fresh/abf.ts` | A new ABF: header, blobs, VirtualDirectory, backup log, the database's `.db.xml` |
+| `datamodelwrite.ts` | The XPress9 framing (as for stage D) |
+
+Every column is hash-encoded. Power BI also value-encodes some numeric columns; those carry a `.hidx` hash index and a
+POS_TO_ID-only attribute hierarchy. Hash encoding is valid for every data type in the files on hand, so Lumen writes
+one encoding and no `.hidx`. Tables are stored as processed (`State` 1 everywhere), with every structure the engine
+keeps for a processed table, the way a file saved after a refresh holds them.
+
+#### Rules measured on real files
+
+The writers take only values and model metadata as input. Each rule below was checked by regenerating the real files'
+structures from their decoded values (the scratch harness lives in the tests; numbers from the seven Microsoft samples
+and a November 2025 Desktop file, 1,600+ column streams):
+
+| Structure | Rule | Reproduction |
+|---|---|---|
+| `.dictionary` layout | Parse and write of every field | Byte-identical round trip of every dictionary (470) |
+| `.idfmeta` layout | Parse and write of every field, including the segment data objects block of 2019+ files | Byte-identical round trip of every file (1,884) |
+| Column segments | Runs of 64 or more equal ids become RLE entries, the rest is bit-packed at the smallest of 1-10, 12, 16, 21, 32 bits from base 2 (with BLANKs) or 3; RLE area `max(32, nextPow2(used + 3))` units; one extra word | Segment metadata identical for every data and row-number column of the 2023 samples; the `.idf` differs only in the unused tail of the RLE area, which Desktop leaves uninitialised |
+| `bookmarkBits` | 1 below 64 rows, else `floor(log2(rows)) - 6` (every 2017-2023 file); the November 2025 file uses a per-column value Lumen does not derive | As stated |
+| Empty and all-BLANK segments | Empty: one empty bit-packed entry, min = max = 2, `othersRleRuns` 1; all BLANK: `originalMinSegmentDataId` 0x80000000 | Identical |
+| Attribute hierarchies | Sort positions over the distinct values (BLANK first), by the sort-by column's values when there is one, text by `compareText`; `values + 3` rows in segments of `n` rows; 32-bit packing with an extra word | Byte-identical `.idf` and `.idfmeta` for every hash-encoded column of the files with segment data objects whose sort key Lumen can read (the rest: text order differences in a few punctuation cases, see `sort.ts`) |
+| User hierarchies | Distinct level paths breadth first, children in their level column's sort order; positions stored + 1 (0 = none) | Byte-identical for every user hierarchy whose level columns are hash-encoded |
+| Relationship indexes | One row per from-column data id: `1 + row` of the matching to-table row, 0 when none | Checked through Lumen's reader on every sample (relationship keys) |
+| Storage rows | Values per column kind as in the November 2025 file (key columns of relationships: `ColumnFlags` 11, usage 0; row numbers: value-encoded, `ColumnFlags` 31; empty tables: hash row number, `TableStorage.Settings` 4097) | Row by row against that file's model rewritten by Lumen: identical except the fields listed below |
+
+#### Fields written without an established meaning
+
+| Field | Written | Why |
+|---|---|---|
+| `0.CryptKey.bin` (database key file) | The fixed 60-byte header and 16-byte trailer every file shows, 68 random bytes for the encrypted session key (`fresh/cryptKey.ts`) | A key encrypted for the engine instance that created the database, so Desktop cannot decrypt the key of a file from another computer either. Desktop 2.159 refused Lumen's files without a key file, whatever the backup log declared, and opened the same model with a key file from another file |
+| `DictionaryStorage.Size` | Fitted formula (`dictionarySize`) | An in-memory size statistic; within 1% of the November 2025 file |
+| `DataVersion` / file name prefix | 1 everywhere | Desktop's values count processing operations; any positive value appears in real files |
+| `Measure.DataType` | 20 (Variant) unless the model gives a type | As for stage D |
+| `TableStorage.Settings` | 4353, 4097 for empty tables | One fact table of the November 2025 file has 4097; the rule is not derived |
+| `bookmarkBits` of the newest files | The 2017-2023 rule | See above |
+| String dictionary pages | One uncompressed page | Desktop compresses large dictionaries; both forms occur in the same files |
+| `LinguisticMetadata` | Not written (Culture with id 0) | Q&A data; Desktop generates it |
+| Model annotation `__PBI_TimeIntelligenceEnabled` | `0` when the model has none | Lumen writes no auto date/time tables, and this keeps Desktop from expecting them |
+
+#### Refused (a `.pbit` or PBIP is offered instead)
+
+`freshModelSupport` (`fresh/model.ts`) names each of these: more than one partition per table; DirectQuery, dual or
+Direct Lake storage; incremental refresh policies; tables without loaded data; binary or variant columns; auto
+date/time variations; KPIs and detail rows expressions; many-to-many and one-to-one relationships; perspectives;
+translations; DAX user-defined functions. A calculation group's selection expressions are listed as a save note and
+not written.
+
+### Measure edits in metadata.sqlitedb
+
+`editMetadataDb` opens the source database with sql.js and edits it in place, so every row Lumen does not own keeps
+its value:
+
+- **New and changed measures:** it writes `Measure` rows and their `Annotation` rows (ObjectType 8).
+- **Deleted measures:** it deletes the rows that refer to the measure. These are its Annotation, ObjectTranslation,
+  ExtendedProperty, ChangedProperty, FormatStringDefinition and DetailRowsDefinition rows, its KPI and its
+  PerspectiveMeasure rows.
+- **IDs:** new IDs are above `DBPROPERTIES.MAXID` and every existing ID, and `MAXID` is raised.
+- **Commit markers:** `LASTCOMMITTED`, `LASTCUBESCHEMACHANGE` and `LASTMETADATACHANGEFORSYNCCOMMITTED` move just after
+  the edit time, as real files keep them at or after their newest `ModifiedTime`.
+- **New rows:** `State` 1 and `IsSimpleMeasure` 0, as every measure in the files on hand.
+- **Data type:** Lumen does not evaluate result types, so a new or re-expressed measure is stored as `DataType` 20
+  (Variant), a value real files use. This is an approximation and the likeliest reason for Power BI Desktop to
+  object.
+
+The edit ends with `PRAGMA integrity_check`.
+
+### Tests
+
+| Test | Covers |
+|---|---|
+| `src/core/io/pbix/write/xpress9enc.test.ts`, `abfwrite.test.ts`, `datamodelwrite.test.ts` | Round trips of generated buffers. With `LUMEN_SAMPLES_DIR`, for every sample: identity ABF rebuild, XPress9 round trip, the reader on the repacked stream, and replacing `metadata.sqlitedb` with a larger file |
+| `src/core/pbir/__tests__/toLegacy.test.ts` | Invented layouts. With `LUMEN_SAMPLES_DIR`, every sample's `Report/Layout` through PBIR and back (same PBIR) and an unchanged report with its source as base (same layout) |
+| `src/core/io/pbix/write/package.test.ts` | A built-in sample template (parts, encodings, content types, reopened model and report, determinism); the MIT fixture `data-profiling-demo.pbix` (original DataModel bytes and untouched parts kept, unchanged report reproduced, measure edits with SQLite integrity and schema checks, data and model changes refused). With `LUMEN_SAMPLES_DIR`, the same for every Microsoft sample |
+| `src/core/io/pbix/write/vertipaq/vertipaq.test.ts` | Invented columns of every data type through the encoders and Lumen's decoders; with `LUMEN_SAMPLES_DIR`: byte-identical round trip of every `.dictionary` and `.idfmeta`, segment metadata and attribute / user hierarchies regenerated from each sample's values |
+| `src/core/io/pbix/write/fresh/fresh.test.ts` | A model of every data type, BLANKs, Unicode beyond the BMP, a long string, a relationship and a user hierarchy; the built-in sample; refusals. Each written and read back by Lumen's reader: same data |
+| `e2e/pbix.e2e.ts` | **File > Save as** `.pbit` and `.pbix` in the app: the dialog's path and experimental label, the refusal text, the written files reopened, the built-in sample as a `.pbix` with data written by Lumen |
+
+### Headless export
+
+`scripts/export-pbix.sh <input> <output.pbix|output.pbit> [--refresh]` runs the app headlessly (after
+`npm run build`), opens the input, optionally refreshes it from its sources, and saves with the same code as
+**Save as**. It drives the route option `export=pbix|pbit&exportPath=…&refresh=1`. A PBIP project can always be
+written as a `.pbit`. With `--refresh`, a PBIP project whose features stage E supports is written as a `.pbix` with
+data written by Lumen; otherwise the export fails with the features named.
+
 ## Considerations and limitations
 
-- **PBIX and PBIT are read-only.** The DataModel format is proprietary and has no writer here. Saving a PBIX or
-  PBIT always goes through **Save as** to PBIP or `.wbi`.
+- **PBIX and PBIT writing is experimental and not verified in Power BI Desktop.** Lumen's reader accepting a file
+  Lumen wrote proves only that writer and reader agree; the reproduction against Desktop's own files is the evidence
+  for the format, and only Power BI Desktop can confirm a file. The stage E writer covers import models without the
+  features listed under [Refused](#refused-a-pbit-or-pbip-is-offered-instead).
 - **Pre-2017 models** whose ABF has no `metadata.sqlitedb` (XML metadata) are not supported; the decode fails with
   "Unsupported data model".
 - **Live-connected reports** open with an empty model; there is nothing to query locally.
@@ -247,7 +450,7 @@ start of each blob.
 - **The `.wbi` format** is Lumen's own. Power BI Desktop does not open it; save as PBIP to hand a project to Power
   BI.
 - Third-party origins of the DataModel decoders (Microsoft's Xpress9 and Xpress libraries, pbixray, xmhuffman, all
-  MIT) are listed in `src/core/io/pbix/datamodel/THIRD_PARTY.md` and the repository's `THIRD_PARTY_NOTICES.md`.
+  MIT) are listed (the XPress9 encoder is Lumen's own, derived from the format as the ported decoder reads it) in `src/core/io/pbix/datamodel/THIRD_PARTY.md` and the repository's `THIRD_PARTY_NOTICES.md`.
 
 ## Related content
 

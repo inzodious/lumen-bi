@@ -35,6 +35,7 @@ import { useShell } from '../app/shellState'
 import { isSlicerType, visualFields, visualTypeOf, type Rect } from './pbir'
 import { applyBookmark, drillthrough, goBack, navigatePage, openUrl, clearAllSlicers, setDrill } from './runtime'
 import { describeFilters } from './filterSummary'
+import { VisualReadyContext, type VisualReadiness } from '../visuals/common/readiness'
 
 // ---------------------------------------------------------------------------------------------
 // Error boundary
@@ -312,6 +313,28 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   const canRenderVisual = !!def && !!ctx && !!size && size.w > 0 && size.h > 0
   const reportDoneRef = useRef(env.reportDone)
   reportDoneRef.current = env.reportDone
+  // visuals that draw asynchronously (code visual frames) hold readiness until their output is on screen
+  const readyHolds = useRef(0)
+  const pendingDone = useRef<(() => void) | null>(null)
+  const readiness = useMemo<VisualReadiness>(
+    () => ({
+      hold() {
+        readyHolds.current++
+        let released = false
+        return () => {
+          if (released) return
+          released = true
+          readyHolds.current--
+          if (readyHolds.current === 0 && pendingDone.current) {
+            const f = pendingDone.current
+            pendingDone.current = null
+            f()
+          }
+        }
+      }
+    }),
+    []
+  )
   useEffect(() => {
     if (reported.current) return
     if (canRenderVisual || !def || !ctx || (size && (size.w <= 0 || size.h <= 0))) {
@@ -321,6 +344,10 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
       const fire = () => {
         if (fired) return
         fired = true
+        if (readyHolds.current > 0) {
+          pendingDone.current = () => reportDoneRef.current(visual.name)
+          return
+        }
         reportDoneRef.current(visual.name)
       }
       requestAnimationFrame(() => setTimeout(fire, 0))
@@ -449,7 +476,9 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
           ) : canRenderVisual ? (
             <VisualErrorBoundary visualType={type} resetKey={visual.json}>
               <PerfMark ctx={ctx} edge="start" />
-              <VisualContent def={def} visual={visual} pageName={env.pageName} width={size!.w} height={size!.h} ctx={ctx} />
+              <VisualReadyContext.Provider value={readiness}>
+                <VisualContent def={def} visual={visual} pageName={env.pageName} width={size!.w} height={size!.h} ctx={ctx} />
+              </VisualReadyContext.Provider>
               <PerfMark ctx={ctx} edge="end" />
             </VisualErrorBoundary>
           ) : null}

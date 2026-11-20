@@ -19,6 +19,7 @@ independent project and is not affiliated with or endorsed by Microsoft.
 | Grids | `@tanstack/react-virtual` | Table view, DAX query results, Power Query preview |
 | Charts and maps | `d3`, `topojson-client`, `world-atlas`, `us-atlas` | visuals; offline map shapes |
 | Custom visuals | `vega`, `vega-lite`, `vega-embed`, `dompurify` | Deneb visual; HTML Content sanitising (`visuals/custom/htmlSanitize.ts`) |
+| Code visual | `sucrase` (JSX and TypeScript to JavaScript, a lazy chunk), `@codemirror/lang-html`, `@codemirror/lang-css`, `dompurify`, `react` (also bundled into the frame as `codeframe/react.js`) | `src/renderer/src/visuals/code/`, `src/renderer/codeframe/` ([Code visual internals](code-visual-internals.md)) |
 | Icons and fonts | `@fluentui/react-icons`, `react-icons`, `@fontsource/open-sans` | UI icons, built-in icon sets ([ICONS.md](../ICONS.md)), fallback font |
 | File formats | `fflate` (zip and deflate), `sql.js` (reads `metadata.sqlitedb` in a `.pbix`), `exceljs`, `hyparquet` | `src/core/io/`, `src/core/data/xlsx.ts`, `src/core/data/parquet.ts`, Get data readers |
 | Export | `pptxgenjs`, `exceljs` | PowerPoint export, Excel export of visual data (`src/renderer/src/export/`) |
@@ -38,6 +39,8 @@ own `package.json` files. Re-run it after changing dependencies and replace the 
 | `@azure/identity` | ^4.14.1 | 4.14.1 | MIT |
 | `@codemirror/autocomplete` | ^6.20.4 | 6.20.4 | MIT |
 | `@codemirror/commands` | ^6.11.1 | 6.11.1 | MIT |
+| `@codemirror/lang-css` | ^6.3.1 | 6.3.1 | MIT |
+| `@codemirror/lang-html` | ^6.4.12 | 6.4.12 | MIT |
 | `@codemirror/lang-javascript` | ^6.2.5 | 6.2.5 | MIT |
 | `@codemirror/language` | ^6.13.1 | 6.13.1 | MIT |
 | `@codemirror/lint` | ^6.9.8 | 6.9.8 | MIT |
@@ -72,6 +75,7 @@ own `package.json` files. Re-run it after changing dependencies and replace the 
 | `react-dom` | ^19.3.1 | 19.3.1 | MIT |
 | `react-icons` | ^5.7.0 | 5.7.0 | MIT |
 | `sql.js` | ^1.16.0 | 1.16.0 | MIT |
+| `sucrase` | ^3.35.1 | 3.35.1 | MIT |
 | `tedious` | ^20.3.9 | 20.3.9 | MIT |
 | `topojson-client` | ^3.1.0 | 3.1.0 | ISC |
 | `us-atlas` | ^3.0.1 | 3.0.1 | ISC |
@@ -97,9 +101,6 @@ own `package.json` files. Re-run it after changing dependencies and replace the 
 | `typescript` | 5.9 | 5.9.3 | Apache-2.0 |
 | `vite` | ^8.3.8 | 8.3.8 | MIT |
 | `vitest` | ^5.1.0 | 5.1.0 | MIT |
-
-Licences of transitive dependencies are in each package's folder under `node_modules`; this project has no
-automated licence audit.
 
 ## Bundled assets and ported code
 

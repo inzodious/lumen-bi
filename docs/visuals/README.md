@@ -23,6 +23,7 @@ Every screenshot in this section was taken in Lumen from the built-in sample rep
 | ![Bubble map of Total Sales by country](../images/visuals/maps-map.png) | Map, filled map, Azure map, shape map | Show values by location. | [Maps](maps.md) |
 | ![Decomposition tree of Total Sales split by category and region](../images/visuals/ai-visuals-decomposition-tree.png) | Decomposition tree, key influencers, narrative, Q&A | Explore what drives a number. | [AI visuals](ai-visuals.md) |
 | ![A rounded rectangle shape and a right-arrow button](../images/visuals/elements-overview.png) | Text box, shape, image, button, navigators | Add text, decoration and navigation. | [Elements](elements.md) |
+| ![Four code visuals: a KPI tile with a sparkline, a progress ring, a bar list with drill arrows and a grid of badges](../images/visuals/code-visual-overview.png) | Code visual (Lumen only) | Design your own visual in HTML, CSS or JSX that cross-filters, drills and reads measures as CSS variables. | [Code visual](code-visual.md) |
 | ![Deneb visual drawing a bar chart from a Vega-Lite specification](../images/visuals/custom-visuals-deneb.png) | HTML Content, Deneb, Power Automate, R and Python visuals | Use the custom and script visuals Lumen knows. | [Custom and script visuals](custom-visuals.md) |
 
 ## How visuals work in Lumen
@@ -60,6 +61,7 @@ Some types appear in the gallery but draw a hatched placeholder on the canvas: *
 | Overview | [AI visuals](ai-visuals.md) |
 | Overview | [Elements](elements.md) |
 | Overview | [Custom and script visuals](custom-visuals.md) |
+| Overview | [Code visual](code-visual.md) |
 | Reference | [Visual support](../reference/visual-support.md) |
 | Reference | [Format properties](../reference/format-properties.md) |
 

@@ -65,6 +65,7 @@ const STATUS = {
   bookmarkNavigator: ['native', 'Rendered when a report contains one; Lumen has no command to insert it.'],
   htmlContent443BE3AD55E043BF878BED274D3A6865: ['native', 'Re-implementation of the AppSource HTML Content visual; HTML is sanitized.'],
   deneb7E15AEF80B9E4D4F8E12924291ECE89A: ['native', 'Renders Vega and Vega-Lite specifications with the Vega library; no Deneb editor (edit the JSON in the Format pane).'],
+  lumenCodeVisualC0DE5A1E7B3F4E2A9D6C8B1F0E4A7D3C: ['native', 'Lumen only: HTML templates, CSS and JSX in a sandbox, cross-filtering and drill-down like a native visual. Power BI Desktop cannot display it (designed to show its "can\'t display this visual" placeholder; not verified). Highlighted when it has Rows; filtered like a card with measures only.'],
   FlowVisual_C29F1DCC_81F5_4973_94AD_0517D44CC06A: ['approximate', 'The button renders as formatted; flows cannot run outside the Power BI service.'],
   // Visualizations-pane catalog entries without a registered renderer: the canvas shows a placeholder
   stackedBarChart: ['placeholder', 'Defect: a first "Stacked bar chart" gallery tile inserts this unregistered type. Use the second tile (barChart).'],

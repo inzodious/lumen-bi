@@ -16,7 +16,8 @@ without interpreting it. It was checked against the readers and writers in `src/
 | **Not read** | Ignored on open, not in the output |
 | **n/a** | The format cannot hold it |
 
-Output is always PBIP or `.wbi`: Lumen writes neither `.pbix` nor `.pbit`. The `.wbi` column is the same as the PBIP
+The tables below describe opening `.pbix` / `.pbit` and writing PBIP and `.wbi`. Writing `.pbix` and `.pbit` is
+experimental and has its own section, [Writing .pbix and .pbit](#writing-pbix-and-pbit-experimental). The `.wbi` column is the same as the PBIP
 column for definitions; the difference is data.
 
 ## Report
@@ -80,6 +81,30 @@ column for definitions; the difference is data.
 |---|---|---|---|
 | Live connection to a service model | Read (report only, no data) | Read (`byConnection`), written back | Read, write |
 | Data source credentials | n/a | n/a | Never written |
+
+## Writing .pbix and .pbit (experimental)
+
+Not verified in Power BI Desktop. Checked against `src/core/io/pbix/write/`.
+
+| Feature | `.pbit` | `.pbix` (opened from a `.pbix`, data unchanged) |
+|---|---|---|
+| Report (pages, visuals, filters, bookmarks, themes, resources, report-level measures) | Written as `Report/Layout` | Written as `Report/Layout`, or as `Report/definition/**` when the original used PBIR; unchanged objects keep their original form, including Desktop's cached visual queries |
+| PBIR-only report settings without a legacy equivalent | Not written; listed after the save | Same |
+| Model definition | Written as TMSL (`DataModelSchema`); a model without a data source version is written as version 3 at compatibility level 1550 | Kept in the original `DataModel` |
+| Measures (add, delete, expression, format string, description, display folder, hidden, data category, annotations) | Written | Written into the original `metadata.sqlitedb` |
+| Measure KPIs, dynamic format strings, detail rows | Written | Kept when unchanged; a change blocks the `.pbix` save |
+| Tables, columns, relationships, hierarchies, partitions, roles, expressions, perspectives, cultures | Written | Kept when unchanged; a change blocks the `.pbix` save |
+| Import-mode data | n/a | Kept when unchanged (the original `DataModel`); a refresh or any other data change blocks the `.pbix` save |
+| Model view layout | Written (`DiagramLayout`) | Kept, or written when changed |
+| Power Query package (`DataMashup`), Q&A schema, saved DAX queries, `Connections` | Not written | Kept |
+| Data source permissions (`SecurityBindings`) | Not written | Not written |
+
+Any other `.pbix` (a PBIP project after a refresh, a model built in Lumen, a `.pbix` whose data or model changed) is
+written with **data written by Lumen**: the model, all loaded data, attribute hierarchies, user hierarchies and
+relationship indexes, in a data model built from scratch. Refused, with the reason in the Save dialog: DirectQuery,
+dual and Direct Lake tables; several partitions in one table; incremental refresh; tables without loaded data; binary
+columns; auto date/time; KPIs and detail rows; many-to-many and one-to-one relationships; perspectives; translations;
+DAX user-defined functions. `Power Query package (DataMashup)`, Q&A schema and saved DAX queries are not written.
 
 ## Considerations and limitations
 

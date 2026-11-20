@@ -35,6 +35,7 @@ on. Start with the orientation articles, set up your environment, then go to the
 | [Container chrome and text](container-chrome-and-text.md) | Concept | Titles, borders, headers, fonts and text measurement |
 | [Format pane internals](format-pane-internals.md) | Concept | Property model, effective values, controls, conditional formatting |
 | [Icons internals](icons-internals.md) | Concept | Built-in icon sets, binding and baking |
+| [Code visual internals](code-visual-internals.md) | Concept | The sandboxed frame, its protocol, drill and selection, storage beside `visual.json` |
 
 ## Engines and data
 

@@ -94,7 +94,7 @@ function VisualFormat({ page, visual, theme, mobile = false }: { page: PageDocum
   const def = getVisual(type)
   const isGroup = type === 'group'
   const series = useMemo(() => seriesOf(visual.json), [visual.json])
-  const own = (def?.formatCards ?? []).filter((c) => !ANALYTICS_OBJECTS.has(c.object))
+  const own = ((def?.formatCardsFor ? def.formatCardsFor(visual.json) : def?.formatCards) ?? []).filter((c) => !ANALYTICS_OBJECTS.has(c.object))
   const visualCards = own.filter((c) => c.tab !== 'general' && !c.container)
   const builtinObjects = new Set(CONTAINER_CARDS.map((c) => c.object))
   const extraGeneral = own.filter((c) => (c.tab === 'general' || c.container) && !(c.container && builtinObjects.has(c.object)))

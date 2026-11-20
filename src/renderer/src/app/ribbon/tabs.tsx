@@ -4,6 +4,7 @@
  * (Table / Column / Measure tools are registered by the modeling workstream.)
  */
 import type { ReactElement } from 'react'
+import { CODE_VISUAL_TYPE } from '@core/codevisual/model'
 import {
   ClipboardPasteRegular, CutRegular, CopyRegular, PaintBrushRegular, DatabaseArrowRightRegular, DocumentTableRegular, DatabaseRegular, TableAddRegular,
   ArrowSyncRegular, DataBarVerticalAddRegular, TextFieldRegular, CalculatorRegular, CalculatorArrowClockwiseRegular, ShareRegular, SlideAddRegular, ImageRegular, IconsRegular,
@@ -181,7 +182,8 @@ function visualMenu(): MenuItem[] {
     ['pivotTable', 'Matrix'],
     ['cardVisual', 'Card'],
     ['slicer', 'Slicer'],
-    ['map', 'Map']
+    ['map', 'Map'],
+    [CODE_VISUAL_TYPE, 'Code visual']
   ]
   return types.map(([t, label]) => ({ label: getVisual(t)?.displayName ?? label, onClick: () => insertVisual(t) }))
 }
@@ -255,6 +257,12 @@ function InsertTab() {
       <RibbonGroup label="Visuals">
         <RibbonButton label="New visual" icon={L(DataBarVerticalAddRegular)} onClick={() => insertVisual('clusteredColumnChart')} />
         <RibbonButton label="More visuals" icon={L(DataTrendingRegular)} menu={() => visualMenu()} />
+        <RibbonButton
+          label="Code visual"
+          icon={L(CodeRegular)}
+          onClick={() => insertVisual(CODE_VISUAL_TYPE)}
+          tooltip="A visual you write in HTML, CSS and optionally JSX, fed by field wells. Lumen only: Power BI Desktop can't display it."
+        />
       </RibbonGroup>
       <RibbonGroup label="AI visuals">
         <RibbonButton label="Key influencers" icon={L(LightbulbRegular)} onClick={() => insertVisual('keyDriversVisual')} />

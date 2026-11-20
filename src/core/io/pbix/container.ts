@@ -5,7 +5,7 @@
  * UTF-16LE), DataMashup (Power Query package), Report/Layout (legacy layout, UTF-16LE) or
  * Report/definition/** (PBIR-enabled files), Report/StaticResources/**, Report/CustomVisuals/**,
  * DiagramLayout, Connections (live connection), Settings, Metadata, SecurityBindings, DAXQueries/**.
- * PBIX files cannot be written (the DataModel format is proprietary): save as PBIP or .wbi.
+ * The write side (.pbit templates, .pbix with the original or measure-edited DataModel) is ./write/package.ts.
  */
 import { unzipSync } from 'fflate'
 import type { DataStore } from '../../model/data'

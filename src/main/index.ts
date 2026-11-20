@@ -7,6 +7,7 @@ import { registerFsIpc } from './ipc/fs'
 import { registerConnectorIpc } from './ipc/connectors'
 import { buildMenu } from './menu'
 import { blockCacheArgs } from '../shared/cacheGuard'
+import { guardFrameNavigation, handleCodeFrameScheme, registerCodeFrameScheme } from './codeFrame'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -108,6 +109,7 @@ function createWindow(): void {
       e.preventDefault()
     }
   })
+  guardFrameNavigation(mainWindow.webContents)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
@@ -240,8 +242,12 @@ function registerAppIpc(): void {
   })
 }
 
+// code visuals: the sandboxed frames' scheme must be registered before the app is ready
+registerCodeFrameScheme()
+
 app.whenReady().then(() => {
   app.setName('Lumen')
+  handleCodeFrameScheme(join(here, '../renderer'))
   registerFsIpc()
   registerConnectorIpc()
   registerAppIpc()

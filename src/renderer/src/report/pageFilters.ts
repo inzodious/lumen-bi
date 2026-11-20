@@ -14,8 +14,10 @@ import { pageSlicerFilters } from './runtime'
 
 const EMPTY: SQFilter[] = []
 
-export function supportsHighlight(visualType: string): boolean {
-  return getVisual(visualType)?.supportsHighlight === true
+export function supportsHighlight(visualType: string, visualJson?: any): boolean {
+  const def = getVisual(visualType)
+  if (def?.highlightsFor && visualJson !== undefined) return def.highlightsFor(visualJson)
+  return def?.supportsHighlight === true
 }
 
 function isSlicer(visualType: string): boolean {

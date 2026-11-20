@@ -30,7 +30,12 @@ export interface AbfInput {
   dbXml: string
   /** files of the `.0.db` folder (folder relative to it, Windows separators) */
   files: Array<{ folder: string; name: string; bytes: Uint8Array }>
-  /** optional database key file (`0.CryptKey.bin`), listed with the `.db.xml` */
+  /**
+   * optional database key file (`0.CryptKey.bin`), listed with the `.db.xml`. Without one the log declares
+   * `SvrEncryptPwdFlag` false: Power BI Desktop 2.159 refuses a backup whose log says passwords are encrypted
+   * (`true`, every Desktop file) but that has no key file ("database crypto key is missing in the database object
+   * filegroup though it must be present according to password encryption setting").
+   */
   cryptKey?: Uint8Array
   /** FILETIME of the backup */
   fileTime: number
@@ -94,7 +99,7 @@ export function buildAbf(input: AbfInput): Uint8Array {
       .join('')
   const log =
     `<BackupLog><BackupRestoreSyncVersion>11.53</BackupRestoreSyncVersion><ServerRoot>${xmlEscape(input.serverRoot)}</ServerRoot>` +
-    '<SvrEncryptPwdFlag>true</SvrEncryptPwdFlag><ServerEnableBinaryXML>false</ServerEnableBinaryXML><ServerEnableCompression>false</ServerEnableCompression>' +
+    `<SvrEncryptPwdFlag>${input.cryptKey ? 'true' : 'false'}</SvrEncryptPwdFlag><ServerEnableBinaryXML>false</ServerEnableBinaryXML><ServerEnableCompression>false</ServerEnableCompression>` +
     `<CompressionFlag>false</CompressionFlag><EncryptionFlag>false</EncryptionFlag><ObjectName>${input.databaseId}</ObjectName><ObjectId>${input.databaseId}</ObjectId>` +
     '<Write>ReadWrite</Write><OlapInfo>false</OlapInfo><IsTabular>true</IsTabular><Collations/><Languages><Language>1033</Language></Languages><FileGroups>' +
     `<FileGroup><Class>100002</Class><ID>${input.databaseId}</ID><Name>${input.databaseId}</Name><ObjectVersion>0</ObjectVersion><PersistLocation>0</PersistLocation>` +

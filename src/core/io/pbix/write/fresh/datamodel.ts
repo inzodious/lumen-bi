@@ -5,10 +5,9 @@
  * compresses it with XPress9 (../datamodelwrite.ts).
  *
  * Not written, by design (docs/developer/file-format-io.md lists the evidence):
- *  - `0.CryptKey.bin`: the database key file. Its content is a key container encrypted for the engine instance that
- *    created the database; a writer outside that engine cannot make a meaningful one. Every Desktop file carries one;
- *    whether Desktop accepts a database without it is the first thing the test kit checks (file 5c and its variant).
- *    `cryptKey` lets a test pass one in.
+ *  - `0.CryptKey.bin`: the database key file, a key container Lumen cannot create. Without it the backup log
+ *    declares `SvrEncryptPwdFlag` false (see abf.ts): Power BI Desktop 2.159 rejected a backup that declared password
+ *    encryption without the key file, and opened the same database with a key file. `cryptKey` embeds one.
  *  - `LinguisticMetadata` (Q&A synonyms): optional; Desktop generates it.
  */
 import type { DataStore } from '../../../../model/data'
@@ -24,6 +23,8 @@ export interface FreshDataModelOptions {
   now?: number
   /** database key file to embed (tests; see the module comment) */
   cryptKey?: Uint8Array
+  /** omit `DataSourceImpersonationInfo` from the `.db.xml` (test variants) */
+  noImpersonationInfo?: boolean
   /** return the bare ABF instead of the XPress9 stream */
   uncompressed?: boolean
   onProgress?: (fraction: number, message: string) => void
@@ -51,7 +52,7 @@ function uuid(): string {
 }
 
 /** `<id>.0.db.xml`: the database object as the engine persists it (shape of the November 2025 file). */
-export function databaseXml(databaseId: string, objectId: string, compatibilityLevel: number, created: Date, withCryptKey: boolean): string {
+export function databaseXml(databaseId: string, objectId: string, compatibilityLevel: number, created: Date, withCryptKey: boolean, impersonationInfo = true): string {
   const ts = created.toISOString().replace('Z', '').replace(/(\.\d{3})$/, '$1000').slice(0, 26)
   const ns = [
     ['', 'http://schemas.microsoft.com/analysisservices/2003/engine'],
@@ -82,7 +83,8 @@ export function databaseXml(databaseId: string, objectId: string, compatibilityL
     '<ddl400:DefaultCollationVersion>100</ddl400:DefaultCollationVersion><Visible>true</Visible><MasterDataSourceID/><ProcessingPriority>0</ProcessingPriority>' +
     '<ddl200_200:StorageEngineUsed valuens="ddl500_500">TabularMetadata</ddl200_200:StorageEngineUsed>' +
     `<ddl200:CompatibilityLevel>${compatibilityLevel}</ddl200:CompatibilityLevel><Translations/>` +
-    '<DataSourceImpersonationInfo><ImpersonationMode>Default</ImpersonationMode><Account/></DataSourceImpersonationInfo><DataVersion>0</DataVersion>' +
+    (impersonationInfo ? '<DataSourceImpersonationInfo><ImpersonationMode>Default</ImpersonationMode><Account/></DataSourceImpersonationInfo>' : '') +
+    '<DataVersion>0</DataVersion>' +
     '</Database></ObjectDefinition></Load>'
   )
 }
@@ -151,7 +153,7 @@ export async function writeFreshDataModel(model: SemanticModel, data: DataStore,
   const meta = await writeMetadataDb(built.rows, built.maxId, ft)
   const databaseId = uuid()
   const compat = model.compatibilityLevel && model.compatibilityLevel >= 1500 ? model.compatibilityLevel : 1567
-  const dbXml = databaseXml(databaseId, uuid().toUpperCase(), compat, new Date(now), !!opts.cryptKey)
+  const dbXml = databaseXml(databaseId, uuid().toUpperCase(), compat, new Date(now), !!opts.cryptKey, !opts.noImpersonationInfo)
   progress(0.6, 'Packing the data model')
   const abf = buildAbf({
     databaseId,

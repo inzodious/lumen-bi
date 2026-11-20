@@ -306,9 +306,9 @@ export function writePbit(project: ProjectDocument, src: SourcePackage | undefin
  * order of a November 2025 Desktop file: Version, [Content_Types].xml, DiagramLayout, Report/Layout, Settings,
  * Metadata, report resources, DataModel.
  */
-export async function writePbixWithLumenData(project: ProjectDocument, src: SourcePackage | undefined, opts: WritePackageOptions & { cryptKey?: Uint8Array } = {}): Promise<{ bytes: Uint8Array; diagnostics: string[] }> {
+export async function writePbixWithLumenData(project: ProjectDocument, src: SourcePackage | undefined, opts: WritePackageOptions & { cryptKey?: Uint8Array; noImpersonationInfo?: boolean } = {}): Promise<{ bytes: Uint8Array; diagnostics: string[] }> {
   const diagnostics: string[] = []
-  const dm = await writeFreshDataModel(project.model, project.data, { now: opts.date?.getTime(), cryptKey: opts.cryptKey })
+  const dm = await writeFreshDataModel(project.model, project.data, { now: opts.date?.getTime(), cryptKey: opts.cryptKey, noImpersonationInfo: opts.noImpersonationInfo })
   diagnostics.push(...dm.diagnostics)
   const parts: Array<[string, Uint8Array]> = []
   const dl = diagramLayout(project.model)

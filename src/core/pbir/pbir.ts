@@ -16,6 +16,7 @@
 import { builtinTheme, legacyDefaultBaseTheme } from '../report/themes/builtin'
 import type { BookmarkDocument, PageDocument, ReportDocument, ResourceFile, VisualDocument } from '../report/types'
 import { joinPath, walk, type FileSystem } from '../io/fs'
+import { desktopCompatVisual } from './desktopCompat'
 import { convertLegacyLayout } from './legacy'
 import { makeResource } from './resources'
 import { withBaseThemeResource } from './themeResources'
@@ -224,7 +225,7 @@ export function pbirToFiles(doc: ReportDocument): OutFileMap {
     for (const v of p.visuals) {
       // code visuals: their code goes into files beside visual.json (diff-friendly, see core/codevisual/storage.ts)
       const code = externalizeCode(v.json)
-      out[`${base}/visuals/${v.name}/visual.json`] = jsonText(code.json)
+      out[`${base}/visuals/${v.name}/visual.json`] = jsonText(desktopCompatVisual(code.json))
       for (const [f, text] of Object.entries(code.files)) out[`${base}/visuals/${v.name}/${f}`] = text
       if (v.mobile !== undefined) out[`${base}/visuals/${v.name}/mobile.json`] = jsonText(v.mobile)
     }

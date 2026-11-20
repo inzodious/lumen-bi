@@ -154,6 +154,19 @@ describe('.pbit from the built-in sample', () => {
     })
   })
 
+  it('writes visuals in the shapes Power BI Desktop accepts in the legacy layout (desktopCompatVisual)', async () => {
+    const doc = createSampleProject()
+    const v = doc.report!.pages[0].visuals[0]
+    v.json = { ...v.json, visual: { ...v.json.visual, visualType: 'cardVisual', objects: { accentBar: [{ properties: { position: { expr: { Literal: { Value: "'left'" } } } } }] } } }
+    await withTmp(async (dir) => {
+      const out = join(dir, 'Compat.pbix')
+      await saveProject(doc, out, nodeFs, { format: 'pbix' })
+      const layout = fromUtf16le(part(readZipEntries(new Uint8Array(readFileSync(out))), 'Report/Layout')!)
+      expect(layout).toMatch(/'Left'|\\u0027Left\\u0027/)
+      expect(layout).not.toMatch(/'left'|\\u0027left\\u0027/)
+    })
+  })
+
   it('cannot become a .pbix when the model has a feature the data model writer lacks: the plan names it', async () => {
     const doc = createSampleProject()
     const r = doc.model.relationships[0]

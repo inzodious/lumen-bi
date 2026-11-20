@@ -26,6 +26,7 @@ import type { SemanticModel } from '../../../model/types'
 import type { ReportDocument } from '../../../report/types'
 import { deepEqual, pbirToFiles } from '../../../pbir/pbir'
 import { reportToLegacyLayout } from '../../../pbir/toLegacy'
+import { desktopCompatVisual } from '../../../pbir/desktopCompat'
 import { withBaseThemeResource } from '../../../pbir/themeResources'
 import { writeTmsl } from '../../../tmdl/tmsl'
 import { readPbix } from '../container'
@@ -143,7 +144,9 @@ function reportParts(report: ReportDocument, opts: { baseLayoutBytes?: Uint8Arra
   const diagnostics: string[] = []
   const parts = new Map<string, Uint8Array>()
   const themed = withBaseThemeResource(report.report, report.resources)
-  const doc: ReportDocument = { ...report, report: themed.report, resources: themed.resources }
+  // visuals in the shapes Power BI Desktop accepts (pbirToFiles applies the same pass to PBIR output)
+  const pages = report.pages.map((p) => ({ ...p, visuals: p.visuals.map((v) => ({ ...v, json: desktopCompatVisual(v.json) })) }))
+  const doc: ReportDocument = { ...report, pages, report: themed.report, resources: themed.resources }
   if (opts.pbir) {
     const files = pbirToFiles(doc)
     for (const [p, c] of Object.entries(files)) {

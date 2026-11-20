@@ -16,6 +16,7 @@
 import { builtinTheme, legacyDefaultBaseTheme } from '../report/themes/builtin'
 import type { BookmarkDocument, PageDocument, ReportDocument, ResourceFile, VisualDocument } from '../report/types'
 import { joinPath, walk, type FileSystem } from '../io/fs'
+import { desktopCompatVisual } from './desktopCompat'
 import { convertLegacyLayout } from './legacy'
 import { makeResource } from './resources'
 import { PBIR_VERSION, SCHEMA } from './schemas'
@@ -217,7 +218,7 @@ export function pbirToFiles(doc: ReportDocument): OutFileMap {
     const base = `definition/pages/${p.name}`
     out[`${base}/page.json`] = jsonText(p.json)
     for (const v of p.visuals) {
-      out[`${base}/visuals/${v.name}/visual.json`] = jsonText(v.json)
+      out[`${base}/visuals/${v.name}/visual.json`] = jsonText(desktopCompatVisual(v.json))
       if (v.mobile !== undefined) out[`${base}/visuals/${v.name}/mobile.json`] = jsonText(v.mobile)
     }
   }

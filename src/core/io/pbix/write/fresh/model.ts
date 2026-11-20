@@ -108,8 +108,9 @@ export function storageName(name: string, id: number): string {
 // value statistics shown in AttributeHierarchyStorage
 // ---------------------------------------------------------------------------------------------
 
+/** OLE days → Date, rounded to the second (the statistics text shows whole seconds) */
 function oleToDate(days: number): Date {
-  return new Date(Math.round((days - 25569) * 86400000))
+  return new Date(Math.round((days - 25569) * 86400) * 1000)
 }
 
 /** Min / max as the AttributeHierarchyStorage rows of real files write them (en-US formatting). */
@@ -208,8 +209,9 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
     DiscourageImplicitMeasures: model.discourageImplicitMeasures ? 1 : 0,
     DataSourceDefaultMaxConnections: 10,
     SourceQueryCulture: model.sourceQueryCulture ?? model.culture ?? 'en-US',
+    DisableAutoExists: -1,
     MaxParallelismPerRefresh: -1,
-    MaxParallelismPerQuery: -1
+    MaxParallelismPerQuery: 0
   })
   const modelAnn: Record<string, string> = { ...(model.annotations ?? {}) }
   // no auto date/time tables: Lumen writes none, and this tells Desktop not to add them (absent = on)
@@ -269,6 +271,8 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
     tables.push(tb)
   }
   const tableByName = new Map(tables.map((t) => [t.def.name.toLowerCase(), t]))
+  // "to" (one-side) columns of relationships: ColumnFlags 11 and usage 0 in real files
+  const keyColumns = new Set(model.relationships.map((r) => `${r.toTable.toLowerCase()}\u0000${r.toColumn.toLowerCase()}`))
   const columnOf = (table: string, column: string): { t: TableBuild; c: ColumnBuild } | undefined => {
     const t = tableByName.get(table.toLowerCase())
     const c = t?.columns.find((x) => x.def.name.toLowerCase() === column.toLowerCase())
@@ -332,7 +336,8 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
     })
     annotations(OBJ.Table, tb.id, t.annotations)
     const tableFolderId = folderId(tsId, 18, tb.tableFolder)
-    add('TableStorage', { ID: tsId, TableID: tb.id, Name: tb.tsName, Version: 1, Settings: 4353, RIViolationCount: 0, StorageFolderID: tableFolderId })
+    // Settings: 4353 for most tables of the files on hand, 4097 for empty ones (and one fact table: rule not derived)
+    add('TableStorage', { ID: tsId, TableID: tb.id, Name: tb.tsName, Version: 1, Settings: tb.rows ? 4353 : 4097, RIViolationCount: 0, StorageFolderID: tableFolderId })
 
     // partition (one; a table without partitions gets the one Desktop would give a calculated / query table)
     const p = t.partitions[0]
@@ -456,6 +461,8 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
     const ahId = nextId()
     const ahsId = nextId()
     const kind = isRn ? 3 : c.kind === 'calculated' ? 2 : c.kind === 'calculatedTableColumn' ? 4 : 1
+    const isKeyColumn = keyColumns.has(`${tb.def.name.toLowerCase()}\u0000${c.name.toLowerCase()}`)
+    const empty = tb.rows === 0
     const sortBy = c.sortByColumn ? tb.columns.find((x) => x.def.name === c.sortByColumn) : undefined
     add('Column', {
       ID: cb.id,
@@ -463,7 +470,8 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       ExplicitName: c.name,
       InferredName: null,
       ExplicitDataType: TOM_DATA_TYPE[c.dataType] ?? 6,
-      InferredDataType: 19,
+      // calculated columns: the inferred type is recorded as well (real files)
+      InferredDataType: kind === 2 ? (TOM_DATA_TYPE[c.dataType] ?? 19) : 19,
       DataCategory: c.dataCategory ?? null,
       Description: c.description ?? null,
       IsHidden: c.isHidden || isRn ? 1 : 0,
@@ -520,12 +528,13 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       StoragePosition: cb.storagePos,
       DictionaryStorageID: dsId,
       Settings: kind === 2 ? 2049 : 1,
-      ColumnFlags: isRn ? 31 : 8,
+      ColumnFlags: isRn ? 31 : isKeyColumn ? 11 : 8,
       Collation: null,
       OrderByColumn: sortBy ? sortBy.storageName : null,
       Locale: 1033,
       BinaryCharacters: 0,
-      Statistics_DistinctStates: isRn ? tb.rows : enc!.values.length,
+      // BLANK counts as a distinct state (real files)
+      Statistics_DistinctStates: isRn ? (empty ? 1 : tb.rows) : enc!.values.length + (enc!.hasNulls ? 1 : 0),
       Statistics_MinDataID: st.min,
       Statistics_MaxDataID: st.max,
       Statistics_OriginalMinSegmentDataID: st.originalMin,
@@ -533,13 +542,13 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       Statistics_RowCount: tb.rows,
       Statistics_HasNulls: st.hasNulls ? 1 : 0,
       Statistics_RLERuns: st.rleRuns,
-      Statistics_OthersRLERuns: st.othersRleRuns,
-      Statistics_Usage: 3,
+      Statistics_OthersRLERuns: isRn && empty ? 0 : st.othersRleRuns,
+      Statistics_Usage: isKeyColumn ? 0 : 3,
       Statistics_DBType: isRn ? 20 : enc!.codes.dbType,
       Statistics_XMType: isRn ? 0 : enc!.codes.xmType,
       Statistics_CompressionType: 0,
       Statistics_CompressionParam: 0,
-      Statistics_EncodingHint: 0,
+      Statistics_EncodingHint: isRn && !empty ? 1 : 0,
       IsDeltaPartitionColumn: 0,
       DeltaColumnMappingId: -1,
       DeltaColumnPrimitiveType: 0,
@@ -549,18 +558,19 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
     add('DictionaryStorage', {
       ID: dsId,
       ColumnStorageID: csId,
-      Type: isRn ? 2 : 1,
+      // row numbers: value-encoded (id = row + 3); an empty table's row number column is an empty hash dictionary
+      Type: isRn && !empty ? 2 : 1,
       DataType: isRn ? 6 : enc!.codes.dictDataType,
       DataVersion: ver,
-      BaseId: isRn ? -3 : 2,
-      Magnitude: isRn ? 1 : 0,
+      BaseId: isRn && !empty ? -3 : 2,
+      Magnitude: isRn && !empty ? 1 : 0,
       LastId: isRn ? 2 : 2 + enc!.values.length,
       IsNullable: isRn ? 1 : enc!.hasNulls ? 1 : 0,
-      IsUnique: 0,
-      IsOperatingOn32: !isRn && enc!.codes.operatingOn32 ? 1 : 0,
+      IsUnique: isRn && empty ? 1 : 0,
+      IsOperatingOn32: (isRn && empty) || (!isRn && enc!.codes.operatingOn32) ? 1 : 0,
       DictionaryFlags: !isRn && enc!.kind === 'string' ? 3 : 0,
       StorageFileID: dictFileId,
-      Size: isRn ? 128 : dictionarySize(enc!)
+      Size: isRn ? (empty ? 352 : 128) : dictionarySize(enc!)
     })
     const cpsId = nextId()
     const ssId = nextId()
@@ -577,7 +587,7 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
         AttributeHierarchyID: ahId,
         SortOrder: 0,
         OptimizationLevel: 0,
-        MaterializationType: 3,
+        MaterializationType: empty ? 2 : 3,
         ColumnPositionToData: -1,
         ColumnDataToPosition: -1,
         DistinctDataCount: tb.rows,
@@ -585,8 +595,8 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
         StorageFileID: 0,
         SystemTableID: 0,
         HasStatistics: 1,
-        MinValue: '0',
-        MaxValue: String(Math.max(0, tb.rows - 1)),
+        MinValue: empty ? null : '0',
+        MaxValue: empty ? null : String(tb.rows - 1),
         StringValueMaxLength: 0
       })
       return
@@ -847,7 +857,7 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
     if (unmatched) diagnostics.push(`relationship ${r.fromTable}[${r.fromColumn}] → ${r.toTable}[${r.toColumn}]: ${unmatched} key value(s) have no match`)
     const rsName = storageName(r.name, rid)
     const sysId = systemTable(`R$${from.t.tsName}$${rsName}`, 2, [{ name: 'INDEX', streams, settings: 3 }], { type: 3, records: fe.values.length + 3, perSegment: fe.values.length + 3 })
-    add('RelationshipStorage', { ID: rsId, RelationshipID: rid, Name: rsName, DefinitionType: 2, Cardinality: 0, Flags: 0, RelationshipIndexStorageID: risId })
+    add('RelationshipStorage', { ID: rsId, RelationshipID: rid, Name: rsName, DefinitionType: 0, Cardinality: 0, Flags: 0, RelationshipIndexStorageID: risId })
     add('RelationshipIndexStorage', {
       ID: risId,
       RelationshipStorageID: rsId,

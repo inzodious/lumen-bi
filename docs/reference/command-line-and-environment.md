@@ -153,6 +153,7 @@ Applied by `applyRouteOptions()` and `launch()` in `src/renderer/src/app/App.tsx
 | Option | Effect |
 |---|---|
 | `sample=1` | Open the built-in sample project. |
+| `template=<id>` | Create a new report from a built-in template: `boardroom`, `monolith`, `doodle`, `orbital`, `atomic`, `blacktop`, `broadsheet`, `contour`, `blueprint`, `aurora` or `first-edition`. |
 | `start=1` / `start=0` | Show / suppress the start screen. |
 | `view=report|data|model|dax|powerquery` | Active view. |
 | `page=<name or n>` | Active page: page name, display name (case-insensitive) or 1-based index. |

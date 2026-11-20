@@ -1,0 +1,165 @@
+{
+  "name": "Blacktop",
+  "dataColors": [
+    "#FF6A13",
+    "#FFE135",
+    "#1FA2FF",
+    "#FF3D7F",
+    "#7CFF4F",
+    "#B48CFF",
+    "#F4F1E8",
+    "#9AA0A8"
+  ],
+  "background": "#1E1F23",
+  "foreground": "#111111",
+  "tableAccent": "#FF6A13",
+  "good": "#FFE135",
+  "bad": "#1FA2FF",
+  "neutral": "#6E6A62",
+  "maximum": "#FF6A13",
+  "center": "#FFE135",
+  "minimum": "#1E1F23",
+  "foregroundNeutralSecondary": "#6E6A62",
+  "foregroundNeutralTertiary": "#3A3B40",
+  "backgroundLight": "#3A3B40",
+  "backgroundNeutral": "#3A3B40",
+  "textClasses": {
+    "callout": {
+      "fontSize": 28,
+      "fontFace": "Barlow Black",
+      "color": "#111111"
+    },
+    "title": {
+      "fontSize": 11,
+      "fontFace": "Barlow Black",
+      "color": "#111111"
+    },
+    "header": {
+      "fontSize": 11,
+      "fontFace": "Barlow Black",
+      "color": "#111111"
+    },
+    "label": {
+      "fontSize": 9,
+      "fontFace": "Barlow Semibold",
+      "color": "#6E6A62"
+    }
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [
+          {
+            "show": false
+          }
+        ],
+        "border": [
+          {
+            "show": false
+          }
+        ],
+        "visualHeader": [
+          {
+            "show": false
+          }
+        ],
+        "dropShadow": [
+          {
+            "show": false
+          }
+        ],
+        "title": [
+          {
+            "fontFamily": "Barlow Black",
+            "fontColor": {
+              "solid": {
+                "color": "#111111"
+              }
+            },
+            "fontSize": 11
+          }
+        ],
+        "categoryAxis": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#6E6A62"
+              }
+            },
+            "fontFamily": "Barlow Semibold",
+            "fontSize": 8,
+            "showAxisTitle": false,
+            "gridlineShow": false
+          }
+        ],
+        "valueAxis": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#6E6A62"
+              }
+            },
+            "fontFamily": "Barlow Semibold",
+            "fontSize": 8,
+            "showAxisTitle": false,
+            "gridlineColor": {
+              "solid": {
+                "color": "#3A3B40"
+              }
+            },
+            "gridlineStyle": "dotted"
+          }
+        ],
+        "legend": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#6E6A62"
+              }
+            },
+            "fontFamily": "Barlow Semibold",
+            "fontSize": 8,
+            "position": "Top"
+          }
+        ],
+        "labels": [
+          {
+            "color": {
+              "solid": {
+                "color": "#111111"
+              }
+            },
+            "fontFamily": "Barlow Semibold",
+            "fontSize": 8
+          }
+        ],
+        "outspacePane": [
+          {
+            "backgroundColor": {
+              "solid": {
+                "color": "#1E1F23"
+              }
+            },
+            "foregroundColor": {
+              "solid": {
+                "color": "#111111"
+              }
+            },
+            "titleSize": 11,
+            "headerSize": 10,
+            "fontFamily": "Barlow Semibold"
+          }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [
+          {
+            "transparency": 0
+          }
+        ]
+      }
+    }
+  }
+}

@@ -16,6 +16,7 @@ import { RecentList } from '../RecentList'
 import { cx } from '../ui/cx'
 import { closeProject, loadSampleProject, newReport, openFileDialog, openFolderDialog, save, saveAs } from '../commands'
 import { openExportDialog } from '../../export'
+import { TemplateGallery } from '../TemplateGallery'
 
 interface NavItem {
   page?: BackstagePage
@@ -137,6 +138,8 @@ function NewPage({ run }: { run: Run }) {
         <Tile icon={<DocumentAddRegular fontSize={32} />} title="Blank report" onClick={run(newReport)} />
         <Tile icon={<BeakerRegular fontSize={32} />} title="Sample report" desc="Sales overview with sample data" onClick={run(loadSampleProject)} />
       </div>
+      <h2 className="wbi-bs-page__subtitle">Gallery</h2>
+      <TemplateGallery compact />
     </Page>
   )
 }

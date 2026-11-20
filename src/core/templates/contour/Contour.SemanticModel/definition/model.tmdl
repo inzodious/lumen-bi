@@ -1,0 +1,18 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation PBI_QueryOrder = ["_Trail","Parks","Visits","Sightings"]
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation Lumen_Template = contour
+
+ref table _Trail
+ref table Parks
+ref table Visits
+ref table Sightings

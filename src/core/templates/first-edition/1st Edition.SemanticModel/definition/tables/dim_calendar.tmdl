@@ -1,0 +1,328 @@
+table dim_calendar
+	dataCategory: Time
+	lineageTag: 39a27484-c347-48a2-ba39-85ea3b5e9177
+
+	column date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 48080d86-aaa6-4d6c-a062-d40385a57a74
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column date
+		dataType: dateTime
+		isKey
+		formatString: Short Date
+		lineageTag: d2e4c6d6-7f3b-47d1-8581-bcdd10fe1fde
+		summarizeBy: none
+		sourceColumn: date
+		sortByColumn: sort_desc
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: f1cdda93-907e-44dd-970f-5d1d4de9a7de
+		summarizeBy: sum
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+	column quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: 09340ca6-bf6d-4a1a-9d31-c7d93c29c963
+		summarizeBy: sum
+		sourceColumn: quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column month
+		dataType: int64
+		formatString: 0
+		lineageTag: 27bc3ca2-f5d9-4c34-b7c8-724681399396
+		summarizeBy: sum
+		sourceColumn: month
+
+		annotation SummarizationSetBy = Automatic
+
+	column day
+		dataType: int64
+		formatString: 0
+		lineageTag: 30d9b6e4-f747-47dd-8eeb-d79f9417bea2
+		summarizeBy: sum
+		sourceColumn: day
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_name
+		dataType: string
+		lineageTag: eea25252-d4f6-4c7c-9690-6ec53295322f
+		summarizeBy: none
+		sourceColumn: month_name
+		sortByColumn: month
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_abbr
+		dataType: string
+		lineageTag: 2c63dbdf-8a86-4078-bf7c-b8862822a8a5
+		summarizeBy: none
+		sourceColumn: month_abbr
+		sortByColumn: month
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_name
+		dataType: string
+		lineageTag: 3cb6116b-b6d0-47b2-bbb6-721fb704586f
+		summarizeBy: none
+		sourceColumn: day_name
+		sortByColumn: day_of_week
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_abbr
+		dataType: string
+		lineageTag: b55f45c7-e054-4379-a0c3-b9745701c1b2
+		summarizeBy: none
+		sourceColumn: day_abbr
+		sortByColumn: day_of_week
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column year_month
+		dataType: string
+		lineageTag: 4f938c9b-7530-4b2f-aade-705d32cc8931
+		summarizeBy: none
+		sourceColumn: year_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column year_quarter
+		dataType: string
+		lineageTag: 8bbcef15-fc35-4419-9718-0a007c256b09
+		summarizeBy: none
+		sourceColumn: year_quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column week_of_year
+		dataType: int64
+		formatString: 0
+		lineageTag: d4bbca37-2bc8-46fd-885c-af94739add99
+		summarizeBy: sum
+		sourceColumn: week_of_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_week
+		dataType: int64
+		formatString: 0
+		lineageTag: c27494f9-0fd0-44a9-9a6c-c7ce013fc7ec
+		summarizeBy: sum
+		sourceColumn: day_of_week
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_year
+		dataType: int64
+		formatString: 0
+		lineageTag: a6b01558-fa51-4722-a10d-0d5552ba366a
+		summarizeBy: sum
+		sourceColumn: day_of_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_weekday
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 969d713e-85a7-42c5-b462-b59bcad639d7
+		summarizeBy: none
+		sourceColumn: is_weekday
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_weekend
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 5c4b0352-be50-44c9-bd74-f3f89546a1ab
+		summarizeBy: none
+		sourceColumn: is_weekend
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_future
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: bbecb396-f222-481a-a0d4-c429af901ce8
+		summarizeBy: none
+		sourceColumn: is_future
+
+		annotation SummarizationSetBy = Automatic
+
+	column fiscal_year
+		dataType: int64
+		formatString: 0
+		lineageTag: a6b5736f-c10e-45de-9896-1bf6a2ec972e
+		summarizeBy: sum
+		sourceColumn: fiscal_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column fiscal_quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: 681a92e6-bf56-4372-9797-154e95be27e4
+		summarizeBy: sum
+		sourceColumn: fiscal_quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column fiscal_month
+		dataType: int64
+		formatString: 0
+		lineageTag: bae3c315-9313-45f2-9828-f7c312c881df
+		summarizeBy: sum
+		sourceColumn: fiscal_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column fiscal_year_period
+		dataType: string
+		lineageTag: eae4099a-8844-44de-a6fb-04eea5106d94
+		summarizeBy: none
+		sourceColumn: fiscal_year_period
+
+		annotation SummarizationSetBy = Automatic
+
+	column fiscal_year_quarter
+		dataType: string
+		lineageTag: 2be80cf9-4e30-4333-bc4c-3b7a4671c0db
+		summarizeBy: none
+		sourceColumn: fiscal_year_quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column sort_desc
+		dataType: int64
+		formatString: 0
+		lineageTag: 86dc696e-13c4-444a-873b-f4a0ff4d96c7
+		summarizeBy: sum
+		sourceColumn: sort_desc
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_end = EOMONTH(dim_calendar[date],0)
+		formatString: Short Date
+		lineageTag: 2ecbf227-e281-4b8f-827d-fa1b9a5838b7
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_short = FORMAT(dim_calendar[month_end], "MMM YY")
+		lineageTag: 3804dba7-fb93-4a2b-9d41-b407609a1743
+		summarizeBy: none
+		sortByColumn: month_end
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column week_month =
+			
+			VAR _DayOfMonth = DAY('dim_calendar'[date])
+			RETURN
+			    QUOTIENT(_DayOfMonth - 1, 7) + 1
+		formatString: 0
+		lineageTag: 3fa9e678-5d53-420f-9d12-3f823b70e4d8
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	column week_end = dim_calendar[date] + 7 - WEEKDAY(dim_calendar[date], 2)
+		formatString: Short Date
+		lineageTag: 297929be-32b7-4fe5-9665-0449d3932722
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_calendar = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    // Calendar built in Power Query: edit the range or the fiscal year start here
+				    FiscalYearStartMonth = 1,
+				    Today = Date.From(DateTime.LocalNow()),
+				    StartDate = #date(Date.Year(Today) - 3, 1, 1),
+				    EndDate = Date.AddDays(Today, -1),
+				    Dates = List.Dates(StartDate, Duration.Days(EndDate - StartDate) + 1, #duration(1, 0, 0, 0)),
+				    Source = Table.FromList(Dates, Splitter.SplitByNothing(), type table [date = date]),
+				    #"Added Parts" = Table.AddColumn(Source, "parts", each
+				        let
+				            d = [date],
+				            y = Date.Year(d),
+				            m = Date.Month(d),
+				            q = Date.QuarterOfYear(d),
+				            dow = Date.DayOfWeek(d, Day.Monday) + 1,
+				            fm = Number.Mod(m - FiscalYearStartMonth + 12, 12) + 1,
+				            fy = if FiscalYearStartMonth > 1 and m >= FiscalYearStartMonth then y + 1 else y,
+				            fq = Number.IntegerDivide(fm - 1, 3) + 1
+				        in
+				            [
+				                date_key = y * 10000 + m * 100 + Date.Day(d),
+				                year = y,
+				                quarter = q,
+				                month = m,
+				                day = Date.Day(d),
+				                month_name = Date.MonthName(d, "en-US"),
+				                month_abbr = Text.Start(Date.MonthName(d, "en-US"), 3),
+				                day_name = Date.DayOfWeekName(d, "en-US"),
+				                day_abbr = Text.Start(Date.DayOfWeekName(d, "en-US"), 3),
+				                year_month = Text.From(y) & "-" & Text.PadStart(Text.From(m), 2, "0"),
+				                year_quarter = Text.From(y) & "-Q" & Text.From(q),
+				                week_of_year = Date.WeekOfYear(d, Day.Monday),
+				                day_of_week = dow,
+				                day_of_year = Date.DayOfYear(d),
+				                is_weekday = dow <= 5,
+				                is_weekend = dow > 5,
+				                is_future = d > Today,
+				                fiscal_year = fy,
+				                fiscal_quarter = fq,
+				                fiscal_month = fm,
+				                fiscal_year_period = "FY" & Text.From(fy) & "-P" & Text.PadStart(Text.From(fm), 2, "0"),
+				                fiscal_year_quarter = "FY" & Text.From(fy) & "-Q" & Text.From(fq)
+				            ]),
+				    #"Expanded Parts" = Table.ExpandRecordColumn(#"Added Parts", "parts",
+				        {"date_key", "year", "quarter", "month", "day", "month_name", "month_abbr", "day_name", "day_abbr", "year_month", "year_quarter", "week_of_year", "day_of_week", "day_of_year", "is_weekday", "is_weekend", "is_future", "fiscal_year", "fiscal_quarter", "fiscal_month", "fiscal_year_period", "fiscal_year_quarter"}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Expanded Parts", {
+				        {"date", type date}, {"date_key", Int64.Type}, {"year", Int64.Type}, {"quarter", Int64.Type}, {"month", Int64.Type}, {"day", Int64.Type},
+				        {"month_name", type text}, {"month_abbr", type text}, {"day_name", type text}, {"day_abbr", type text}, {"year_month", type text}, {"year_quarter", type text},
+				        {"week_of_year", Int64.Type}, {"day_of_week", Int64.Type}, {"day_of_year", Int64.Type},
+				        {"is_weekday", type logical}, {"is_weekend", type logical}, {"is_future", type logical},
+				        {"fiscal_year", Int64.Type}, {"fiscal_quarter", Int64.Type}, {"fiscal_month", Int64.Type}, {"fiscal_year_period", type text}, {"fiscal_year_quarter", type text}}),
+				    #"Sorted Rows" = Table.Sort(#"Changed Type", {{"date", Order.Descending}}),
+				    #"Added Index" = Table.AddIndexColumn(#"Sorted Rows", "sort_desc", 1, 1, Int64.Type)
+				in
+				    #"Added Index"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

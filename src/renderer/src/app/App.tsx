@@ -47,6 +47,7 @@ import { ContextMenuHost } from './ui/Menu'
 import { DialogHost } from './ui/Modal'
 import { ToastHost } from './ui/Notify'
 import { runModelingCommand, type ModelingCommand } from './commands'
+import { newFromTemplate } from './templates'
 import { closeProject, handleCloseRequest, newReport, openFileDialog, openFolderDialog, openPath, redo, save, saveAs, tablesWithoutData, undo, loadSampleProject, useSampleData } from './commands'
 import { parseHash } from './Router'
 import type { AppView } from '../state/store'
@@ -163,6 +164,7 @@ async function launch(): Promise<void> {
       return
     }
     if (params.get('sample') === '1') await loadSampleProject()
+    else if (params.get('template')) await newFromTemplate(params.get('template')!)
     else if (useShell.getState().options.showStartScreen && params.get('start') !== '0') useShell.getState().setStartScreen(true)
     applyRouteOptions(params)
     markReadyUnlessReport()

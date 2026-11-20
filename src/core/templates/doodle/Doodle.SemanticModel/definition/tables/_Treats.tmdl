@@ -1,0 +1,59 @@
+table _Treats
+	lineageTag: a998ee59-4166-4560-a260-49cf0ebc16b2
+
+	measure 'Scoops Sold' = SUM(Scoops[Scoops])
+		formatString: #,0
+		lineageTag: a2392c08-5f78-464f-a1d3-5761b009a8f5
+
+	measure Sales = SUM(Scoops[Sales])
+		formatString: \$#,0
+		lineageTag: f90599d6-d918-4a46-ac26-b9892c2bcde1
+
+	measure 'Happy Customers' = SUM(Scoops[HappyCustomers])
+		formatString: #,0
+		lineageTag: ca4c0aee-3ea6-4be9-a6ce-53f580429805
+
+	measure 'Avg Rating' = AVERAGE(Scoops[Rating])
+		formatString: 0.0" ★"
+		lineageTag: 15678555-a01d-4bea-a4ae-ffdfe6192dd7
+
+	measure 'Avg Temperature' = AVERAGE(Scoops[TempC])
+		formatString: 0"°C"
+		lineageTag: 2d257027-2595-4c02-a2ab-2e9779684bc4
+
+	measure 'Top Flavor' = FIRSTNONBLANK(TOPN(1, VALUES(Scoops[Flavor]), [Scoops Sold]), 1)
+		lineageTag: 2e7d0c0b-4370-431f-ab1f-a61beb30416e
+
+	measure 'Scoops Note' = "Top flavor: " & [Top Flavor]
+		lineageTag: 1ba96cf7-1e03-405d-a422-761944ce16a7
+
+	measure 'Sales Note' = FORMAT(DIVIDE([Sales], [Scoops Sold]), "\$0.00") & " per scoop"
+		lineageTag: 98395294-582d-47db-a0b9-3c79248f4435
+
+	measure 'Happy Note' = FORMAT(DIVIDE([Happy Customers], [Scoops Sold]), "0%") & " came back smiling"
+		lineageTag: 2939019a-3a9e-460d-a4ba-ca3ca86a0d30
+
+	measure 'Rating Note' = "from " & FORMAT([Scoops Sold], "#,0") & " taste tests"
+		lineageTag: 306d7bb0-3044-4cbc-aa38-913e4c820220
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: cc5aca44-4c8a-4ae8-a1ad-875083d45516
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Treats = m
+		mode: import
+		source =
+				let
+				    // sample data for the template: replace this query with your own source
+				    Source = #table(type table [Column1 = text], {
+				        {null}
+				    })
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

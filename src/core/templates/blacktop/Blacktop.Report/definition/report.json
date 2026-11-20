@@ -1,0 +1,108 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/3.3.0/schema.json",
+  "themeCollection": {
+    "baseTheme": {
+      "name": "CY24SU10",
+      "reportVersionAtImport": {
+        "visual": "1.8.97",
+        "report": "2.0.97",
+        "page": "1.3.97"
+      },
+      "type": "SharedResources"
+    },
+    "customTheme": {
+      "name": "blacktop.json",
+      "reportVersionAtImport": {
+        "visual": "1.8.101",
+        "report": "2.0.101",
+        "page": "1.3.101"
+      },
+      "type": "RegisteredResources"
+    }
+  },
+  "objects": {
+    "section": [
+      {
+        "properties": {
+          "verticalAlignment": {
+            "expr": {
+              "Literal": {
+                "Value": "'Middle'"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "outspacePane": [
+      {
+        "properties": {
+          "expanded": {
+            "expr": {
+              "Literal": {
+                "Value": "false"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "resourcePackages": [
+    {
+      "name": "RegisteredResources",
+      "type": "RegisteredResources",
+      "items": [
+        {
+          "name": "blacktop.json",
+          "path": "blacktop.json",
+          "type": "CustomTheme"
+        },
+        {
+          "name": "blacktop-bg.svg",
+          "path": "blacktop-bg.svg",
+          "type": "Image"
+        },
+        {
+          "name": "blacktop-title.svg",
+          "path": "blacktop-title.svg",
+          "type": "Image"
+        },
+        {
+          "name": "blacktop-ball.svg",
+          "path": "blacktop-ball.svg",
+          "type": "Image"
+        },
+        {
+          "name": "blacktop-tape.svg",
+          "path": "blacktop-tape.svg",
+          "type": "Image"
+        },
+        {
+          "name": "blacktop-crown.svg",
+          "path": "blacktop-crown.svg",
+          "type": "Image"
+        }
+      ]
+    },
+    {
+      "name": "SharedResources",
+      "type": "SharedResources",
+      "items": [
+        {
+          "name": "CY24SU10",
+          "path": "BaseThemes/CY24SU10.json",
+          "type": "BaseTheme"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "useStylableVisualContainerHeader": true,
+    "exportDataMode": "AllowSummarized",
+    "defaultDrillFilterOtherVisuals": true,
+    "allowChangeFilterTypes": true,
+    "useEnhancedTooltips": true,
+    "useDefaultAggregateDisplayName": true
+  }
+}

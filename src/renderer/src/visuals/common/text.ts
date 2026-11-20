@@ -30,8 +30,10 @@ const FONT_STACKS: Record<string, string> = {
   'arial black': "'Arial Black', Arial, sans-serif",
   calibri: "Calibri, Carlito, 'Segoe UI', 'Open Sans', Arial, sans-serif",
   cambria: 'Cambria, Caladea, Georgia, serif',
-  'courier new': "'Courier New', Courier, monospace",
-  georgia: 'Georgia, serif',
+  'courier new': "'Courier New', Courier, 'Liberation Mono', monospace",
+  consolas: "Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace",
+  'comic sans ms': "'Comic Sans MS', 'Comic Neue', 'Baloo 2', 'Segoe UI', sans-serif",
+  georgia: "Georgia, 'Gelasio', 'Noto Serif', 'DejaVu Serif', serif",
   'times new roman': "'Times New Roman', Times, serif",
   'trebuchet ms': "'Trebuchet MS', 'Segoe UI', sans-serif",
   verdana: 'Verdana, Geneva, sans-serif',
@@ -46,6 +48,11 @@ const FONT_STACKS: Record<string, string> = {
 }
 
 export const DEFAULT_FONT_FAMILY = 'Segoe UI'
+
+/** The CSS fallback stack Lumen uses for a Power BI font family name (case-insensitive), if it has one. */
+export function knownFontStack(family: string): string | undefined {
+  return FONT_STACKS[family.trim().toLowerCase()]
+}
 
 /** First family of a (possibly quoted / doubly quoted) PBI font value: "''Segoe UI Semibold'', wf_…, arial" → "Segoe UI Semibold". */
 export function primaryFamily(family: string | undefined): string {

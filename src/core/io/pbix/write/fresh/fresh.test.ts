@@ -113,6 +113,22 @@ describe('fresh DataModel (stage E)', () => {
     expect(dump(back.data, back.model)).toEqual(dump(doc.data, doc.model))
   })
 
+  it('writes one key per table: a key column replaces the row number as key (Desktop rejects two)', async () => {
+    const { model, data } = tinyModel()
+    model.tables[0].columns[0].isKey = true
+    const res = await writeFreshDataModel(model, data, { uncompressed: true })
+    const abf = parseAbf(res.dataModel)
+    const { MetadataDb } = await import('../../datamodel/sqlite')
+    const { abfFileBytes } = await import('../../datamodel/abf')
+    const db = await MetadataDb.open(abfFileBytes(abf, 'metadata.sqlitedb'))
+    const product = db.all('Table').find((t) => t.Name === 'Product')!
+    const keys = db.all('Column').filter((c) => c.TableID === product.ID && c.IsKey === 1).map((c) => c.ExplicitName)
+    expect(keys).toEqual(['ProductKey'])
+    const sales = db.all('Table').find((t) => t.Name === 'Sales')!
+    expect(db.all('Column').filter((c) => c.TableID === sales.ID && c.IsKey === 1).map((c) => c.Type)).toEqual([3])
+    db.close()
+  })
+
   it('refuses unsupported features by name', async () => {
     const { model, data } = tinyModel()
     model.relationships[0].toCardinality = 'many'

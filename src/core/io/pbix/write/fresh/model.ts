@@ -463,6 +463,10 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
     const ahId = nextId()
     const ahsId = nextId()
     const kind = isRn ? 3 : c.kind === 'calculated' ? 2 : c.kind === 'calculatedTableColumn' ? 4 : 1
+    // a table has one key: the row number unless a column is the table's key (a date table's date column, ...);
+    // the key column carries ColumnFlags bit 4, which the row number then loses (31 → 27), as real files show
+    const keyColumn = tb.columns.find((x) => x.def.kind !== 'rowNumber' && x.def.isKey)
+    const keyFlag = isRn ? !keyColumn : keyColumn === cb
     const isKeyColumn = keyColumns.has(`${tb.def.name.toLowerCase()}\u0000${c.name.toLowerCase()}`)
     const empty = tb.rows === 0
     const sortBy = c.sortByColumn ? tb.columns.find((x) => x.def.name === c.sortByColumn) : undefined
@@ -479,7 +483,7 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       IsHidden: c.isHidden || isRn ? 1 : 0,
       State: 1,
       IsUnique: isRn ? 1 : 0,
-      IsKey: isRn || c.isKey ? 1 : 0,
+      IsKey: keyFlag ? 1 : 0,
       IsNullable: isRn || c.isNullable === false ? 0 : 1,
       Alignment: 1,
       TableDetailPosition: -1,
@@ -530,7 +534,7 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       StoragePosition: cb.storagePos,
       DictionaryStorageID: dsId,
       Settings: kind === 2 ? 2049 : 1,
-      ColumnFlags: isRn ? 31 : isKeyColumn ? 11 : 8,
+      ColumnFlags: isRn ? (keyFlag ? 31 : 27) : (isKeyColumn ? 11 : 8) | (keyFlag ? 4 : 0),
       Collation: null,
       OrderByColumn: sortBy ? sortBy.storageName : null,
       Locale: 1033,

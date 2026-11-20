@@ -380,7 +380,7 @@ and a November 2025 Desktop file, 1,600+ column streams):
 
 | Field | Written | Why |
 |---|---|---|
-| `0.CryptKey.bin` (database key file) | Not written; `.db.xml` lists no `DataFileList` | A key container encrypted for the engine instance that created the database. Every Desktop file has one; test kit file 5c tells whether Desktop accepts a database without it (5c-key carries one) |
+| `0.CryptKey.bin` (database key file) | The fixed 60-byte header and 16-byte trailer every file shows, 68 random bytes for the encrypted session key (`fresh/cryptKey.ts`) | A key encrypted for the engine instance that created the database, so Desktop cannot decrypt the key of a file from another computer either. Desktop 2.159 refused Lumen's files without a key file, whatever the backup log declared, and opened the same model with a key file from another file |
 | `DictionaryStorage.Size` | Fitted formula (`dictionarySize`) | An in-memory size statistic; within 1% of the November 2025 file |
 | `DataVersion` / file name prefix | 1 everywhere | Desktop's values count processing operations; any positive value appears in real files |
 | `Measure.DataType` | 20 (Variant) unless the model gives a type | As for stage D |

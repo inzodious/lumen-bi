@@ -4,10 +4,9 @@
  * reader's SQLite) with the schema of schema.ts, the database's `.db.xml`, packs everything into an ABF (abf.ts) and
  * compresses it with XPress9 (../datamodelwrite.ts).
  *
+ * The database key file is written by cryptKey.ts (a key Desktop cannot decrypt, like any file from another computer).
+ *
  * Not written, by design (docs/developer/file-format-io.md lists the evidence):
- *  - `0.CryptKey.bin`: the database key file, a key container Lumen cannot create. Without it the backup log
- *    declares `SvrEncryptPwdFlag` false (see abf.ts): Power BI Desktop 2.159 rejected a backup that declared password
- *    encryption without the key file, and opened the same database with a key file. `cryptKey` embeds one.
  *  - `LinguisticMetadata` (Q&A synonyms): optional; Desktop generates it.
  */
 import type { DataStore } from '../../../../model/data'
@@ -18,10 +17,11 @@ import { fileTime as toFileTime } from '../metadataWrite'
 import { buildAbf, xmlEscape } from './abf'
 import { buildFreshModel, freshModelSupport, type MetaRow } from './model'
 import { METADATA_SCHEMA, METADATA_SCHEMA_VERSION } from './schema'
+import { databaseKeyFile } from './cryptKey'
 
 export interface FreshDataModelOptions {
   now?: number
-  /** database key file to embed (tests; see the module comment) */
+  /** database key file to embed (default: a new one from cryptKey.ts) */
   cryptKey?: Uint8Array
   /** omit `DataSourceImpersonationInfo` from the `.db.xml` (test variants) */
   noImpersonationInfo?: boolean
@@ -153,7 +153,7 @@ export async function writeFreshDataModel(model: SemanticModel, data: DataStore,
   const meta = await writeMetadataDb(built.rows, built.maxId, ft)
   const databaseId = uuid()
   const compat = model.compatibilityLevel && model.compatibilityLevel >= 1500 ? model.compatibilityLevel : 1567
-  const dbXml = databaseXml(databaseId, uuid().toUpperCase(), compat, new Date(now), !!opts.cryptKey, !opts.noImpersonationInfo)
+  const dbXml = databaseXml(databaseId, uuid().toUpperCase(), compat, new Date(now), true, !opts.noImpersonationInfo)
   progress(0.6, 'Packing the data model')
   const abf = buildAbf({
     databaseId,
@@ -162,7 +162,7 @@ export async function writeFreshDataModel(model: SemanticModel, data: DataStore,
     serverRoot: '\\\\?\\C:\\Lumen\\AnalysisServicesWorkspace\\Data',
     dbXml,
     files: [...built.files, { folder: '', name: 'metadata.sqlitedb', bytes: meta }],
-    cryptKey: opts.cryptKey,
+    cryptKey: opts.cryptKey ?? databaseKeyFile(),
     fileTime: ft
   })
   const dataModel = opts.uncompressed ? abf : compressDataModel(abf, { onProgress: (f) => progress(0.6 + 0.4 * f, 'Compressing the data model') })

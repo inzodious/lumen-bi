@@ -99,6 +99,8 @@ describe('fresh DataModel (stage E)', () => {
     const abf = parseAbf(res.dataModel)
     const names = abf.files.map((f) => f.fileName)
     expect(names).toContain('metadata.sqlitedb')
+    // Desktop refuses a data model without a database key file
+    expect(names).toContain('0.CryptKey.bin')
     expect(names.some((n) => /^1\.H\$Product \(\d+\)\$Product \(\d+\)\.POS_TO_ID\.0\.idf$/.test(n))).toBe(true)
     expect(names.some((n) => /^1\.R\$Sales \(\d+\)\$r1 \(\d+\)\.INDEX\.0\.idf$/.test(n))).toBe(true)
     expect(names.some((n) => /^1\.U\$Product \(\d+\)\$Products \(\d+\)\.MULTI_LEVEL_ID\.0\.idf$/.test(n))).toBe(true)

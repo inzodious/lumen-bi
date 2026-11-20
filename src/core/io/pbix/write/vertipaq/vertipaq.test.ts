@@ -15,6 +15,7 @@ import { decodeIdf, parseDictionary, parseIdfMeta } from '../../datamodel/vertip
 import { bytesEqual } from './bytes'
 import { encodeColumn } from './dictionary'
 import { parseDictionaryFull, writeDictionaryFull } from './dictionaryFormat'
+import { compressStrings } from './huffman'
 import { attributeHierarchyStreams, relationshipIndexStreams, sortedIds, userHierarchyStreams } from './hierarchy'
 import { bookmarkBitsFor, writeColumnStreams, writeRowNumberStreams } from './idf'
 import { parseIdfMetaFull, writeIdfMeta } from './idfmeta'
@@ -49,6 +50,20 @@ describe('VertiPaq encoders (invented data)', () => {
       expect(back, type).toEqual(stored)
       expect(writeDictionaryFull(parseDictionaryFull(e.dictionary))).toEqual(e.dictionary)
     }
+  })
+
+  it('compresses large string dictionaries (Huffman pages) that decode back, charset and general', () => {
+    const ascii = Array.from({ length: 3000 }, (_, i) => `Customer ${i} ${'x'.repeat(i % 40)}`)
+    const wide = Array.from({ length: 800 }, (_, i) => `Ünïcödé ${i} 😀 ${'é'.repeat(i % 9)}`)
+    const long = [`data:image/svg+xml;base64,${'QUJD'.repeat(3000)}`, '', 'b']
+    for (const vals of [ascii, wide, long]) {
+      const e = encodeColumn(vals, 'string')
+      const full = parseDictionaryFull(e.dictionary)
+      expect(full.pages![0].body.compressed).toBe(true)
+      expect(Array.from(parseDictionary(e.dictionary).values as string[])).toEqual(vals)
+      expect(writeDictionaryFull(full)).toEqual(e.dictionary)
+    }
+    expect(parseDictionaryFull(encodeColumn(['a', 'b'], 'string').dictionary).pages![0].body.compressed).toBe(false)
   })
 
   it('writes long runs as RLE, several segments, empty and all-BLANK columns', () => {
@@ -106,6 +121,25 @@ describe.skipIf(!samples.length)('VertiPaq writers reproduce Microsoft samples (
       n++
     }
     expect(n).toBeGreaterThan(50)
+  })
+
+  it.each(samples)('%s: compressed string pages regenerated from their strings', (file) => {
+    const abf = load(file)
+    let same = 0
+    let total = 0
+    for (const f of abf.files) {
+      if (!f.fileName.endsWith('.dictionary')) continue
+      const b = abfFileBytes(abf, f.fileName)
+      const d = parseDictionaryFull(b)
+      if (d.type !== 2 || !d.pages![0].body.compressed) continue
+      const real = d.pages![0].body
+      const g = compressStrings(parseDictionary(b).values as string[])
+      total++
+      if (real.compressed && bytesEqual(g.body.data, real.data) && bytesEqual(g.body.encodeArray, real.encodeArray)) same++
+    }
+    if (!total) return
+    // code lengths differ only where a code needs length limiting
+    expect(same / total).toBeGreaterThan(0.8)
   })
 
   it.each(samples)('%s: segment metadata of data columns regenerated from their data ids', (file) => {

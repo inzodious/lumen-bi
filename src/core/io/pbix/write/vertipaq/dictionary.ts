@@ -21,8 +21,8 @@
  *
  * Header fields (identical in every dictionary of the files on hand): hash information `[1, 8, 64, 6, -1, -1]` for
  * strings, `[-1, 8, 64, 6, -1, -1]` for 32-bit longs, `[-1, 16, 64, 3, -1, -1]` for 64-bit longs and reals. Strings are
- * written as one uncompressed page (real files store small dictionaries this way and larger ones as Huffman-compressed
- * pages; both forms decode the same): characters UTF-16LE, each string NUL-terminated, `allocBytes` = 2 × characters,
+ * written as one page: up to MAX_UNCOMPRESSED_CHARS characters uncompressed, beyond that Huffman-compressed (huffman.ts),
+ * as real files do (Desktop rejects a large uncompressed page). Uncompressed pages: characters UTF-16LE, each string NUL-terminated, `allocBytes` = 2 × characters,
  * `storeCompressed` 1, page mask 0, `storeLongestString` = longest string in UTF-16 code units, handles
  * `(character offset, page 0)`.
  *
@@ -33,6 +33,10 @@ import type { Scalar } from '../../../../model/data'
 import type { DataType } from '../../../../model/types'
 import { DICT_LONG, DICT_REAL, DICT_STRING, writeDictionaryFull, type DictionaryFull } from './dictionaryFormat'
 import { XM_FIRST_ID, XM_NULL_ID } from './idf'
+import { compressStrings } from './huffman'
+
+/** Largest uncompressed string page written (characters, NULs included); real files: 7,075 at most. */
+export const MAX_UNCOMPRESSED_CHARS = 4096
 
 const OLE_EPOCH_OFFSET_DAYS = 25569
 const MS_PER_DAY = 86400000
@@ -181,6 +185,25 @@ export function buildDictionary(kind: EncodedColumn['kind'], distinct: Array<str
   }
   if (kind === 'real') return { type: DICT_REAL, hashInfo: WIDE_HASH, elementSize: 8, numbers: Float64Array.from(distinct as number[]) }
   const strings = distinct as string[]
+  let total = 0
+  let longestAll = 0
+  for (const s of strings) {
+    total += s.length + 1
+    if (s.length > longestAll) longestAll = s.length
+  }
+  if (total > MAX_UNCOMPRESSED_CHARS) {
+    const c = compressStrings(strings)
+    return {
+      type: DICT_STRING,
+      hashInfo: STRING_HASH,
+      storeStringCount: strings.length,
+      storeCompressed: 1,
+      storeLongestString: longestAll,
+      pages: [{ pageMask: 1n, containsNulls: 0, startIndex: 0, stringCount: strings.length, body: c.body }],
+      handleSize: 8,
+      handles: c.handles.map((h) => [h, 0] as [number, number])
+    }
+  }
   let chars = 0
   let longest = 0
   const handles: Array<[number, number]> = []

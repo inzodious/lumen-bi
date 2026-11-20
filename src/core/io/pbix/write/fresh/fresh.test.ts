@@ -129,6 +129,18 @@ describe('fresh DataModel (stage E)', () => {
     db.close()
   })
 
+  it('writes an empty table with a column (a measures table) without dictionary or hierarchy table', async () => {
+    const { model, data } = tinyModel()
+    model.tables.push(table('_Measures', [['Column1', 'string']]))
+    data.tables.set('_Measures', tableFromRows(['Column1'], ['string'], []))
+    const res = await writeFreshDataModel(model, data, { uncompressed: true })
+    const names = parseAbf(res.dataModel).files.map((f) => f.fileName)
+    expect(names.some((n) => n.includes('Measures') && n.endsWith('.dictionary'))).toBe(false)
+    expect(names.some((n) => n.startsWith('1.H$ Measures'))).toBe(false)
+    const back = await readDataModel(res.dataModel)
+    expect(back.data.tables.get('_Measures')?.rowCount ?? 0).toBe(0)
+  })
+
   it('refuses unsupported features by name', async () => {
     const { model, data } = tinyModel()
     model.relationships[0].toCardinality = 'many'

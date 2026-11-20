@@ -539,10 +539,11 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       OrderByColumn: sortBy ? sortBy.storageName : null,
       Locale: 1033,
       BinaryCharacters: 0,
-      Statistics_DistinctStates: isRn ? (empty ? 1 : tb.rows) : enc!.values.length,
+      Statistics_DistinctStates: empty ? 1 : isRn ? tb.rows : enc!.values.length,
       Statistics_MinDataID: st.min,
       Statistics_MaxDataID: st.max,
-      Statistics_OriginalMinSegmentDataID: st.originalMin,
+      // an empty table's data columns: 0x80000000 as a signed value (Desktop 2.159 file)
+      Statistics_OriginalMinSegmentDataID: empty && !isRn ? -2147483648 : st.originalMin,
       Statistics_RLESortOrder: -1,
       Statistics_RowCount: tb.rows,
       Statistics_HasNulls: st.hasNulls ? 1 : 0,
@@ -559,7 +560,8 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       DeltaColumnPrimitiveType: 0,
       DeltaTableColumnStorageID: 0
     })
-    if (!isRn) dictFileId = fileId(tableFolderId, dsId, 22, `${base}.dictionary`, tb.tableFolder, enc!.dictionary)
+    // an empty table's columns have no dictionary file and no attribute hierarchy table (Desktop 2.159 file)
+    if (!isRn && !empty) dictFileId = fileId(tableFolderId, dsId, 22, `${base}.dictionary`, tb.tableFolder, enc!.dictionary)
     add('DictionaryStorage', {
       ID: dsId,
       ColumnStorageID: csId,
@@ -575,7 +577,7 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       IsOperatingOn32: (isRn && empty) || (!isRn && enc!.codes.operatingOn32) ? 1 : 0,
       DictionaryFlags: !isRn && enc!.kind === 'string' ? 3 : 0,
       StorageFileID: dictFileId,
-      Size: isRn ? (empty ? 352 : 128) : dictionarySize(enc!)
+      Size: isRn ? (empty ? 352 : 128) : empty && enc!.kind === 'string' ? 16904 : dictionarySize(enc!)
     })
     const cpsId = nextId()
     const ssId = nextId()
@@ -602,6 +604,27 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
         HasStatistics: 1,
         MinValue: empty ? null : '0',
         MaxValue: empty ? null : String(tb.rows - 1),
+        StringValueMaxLength: 0
+      })
+      return
+    }
+    if (empty) {
+      cb.rankOfId = new Int32Array(3)
+      add('AttributeHierarchyStorage', {
+        ID: ahsId,
+        AttributeHierarchyID: ahId,
+        SortOrder: 0,
+        OptimizationLevel: 0,
+        MaterializationType: 2,
+        ColumnPositionToData: -1,
+        ColumnDataToPosition: -1,
+        DistinctDataCount: 0,
+        DataVersion: ver,
+        StorageFileID: 0,
+        SystemTableID: 0,
+        HasStatistics: 1,
+        MinValue: null,
+        MaxValue: null,
         StringValueMaxLength: 0
       })
       return

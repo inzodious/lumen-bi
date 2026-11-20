@@ -533,8 +533,7 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
       OrderByColumn: sortBy ? sortBy.storageName : null,
       Locale: 1033,
       BinaryCharacters: 0,
-      // BLANK counts as a distinct state (real files)
-      Statistics_DistinctStates: isRn ? (empty ? 1 : tb.rows) : enc!.values.length + (enc!.hasNulls ? 1 : 0),
+      Statistics_DistinctStates: isRn ? (empty ? 1 : tb.rows) : enc!.values.length,
       Statistics_MinDataID: st.min,
       Statistics_MaxDataID: st.max,
       Statistics_OriginalMinSegmentDataID: st.originalMin,
@@ -609,14 +608,9 @@ export function buildFreshModel(model: SemanticModel, data: DataStore, opts: Fre
     const nonNull = h.order.filter((id) => id >= 3)
     const minV = nonNull.length ? enc!.values[nonNull[0] - 3] : undefined
     const maxV = nonNull.length ? enc!.values[nonNull[nonNull.length - 1] - 3] : undefined
-    // min / max by value (not by the sort-by column)
-    let lo = minV
-    let hi = maxV
-    if (sortKeys && enc!.values.length) {
-      const byValue = [...enc!.values].sort((a, b) => (typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), 'en-US', { sensitivity: 'accent' })))
-      lo = byValue[0]
-      hi = byValue[byValue.length - 1]
-    }
+    // min / max in attribute-hierarchy order (by the sort-by column when there is one, as real files show)
+    const lo = minV
+    const hi = maxV
     const sysId = systemTable(`H$${tb.tsName}$${cb.storageName}`, 4, [
       { name: 'POS_TO_ID', streams: h.posToId, settings: 7 },
       { name: 'ID_TO_POS', streams: h.idToPos, settings: 5 }

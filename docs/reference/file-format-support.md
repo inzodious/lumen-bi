@@ -86,7 +86,7 @@ column for definitions; the difference is data.
 
 Not verified in Power BI Desktop. Checked against `src/core/io/pbix/write/`.
 
-| Feature | `.pbit` | `.pbix` (opened from a `.pbix`) |
+| Feature | `.pbit` | `.pbix` (opened from a `.pbix`, data unchanged) |
 |---|---|---|
 | Report (pages, visuals, filters, bookmarks, themes, resources, report-level measures) | Written as `Report/Layout` | Written as `Report/Layout`, or as `Report/definition/**` when the original used PBIR; unchanged objects keep their original form, including Desktop's cached visual queries |
 | PBIR-only report settings without a legacy equivalent | Not written; listed after the save | Same |
@@ -98,6 +98,13 @@ Not verified in Power BI Desktop. Checked against `src/core/io/pbix/write/`.
 | Model view layout | Written (`DiagramLayout`) | Kept, or written when changed |
 | Power Query package (`DataMashup`), Q&A schema, saved DAX queries, `Connections` | Not written | Kept |
 | Data source permissions (`SecurityBindings`) | Not written | Not written |
+
+Any other `.pbix` (a PBIP project after a refresh, a model built in Lumen, a `.pbix` whose data or model changed) is
+written with **data written by Lumen**: the model, all loaded data, attribute hierarchies, user hierarchies and
+relationship indexes, in a data model built from scratch. Refused, with the reason in the Save dialog: DirectQuery,
+dual and Direct Lake tables; several partitions in one table; incremental refresh; tables without loaded data; binary
+columns; auto date/time; KPIs and detail rows; many-to-many and one-to-one relationships; perspectives; translations;
+DAX user-defined functions. `Power Query package (DataMashup)`, Q&A schema and saved DAX queries are not written.
 
 ## Considerations and limitations
 

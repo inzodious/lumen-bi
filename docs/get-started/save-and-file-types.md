@@ -27,16 +27,17 @@ Lumen writes these formats:
   [The .wbi bundle](../files-and-compatibility/the-wbi-bundle.md).
 - **Power BI template (`.pbit`)**, experimental: the model and the report without data. Power BI Desktop loads the
   data from the Power Query sources when it opens the file.
-- **Power BI Desktop file (`.pbix`)**, experimental: only for a report you opened from a `.pbix` file. Lumen keeps
-  that file's data model, copied unchanged, or with your measure edits written into it. It writes the report as you
-  edited it.
+- **Power BI Desktop file (`.pbix`)**, experimental: the report with its data model and the data loaded in Lumen. For
+  a report you opened from a `.pbix` and whose data you did not change, Lumen keeps that file's data model (copied
+  unchanged, or with your measure edits written into it). For any other report, such as a PBIP project you refreshed
+  from its sources, Lumen writes the whole data model itself.
 
 > [!IMPORTANT]
 > The `.pbix` and `.pbit` writers are **experimental: not yet verified in Power BI Desktop**. Lumen's tests read
 > every file it writes back in Lumen, but nobody has yet confirmed that Power BI Desktop opens them. Keep your
-> original file, and open the saved file in Power BI Desktop to check it before you share it. Lumen can't write a
-> model's *data* into a `.pbix` yet: a report whose tables, columns, relationships or data changed, or that never came
-> from a `.pbix`, is saved as a `.pbit` or a PBIP project instead. See
+> original file, and open the saved file in Power BI Desktop to check it before you share it. Some model features
+> can't go into a `.pbix` written by Lumen yet (for example DirectQuery tables, many-to-many relationships or auto
+> date/time); the Save dialog names them and offers a `.pbit` or a PBIP project instead. See
 > [Round-trip with Power BI Desktop](../files-and-compatibility/round-trip-with-power-bi-desktop.md).
 
 ## Save
@@ -66,8 +67,8 @@ are removed. Lumen never writes data into a PBIP project.
    - **Power BI project (.pbip)**: "Report (PBIR) + semantic model (TMDL) folders — opens in Power BI Desktop,
      works with Git".
    - **Lumen bundle (.wbi)**: "Single file: the PBIP project plus the cached data, so it opens without a refresh".
-   - **Power BI file (.pbix)**: "Experimental: keeps the original data model of a .pbix (report and measure edits);
-     not yet verified in Power BI Desktop".
+   - **Power BI file (.pbix)**: "Experimental: the report with its data model and the data loaded now; not yet
+     verified in Power BI Desktop".
    - **Power BI template (.pbit)**: "Experimental: model and report without data; Power BI loads the data from your
      sources when it opens the file".
 
@@ -75,7 +76,8 @@ are removed. Lumen never writes data into a PBIP project.
 3. In the file dialog, choose a folder and a name, and select **Save**.
 4. For `.pbix` and `.pbit`, a dialog says how Lumen will write the file and marks the method
    **Experimental: not yet verified in Power BI Desktop**. Select **Save** to write it, or **Cancel**. If Lumen can't
-   write a `.pbix` for this report, the dialog says why:
+   write a `.pbix` for this report, the dialog says why and lists each reason (for example "table 'Sales' has no data
+   loaded (refresh it first)"):
    "Lumen can't write this model's data into a .pbix yet. Save a .pbit (Power BI loads the data from your sources
    when it opens the file) or a PBIP project."
 
@@ -95,7 +97,7 @@ saved `.pbix` is the report's file, and the next **Save as > Power BI file (.pbi
 |---|---|
 | Only the report: pages, visuals, formatting, filters, bookmarks, themes, images | Keeps the original data model byte for byte and writes the report |
 | Also measures: added, deleted, or changed (expression, format string, description, display folder, hidden, annotations) | Writes the measures into the original data model; every table's data stays as it was |
-| Tables, columns, relationships, hierarchies, partitions, roles, a measure's KPI or dynamic format string, or the data (a refresh, **Enter data**, sample data) | Not possible yet: save a `.pbit` or a PBIP project |
+| Tables, columns, relationships, hierarchies, partitions, roles, or the data (a refresh, **Enter data**, sample data) | Writes the whole data model from what is loaded in Lumen ("Power BI file with data written by Lumen"), unless the model uses a feature that Lumen can't write yet: the dialog then names it, and you can save a `.pbit` or a PBIP project |
 
 Power BI Desktop asks whoever opens a `.pbix` or `.pbit` written by Lumen to confirm data source permissions. Lumen
 never writes the part where Power BI Desktop stores those permissions, because Windows encrypts it for one user on
@@ -121,7 +123,7 @@ report, close the report or close the window with unsaved changes, Lumen asks
 |---|---|
 | Keep the report in Git, review changes, work with others | PBIP |
 | Continue in Power BI Desktop | PBIP (designed to open there; not verified), or `.pbix` / `.pbit` (experimental; not verified) |
-| Hand a colleague a Power BI file of a report you opened from a `.pbix` | `.pbix` (experimental; not verified) |
+| Hand a colleague a Power BI file with its data | `.pbix` (experimental; not verified) |
 | Hand over the model and report without data | `.pbit` (experimental; not verified) |
 | Reopen the report in Lumen with its data, without the sources | `.wbi` |
 | Hand someone a single file that opens in Lumen | `.wbi` |

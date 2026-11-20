@@ -22,10 +22,12 @@ Power BI Desktop                 Lumen                          Power BI Desktop
   any    ─── open ───────────▶  edit  ─── Save as .pbit ─────▶  open the .pbit   (experimental; not verified)
 ```
 
-Lumen writes a `.pbix` only for a report opened from a `.pbix` whose data is unchanged. It copies the original data
-model byte for byte, or writes measure edits into it, and writes the report. It cannot yet write a model's data, so
-any other change to the model goes out as a `.pbit` or a PBIP project. In Power BI Desktop you can open either one and
-save it as `.pbix` there. See [Save your work and file types](../get-started/save-and-file-types.md#what-a-pbix-save-keeps).
+For a report opened from a `.pbix` whose data is unchanged, Lumen copies the original data model byte for byte, or
+writes measure edits into it, and writes the report. For any other report (a PBIP project refreshed from its
+sources, the built-in sample, a `.pbix` whose data or model changed), Lumen writes the whole data model itself: the
+model, every column's data and the structures Power BI keeps beside it (sort orders, hierarchies, relationship
+indexes). A model that uses a feature Lumen can't write yet goes out as a `.pbit` or a PBIP project, which you can
+open in Power BI Desktop and save as `.pbix` there. See [Save your work and file types](../get-started/save-and-file-types.md#what-a-pbix-save-keeps).
 
 ### Power BI files written by Lumen
 
@@ -34,8 +36,9 @@ save it as `.pbix` there. See [Save your work and file types](../get-started/sav
 | `.pbit` | The model as TMSL (`DataModelSchema`) and the report in the classic layout form (`Report/Layout`), with Settings, Metadata, the diagram layout and the report's resources | Every Microsoft sample and the built-in sample: written, reopened, same model, queries, pages and visuals | **No** |
 | `.pbix`, data model unchanged | The original `DataModel` part byte for byte, the report rewritten, every other part copied byte for byte (except `SecurityBindings`, see below) | Every Microsoft sample: written with an edited visual, reopened, same data and model, edit present, untouched parts identical | **No** |
 | `.pbix` with measure edits | Measures written into the original `metadata.sqlitedb`; the data model re-packed by Lumen's ABF and XPress9 writers | Every Microsoft sample: measures added, changed and deleted, reopened, same measures and data; SQLite integrity check passes and the schema is unchanged | **No** |
+| `.pbix` with data written by Lumen | The whole data model built by Lumen: `metadata.sqlitedb`, every column's dictionary and segments, attribute and user hierarchies, relationship indexes, in a new backup | The built-in sample, invented models of every data type and a Microsoft sample rewritten from its loaded data: reopened with identical data. Lumen's writers reproduce Desktop's own files' column structures from their values byte for byte in most cases (see [Writing a DataModel](../developer/file-format-io.md#writing-a-datamodel-stage-e)) | **No** |
 
-All three are labelled **Experimental: not yet verified in Power BI Desktop** in the Save dialog. A file written
+All four are labelled **Experimental: not yet verified in Power BI Desktop** in the Save dialog. A file written
 by Lumen never contains `SecurityBindings`. In that optional part Power BI Desktop stores data source permission
 settings, encrypted by Windows for one user on one computer, so a file written elsewhere cannot carry a meaningful
 one. Power BI Desktop asks whoever opens the file to confirm the data source permissions, as it does for any file

@@ -163,7 +163,7 @@ function SaveAsPage({ run }: { run: Run }) {
       <div className="wbi-bs-list">
         <Tile icon={<FolderZipRegular fontSize={32} />} title="Power BI project (.pbip)" desc="Report (PBIR) + semantic model (TMDL) folders — opens in Power BI Desktop, works with Git" onClick={run(() => saveAs('pbip'))} />
         <Tile icon={<ArchiveRegular fontSize={32} />} title={`${APP_NAME} bundle (.wbi)`} desc="Single file: the PBIP project plus the cached data, so it opens without a refresh" onClick={run(() => saveAs('wbi'))} />
-        <Tile icon={<ArchiveRegular fontSize={32} />} title="Power BI file (.pbix)" desc="Experimental: keeps the original data model of a .pbix (report and measure edits); not yet verified in Power BI Desktop" onClick={run(() => saveAs('pbix'))} />
+        <Tile icon={<ArchiveRegular fontSize={32} />} title="Power BI file (.pbix)" desc="Experimental: the report with its data model and the data loaded now; not yet verified in Power BI Desktop" onClick={run(() => saveAs('pbix'))} />
         <Tile icon={<DocumentAddRegular fontSize={32} />} title="Power BI template (.pbit)" desc="Experimental: model and report without data; Power BI loads the data from your sources when it opens the file" onClick={run(() => saveAs('pbit'))} />
       </div>
     </Page>

@@ -69,7 +69,9 @@ export function freshModelSupport(model: SemanticModel, data: DataStore): string
       if (!['m', 'calculated', 'calculationGroup', 'query'].includes(p.sourceType)) out.push(`${where} has a ${p.sourceType} partition`)
     }
     if (t.refreshPolicy) out.push(`${where} has an incremental refresh policy`)
-    if (!t.calculationGroup && t.partitions.length && !data.tables.has(t.name)) out.push(`${where} has no data loaded (refresh it first)`)
+    // a table without columns (a measures table) is written empty; any other table needs its data loaded
+    const hasColumns = t.columns.some((c) => c.kind !== 'rowNumber')
+    if (!t.calculationGroup && hasColumns && !data.tables.has(t.name)) out.push(`${where} has no data loaded (refresh it first)`)
     for (const c of t.columns) {
       if (c.kind === 'rowNumber') continue
       if (!['string', 'int64', 'double', 'decimal', 'boolean', 'dateTime'].includes(c.dataType)) out.push(`column '${t.name}'[${c.name}] has data type ${c.dataType}`)

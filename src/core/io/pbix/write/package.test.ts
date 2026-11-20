@@ -131,12 +131,39 @@ describe('.pbit from the built-in sample', () => {
     expect(Buffer.compare(Buffer.from(a.bytes), Buffer.from(b.bytes))).toBe(0)
   })
 
-  it('cannot become a .pbix: the plan explains why', async () => {
+  it('becomes a .pbix with the data model written by Lumen (stage E), which reopens with the same model, data and report', async () => {
     const doc = createSampleProject()
+    await withTmp(async (dir) => {
+      const plan = await planPackageSave(doc, 'pbix', nodeFs)
+      expect(plan.path, plan.blockers.join('; ')).toBe('pbix-lumen-data')
+      expect(plan.experimental).toBe(!VERIFIED_IN_DESKTOP['pbix-lumen-data'])
+      const before = tableHash(doc)
+      const visuals = visualsOf(doc)
+      const out = join(dir, 'Sample.pbix')
+      await saveProject(doc, out, nodeFs, { format: 'pbix' })
+      const back = await openProject(out, nodeFs)
+      expect(tableHash(back)).toEqual(before)
+      expect(visualsOf(back)).toEqual(visuals)
+      expect(back.model.tables.map((t) => [t.name, t.measures.length, t.columns.filter((c) => c.kind !== 'rowNumber').length])).toEqual(
+        doc.model.tables.map((t) => [t.name, t.measures.length, t.columns.filter((c) => c.kind !== 'rowNumber').length])
+      )
+      const names = readZipEntries(new Uint8Array(readFileSync(out))).map((e) => e.name)
+      expect(names.slice(0, 2)).toEqual(['Version', '[Content_Types].xml'])
+      expect(names[names.length - 1]).toBe('DataModel')
+      expect(names).not.toContain('SecurityBindings')
+    })
+  })
+
+  it('cannot become a .pbix when the model has a feature the data model writer lacks: the plan names it', async () => {
+    const doc = createSampleProject()
+    const r = doc.model.relationships[0]
+    r.fromCardinality = 'many'
+    r.toCardinality = 'many'
     await withTmp(async (dir) => {
       const plan = await planPackageSave(doc, 'pbix', nodeFs)
       expect(plan.path).toBeUndefined()
       expect(plan.detail).toBe(CANNOT_WRITE_DATA)
+      expect(plan.blockers.join('\n')).toMatch(/many-to-many/)
       await expect(saveProject(doc, join(dir, 'x.pbix'), nodeFs, { format: 'pbix' })).rejects.toThrow(/can't write this model's data/)
     })
   })

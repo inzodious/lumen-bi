@@ -8,8 +8,10 @@
  *                           `DataModel` part is copied byte for byte, the report parts are rewritten.
  *  - `pbix-metadata`        as above with metadata-only model edits (measures, ...) applied to the source
  *                           `metadata.sqlitedb` and the `DataModel` re-packed by Lumen's ABF + XPress9 writers.
- * Everything else (a model whose tables, columns, relationships or data changed, or that never came from a `.pbix`)
- * cannot be written as a `.pbix` yet: the plan says so and offers `.pbit` / PBIP.
+ *  - `pbix-lumen-data`     any other project whose model features are all supported (stage E, ./fresh/): Lumen writes the
+ *                           whole `DataModel` itself (metadata, column data, hierarchies, relationship indexes) from the
+ *                           in-memory model and data, without bytes of any source file.
+ * Models with features the stage E writer does not support get a plan naming them and offering `.pbit` / PBIP.
  *
  * Like every package Lumen writes, the result has no `SecurityBindings` part: that optional part holds data-source
  * permission settings encrypted for one Windows user on one machine, so a package written elsewhere cannot carry a
@@ -30,9 +32,11 @@ import { readPbix } from '../container'
 import { contentTypesXml, fromUtf16le, readZipEntries, utf16le, ZipWriter, type ZipEntry } from './opc'
 import { dataChangedSinceRead, packageFileOf, type PackageFileInfo } from './origin'
 import { applyMetadataEdits, classifyModelChanges, type ModelChangeReport } from './metadataEdit'
+import { freshModelSupport } from './fresh/model'
+import { writeFreshDataModel } from './fresh/datamodel'
 
 export type PackageKind = 'pbix' | 'pbit'
-export type PackagePath = 'pbit' | 'pbix-original-model' | 'pbix-metadata'
+export type PackagePath = 'pbit' | 'pbix-original-model' | 'pbix-metadata' | 'pbix-lumen-data'
 
 /**
  * Flip a path to `true` once a file written by it has been confirmed to open in Power BI Desktop. Until then the Save
@@ -41,7 +45,8 @@ export type PackagePath = 'pbit' | 'pbix-original-model' | 'pbix-metadata'
 export const VERIFIED_IN_DESKTOP: Record<PackagePath, boolean> = {
   pbit: false,
   'pbix-original-model': false,
-  'pbix-metadata': false
+  'pbix-metadata': false,
+  'pbix-lumen-data': false
 }
 
 /** Container `Version` part written for new packages (the value current Desktop writes). */
@@ -181,7 +186,8 @@ export interface PackagePlan {
 const TITLES: Record<PackagePath, string> = {
   pbit: 'Power BI template (.pbit)',
   'pbix-original-model': 'Power BI file, keeping the original data model',
-  'pbix-metadata': 'Power BI file with updated measures and metadata'
+  'pbix-metadata': 'Power BI file with updated measures and metadata',
+  'pbix-lumen-data': 'Power BI file with data written by Lumen'
 }
 
 function planFor(kind: PackageKind, path: PackagePath, detail: string, changes?: ModelChangeReport): PackagePlan {
@@ -207,13 +213,24 @@ export async function planPackage(kind: PackageKind, input: PlanInput): Promise<
     if (!project.model.tables.length) return { kind, title: TITLES.pbit, detail: '', experimental: true, blockers: ['The project has no data model to put in a template (a live-connected report cannot be saved as a template).'] }
     return planFor(kind, 'pbit', 'The template holds the model and the report without data. Power BI Desktop loads the data from the Power Query sources when it opens the file. ' + PERMISSIONS_NOTE)
   }
-  const blocked = (blockers: string[]): PackagePlan => ({ kind, title: 'Power BI file (.pbix)', detail: CANNOT_WRITE_DATA, experimental: true, blockers })
+  const blockedHard = (blockers: string[]): PackagePlan => ({ kind, title: 'Power BI file (.pbix)', detail: CANNOT_WRITE_DATA, experimental: true, blockers })
+  // when the original data model cannot be kept, Lumen writes the whole data model itself (stage E) if it can
+  const blocked = (blockers: string[]): PackagePlan => {
+    if (!project.model.tables.length) return blockedHard(['The project has no data model (a live-connected report has no data to save in a .pbix).'])
+    const unsupported = freshModelSupport(project.model, project.data)
+    if (unsupported.length) return blockedHard([...blockers, ...unsupported.slice(0, 8).map((u) => `Not supported by Lumen's data model writer: ${u}.`)])
+    return planFor(
+      kind,
+      'pbix-lumen-data',
+      'Lumen writes the whole data model (tables, columns, data, relationships, hierarchies and measures) from what is loaded now, as Power BI stores it after a refresh. ' + PERMISSIONS_NOTE
+    )
+  }
   if (!sourcePath(project) || !input.source) return blocked(['The model was not read from a .pbix file, so there is no Power BI data model to keep.'])
   const src = openSourcePackage(input.source)
   if (!src.get('DataModel')) return blocked(['The source file has no embedded data model (template, live connection or report-only file).'])
   const read = packageFileOf(project.data)
   if (input.sourceFile && read && (read.path !== input.sourceFile.path || read.size !== input.sourceFile.size || read.mtime !== input.sourceFile.mtime))
-    return blocked([`${input.sourceFile.path} changed on disk since Lumen read it; reopen it to save a .pbix from it.`])
+    return blockedHard([`${input.sourceFile.path} changed on disk since Lumen read it; reopen it to save a .pbix from it.`])
   const dataChanges = dataChangedSinceRead(project.data, project.model)
   if (dataChanges === undefined) return blocked(['Lumen cannot tell whether the data changed since the file was opened.'])
   if (dataChanges.length) return blocked([`Data changed since the file was opened (${dataChanges.slice(0, 5).join(', ')}${dataChanges.length > 5 ? ', ...' : ''}).`])
@@ -247,6 +264,7 @@ export async function writePackage(kind: PackageKind, input: PlanInput, opts: Wr
   if (!plan.path) throw new Error(`${plan.detail}${plan.blockers.length ? `\n\n${plan.blockers.join('\n')}` : ''}`)
   const src = input.source ? openSourcePackage(input.source) : undefined
   if (plan.path === 'pbit') return { ...writePbit(input.project, src, opts), plan }
+  if (plan.path === 'pbix-lumen-data') return { ...(await writePbixWithLumenData(input.project, src, opts)), plan }
   return { ...(await writePbixFromSource(input.project, src!, plan, opts)), plan }
 }
 
@@ -280,6 +298,37 @@ export function writePbit(project: ProjectDocument, src: SourcePackage | undefin
   zip.add('Version', parts[0][1])
   zip.add('[Content_Types].xml', contentTypesXml(parts.map(([n]) => n)))
   for (const [n, b] of parts.slice(1)) zip.add(n, b)
+  return { bytes: zip.finish(), diagnostics }
+}
+
+/**
+ * `.pbix` with a data model written by Lumen (stage E): the template's parts plus `DataModel` (stored, last), in the
+ * order of a November 2025 Desktop file: Version, [Content_Types].xml, DiagramLayout, Report/Layout, Settings,
+ * Metadata, report resources, DataModel.
+ */
+export async function writePbixWithLumenData(project: ProjectDocument, src: SourcePackage | undefined, opts: WritePackageOptions & { cryptKey?: Uint8Array } = {}): Promise<{ bytes: Uint8Array; diagnostics: string[] }> {
+  const diagnostics: string[] = []
+  const dm = await writeFreshDataModel(project.model, project.data, { now: opts.date?.getTime(), cryptKey: opts.cryptKey })
+  diagnostics.push(...dm.diagnostics)
+  const parts: Array<[string, Uint8Array]> = []
+  const dl = diagramLayout(project.model)
+  if (dl !== undefined) parts.push(['DiagramLayout', utf16le(dl)])
+  let rest: Array<[string, Uint8Array]> = []
+  if (project.report) {
+    const r = reportParts(project.report, { baseLayoutBytes: src?.read('Report/Layout'), pbir: opts.reportFormat === 'pbir' })
+    diagnostics.push(...r.diagnostics)
+    const layout = r.parts.get('Report/Layout')
+    if (layout) parts.push(['Report/Layout', layout])
+    rest = [...r.parts].filter(([n]) => n !== 'Report/Layout')
+  }
+  parts.push(['Settings', utf16le(JSON.stringify(jsonPart(src, 'Settings') ?? DEFAULT_SETTINGS))])
+  parts.push(['Metadata', utf16le(JSON.stringify(jsonPart(src, 'Metadata') ?? DEFAULT_METADATA))])
+  parts.push(...rest)
+  const zip = new ZipWriter({ date: opts.date })
+  zip.add('Version', utf16le(PACKAGE_VERSION))
+  zip.add('[Content_Types].xml', contentTypesXml(['Version', ...parts.map(([n]) => n), 'DataModel']))
+  for (const [n, b] of parts) zip.add(n, b)
+  zip.add('DataModel', dm.dataModel, { store: true })
   return { bytes: zip.finish(), diagnostics }
 }
 

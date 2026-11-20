@@ -50,7 +50,38 @@ describe('save as Power BI file / template', () => {
     expect(await pageNames(page)).toEqual(before)
   })
 
-  it('Save as .pbix of a model that never came from a .pbix explains why and offers .pbit / PBIP', async () => {
+  it('Save as .pbix of the built-in sample: Lumen writes the data model (stage E); the file reopens with its data', async () => {
+    const { page, app, tmp } = lumen()
+    const before = await pageNames(page)
+    const rows = (): Promise<Record<string, number>> =>
+      lumenEval(page, (l) => Object.fromEntries([...l.useApp.getState().project!.data.tables].map(([n, t]) => [n, t.rowCount])))
+    // the sample opens without data: fill it with generated sample data first
+    await page.getByRole('button', { name: 'Use sample data', exact: true }).click()
+    await expect.poll(async () => Object.values(await rows()).filter((n) => n > 0).length, { timeout: 60_000 }).toBeGreaterThan(3)
+    await waitIdle(page)
+    const rowsBefore = await rows()
+    const target = join(tmp, 'Sample.pbix')
+    await stubSaveDialog(app, target)
+    await fileMenu(page, 'Save as')
+    await page.getByRole('button', { name: /Power BI file \(\.pbix\)/ }).click()
+    const dlg = page.getByRole('dialog', { name: /Save as Power BI file/ })
+    await expect.poll(() => dlg.count()).toBe(1)
+    expect(await dlg.getByTestId('package-plan').getAttribute('data-path')).toBe('pbix-lumen-data')
+    expect(await dlg.innerText()).toMatch(/data written by Lumen/)
+    expect(await dlg.getByTestId('package-experimental').innerText()).toMatch(/Experimental: not yet verified in Power BI Desktop/)
+    await dlg.getByRole('button', { name: 'Save', exact: true }).click()
+    await untilNode(() => existsSync(target) && statSync(target).size > 1000, 60_000, '.pbix file')
+    const parts = Object.keys(unzipSync(new Uint8Array(readFileSync(target)), { filter: () => true }))
+    expect(parts).toContain('DataModel')
+    expect(parts).toContain('Report/Layout')
+    await waitIdle(page)
+    await openFile(page, target)
+    expect(await lumenEval(page, (l) => l.useApp.getState().project!.source.kind)).toBe('pbix')
+    expect(await pageNames(page)).toEqual(before)
+    expect(await rows()).toEqual(rowsBefore)
+  })
+
+  it('Save as .pbix of a template with no data loaded explains why and offers .pbit / PBIP', async () => {
     const { page, app, tmp } = lumen()
     await openFile(page, join(tmp, 'Sales.pbit'))
     const target = join(tmp, 'FromTemplate.pbix')
@@ -60,6 +91,7 @@ describe('save as Power BI file / template', () => {
     const dlg = page.getByRole('dialog', { name: /Can't save as Power BI file/ })
     await expect.poll(() => dlg.count()).toBe(1)
     expect(await dlg.innerText()).toMatch(/Save a \.pbit .* or a PBIP project/)
+    expect(await dlg.innerText()).toMatch(/no data loaded/)
     await dlg.getByRole('button', { name: 'OK', exact: true }).click()
     expect(existsSync(target)).toBe(false)
   })

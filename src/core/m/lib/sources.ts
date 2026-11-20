@@ -28,7 +28,7 @@ import {
   type MValue,
 } from "../values.ts";
 import { parseXml, xmlText, type XmlElement } from "../xml.ts";
-import { flag, num, text, textOrNull, type LibContext, type Library } from "./util.ts";
+import { flag, maxOf, num, text, textOrNull, type LibContext, type Library } from "./util.ts";
 import { renderPredicate } from "./fold.ts";
 import { DIALECTS, TSQL } from "./sqldialect.ts";
 import { deltaTableFromFiles, type DeltaFile } from "./delta.ts";
@@ -243,7 +243,7 @@ function workbookCell(c: WorkbookCell): MValue {
 }
 
 function gridTable(rows: WorkbookCell[][], useHeaders: boolean): MTable {
-  const width = Math.max(0, ...rows.map((r) => r.length));
+  const width = maxOf(rows.map((r) => r.length), 0);
   const grid = rows.map((r) => Array.from({ length: width }, (_x, i) => workbookCell(r[i] ?? null)));
   let names = Array.from({ length: width }, (_x, i) => `Column${i + 1}`);
   let body = grid;
@@ -770,7 +770,7 @@ export function installSources(lib: Library): void {
     let names: string[];
     let types: MType[];
     if (colsArg === null) {
-      const width = Math.max(0, ...raw.map((r) => r.length));
+      const width = maxOf(raw.map((r) => r.length), 0);
       names = Array.from({ length: width }, (_x, i) => `Column${i + 1}`);
       types = names.map(() => T.any);
     } else if (typeof colsArg === "number") {

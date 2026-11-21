@@ -85,9 +85,12 @@ function usedRange(ws: Sheet): { r1: number; c1: number; r2: number; c2: number 
   let c1 = Infinity
   let r2 = 0
   let c2 = 0
-  for (let r = 1; r <= ws.rowCount; r++) {
+  // exceljs computes rowCount / columnCount by walking every row: read them once, not per cell
+  const rows = ws.rowCount
+  const cols = ws.columnCount
+  for (let r = 1; r <= rows; r++) {
     const row = ws.getRow(r)
-    for (let c = 1; c <= ws.columnCount; c++) {
+    for (let c = 1; c <= cols; c++) {
       const v = cellValue(row.getCell(c).value)
       if (v === null || v === '') continue
       if (r < r1) r1 = r
@@ -119,7 +122,12 @@ export async function decodeXlsx(bytes: Uint8Array): Promise<WorkbookData> {
       const range2 = parseRange(m.tableRef ?? m.ref ?? '')
       if (!range2) continue
       const cells = grid(ws, range2.r1, range2.c1, range2.r2, range2.c2)
-      const header = m.headerRow === false ? null : cells.shift()
+      // exceljs reads a table without a headerRowCount attribute (Excel omits it: default 1) as headerRow
+      // false, so trust the flag only when the first row is not the column names
+      const names = (m.columns ?? []).map((c) => c.name)
+      const first = cells[0] ?? []
+      const firstIsHeader = names.length > 0 && names.every((n, i) => String(first[i] ?? '') === String(n))
+      const header = m.headerRow === false && !firstIsHeader ? null : cells.shift()
       if (m.totalsRow) cells.pop()
       const columns = m.columns?.length ? m.columns.map((c) => c.name) : (header ?? []).map((h, i) => (h === null ? `Column${i + 1}` : String(h)))
       data.tables!.push({ name: m.name, columns, rows: cells })

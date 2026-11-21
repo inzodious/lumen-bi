@@ -32,7 +32,7 @@ export function getProjections(visualJson: any): Record<string, Projection[]> {
   const qs = visualJson?.visual?.query?.queryState ?? {}
   const out: Record<string, Projection[]> = {}
   for (const [role, bucket] of Object.entries<any>(qs)) {
-    out[role] = (bucket?.projections ?? []).map((p: any) => {
+    out[role] = withParameterSlots(bucket).map((p: any) => {
       const info = fieldInfo(p.field)
       return {
         role,
@@ -47,6 +47,28 @@ export function getProjections(visualJson: any): Record<string, Projection[]> {
         raw: p
       } satisfies Projection
     })
+  }
+  return out
+}
+
+/**
+ * Power BI Desktop saves a field parameter in a well as the fields it resolved to when saved, plus
+ * `fieldParameters: [{ parameterExpr, index, length }]` marking which projections came from it.
+ * Put the parameter column back in that slot so `expandParameters` resolves it against the current
+ * selection (the switcher slicer), as Desktop does on load.
+ */
+function withParameterSlots(bucket: any): any[] {
+  const projections: any[] = bucket?.projections ?? []
+  const params: any[] = Array.isArray(bucket?.fieldParameters) ? bucket.fieldParameters : []
+  if (!params.length) return projections
+  const out = [...projections]
+  for (const fp of [...params].sort((a, b) => (b.index ?? 0) - (a.index ?? 0))) {
+    const expr = fp?.parameterExpr
+    if (!expr?.Column) continue
+    const index = Math.max(0, Math.min(out.length, fp.index ?? 0))
+    const length = Math.max(0, fp.length ?? 0)
+    const first = out[index]
+    out.splice(index, length, { field: expr, queryRef: `${expr.Column.Expression?.SourceRef?.Entity}.${expr.Column.Property}`, active: first?.active })
   }
   return out
 }

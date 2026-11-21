@@ -11,20 +11,17 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowResetRegular, ChevronDownRegular, ColorRegular } from '@fluentui/react-icons'
-import { shadeColor, parseHex, toHex } from '@core/report/theme'
+import { parseHex, toHex } from '@core/report/theme'
 import { defaultGradient, gradientCss, type GradientFill } from '@core/report/gradientFill'
 import { GradientEditor } from './GradientEditor'
 import { Popover } from './Popover'
 import { TextField } from './primitives'
+import { ThemeSwatches, type ThemeColorRef } from './ThemeSwatches'
 import { cx } from './cx'
 
-export interface ThemeColorRef {
-  colorId: number
-  percent: number
-}
+export type { ThemeColorRef }
 
 const RECENT_KEY = 'wbi.recentColors'
-const TINTS = [0.6, 0.4, 0.2, -0.25, -0.5]
 
 function readRecent(): string[] {
   try {
@@ -187,28 +184,7 @@ export function ColorPicker(p: ColorPickerProps) {
             ) : (
               <>
                 <div className="wbi-colorpop__title">Theme colors</div>
-                <div className="wbi-colorpop__grid">
-                  {base.map((c, i) => (
-                    <button key={i} type="button" title={`${i === 0 ? 'White' : i === 1 ? 'Black' : `Theme color ${i - 1}`}, ${c.toUpperCase()}`} className={cx('wbi-colorpop__sw', cur === c.toUpperCase() && 'is-current')} style={{ background: c }} onClick={() => pick(c.toUpperCase(), { colorId: i, percent: 0 })} />
-                  ))}
-                </div>
-                <div className="wbi-colorpop__grid wbi-colorpop__grid--tints">
-                  {TINTS.flatMap((t, row) =>
-                    base.map((c, i) => {
-                      const hex = shadeColor(c, t)
-                      return (
-                        <button
-                          key={`${row}-${i}`}
-                          type="button"
-                          title={`${hex}, ${t > 0 ? `${Math.round(t * 100)}% lighter` : `${Math.round(-t * 100)}% darker`}`}
-                          className={cx('wbi-colorpop__sw', cur === hex && 'is-current')}
-                          style={{ background: hex, borderTop: row === 0 ? undefined : 0, borderBottom: row === TINTS.length - 1 ? undefined : 0 }}
-                          onClick={() => pick(hex, { colorId: i, percent: t })}
-                        />
-                      )
-                    })
-                  )}
-                </div>
+                <ThemeSwatches base={base} current={cur} onPick={pick} />
                 <RecentRow onPick={(h) => pick(h)} current={cur} />
                 <div className="wbi-colorpop__sep" />
                 <button type="button" className="wbi-colorpop__link" onClick={() => setCustom(true)}>

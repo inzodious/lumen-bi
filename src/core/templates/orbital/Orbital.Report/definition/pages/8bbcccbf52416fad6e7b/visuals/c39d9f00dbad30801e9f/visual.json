@@ -1,0 +1,151 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "c39d9f00dbad30801e9f",
+  "position": {
+    "x": 490,
+    "y": 394,
+    "z": 28000,
+    "height": 20,
+    "width": 300,
+    "tabOrder": 28000
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "● LEO   ",
+                    "textStyle": {
+                      "fontFamily": "Roboto Condensed",
+                      "fontSize": "8.5pt",
+                      "color": "#3BF0FF"
+                    }
+                  },
+                  {
+                    "value": "● MEO   ",
+                    "textStyle": {
+                      "fontFamily": "Roboto Condensed",
+                      "fontSize": "8.5pt",
+                      "color": "#8B6BFF"
+                    }
+                  },
+                  {
+                    "value": "● GEO   ",
+                    "textStyle": {
+                      "fontFamily": "Roboto Condensed",
+                      "fontSize": "8.5pt",
+                      "color": "#FF4FB8"
+                    }
+                  },
+                  {
+                    "value": "● POLAR",
+                    "textStyle": {
+                      "fontFamily": "Roboto Condensed",
+                      "fontSize": "8.5pt",
+                      "color": "#FFB347"
+                    }
+                  }
+                ],
+                "horizontalTextAlignment": "center"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "visualHeader": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "padding": [
+        {
+          "properties": {
+            "top": {
+              "expr": {
+                "Literal": {
+                  "Value": "0D"
+                }
+              }
+            },
+            "right": {
+              "expr": {
+                "Literal": {
+                  "Value": "0D"
+                }
+              }
+            },
+            "bottom": {
+              "expr": {
+                "Literal": {
+                  "Value": "0D"
+                }
+              }
+            },
+            "left": {
+              "expr": {
+                "Literal": {
+                  "Value": "0D"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

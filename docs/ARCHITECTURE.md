@@ -133,6 +133,8 @@ Most real models import from Fabric SQL endpoints. Order of preference when open
 | Expand / collapse state | `visuals/common/expansion.ts` | PBIR `expansionStates` (per-level `isCollapsed` + `isToggled` nodes, `active` projections kept in step) for matrix Rows / Columns and hierarchy slicers; +/- icons and the context menu's Expand ▸ / Collapse ▸ (Selection · Entire level · All) |
 | Visual context menu | `report/Overlays.tsx` (`buildVisualMenu`) | one menu for PBI's right-click and "More options" entries; a visual adds its own entries for what was clicked through `ContextMenuRequest.entries` (`target`, `value`, `selectionText`) |
 | Built-in icons | `core/icons/*`, `renderer/src/icons/*` | React components of Lucide (`react-icons/lu`) and Fluent Color (`@fluentui/react-icons` `*Color`), lazily loaded per set; a picture of each icon (the component's SVG output) stored in PBIR as an image + `Lumen_Icon` visual annotation; see [ICONS.md](ICONS.md) |
+| Report templates + gallery | `core/templates/*` (PBIP projects + generated `catalog.ts`), `app/templates.ts`, `app/TemplateGallery.tsx`, `scripts/templates/*` | each template is a PBIP project whose tables are Power Query `#table` literals (refreshed on open, also in Power BI); generated from `scripts/templates/designs/*.mjs` by `build.mjs`, thumbnails by `previews.sh`; `compatibility: 'powerbi' \| 'lumen'` is tested (`templates.test.ts`: Power BI compatible ones use no `Lumen_Style` and no bundled-only fonts) |
+| Container effects (`Lumen_Style`) | `core/report/lumenStyle.ts`, applied in `report/VisualContainer.tsx` | Lumen-only frosted glass / gradient / glow / rotation from the visual annotation `Lumen_Style` (sanitised: hex colors, clamped numbers); rotation turns the box only, the selection frame stays upright; Power BI ignores the annotation |
 | Model diagram: editable lines + table groups | `views/model/*` (`routing.ts`, `snapping.ts`, `groups.ts`, `diagramOps.ts`, `EdgeLayer.tsx`, `GroupBox.tsx`), `core/io/diagramSidecar.ts` | Lumen-only diagram data in `diagramLayout.lumen.json`; edits go through `mutateModelSidecars` (undoable, no engine rebuild); see "Model diagram sidecar" below |
 
 ## Model diagram sidecar (`diagramLayout.lumen.json`)
@@ -208,7 +210,7 @@ an untouched model round-trips byte-identically and a project without the file b
 * `npm run typecheck` — whole-project tsc.
 * `npm run build && scripts/capture.sh /abs/out.png '#/route' [/path/to/open] [WxH]` — headless render to PNG on a private
   Xvfb display (+ `out.png.log` with renderer console). Capture waits for `wbiReady === '1'` and `wbiBusy !== '1'`.
-  Route params (App.tsx): `sample=1`, `page=<n|name>`, `panes=`, `select=`, `dialog=`, `cmd=`, `formula=`, `data=sample`, `export=`…
+  Route params (App.tsx): `sample=1`, `template=<id>`, `page=<n|name>`, `panes=`, `select=`, `dialog=`, `cmd=`, `formula=`, `data=sample`, `export=`…
 * `scripts/sweep.sh <file-or-folder> <outdir> [--sample-data] [--pages …]` — render every page; `node scripts/sweep-summary.mjs <outdir>`.
 * `scripts/install-desktop.sh [--pin|--uninstall]` — app menu entry, file associations, Cinnamon panel pin.
 

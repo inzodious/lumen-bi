@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cssFontFamily, fontWeightOf, primaryFamily, resolveFont } from './text'
-import { cssFont as styleFont, fontStyle } from './textStyle'
+import { cssFont as styleFont, fontStyle, FALLBACK_STACK } from './textStyle'
 
 /** what the format pane stores for "Segoe UI Semibold" (a PBIR string literal un-escaped: quoted family + PBI's own fallbacks) */
 const SEMIBOLD_STACK = "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif"
@@ -119,5 +119,15 @@ describe('bundled Segoe UI stand-in faces', () => {
     expect(srcOf('Segoe UI', '700')).toBe('selawkb.woff2')
     expect(srcOf('Segoe UI Bold', '700')).toBe('selawkb.woff2')
     expect(srcOf('Segoe UI Light', '300')).toBe('selawkl.woff2')
+  })
+})
+
+describe('text box / card fonts that Linux rarely has', () => {
+  it('fall back to a face of the same kind, not the Segoe stand-in', () => {
+    expect(styleFont('Georgia').fontFamily).toMatch(/^'Georgia', Georgia, .*serif$/)
+    expect(styleFont('Consolas').fontFamily).toMatch(/monospace$/)
+    expect(styleFont('Arial Black')).toEqual({ fontFamily: "'Arial', Arial, Helvetica, sans-serif", fontWeight: 900 })
+    // Segoe faces keep the Segoe-like stack
+    expect(styleFont('Segoe UI Semibold')).toEqual({ fontFamily: `'Segoe UI', ${FALLBACK_STACK}`, fontWeight: 600 })
   })
 })

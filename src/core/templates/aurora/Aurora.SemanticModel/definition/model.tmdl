@@ -1,0 +1,16 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation PBI_QueryOrder = ["_Pulse","Streams"]
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation Lumen_Template = aurora
+
+ref table _Pulse
+ref table Streams

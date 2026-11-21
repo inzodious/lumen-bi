@@ -5,7 +5,9 @@ import type { ContextMenuEntry, VisualProps } from '../contract'
 import { ListSlicer, TileSlicer } from './ListSlicer'
 import { RangeSlicer, RelativeSlicer } from './RangeSlicer'
 import { DatePickerSlicer } from './DatePickerSlicer'
-import { SlicerMessage, SlicerStyle, StandInBadge } from './SlicerChrome'
+import { SlicerHeader, SlicerMessage, SlicerStyle, StandInBadge } from './SlicerChrome'
+import { ChevronDown } from './icons'
+import { fontStyle, ptToPx } from '../common/textStyle'
 import { currentFilter, headerText, isWhatIfColumn, slicerProjections, standInSelection } from './slicerData'
 import { readSlicerFormat } from './slicerFormat'
 
@@ -38,7 +40,7 @@ export function SlicerVisual({ visual, ctx, width, height }: VisualProps) {
     }
   ]
   let body
-  if (!fields.length) body = <SlicerMessage text="Add data fields to the slicer" font={fmt.items.font} />
+  if (!fields.length) body = fmt.mode === 'Dropdown' && fmt.header.text ? <EmptyDropdown fmt={fmt} /> : <SlicerMessage text="Add data fields to the slicer" font={fmt.items.font} />
   else {
     const numeric = dataType === 'int64' || dataType === 'double' || dataType === 'decimal'
     const isDate = dataType === 'dateTime'
@@ -66,6 +68,50 @@ export function SlicerVisual({ visual, ctx, width, height }: VisualProps) {
       {standInSelection(json, ctx) && <StandInBadge />}
       {body}
     </div>
+  )
+}
+
+/**
+ * A dropdown slicer with no field but its own header text (a placeholder filter, e.g. in report templates):
+ * draw its header and a closed, empty dropdown box so the formatting shows before a field is added.
+ * Lumen-only: Power BI Desktop shows the empty-visual placeholder for any slicer without a field.
+ */
+function EmptyDropdown({ fmt }: { fmt: ReturnType<typeof readSlicerFormat> }) {
+  const lineH = Math.ceil(ptToPx(fmt.items.font.size) * 1.36)
+  return (
+    <>
+      <SlicerHeader
+        show={fmt.header.show}
+        text={fmt.header.text ?? ''}
+        font={fmt.header.font}
+        background={fmt.header.background}
+        outline={fmt.header.outline}
+        outlineColor={fmt.header.outlineColor}
+        outlineWeight={fmt.header.outlineWeight}
+        canClear={false}
+        onClear={() => undefined}
+      />
+      <div
+        className="wbi-slicer-ddbox"
+        title="Add data fields to the slicer"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          minHeight: lineH + 10,
+          padding: '0 6px 0 8px',
+          border: `1px solid ${fmt.dropdown.borderColor}`,
+          borderRadius: fmt.dropdown.radius,
+          background: fmt.items.background ?? '#FFFFFF',
+          flex: 'none',
+          marginTop: 2,
+          boxSizing: 'border-box'
+        }}
+      >
+        <span style={{ ...fontStyle({ ...fmt.items.font, color: '#A19F9D' }), flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Add a field</span>
+        <ChevronDown size={Math.round(ptToPx(fmt.items.font.size) * 0.95)} color={fmt.dropdown.iconColor} style={{ flex: 'none' }} />
+      </div>
+    </>
   )
 }
 

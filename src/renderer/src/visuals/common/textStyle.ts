@@ -7,6 +7,7 @@
  */
 import type { CSSProperties } from 'react'
 import { getColor, getProp, type PropContext, type Selector } from '@core/report/props'
+import { knownFontStack } from './text'
 
 export const FALLBACK_STACK = "'Segoe UI', 'Selawik', 'Open Sans', 'Noto Sans', 'Helvetica Neue', Arial, sans-serif"
 
@@ -60,6 +61,10 @@ export function cssFont(family: string | undefined): { fontFamily: string; fontW
     f = 'Segoe UI'
   }
   if (/^din$/i.test(f)) f = 'DIN'
+  // a Power BI font that Linux rarely has (Georgia, Consolas, Trebuchet MS…): its own fallbacks (a serif for Georgia,
+  // a monospace for Consolas), not the Segoe stand-in, which would turn every face into the same sans-serif
+  const known = /^(segoe ui|din)$/i.test(f) ? undefined : knownFontStack(f)
+  if (known) return { fontFamily: `'${f}', ${known}`, fontWeight: weight }
   return { fontFamily: `'${f}', ${FALLBACK_STACK}`, fontWeight: weight }
 }
 

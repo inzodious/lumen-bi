@@ -1,0 +1,159 @@
+table Ridership
+	lineageTag: d945eee5-ca22-477c-a7b3-74d8e6e801e6
+
+	column Month
+		dataType: string
+		lineageTag: be5ad658-ddd1-4a3d-a018-bde6c06bc07b
+		summarizeBy: none
+		sourceColumn: Month
+		sortByColumn: MonthNo
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthNo
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 055c1f50-72cb-407b-ac67-c246c645c415
+		summarizeBy: none
+		sourceColumn: MonthNo
+
+		annotation SummarizationSetBy = Automatic
+
+	column Line
+		dataType: string
+		lineageTag: 9d10c349-fad4-4a20-a995-bede566d929f
+		summarizeBy: none
+		sourceColumn: Line
+
+		annotation SummarizationSetBy = Automatic
+
+	column District
+		dataType: string
+		lineageTag: 31ac53ce-2670-423a-a3fb-e3be197ad580
+		summarizeBy: none
+		sourceColumn: District
+
+		annotation SummarizationSetBy = Automatic
+
+	column RidersK
+		dataType: double
+		formatString: #,0.0
+		lineageTag: 5ce7d076-d253-4a70-a9ca-c16cf0e65d1a
+		summarizeBy: sum
+		sourceColumn: RidersK
+
+		annotation SummarizationSetBy = Automatic
+
+	column OnTime
+		dataType: double
+		formatString: 0.0%
+		lineageTag: afef2a5b-f8df-4085-aaf5-ca831e1971fc
+		summarizeBy: average
+		sourceColumn: OnTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column FareRevenueK
+		dataType: double
+		formatString: #,0
+		lineageTag: 6c72109d-ee2c-45b4-a754-d9636a4b21ba
+		summarizeBy: sum
+		sourceColumn: FareRevenueK
+
+		annotation SummarizationSetBy = Automatic
+
+	column Complaints
+		dataType: int64
+		formatString: 0
+		lineageTag: 018455bb-1958-41b3-a000-8719ad3515e4
+		summarizeBy: sum
+		sourceColumn: Complaints
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Ridership = m
+		mode: import
+		source =
+				let
+				    // sample data for the template: replace this query with your own source
+				    Source = #table(type table [Month = text, MonthNo = Int64.Type, Line = text, District = text, RidersK = number, OnTime = number, FareRevenueK = number, Complaints = Int64.Type], {
+				        {"Jan", 1, "Red Line", "Northside", 183.5, 0.85, 8491, 22},
+				        {"Jan", 1, "Blue Line", "Riverside", 155.3, 0.96, 7061, 19},
+				        {"Jan", 1, "Green Line", "Old Town", 115.8, 0.87, 5097, 14},
+				        {"Jan", 1, "Gold Line", "Harbor", 92.5, 0.98, 4419, 11},
+				        {"Jan", 1, "Harbor Ferry", "Harbor", 30.9, 0.99, 1385, 4},
+				        {"Jan", 1, "Crosstown Bus", "Old Town", 73.6, 0.78, 3399, 9},
+				        {"Feb", 2, "Red Line", "Northside", 181.6, 0.83, 8492, 21},
+				        {"Feb", 2, "Blue Line", "Riverside", 146.5, 0.91, 6698, 18},
+				        {"Feb", 2, "Green Line", "Old Town", 119.3, 0.93, 5341, 15},
+				        {"Feb", 2, "Gold Line", "Harbor", 92, 0.95, 4242, 11},
+				        {"Feb", 2, "Harbor Ferry", "Harbor", 31.5, 0.99, 1441, 4},
+				        {"Feb", 2, "Crosstown Bus", "Old Town", 71, 0.85, 3429, 8},
+				        {"Mar", 3, "Red Line", "Northside", 172.3, 0.83, 8331, 20},
+				        {"Mar", 3, "Blue Line", "Riverside", 153.4, 0.96, 7194, 18},
+				        {"Mar", 3, "Green Line", "Old Town", 111.4, 0.91, 5121, 14},
+				        {"Mar", 3, "Gold Line", "Harbor", 99.1, 0.98, 4739, 12},
+				        {"Mar", 3, "Harbor Ferry", "Harbor", 32.2, 0.99, 1530, 4},
+				        {"Mar", 3, "Crosstown Bus", "Old Town", 74.2, 0.83, 3439, 9},
+				        {"Apr", 4, "Red Line", "Northside", 174.1, 0.84, 7644, 20},
+				        {"Apr", 4, "Blue Line", "Riverside", 147.6, 0.88, 6505, 18},
+				        {"Apr", 4, "Green Line", "Old Town", 115.7, 0.91, 5163, 13},
+				        {"Apr", 4, "Gold Line", "Harbor", 100.1, 0.92, 4546, 12},
+				        {"Apr", 4, "Harbor Ferry", "Harbor", 33.3, 0.99, 1562, 4},
+				        {"Apr", 4, "Crosstown Bus", "Old Town", 72.2, 0.82, 3402, 8},
+				        {"May", 5, "Red Line", "Northside", 183.8, 0.86, 8097, 23},
+				        {"May", 5, "Blue Line", "Riverside", 145.9, 0.88, 6743, 17},
+				        {"May", 5, "Green Line", "Old Town", 122, 0.88, 5668, 15},
+				        {"May", 5, "Gold Line", "Harbor", 106.3, 0.89, 5017, 12},
+				        {"May", 5, "Harbor Ferry", "Harbor", 33.5, 0.99, 1609, 4},
+				        {"May", 5, "Crosstown Bus", "Old Town", 70.4, 0.79, 3244, 9},
+				        {"Jun", 6, "Red Line", "Northside", 191.9, 0.84, 8770, 22},
+				        {"Jun", 6, "Blue Line", "Riverside", 157.1, 0.92, 7583, 19},
+				        {"Jun", 6, "Green Line", "Old Town", 121.4, 0.9, 5733, 15},
+				        {"Jun", 6, "Gold Line", "Harbor", 108.5, 0.91, 5033, 14},
+				        {"Jun", 6, "Harbor Ferry", "Harbor", 34.2, 0.97, 1520, 4},
+				        {"Jun", 6, "Crosstown Bus", "Old Town", 77, 0.85, 3725, 10},
+				        {"Jul", 7, "Red Line", "Northside", 203.4, 0.87, 9691, 25},
+				        {"Jul", 7, "Blue Line", "Riverside", 160.1, 0.92, 7746, 20},
+				        {"Jul", 7, "Green Line", "Old Town", 121.1, 0.89, 5850, 15},
+				        {"Jul", 7, "Gold Line", "Harbor", 112.9, 0.94, 5169, 14},
+				        {"Jul", 7, "Harbor Ferry", "Harbor", 37.8, 0.98, 1725, 4},
+				        {"Jul", 7, "Crosstown Bus", "Old Town", 81.4, 0.78, 3633, 10},
+				        {"Aug", 8, "Red Line", "Northside", 197.8, 0.82, 8709, 25},
+				        {"Aug", 8, "Blue Line", "Riverside", 170.9, 0.91, 7745, 20},
+				        {"Aug", 8, "Green Line", "Old Town", 128.5, 0.91, 5708, 15},
+				        {"Aug", 8, "Gold Line", "Harbor", 116.8, 0.91, 5398, 14},
+				        {"Aug", 8, "Harbor Ferry", "Harbor", 38.8, 0.93, 1829, 4},
+				        {"Aug", 8, "Crosstown Bus", "Old Town", 83.6, 0.83, 3677, 10},
+				        {"Sep", 9, "Red Line", "Northside", 200.6, 0.81, 8845, 24},
+				        {"Sep", 9, "Blue Line", "Riverside", 171.1, 0.9, 8045, 21},
+				        {"Sep", 9, "Green Line", "Old Town", 132, 0.9, 6244, 16},
+				        {"Sep", 9, "Gold Line", "Harbor", 125.1, 0.93, 5871, 15},
+				        {"Sep", 9, "Harbor Ferry", "Harbor", 42.2, 0.98, 1938, 5},
+				        {"Sep", 9, "Crosstown Bus", "Old Town", 83.9, 0.84, 3710, 10},
+				        {"Oct", 10, "Red Line", "Northside", 209.5, 0.8, 9378, 25},
+				        {"Oct", 10, "Blue Line", "Riverside", 176.7, 0.88, 8387, 21},
+				        {"Oct", 10, "Green Line", "Old Town", 135.9, 0.88, 6011, 16},
+				        {"Oct", 10, "Gold Line", "Harbor", 131.4, 0.9, 6221, 16},
+				        {"Oct", 10, "Harbor Ferry", "Harbor", 40.7, 0.99, 1803, 5},
+				        {"Oct", 10, "Crosstown Bus", "Old Town", 87.2, 0.85, 4229, 11},
+				        {"Nov", 11, "Red Line", "Northside", 216.4, 0.79, 9739, 27},
+				        {"Nov", 11, "Blue Line", "Riverside", 181.1, 0.95, 8483, 21},
+				        {"Nov", 11, "Green Line", "Old Town", 137.8, 0.89, 6089, 16},
+				        {"Nov", 11, "Gold Line", "Harbor", 126.3, 0.92, 6026, 15},
+				        {"Nov", 11, "Harbor Ferry", "Harbor", 44.4, 0.99, 2145, 5},
+				        {"Nov", 11, "Crosstown Bus", "Old Town", 89.3, 0.84, 3944, 11},
+				        {"Dec", 12, "Red Line", "Northside", 204.7, 0.85, 9917, 26},
+				        {"Dec", 12, "Blue Line", "Riverside", 172.8, 0.92, 7885, 21},
+				        {"Dec", 12, "Green Line", "Old Town", 132.7, 0.94, 5977, 15},
+				        {"Dec", 12, "Gold Line", "Harbor", 138.1, 0.93, 6642, 16},
+				        {"Dec", 12, "Harbor Ferry", "Harbor", 43.3, 0.98, 2079, 5},
+				        {"Dec", 12, "Crosstown Bus", "Old Town", 90.1, 0.78, 4293, 11}
+				    })
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

@@ -24,6 +24,7 @@ import { customVisualDisplayName, customVisualLabel } from '../visuals/custom/cu
 import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
 import { resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
+import { lumenStyleCss, lumenStyleOf } from '@core/report/lumenStyle'
 import { useCanvasEnv } from './canvasEnv'
 import { lastMenuRequest, registerLiveContext, useVisualHost } from './host'
 import { PerfMark, useVisualPerf } from './perf'
@@ -352,13 +353,21 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     ? { position: 'absolute', inset: 0 }
     : { position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, zIndex: props.z }
   const spotDim = env.spotlight && env.spotlight !== visual.name
+  // Lumen-only effects (gradient, frosted glass, glow, rotation) from the `Lumen_Style` annotation
+  const fx = useMemo(() => {
+    const s = lumenStyleOf(visual.json)
+    return s ? lumenStyleCss(s, chrome.background) : undefined
+  }, [visual.json, chrome.background])
+  const shadows = [chrome.shadow?.css, fx?.glow].filter(Boolean).join(', ')
   const box: CSSProperties = {
     position: 'absolute',
     inset: 0,
-    background: chrome.background,
+    background: fx?.background ?? chrome.background,
+    backdropFilter: fx?.backdropFilter,
+    transform: fx?.transform,
     borderRadius: chrome.radius || undefined,
     border: chrome.border ? `${chrome.border.width}px solid ${chrome.border.color}` : undefined,
-    boxShadow: chrome.shadow?.css,
+    boxShadow: shadows || undefined,
     padding: `${chrome.padding.top}px ${chrome.padding.right}px ${chrome.padding.bottom}px ${chrome.padding.left}px`,
     display: 'flex',
     flexDirection: 'column',

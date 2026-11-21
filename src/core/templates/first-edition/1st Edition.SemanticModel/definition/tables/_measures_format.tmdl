@@ -1,0 +1,61 @@
+table _measures_format
+	lineageTag: 571ecf97-f4ae-432d-80ec-3cba7e4508cc
+
+	measure F_Last_Updated = "Last Refreshed: " & FORMAT ( MAX ( dim_last_refresh[last_refresh] ), "yyyy-mm-dd hh:mm AM/PM" )
+		displayFolder: Header
+		lineageTag: 4b594507-06ce-457d-8230-691e0889b28e
+
+	measure F_date = FORMAT(CALCULATE(MAX(dim_calendar[date]), ALLSELECTED(dim_calendar[date])), "ddd, MMMM D, YYYY")
+		displayFolder: Header
+		lineageTag: 9f904897-350a-4e7a-90c9-9a68821e8773
+
+	measure F_applied_filters =
+			
+			// One ROW per filter: a pill shows when the field is filtered. Example for a slicer on Table[Column]:
+			// ROW ( "ord", 2, "label", "Region", "value", IF ( ISFILTERED ( Table[Column] ), SELECTEDVALUE ( Table[Column], "Multiple" ) ) ),
+			VAR _filters =
+			    UNION (
+			        ROW ( "ord", 1, "label", "Report Date", "value", [F_date] ),
+			        ROW ( "ord", 2, "label", "Year", "value", IF ( ISFILTERED ( dim_calendar[year] ), SELECTEDVALUE ( dim_calendar[year], "Multiple" ) & "" ) )
+			    )
+			VAR _pill = "display:inline-flex;align-items:center;padding:0.15rem 0.6rem;border-radius:9999px;font-size:12px;line-height:1;font-weight:500;white-space:nowrap;background-color:rgba(255,255,255,0.2);color:#e2e8f0;"
+			VAR _pills =
+			    CONCATENATEX (
+			        FILTER ( _filters, NOT ISBLANK ( [value] ) && [value] <> "" ),
+			        " <span style='" & _pill & "'><strong style='margin-right:0.25rem;'>" & [label] & ":</strong><span>" & SUBSTITUTE ( SUBSTITUTE ( [value], "&", "&amp;" ), "<", "&lt;" ) & "</span></span>",
+			        "",
+			        [ord], ASC
+			    )
+			RETURN
+			    "<div style='background-color:#171C73;padding:0.2rem 0.5rem;font-family:Segoe UI,sans-serif;display:flex;align-items:center;box-sizing:border-box;overflow:hidden;'>"
+			        & "<div style='width:5px;background-color:#FDD44F;border-radius:9999px;margin-right:0.75rem;align-self:stretch;'></div>"
+			        & "<div style='background-color:transparent;display:flex;flex-direction:column;flex-grow:1;min-width:0;justify-content:center;'>"
+			        & "<h2 style='background-color:transparent;font-size:12px;line-height:1.2;font-weight:600;color:#FFFFFF;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.15rem 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>Applied Filters:</h2>"
+			        & "<div style='background-color:transparent;display:flex;flex-wrap:wrap;gap:0.25rem;min-width:0;line-height:1;'>" & _pills & "</div>"
+			        & "</div></div>"
+		displayFolder: Header
+		lineageTag: ee6a57ee-046b-492c-b442-077c505daddb
+
+	column Column1
+		isHidden
+		dataType: string
+		lineageTag: c4fda01f-3e7e-45f9-a7aa-b87435dae09e
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_format = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

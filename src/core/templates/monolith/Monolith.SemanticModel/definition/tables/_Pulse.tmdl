@@ -1,0 +1,66 @@
+table _Pulse
+	lineageTag: 6e44c5fe-75bc-40e2-a0e2-0baf2f05ba1c
+
+	measure 'Active Users' = CALCULATE(SUM(Usage[ActiveUsers]), Usage[MonthNo] = MAX(Usage[MonthNo]))
+		formatString: #,0
+		lineageTag: 0a73e9ec-f6e1-4150-a90b-e16c286c5b9c
+
+	measure 'Active Users (sum)' = SUM(Usage[ActiveUsers])
+		formatString: #,0
+		lineageTag: 6cf53780-2cca-416b-ad45-16e7db3d9a37
+
+	measure MRR = CALCULATE(SUM(Usage[MRR]), Usage[MonthNo] = MAX(Usage[MonthNo]))
+		formatString: \$#,0
+		lineageTag: 238e6d38-b645-4a15-ac8e-574b9556f2de
+
+	measure 'MRR (sum)' = SUM(Usage[MRR])
+		formatString: \$#,0
+		lineageTag: fbbd1812-7031-43db-a1c7-41a38f6635cf
+
+	measure Signups = SUM(Usage[Signups])
+		formatString: #,0
+		lineageTag: 40ddb039-3f67-4de4-afa2-cbdb8da8a03a
+
+	measure Retention = AVERAGE(Usage[Retention])
+		formatString: 0%
+		lineageTag: aa676b95-c0dd-44a6-a705-496fb92ec665
+
+	measure NPS = AVERAGE(Usage[NPS])
+		formatString: 0
+		lineageTag: 8af93cc4-1cc0-43f1-a0a0-d97b6f043321
+
+	measure Churned = SUM(Usage[Churned])
+		formatString: #,0
+		lineageTag: 38b531a8-c16d-49e9-aae5-2d5efce29ae2
+
+	measure 'MRR Growth' = VAR m = MAX(Usage[MonthNo]) VAR cur = CALCULATE(SUM(Usage[MRR]), Usage[MonthNo] = m) VAR prev = CALCULATE(SUM(Usage[MRR]), Usage[MonthNo] = m - 1) RETURN DIVIDE(cur - prev, prev)
+		formatString: +0.0%;-0.0%
+		lineageTag: f6853d48-d4fe-485b-a6d5-ba1b36ab2baa
+
+	measure 'MRR Note' = FORMAT([MRR Growth], "+0.0%;-0.0%") & " month over month"
+		lineageTag: 1cd1a035-44bf-4704-a580-8002dd4a700a
+
+	measure 'Users Note' = "active this month · " & FORMAT([Signups], "#,0") & " signups this year"
+		lineageTag: 43e6f3f6-5092-445b-a6cc-e0190a78e7dc
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: a26db270-6c01-4922-afa6-609891a1da32
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Pulse = m
+		mode: import
+		source =
+				let
+				    // sample data for the template: replace this query with your own source
+				    Source = #table(type table [Column1 = text], {
+				        {null}
+				    })
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

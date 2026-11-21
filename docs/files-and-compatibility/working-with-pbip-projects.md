@@ -96,7 +96,9 @@ reserve for extensions or annotations, and only when you use the feature:
 | Model view extras: line styles, bends, manual line ends, table groups | `*.SemanticModel/diagramLayout.lumen.json` (a separate file next to `diagramLayout.json`) | You customised the diagram; removed again when nothing custom is left |
 | Layout guides (page margin and gutter) | `report.json`, object `lumenLayout` | You set non-default guides; removed when set back to none |
 | Lumen-only slicer options (dropdown summary style and others) | The slicer's `visual.json`, object `lumenSlicer` | You changed one from its default |
+| Container effects (frosted glass, gradient fill, glow, rotation), used by the Lumen-only gallery templates | Annotation `Lumen_Style` in the visual's `annotations`, a JSON object (see `src/core/report/lumenStyle.ts`); Power BI Desktop keeps it and draws the container's ordinary formatting | A template or report sets them |
 | Built-in icons | The icon's picture as an ordinary image (a registered resource, or a data URI for card images) plus an annotation `Lumen_Icon` in the visual's `annotations` with the icon's name, colour and a fingerprint | You inserted an icon |
+| Gallery template marker | Annotation `Lumen_Template` on the model with the template's id | Projects saved from a gallery template |
 | Built-in sample report marker | Annotation `Lumen_Sample` on the model and its tables | Only in projects saved from the built-in sample |
 | New project metadata | `.platform` files with a new logical id; `definition.pbism`; `.pbip` with `enableAutoRecovery` | The project is saved for the first time |
 

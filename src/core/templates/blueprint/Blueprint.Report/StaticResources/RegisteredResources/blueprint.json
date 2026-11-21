@@ -1,0 +1,165 @@
+{
+  "name": "Blueprint",
+  "dataColors": [
+    "#EAF2FF",
+    "#FFD23F",
+    "#7FD1FF",
+    "#FF6B4A",
+    "#9DB9E6",
+    "#B7F0C4",
+    "#5C8FD6",
+    "#FFE9A3"
+  ],
+  "background": "#123E7C",
+  "foreground": "#EAF2FF",
+  "tableAccent": "#EAF2FF",
+  "good": "#FFD23F",
+  "bad": "#7FD1FF",
+  "neutral": "#9DB9E6",
+  "maximum": "#EAF2FF",
+  "center": "#FFD23F",
+  "minimum": "#123E7C",
+  "foregroundNeutralSecondary": "#9DB9E6",
+  "foregroundNeutralTertiary": "#2D5FA3",
+  "backgroundLight": "#2D5FA3",
+  "backgroundNeutral": "#2D5FA3",
+  "textClasses": {
+    "callout": {
+      "fontSize": 28,
+      "fontFace": "Consolas",
+      "color": "#EAF2FF"
+    },
+    "title": {
+      "fontSize": 11,
+      "fontFace": "Consolas",
+      "color": "#EAF2FF"
+    },
+    "header": {
+      "fontSize": 11,
+      "fontFace": "Consolas",
+      "color": "#EAF2FF"
+    },
+    "label": {
+      "fontSize": 9,
+      "fontFace": "Consolas",
+      "color": "#9DB9E6"
+    }
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [
+          {
+            "show": false
+          }
+        ],
+        "border": [
+          {
+            "show": false
+          }
+        ],
+        "visualHeader": [
+          {
+            "show": false
+          }
+        ],
+        "dropShadow": [
+          {
+            "show": false
+          }
+        ],
+        "title": [
+          {
+            "fontFamily": "Consolas",
+            "fontColor": {
+              "solid": {
+                "color": "#EAF2FF"
+              }
+            },
+            "fontSize": 11
+          }
+        ],
+        "categoryAxis": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#9DB9E6"
+              }
+            },
+            "fontFamily": "Consolas",
+            "fontSize": 8,
+            "showAxisTitle": false,
+            "gridlineShow": false
+          }
+        ],
+        "valueAxis": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#9DB9E6"
+              }
+            },
+            "fontFamily": "Consolas",
+            "fontSize": 8,
+            "showAxisTitle": false,
+            "gridlineColor": {
+              "solid": {
+                "color": "#2D5FA3"
+              }
+            },
+            "gridlineStyle": "dotted"
+          }
+        ],
+        "legend": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#9DB9E6"
+              }
+            },
+            "fontFamily": "Consolas",
+            "fontSize": 8,
+            "position": "Top"
+          }
+        ],
+        "labels": [
+          {
+            "color": {
+              "solid": {
+                "color": "#EAF2FF"
+              }
+            },
+            "fontFamily": "Consolas",
+            "fontSize": 8
+          }
+        ],
+        "outspacePane": [
+          {
+            "backgroundColor": {
+              "solid": {
+                "color": "#123E7C"
+              }
+            },
+            "foregroundColor": {
+              "solid": {
+                "color": "#EAF2FF"
+              }
+            },
+            "titleSize": 11,
+            "headerSize": 10,
+            "fontFamily": "Consolas"
+          }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [
+          {
+            "transparency": 0
+          }
+        ]
+      }
+    }
+  }
+}

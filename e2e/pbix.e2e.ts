@@ -68,7 +68,8 @@ describe('save as Power BI file / template', () => {
     await expect.poll(() => dlg.count()).toBe(1)
     expect(await dlg.getByTestId('package-plan').getAttribute('data-path')).toBe('pbix-lumen-data')
     expect(await dlg.innerText()).toMatch(/data written by Lumen/)
-    expect(await dlg.getByTestId('package-experimental').innerText()).toMatch(/Experimental: not yet verified in Power BI Desktop/)
+    // verified in Power BI Desktop 2.159: no experimental label
+    expect(await dlg.getByTestId('package-experimental').count()).toBe(0)
     await dlg.getByRole('button', { name: 'Save', exact: true }).click()
     await untilNode(() => existsSync(target) && statSync(target).size > 1000, 60_000, '.pbix file')
     const parts = Object.keys(unzipSync(new Uint8Array(readFileSync(target)), { filter: () => true }))

@@ -101,6 +101,11 @@ describe('fresh DataModel (stage E)', () => {
     expect(names).toContain('metadata.sqlitedb')
     // Desktop refuses a data model without a database key file
     expect(names).toContain('0.CryptKey.bin')
+    const { databaseKeyFile, HEADER } = await import('./cryptKey')
+    const key = databaseKeyFile()
+    expect(key.length).toBe(144)
+    expect(Array.from(key.subarray(0, 60))).toEqual(HEADER)
+    expect(Array.from(key.subarray(128))).toEqual(HEADER.slice(0, 16))
     expect(names.some((n) => /^1\.H\$Product \(\d+\)\$Product \(\d+\)\.POS_TO_ID\.0\.idf$/.test(n))).toBe(true)
     expect(names.some((n) => /^1\.R\$Sales \(\d+\)\$r1 \(\d+\)\.INDEX\.0\.idf$/.test(n))).toBe(true)
     expect(names.some((n) => /^1\.U\$Product \(\d+\)\$Products \(\d+\)\.MULTI_LEVEL_ID\.0\.idf$/.test(n))).toBe(true)

@@ -242,6 +242,8 @@ fs, { format: 'pbix' | 'pbit' })` (`src/core/io/open.ts`) calls `writePackage` (
 has been opened in Power BI Desktop yet.** Each write path has a flag in `VERIFIED_IN_DESKTOP` (`package.ts`). While
 a flag is `false`, the Save dialog (`src/renderer/src/app/savePackage.tsx`) labels that path "Experimental: not yet
 verified in Power BI Desktop". Flip a flag only after the matching file of the test kit opens in Power BI Desktop.
+`pbix-lumen-data` is verified (Power BI Desktop 2.159, November 2026: test kit files 5a-5d opened, showed the expected
+values and saved).
 
 ### Write paths
 
@@ -380,7 +382,7 @@ and a November 2025 Desktop file, 1,600+ column streams):
 
 | Field | Written | Why |
 |---|---|---|
-| `0.CryptKey.bin` (database key file) | The fixed 60-byte header and 16-byte trailer every file shows, 68 random bytes for the encrypted session key (`fresh/cryptKey.ts`) | A key encrypted for the engine instance that created the database, so Desktop cannot decrypt the key of a file from another computer either. Desktop 2.159 refused Lumen's files without a key file, whatever the backup log declared, and opened the same model with a key file from another file |
+| `0.CryptKey.bin` (database key file) | One fixed key written by Power BI Desktop 2.159 (`fresh/cryptKey.ts`) | Desktop 2.159 refuses a data model without a key file whatever the backup log declares, and rejects a key with a random encrypted part ("Invalid cryptographic key"); a key Desktop wrote on one computer opens on another. The key protects stored data source passwords, which Lumen files never contain |
 | `DictionaryStorage.Size` | Fitted formula (`dictionarySize`) | An in-memory size statistic; within 1% of the November 2025 file |
 | `DataVersion` / file name prefix | 1 everywhere | Desktop's values count processing operations; any positive value appears in real files |
 | `Measure.DataType` | 20 (Variant) unless the model gives a type | As for stage D |

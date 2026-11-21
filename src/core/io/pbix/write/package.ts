@@ -47,7 +47,9 @@ export const VERIFIED_IN_DESKTOP: Record<PackagePath, boolean> = {
   pbit: false,
   'pbix-original-model': false,
   'pbix-metadata': false,
-  'pbix-lumen-data': false
+  // verified 2026-11-20 in Power BI Desktop 2.159: a minimal model, the built-in sample, a Microsoft sample and a
+  // refreshed PBIP project opened, showed the expected values and saved
+  'pbix-lumen-data': true
 }
 
 /** Container `Version` part written for new packages (the value current Desktop writes). */

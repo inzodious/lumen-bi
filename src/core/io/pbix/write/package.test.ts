@@ -77,8 +77,8 @@ function titleOf(doc: ProjectDocument, name: string): string | undefined {
 }
 
 describe('package paths', () => {
-  it('are all labelled experimental until confirmed in Power BI Desktop', () => {
-    expect(Object.values(VERIFIED_IN_DESKTOP).every((v) => v === false)).toBe(true)
+  it('are labelled experimental until confirmed in Power BI Desktop (stage E confirmed in 2.159)', () => {
+    expect(VERIFIED_IN_DESKTOP).toEqual({ pbit: false, 'pbix-original-model': false, 'pbix-metadata': false, 'pbix-lumen-data': true })
   })
 })
 

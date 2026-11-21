@@ -9,7 +9,7 @@ import { LUMEN_SLICER_OBJECT, normalizeLumenSlicer } from '../../visuals/slicers
 import { ArrowResetRegular, TextAlignLeftRegular, TextAlignCenterRegular, TextAlignRightRegular, TextBoldRegular, TextItalicRegular, TextUnderlineRegular, ImageAddRegular } from '@fluentui/react-icons'
 import type { Scalar } from '@core/model/data'
 import { gradientOf, isDataBound, type ObjectsBag, type PropContext, type Selector } from '@core/report/props'
-import { findFill, gradientFallback, gradientSupported, writeFill, type FillLocation, type GradientFill } from '@core/report/gradientFill'
+import { colorsIn, findFill, gradientFallback, gradientSupported, readFills, writeFill, type FillLocation, type GradientFill } from '@core/report/gradientFill'
 import type { ReportDocument } from '@core/report/types'
 import type { ResolvedTheme } from '@core/report/theme'
 import type { FormatCardDef, FormatPropDef } from '../../visuals/contract'
@@ -20,6 +20,7 @@ import { getRaw, setRaw, themeColorRaw } from './objects'
 import { DISPLAY_UNITS, FONT_FAMILIES, fontFamilyName, fontFamilyValue } from './containerCards'
 import { cfKindFor, findCF, propTarget, type CFContext } from './cf/target'
 import { FxButton, FxChip } from './cf/FxControls'
+import { openCfDialog } from './cf/store'
 import { PercentSlider, Segmented, SpinField } from './controls'
 import { BIU, layoutProps, propState } from './propModel'
 import { IconSourceRows, IconTypeRow, useSlotIcon } from '../../icons/IconSourceRows'
@@ -100,7 +101,10 @@ export function writeColor(target: BagTarget, object: string, prop: string, raw:
     const bag = target.locate(r)
     if (!bag) return
     target.beforeWrite?.(r, bag, object)
-    const fallback = gradient ? gradientFallback(gradient) : undefined
+    // a fallback no other color of the visual or theme uses, so the paint pass finds exactly this property's drawing
+    const owner = loc ? target.fill!.locateOwner(r) : undefined
+    const avoid = gradient ? [...colorsIn(owner?.visual ?? owner?.visualGroup ?? owner?.objects), ...colorsIn(target.theme), ...readFills(owner).filter((f) => !(f.object === object && f.prop === prop)).map((f) => f.fallback)] : undefined
+    const fallback = gradient ? gradientFallback(gradient, avoid) : undefined
     setRaw(bag, object, prop, fallback ? color(fallback) : raw, selector)
     if (loc) writeFill(target.fill!.locateOwner(r), loc, gradient && fallback ? { gradient, fallback } : undefined)
   })
@@ -219,6 +223,7 @@ function propEditor({ def, object, target, selector }: PropRowProps): { editor: 
             onChange={(hex, theme) => writeColor(target, object, def.name, theme ? themeColorRaw(theme.colorId, theme.percent) : color(hex), selector)}
             gradient={gradient}
             onGradient={loc ? (g) => writeColor(target, object, def.name, undefined, selector, g) : undefined}
+            onConditional={cfTarget ? () => openCfDialog(cfTarget) : undefined}
             onReset={explicit ? () => writeColor(target, object, def.name, undefined, selector) : undefined}
             emptyTitle="Automatic: the visual picks this color as it draws (per series, for contrast, or none)"
             emptyLabel="Auto"

@@ -25,6 +25,8 @@ import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
 import { resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
 import { lumenStyleCss, lumenStyleOf } from '@core/report/lumenStyle'
+import { activeGradients, GradientPainter } from './gradientPaint'
+import { resolveBoundColors } from './boundColors'
 import { useCanvasEnv } from './canvasEnv'
 import { lastMenuRequest, registerLiveContext, useVisualHost } from './host'
 import { PerfMark, useVisualPerf } from './perf'
@@ -278,6 +280,8 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   )
   // fx on container colors (title / background / border …) evaluated in the visual's filter context
   const chrome: ChromeSpec = useMemo(() => applyBoundContainerColors(baseChrome, visual.json, ctx), [baseChrome, visual.json, ctx])
+  // fx on the visual's other colors that have one value for the whole visual (boundColors.ts)
+  const rendered = useMemo(() => resolveBoundColors(visual, ctx), [visual, ctx])
   useEffect(() => (env.interactive ? registerLiveContext(env.pageName, visual.name, ctx) : undefined), [env.interactive, env.pageName, visual.name, ctx])
   const [hover, setHoverState] = useState(false)
   // the header can sit outside the container (above it, in the canvas header layer): leaving the container towards the
@@ -292,6 +296,15 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   useEffect(() => () => void (hideTimer.current && clearTimeout(hideTimer.current)), [])
   const outerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  // Lumen gradient fills on whatever the visual draws with a gradient property's fallback color (gradientPaint.ts)
+  const paints = useMemo(() => activeGradients(visual.json, theme), [visual.json, theme])
+  useLayoutEffect(() => {
+    const el = outerRef.current
+    if (!el || !paints.size) return
+    const painter = new GradientPainter(el, paints)
+    painter.start()
+    return () => painter.stop()
+  }, [paints])
   const [size, setSize] = useState<{ w: number; h: number } | null>(null)
 
   useLayoutEffect(() => {
@@ -458,7 +471,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
           ) : canRenderVisual ? (
             <VisualErrorBoundary visualType={type} resetKey={visual.json}>
               <PerfMark ctx={ctx} edge="start" />
-              <VisualContent def={def} visual={visual} pageName={env.pageName} width={size!.w} height={size!.h} ctx={ctx} />
+              <VisualContent def={def} visual={rendered} pageName={env.pageName} width={size!.w} height={size!.h} ctx={ctx} />
               <PerfMark ctx={ctx} edge="end" />
             </VisualErrorBoundary>
           ) : null}

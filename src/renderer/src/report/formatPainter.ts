@@ -15,11 +15,14 @@ import { useApp } from '../state/store'
 import { findPage, findVisual, isGroup, visualTypeOf } from './pbir'
 import type { PageDocument } from '@core/report/types'
 import { cloneDeep } from '@core/clone'
+import { readFills, writeFill, type FillEntry } from '@core/report/gradientFill'
 
 export interface CopiedFormat {
   visualType: string
   objects?: Record<string, any[]>
   containerObjects?: Record<string, any[]>
+  /** Lumen gradient fills of the copied properties (core/report/gradientFill.ts) */
+  fills?: FillEntry[]
 }
 
 /** Object names shared by Power BI's cartesian / categorical charts (safe to paint across chart types). */
@@ -40,7 +43,8 @@ const clone = cloneDeep
 export function copyFormat(visualJson: any): CopiedFormat | null {
   const v = visualJson?.visual ?? visualJson?.visualGroup
   if (!v) return null
-  return { visualType: visualTypeOf({ name: '', json: visualJson }), objects: clone(v.objects), containerObjects: clone(v.visualContainerObjects) }
+  const fills = readFills(visualJson)
+  return { visualType: visualTypeOf({ name: '', json: visualJson }), objects: clone(v.objects), containerObjects: clone(v.visualContainerObjects), ...(fills.length ? { fills } : {}) }
 }
 
 /** Can `fmt` be painted on a visual of `targetType`? (anything but groups can receive container formatting) */
@@ -97,6 +101,10 @@ export function applyFormat(targetJson: any, fmt: CopiedFormat): boolean {
     }
     if (Object.keys(next).length) v.objects = next
   }
+  // gradient fills follow the properties they belong to: the target's are replaced where its objects were
+  const painted = (f: FillEntry) => f.container || sameType || (sharedObject(fmt.visualType, toType, f.object) && !seriesSpecific(f))
+  for (const f of readFills(targetJson)) if (painted(f)) writeFill(targetJson, f, undefined)
+  for (const f of fmt.fills ?? []) if (painted(f)) writeFill(targetJson, f, { gradient: f.gradient, fallback: f.fallback })
   return true
 }
 

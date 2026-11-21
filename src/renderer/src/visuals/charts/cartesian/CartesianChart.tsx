@@ -29,6 +29,8 @@ import { readSeriesLabels, spreadLabels } from './seriesLabels'
 import { lineLabelSides, type LinePlacement } from './lineLabelPosition'
 import { readErrorBars, errorBounds, errorSpecFor, errorTooltip, type ErrorBarSpec } from './errorBars'
 import { decodeValue } from '@core/report/props'
+import { colorAt, type GradientFill } from '@core/report/gradientFill'
+import { SvgGradientDefs, svgPaintRef, type SvgPaint } from '../../common/svgPaint'
 import { detectAnomalies } from './anomaly'
 import { forecastSeries, readForecastSpecs, FORECAST_DEFAULT_COLOR, type SeriesForecast } from './forecast'
 
@@ -156,7 +158,14 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
   }
 
   const hl = data.hasHighlights
-  // bars
+  // bars (Lumen gradient fills: one definition per distinct gradient, see common/svgPaint.tsx)
+  const barPaints = new Map<string, SvgPaint>()
+  const barPaint = (gradient: GradientFill): string => {
+    const p = { gradient }
+    const ref = svgPaintRef(p)
+    barPaints.set(ref, p)
+    return ref
+  }
   const viewLo = (vertical ? L.plot.x : L.plot.y) - L.catStep * 2
   const viewHi = (vertical ? L.plot.x + L.plot.w : L.plot.y + L.plot.h) + L.catStep * 2
   for (const b of L.bars) {
@@ -168,7 +177,8 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
     const s = data.series[b.si]
     const cat = data.categories[b.ci]
     const id = pointIdentity(cat, s.split ? s : undefined)
-    const color = s.pointColors?.[b.ci] ?? s.color
+    const grad = s.pointColors?.[b.ci] !== undefined ? s.pointGradients?.[b.ci] : s.gradient
+    const color = grad ? barPaint(grad) : (s.pointColors?.[b.ci] ?? s.color)
     const [x0, y0] = xy(b.c0, b.v0)
     const [x1, y1] = xy(b.c1, b.v1)
     const r = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) }
@@ -237,7 +247,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
       const box = { x: lx - tw / 2 - 1, y: ly - th / 2, w: tw + 2, h: th }
       const visible = vertical ? lx > L.plot.x - 1 && lx < L.plot.x + L.plot.w + 1 : ly > L.plot.y - 1 && ly < L.plot.y + L.plot.h + 1
       if (fits && visible && tryPlace(box)) {
-        const fill = s.cfColors?.['labels.color']?.[b.ci] ?? ls.color ?? (inside ? contrastText(color) : PBI.dataLabelColor)
+        const fill = s.cfColors?.['labels.color']?.[b.ci] ?? ls.color ?? (inside ? contrastText(grad ? colorAt(grad, 0.5) : color) : PBI.dataLabelColor)
         labelNodes.push(
           <g key={`l${b.si}-${b.ci}`} pointerEvents="none" opacity={hl ? 1 : op}>
             {ls.background ? <rect x={box.x - 2} y={box.y} width={box.w + 4} height={box.h} fill={ls.background} /> : null}
@@ -249,6 +259,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
       }
     }
   }
+  if (barPaints.size) elems.unshift(<SvgGradientDefs key="gdefs" paints={[...barPaints.values()]} />)
 
   // ribbons
   for (const rb of L.ribbons) {
@@ -1130,7 +1141,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   if (!data.seriesField) legendStyle.showTitle = legendStyle.showTitle && !!fmt.optStr('legend', 'titleText')
   if (tiny || panel?.hideLegend || !multi) legendStyle.show = false
   const markerRendering = fmt.str('legend', 'legendMarkerRendering', 'markerCircleDefault')
-  const legendItems: LegendItem[] = series.map((s, i) => ({ key: s.key, label: s.name, color: s.color, shape: legendShapeFor(kinds[i], markerRendering) }))
+  const legendItems: LegendItem[] = series.map((s, i) => ({ key: s.key, label: s.name, color: s.color, shape: legendShapeFor(kinds[i], markerRendering), gradient: kinds[i] === 'bar' ? s.gradient : undefined }))
   const lg = measureLegend(legendStyle, legendItems, W, H)
   let area: Rect = { x: 0, y: 0, w: W, h: H }
   let legendRect: Rect = { x: 0, y: 0, w: 0, h: 0 }

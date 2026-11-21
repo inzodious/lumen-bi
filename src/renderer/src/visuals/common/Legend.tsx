@@ -2,6 +2,8 @@
  * Power BI–style legend: title + circle markers (or line/marker swatches for line series),
  * positions Top/Bottom/Left/Right (+Center variants), paging arrows when items overflow.
  */
+import type { GradientFill } from '@core/report/gradientFill'
+import { SvgGradientDef, svgPaintRef } from './svgPaint'
 import { useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { ellipsize, fontAttrs, lineHeight, measureText, type FontSpec } from './text'
 import type { FormatReader } from './fmtProps'
@@ -19,6 +21,8 @@ export interface LegendItem {
   shape?: 'circle' | 'line' | 'lineOnly' | 'square'
   dashed?: string
   dimmed?: boolean
+  /** Lumen gradient fill of the series (filled swatches only; lines keep `color`) */
+  gradient?: GradientFill
 }
 
 export interface LegendStyle {
@@ -108,8 +112,26 @@ function Swatch({ item, x, cy }: { item: LegendItem; x: number; cy: number }) {
       </g>
     )
   if (item.shape === 'lineOnly') return <line x1={x} x2={x + MARKER + 4} y1={cy} y2={cy} stroke={item.color} strokeWidth={2} strokeDasharray={item.dashed} />
-  if (item.shape === 'square') return <rect x={x} y={cy - MARKER / 2} width={MARKER} height={MARKER} fill={item.color} />
-  return <circle cx={x + MARKER / 2} cy={cy} r={MARKER / 2} fill={item.color} />
+  const paint = item.gradient ? { gradient: item.gradient } : undefined
+  const fill = paint ? svgPaintRef(paint) : item.color
+  const defs = paint ? (
+    <defs>
+      <SvgGradientDef paint={paint} />
+    </defs>
+  ) : null
+  if (item.shape === 'square')
+    return (
+      <>
+        {defs}
+        <rect x={x} y={cy - MARKER / 2} width={MARKER} height={MARKER} fill={fill} />
+      </>
+    )
+  return (
+    <>
+      {defs}
+      <circle cx={x + MARKER / 2} cy={cy} r={MARKER / 2} fill={fill} />
+    </>
+  )
 }
 
 /** Renders inside an <svg>. */

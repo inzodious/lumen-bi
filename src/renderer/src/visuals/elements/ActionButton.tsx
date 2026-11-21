@@ -63,6 +63,7 @@ export function ActionButtonVisual({ visual, width, height, ctx }: VisualProps) 
   const radius = p.num('shape', 'roundEdge', p.num('shape', 'rectangleRoundedCurve', p.num('outline', 'roundEdge', 0, sel), sel), sel)
   const kind = roundedButtonKind(normalizeShapeKind(p.str('shape', 'tileShape', 'rectangle')), radius)
   const fill = p.bool('fill', 'show', true, sel) ? withTransparency(p.color('fill', 'fillColor', BUTTON_DEFAULTS.fill, sel), p.num('fill', 'transparency', 0, sel)) : undefined
+  const fillGradient = fill ? p.gradient('fill', 'fillColor', sel) : undefined
   const outlineOn = p.bool('outline', 'show', true, sel)
   const stroke = outlineOn ? withTransparency(p.color('outline', 'lineColor', BUTTON_DEFAULTS.outline, sel), p.num('outline', 'transparency', 0, sel)) : undefined
   const weight = outlineOn ? p.num('outline', 'weight', 1, sel) : 0
@@ -125,6 +126,7 @@ export function ActionButtonVisual({ visual, width, height, ctx }: VisualProps) 
         radius={radius}
         fill={fill}
         stroke={stroke}
+        fillPaint={fillGradient ? { gradient: fillGradient, transparency: p.num('fill', 'transparency', 0, sel) } : undefined}
         strokeWidth={weight}
         shadow={readShadow(p, 'shadow', state)}
         glow={readGlow(p, 'glow', state)}

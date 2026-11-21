@@ -23,7 +23,7 @@ import { CanvasEnvContext, type CanvasEnv } from '../canvasEnv'
 import { resolveChrome } from '../chrome'
 import { HANDLES, type Handle } from '../geometry'
 import { usePageFilters } from '../pageFilters'
-import { pageBackgroundStyle } from '../PageCanvas'
+import { flatBackgroundStyle, pageBackgroundStyle } from '../PageCanvas'
 import { findPage, isEffectivelyHidden, isGroup, visualTypeOf, type Rect } from '../pbir'
 import { VisualContainer } from '../VisualContainer'
 import {
@@ -176,9 +176,7 @@ function Phone({ report, page, scale }: { report: ReportDocument; page: PageDocu
   const drag = useRef<DragState | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const bg = useMemo(() => {
-    const st = pageBackgroundStyle(report, page, theme) as any
-    const { ['--wbi-bg-opacity']: _o, ...rest } = st
-    return rest as CSSProperties
+    return flatBackgroundStyle(pageBackgroundStyle(report, page, theme))
   }, [report, page, theme])
 
   // ---- readiness (headless captures) ------------------------------------------------------------

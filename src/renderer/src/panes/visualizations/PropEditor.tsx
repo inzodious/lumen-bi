@@ -8,7 +8,8 @@ import { useState, type ReactNode } from 'react'
 import { LUMEN_SLICER_OBJECT, normalizeLumenSlicer } from '../../visuals/slicers/slicerFormat'
 import { ArrowResetRegular, TextAlignLeftRegular, TextAlignCenterRegular, TextAlignRightRegular, TextBoldRegular, TextItalicRegular, TextUnderlineRegular, ImageAddRegular } from '@fluentui/react-icons'
 import type { Scalar } from '@core/model/data'
-import { isDataBound, type ObjectsBag, type Selector } from '@core/report/props'
+import { gradientOf, isDataBound, type ObjectsBag, type PropContext, type Selector } from '@core/report/props'
+import { findFill, gradientFallback, gradientSupported, writeFill, type FillLocation, type GradientFill } from '@core/report/gradientFill'
 import type { ReportDocument } from '@core/report/types'
 import type { ResolvedTheme } from '@core/report/theme'
 import type { FormatCardDef, FormatPropDef } from '../../visuals/contract'
@@ -47,6 +48,18 @@ export interface BagTarget {
    * mobile-layout target uses it to seed a mobile override object from the desktop formatting (report/mobile/format.ts).
    */
   beforeWrite?(report: ReportDocument, bag: ObjectsBag, object: string): void
+  /**
+   * Lumen-only gradient fills (core/report/gradientFill.ts): where the `Lumen_Fill` annotation of this bag's owner
+   * lives. Absent where gradients aren't stored (mobile formatting): color rows then offer solid colors only.
+   */
+  fill?: {
+    visualType: string
+    container: boolean
+    /** prop context of the owner as displayed (fills included) */
+    pc: PropContext
+    /** the owner JSON (visual.json / page.json) inside a draft report */
+    locateOwner(report: ReportDocument): any
+  }
 }
 
 type RawOrFn = any | ((report: ReportDocument) => any)
@@ -67,12 +80,42 @@ export function writeProp(target: BagTarget, object: string, prop: string, raw: 
   )
 }
 
+/** The gradient-fill location of a color property, when the target stores gradients and Lumen draws this one with them. */
+function fillLocation(target: BagTarget, object: string, prop: string, selector?: Selector): FillLocation | undefined {
+  const f = target.fill
+  if (!f || !gradientSupported(f.visualType, object, prop, f.container)) return undefined
+  return { object, prop, selector, container: f.container || undefined }
+}
+
+/**
+ * Write a color property and its gradient fill in one undo step: a gradient writes its solid fallback to the property
+ * (what Power BI shows) and the gradient to the owner's annotation; a solid color or reset (`raw` undefined) drops a
+ * stored gradient.
+ */
+export function writeColor(target: BagTarget, object: string, prop: string, raw: any, selector: Selector | undefined, gradient?: GradientFill): void {
+  const loc = fillLocation(target, object, prop, selector)
+  const stale = loc && findFill(target.fill!.pc.fills, loc)
+  if (!gradient && !stale) return writeProp(target, object, prop, raw, selector)
+  useApp.getState().mutateReport(gradient ? 'Gradient fill' : target.label, (r) => {
+    const bag = target.locate(r)
+    if (!bag) return
+    target.beforeWrite?.(r, bag, object)
+    const fallback = gradient ? gradientFallback(gradient) : undefined
+    setRaw(bag, object, prop, fallback ? color(fallback) : raw, selector)
+    if (loc) writeFill(target.fill!.locateOwner(r), loc, gradient && fallback ? { gradient, fallback } : undefined)
+  })
+}
+
 /** Clear several properties of one object in a single undo step (a card's "Reset to default"). */
 export function resetProps(target: BagTarget, object: string, props: Array<{ name: string; selector?: Selector }>): void {
   useApp.getState().mutateReport('Reset to default', (r) => {
     const bag = target.locate(r)
     if (!bag) return
-    for (const p of props) setRaw(bag, object, p.name, undefined, p.selector)
+    for (const p of props) {
+      setRaw(bag, object, p.name, undefined, p.selector)
+      const loc = fillLocation(target, object, p.name, p.selector)
+      if (loc && findFill(target.fill!.pc.fills, loc)) writeFill(target.fill!.locateOwner(r), loc, undefined)
+    }
     if (object === LUMEN_SLICER_OBJECT) normalizeLumenSlicer({ visual: { objects: bag } })
   })
 }
@@ -131,7 +174,7 @@ function enumValue(def: FormatPropDef, value: unknown): any {
 function propEditor({ def, object, target, selector }: PropRowProps): { editor: ReactNode; explicit: boolean; reset(): void; value: any; set(v: string | number | boolean, continuous?: boolean): void } {
   const { explicit, raw, value } = propState(def, object, target, selector)
   const set = (v: string | number | boolean, continuous?: boolean) => writeProp(target, object, def.name, wrapFor(def, v), selector, continuous ? coalesceKey(target, object, def.name, selector) : undefined)
-  const reset = () => writeProp(target, object, def.name, undefined, selector)
+  const reset = () => (def.type === 'color' ? writeColor(target, object, def.name, undefined, selector) : writeProp(target, object, def.name, undefined, selector))
 
   const cfKind = cfKindFor(def, object, target.cf)
   const cfTarget = cfKind && target.cf ? propTarget(target.cf, object, def, cfKind, selector) : undefined
@@ -166,18 +209,23 @@ function propEditor({ def, object, target, selector }: PropRowProps): { editor: 
       case 'percent':
         editor = <PercentSlider label={def.displayName} value={typeof value === 'number' ? value : undefined} min={def.min ?? 0} max={def.max ?? 100} onChange={(n, sliding) => (n === undefined ? reset() : set(n, sliding))} />
         break
-      case 'color':
+      case 'color': {
+        const loc = fillLocation(target, object, def.name, selector)
+        const gradient = loc ? gradientOf(target.fill!.pc, loc) : undefined
         editor = (
           <ColorPicker
             value={typeof value === 'string' ? value : undefined}
             themeColors={target.theme}
-            onChange={(hex, theme) => writeProp(target, object, def.name, theme ? themeColorRaw(theme.colorId, theme.percent) : color(hex), selector)}
-            onReset={explicit ? reset : undefined}
+            onChange={(hex, theme) => writeColor(target, object, def.name, theme ? themeColorRaw(theme.colorId, theme.percent) : color(hex), selector)}
+            gradient={gradient}
+            onGradient={loc ? (g) => writeColor(target, object, def.name, undefined, selector, g) : undefined}
+            onReset={explicit ? () => writeColor(target, object, def.name, undefined, selector) : undefined}
             emptyTitle="Automatic: the visual picks this color as it draws (per series, for contrast, or none)"
             emptyLabel="Auto"
           />
         )
         break
+      }
       case 'text':
         editor = <TextInput value={typeof value === 'string' ? value : value === undefined ? '' : String(value)} onCommit={(t) => (t === '' && !explicit ? undefined : set(t))} />
         break

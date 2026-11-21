@@ -7,6 +7,7 @@
  */
 import { useMemo, useState, type ReactNode } from 'react'
 import { makePropContext, rawProp, type Selector } from '@core/report/props'
+import { readFills } from '@core/report/gradientFill'
 import type { PageDocument, VisualDocument } from '@core/report/types'
 import type { ResolvedTheme } from '@core/report/theme'
 import type { FormatCardDef, FormatPropDef } from '../../visuals/contract'
@@ -39,18 +40,20 @@ export function visualTarget(pageName: string, visual: VisualDocument, container
     defaults: (object, prop, def) => rendererDefault(object, prop, theme, visual.json, container, def),
     theme,
     label: 'Format visual',
-    cf: { pageName, visualName: visual.name, visualType: visualTypeOf(visual), container }
+    cf: { pageName, visualName: visual.name, visualType: visualTypeOf(visual), container },
+    fill: { visualType: visualTypeOf(visual), container, pc, locateOwner: (r) => findVisual(findPage(r, pageName), visual.name)?.json }
   }
 }
 
 export function pageTarget(page: PageDocument, theme: ResolvedTheme): BagTarget {
-  const pc = { visualType: 'page', objects: page.json?.objects, theme }
+  const pc = { visualType: 'page', objects: page.json?.objects, theme, fills: readFills(page.json) }
   return {
     bag: pageBag(page.json),
     locate: (r) => pageBag(findPage(r, page.name)?.json, true),
     resolveRaw: (object, prop, sel) => rawProp(pc, object, prop, sel),
     theme,
-    label: 'Format page'
+    label: 'Format page',
+    fill: { visualType: 'page', container: false, pc, locateOwner: (r) => findPage(r, page.name)?.json }
   }
 }
 

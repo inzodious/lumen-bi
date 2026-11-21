@@ -78,6 +78,34 @@ An **fx** button next to a property means it can take its value from data: color
 value; titles and alt text from a field value. A property with conditional formatting shows a chip instead of the
 control; select the chip to edit the rule or **x** to remove it. See [Conditional formatting](conditional-formatting.md).
 
+## Gradient fills
+
+Lumen can fill a color with a gradient where Power BI only has a solid color. Open the color picker and select
+**Gradient** (next to **Solid**) to edit:
+
+- the stops on the bar under the preview: select a stop to change its color (theme colors, tints and shades, or a hex
+  value) and its position, drag it along the bar, and use **+** / the bin to add or remove stops (2 to 8);
+- **Linear** or **Radial**, and for a linear gradient its direction (the arrows, or an angle in degrees).
+
+Select **Apply**. The color button then shows the gradient; picking a color on the **Solid** tab or
+**Reset to default** returns to a solid color.
+
+The **Gradient** tab is offered where Lumen draws the color as a gradient:
+
+| Where | Property |
+|---|---|
+| Any visual, **General** tab | **Effects > Background > Color**, **Title > Background** |
+| Page format | **Canvas background > Color**, **Wallpaper > Color** |
+| Shapes | **Fill > Color**, **Border > Color** (not lines) |
+| Buttons | **Fill > Color** |
+| Bar, column, pie, donut and funnel charts | The data colors card (**Columns**, **Bars**, **Slices**...): **Color** and **Default color**, for all series or one |
+
+Power BI has no gradient fill, so the property itself keeps a solid color, the gradient's middle color, which is what
+Power BI Desktop draws when it opens the report. The gradient is stored beside it in an annotation (see
+[Working with PBIP projects](../files-and-compatibility/working-with-pbip-projects.md)). If the color is later changed
+in Power BI, Lumen draws the new solid color and ignores the old gradient. Gradient fills are not conditional
+formatting: for colors that follow the data, use **fx** (below).
+
 ## Copy formatting to another visual
 
 1. Select the visual whose formatting you want to copy.
@@ -100,6 +128,7 @@ formatting: changes apply to the phone layout only* and offers **Reset to deskto
 - Some labels in the pane are not final: the button **Action** type list shows *Qn A* and *Web Url*; the new card's
   **Card shadow** preset list shows internal values such as *bottomRight*; the donut chart has two cards named
   **Slices**, and the pie and donut **Data labels** cards have two properties named **Background**.
+- **Gradient fills** are Lumen-only (see above). The **Format painter** copies the solid color, not the gradient.
 - Line and area charts show **Error bars** and **Find anomalies** on the Visual tab as well as on the Analytics tab.
 
 ## Related content

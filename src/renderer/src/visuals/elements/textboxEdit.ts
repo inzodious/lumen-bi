@@ -9,6 +9,7 @@
  * label followed by regular text), links and paragraph settings survive an edit, and dynamic values (+ Value, smart
  * narrative) stay bound: they are non-editable atoms that are either kept whole or deleted.
  */
+import { cloneDeep } from '@core/clone'
 import { bulletGlyph, type Paragraph, type TextRun } from './textboxModel'
 
 export interface EditRun {
@@ -106,7 +107,7 @@ export function readEditor(root: EditNode): EditParagraph[] {
   return out
 }
 
-const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
+const clone = <T>(v: T): T => cloneDeep(v)
 
 /**
  * PBIR paragraphs for the edited text. Paragraph settings come from the source paragraph of the first text in it

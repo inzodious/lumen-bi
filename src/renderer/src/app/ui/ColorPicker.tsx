@@ -88,6 +88,8 @@ export interface ColorPickerProps {
   gradient?: GradientFill
   /** offer the Gradient tab; receives the applied gradient */
   onGradient?(g: GradientFill): void
+  /** offer "Conditional formatting" (the fx dialog) next to Solid / Gradient */
+  onConditional?(): void
 }
 
 export function ColorPicker(p: ColorPickerProps) {
@@ -143,13 +145,31 @@ export function ColorPicker(p: ColorPickerProps) {
       {open && (
         <Popover anchor={ref.current} open onClose={() => (setOpen(false), setCustom(false))} ignoreOutside={[ref.current]}>
           <div className="wbi-colorpop">
-            {p.onGradient && !custom && (
+            {(p.onGradient || p.onConditional) && !custom && (
               <div className="wbi-gradpop__seg wbi-colorpop__tabs" role="tablist" aria-label="Fill type">
-                {(['solid', 'gradient'] as const).map((t) => (
-                  <button key={t} type="button" role="tab" aria-selected={tab === t} className={cx('wbi-gradpop__segbtn', tab === t && 'is-on')} onClick={() => setTab(t)}>
-                    {t === 'solid' ? 'Solid' : 'Gradient'}
+                <button type="button" role="tab" aria-selected={tab === 'solid'} className={cx('wbi-gradpop__segbtn', tab === 'solid' && 'is-on')} onClick={() => setTab('solid')}>
+                  Solid
+                </button>
+                {p.onGradient && (
+                  <button type="button" role="tab" aria-selected={tab === 'gradient'} className={cx('wbi-gradpop__segbtn', tab === 'gradient' && 'is-on')} onClick={() => setTab('gradient')}>
+                    Gradient
                   </button>
-                ))}
+                )}
+                {p.onConditional && (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={false}
+                    className="wbi-gradpop__segbtn"
+                    title="Conditional formatting: color by rules, a gradient scale or a field value"
+                    onClick={() => {
+                      setOpen(false)
+                      p.onConditional!()
+                    }}
+                  >
+                    fx Conditional
+                  </button>
+                )}
               </div>
             )}
             {p.onGradient && tab === 'gradient' && !custom ? (

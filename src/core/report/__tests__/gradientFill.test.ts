@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { colorAt, defaultGradient, findFill, gradientCss, gradientFallback, gradientId, gradientSupported, LUMEN_FILL_ANNOTATION, parseGradient, readFills, svgGradientGeometry, writeFill, type GradientFill } from '../gradientFill'
+import { colorAt, colorsIn, defaultGradient, findFill, gradientCss, gradientFallback, gradientId, gradientSupported, LUMEN_FILL_ANNOTATION, parseGradient, readFills, svgGradientGeometry, writeFill, type GradientFill } from '../gradientFill'
 import { gradientForRaw, gradientOf, makePropContext } from '../props'
 import { lumenStyleCss } from '../lumenStyle'
 import { resolveTheme } from '../theme'
@@ -91,13 +91,19 @@ describe('gradient fills (Lumen_Fill)', () => {
     expect(lumenStyleCss({ radial: { at: '50% 50%', stops: ['#FFFFFF', '#000000'] } }, gradientCss(G)).background).toBe('radial-gradient(circle at 50% 50%, #FFFFFF, #000000), linear-gradient(90deg, #000000 0%, #FFFFFF 100%)')
   })
 
-  it('lists the properties Lumen draws with gradients', () => {
+  it('offers gradients on every visual color and on the page canvas and wallpaper', () => {
     expect(gradientSupported('lineChart', 'background', 'color', true)).toBe(true)
-    expect(gradientSupported('lineChart', 'background', 'color', false)).toBe(false)
+    expect(gradientSupported('lineChart', 'dataPoint', 'fill')).toBe(true)
+    expect(gradientSupported('tableEx', 'values', 'fontColor')).toBe(true)
     expect(gradientSupported('page', 'outspace', 'color')).toBe(true)
-    expect(gradientSupported('shape', 'fill', 'fillColor')).toBe(true)
-    expect(gradientSupported('clusteredColumnChart', 'dataPoint', 'fill')).toBe(true)
-    expect(gradientSupported('lineChart', 'dataPoint', 'fill')).toBe(false)
-    expect(gradientSupported('textbox', 'title', 'fontColor', true)).toBe(false)
+    expect(gradientSupported('page', 'background', 'color')).toBe(true)
+    expect(gradientSupported('page', 'filterCard', 'backgroundColor')).toBe(false)
+  })
+
+  it('picks a fallback no other color of the visual or theme uses', () => {
+    expect(gradientFallback(G, ['#808080'])).toBe('#808081')
+    expect(gradientFallback(G, ['#808080', '#808081'])).toBe('#80807F')
+    expect(gradientFallback(G, ['#123456'])).toBe('#808080')
+    expect([...colorsIn({ a: "'#abc'", b: ['#112233', { c: '#FF000080' }], d: 'text' })].sort()).toEqual(['#112233', '#AABBCC', '#FF0000'])
   })
 })

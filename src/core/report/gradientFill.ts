@@ -51,21 +51,18 @@ export interface FillEntry extends FillLocation {
 const COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
 const MAX_STOPS = 8
 
-/** Properties Lumen draws with a gradient (object.prop; `*` = any visual type). Others keep the solid picker. */
-const SUPPORTED: Array<{ visualTypes?: string[]; object: string; prop: string; container?: boolean }> = [
-  { object: 'background', prop: 'color', container: true },
-  { object: 'title', prop: 'background', container: true },
-  { visualTypes: ['page'], object: 'background', prop: 'color' },
-  { visualTypes: ['page'], object: 'outspace', prop: 'color' },
-  { visualTypes: ['shape', 'actionButton'], object: 'fill', prop: 'fillColor' },
-  { visualTypes: ['shape'], object: 'outline', prop: 'lineColor' },
-  { visualTypes: ['barChart', 'clusteredBarChart', 'stackedBarChart', 'hundredPercentStackedBarChart', 'columnChart', 'clusteredColumnChart', 'stackedColumnChart', 'hundredPercentStackedColumnChart', 'pieChart', 'donutChart', 'funnel'], object: 'dataPoint', prop: 'fill' },
-  { visualTypes: ['barChart', 'clusteredBarChart', 'stackedBarChart', 'hundredPercentStackedBarChart', 'columnChart', 'clusteredColumnChart', 'stackedColumnChart', 'hundredPercentStackedColumnChart', 'pieChart', 'donutChart', 'funnel'], object: 'dataPoint', prop: 'defaultColor' }
-]
+/**
+ * Page color properties drawn with a gradient. Every color property of a visual (its objects and container objects)
+ * takes one: renderers with their own gradient support draw it directly, and the visual container's paint pass
+ * (renderer report/gradientPaint.ts) applies it to whatever the visual drew with the property's fallback color.
+ * Page formatting is drawn by the canvas and filter pane, so only the canvas background and wallpaper take one.
+ */
+const PAGE_SUPPORTED = new Set(['background.color', 'outspace.color'])
 
 /** Does Lumen draw this color property with a gradient fill? */
-export function gradientSupported(visualType: string, object: string, prop: string, container = false): boolean {
-  return SUPPORTED.some((s) => s.object === object && s.prop === prop && !!s.container === container && (!s.visualTypes || s.visualTypes.includes(visualType)))
+export function gradientSupported(visualType: string, object: string, prop: string, _container = false): boolean {
+  if (visualType === 'page') return PAGE_SUPPORTED.has(`${object}.${prop}`)
+  return true
 }
 
 /** '#abc' → '#AABBCC'; 6- and 8-digit forms upper-cased. */
@@ -184,9 +181,33 @@ export function colorAt(g: GradientFill, t: number): string {
   return alpha < 1 ? hex + Math.round(alpha * 255).toString(16).padStart(2, '0').toUpperCase() : hex
 }
 
-/** The solid color written to the property for Power BI: the gradient's midpoint, opaque. */
-export function gradientFallback(g: GradientFill): string {
-  return colorAt(g, 0.5).slice(0, 7)
+/**
+ * The solid color written to the property for Power BI: the gradient's midpoint, opaque. With `avoid` (colors used
+ * elsewhere in the visual or theme), the blue channel is nudged by the smallest step that makes it unique, so the
+ * paint pass can tell this property's drawing apart from everything else (an invisible change).
+ */
+export function gradientFallback(g: GradientFill, avoid?: Iterable<string>): string {
+  const mid = colorAt(g, 0.5).slice(0, 7)
+  const used = new Set([...(avoid ?? [])].filter((c) => typeof c === 'string' && COLOR.test(c)).map((c) => normHex(c).slice(0, 7)))
+  if (!used.has(mid)) return mid
+  const [r, gg, b] = parseHex(mid)
+  for (let d = 1; d < 256; d++)
+    for (const nb of [b + d, b - d]) {
+      if (nb < 0 || nb > 255) continue
+      const c = toHex(r, gg, nb)
+      if (!used.has(c)) return c
+    }
+  return mid
+}
+
+/** Every literal hex color in a JSON tree (visual.json / theme), upper-case #RRGGBB. */
+export function colorsIn(node: unknown, out = new Set<string>()): Set<string> {
+  if (typeof node === 'string') {
+    const m = /^'?(#[0-9a-f]{3}(?:[0-9a-f]{3})?(?:[0-9a-f]{2})?)'?$/i.exec(node)
+    if (m && COLOR.test(m[1])) out.add(normHex(m[1]).slice(0, 7))
+  } else if (Array.isArray(node)) for (const x of node) colorsIn(x, out)
+  else if (node && typeof node === 'object') for (const v of Object.values(node)) colorsIn(v, out)
+  return out
 }
 
 /** A starting gradient for a solid color: the color fading to a lighter tint (a darker shade for light colors), top to bottom. */

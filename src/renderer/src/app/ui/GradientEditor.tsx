@@ -5,9 +5,9 @@
 import { useRef, useState } from 'react'
 import { AddRegular, DeleteRegular } from '@fluentui/react-icons'
 import { colorAt, gradientCss, type GradientFill, type GradientStop } from '@core/report/gradientFill'
-import { shadeColor } from '@core/report/theme'
 import { TextField } from './primitives'
 import { cx } from './cx'
+import { ThemeSwatches } from './ThemeSwatches'
 
 const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315]
 const MAX_STOPS = 8
@@ -113,19 +113,7 @@ export function GradientEditor({ initial, swatches, onApply, onCancel }: Gradien
           <DeleteRegular fontSize={14} />
         </button>
       </div>
-      <div className="wbi-colorpop__grid">
-        {swatches.map((c, i) => (
-          <button key={i} type="button" title={c.toUpperCase()} className={cx('wbi-colorpop__sw', stop.color === c.toUpperCase() && 'is-current')} style={{ background: c }} onClick={() => setStopColor(c)} />
-        ))}
-      </div>
-      <div className="wbi-colorpop__grid wbi-colorpop__grid--tints">
-        {[0.6, 0.3, -0.25, -0.5].flatMap((t, row) =>
-          swatches.map((c, i) => {
-            const h = shadeColor(c, t)
-            return <button key={`${row}-${i}`} type="button" title={h} className={cx('wbi-colorpop__sw', stop.color === h && 'is-current')} style={{ background: h }} onClick={() => setStopColor(h)} />
-          })
-        )}
-      </div>
+      <ThemeSwatches base={swatches} current={stop.color} onPick={(h) => setStopColor(h)} />
       <div className="wbi-row wbi-gradpop__fields">
         <span className="wbi-color-btn__swatch" style={{ background: stop.color, width: 24, height: 24 }} />
         <TextField

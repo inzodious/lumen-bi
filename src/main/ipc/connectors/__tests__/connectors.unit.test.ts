@@ -12,7 +12,7 @@ import { CredentialStore, urlCovers } from '../credstore'
 import { convertMysqlValue, mysqlHostType } from '../mysql'
 import { convertPgText, parsePgArray, parsePgBytea, parsePgTimestamp, pgHostType } from '../pg'
 import { fieldPathSegments, structuredQuery } from '../firestore'
-import { listShares, normalizeShareUrl, parseGvfsName, parseMounts, parseShareUrl, resolveAgainst } from '../shares'
+import { listShares, normalizeShareUrl, resolveSharePath, parseGvfsName, parseMounts, parseShareUrl, resolveAgainst } from '../shares'
 import { sqliteDeclaredType, sqliteInferType } from '../sqlite'
 import { pkcePair } from '../oauth'
 import { hostPort } from '../common'
@@ -291,7 +291,8 @@ me@box:/srv /home/me/box fuse.sshfs rw 0 0
     expect(() => normalizeShareUrl('/tmp')).toThrow(/isn't a share address/)
   })
 
-  it('discovers shares and reads smb:// paths through their mount', async () => {
+  // GVFS is Linux-only, and its mount folder names contain ':', which Windows file names can't
+  it.skipIf(process.platform === 'win32')('discovers shares and reads smb:// paths through their mount', async () => {
     const root = mkdtempSync(join(tmpdir(), 'lumen-shares-'))
     const share = join(root, 'run/user/1000/gvfs/smb-share:server=nas,share=data')
     mkdirSync(join(share, 'sales'), { recursive: true })
@@ -322,6 +323,12 @@ me@box:/srv /home/me/box fuse.sshfs rw 0 0
       await h.dispose()
       rmSync(root, { recursive: true, force: true })
     }
+  })
+
+  it.runIf(process.platform === 'win32')('resolves share URLs to UNC paths on Windows', async () => {
+    expect(await resolveSharePath('smb://nas/data/sales/a.csv')).toBe('//nas/data/sales/a.csv')
+    expect(await resolveSharePath('\\\\nas\\data\\x')).toBe('//nas/data/x')
+    expect(await resolveSharePath('nfs://nas/export')).toBeNull()
   })
 
   it('lists the real machine without failing', async () => {

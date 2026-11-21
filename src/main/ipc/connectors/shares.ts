@@ -6,8 +6,8 @@
  * mounted local path so the file readers work on them transparently (TrueNAS / NAS datasets).
  */
 import { spawn } from 'node:child_process'
-import { readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { access, readdir, readFile } from 'node:fs/promises'
+import { posix } from 'node:path'
 import type { MountRequest, ShareInfo } from '../../../shared/host'
 import { ConnectorError } from './common'
 
@@ -24,7 +24,7 @@ export function parseGvfsName(dir: string, name: string): ShareInfo | null {
     const j = kv.indexOf('=')
     if (j > 0) params.set(kv.slice(0, j), decodeURIComponent(kv.slice(j + 1).replace(/%(?![0-9a-f]{2})/gi, '%25')))
   }
-  const path = join(dir, name)
+  const path = posix.join(dir, name)
   const host = params.get('server') ?? params.get('host')
   switch (scheme) {
     case 'smb-share': {
@@ -177,8 +177,15 @@ export async function listShares(env: ShareEnv = sysEnv()): Promise<ShareInfo[]>
   return out.map((s) => (s.mounted === undefined ? { ...s, mounted: true } : s))
 }
 
+/** Windows reads SMB shares natively through UNC paths, so a share URL resolves to `//host/share/rest`. */
+function uncPath(path: string): string | null {
+  const p = parseShareUrl(path)
+  return p?.scheme === 'smb' ? `//${p.host}/${p.share}${p.rest ? `/${p.rest}` : ''}` : null
+}
+
 export async function resolveSharePath(path: string, env?: ShareEnv): Promise<string | null> {
   if (!parseShareUrl(path)) return null
+  if (process.platform === 'win32' && !env) return uncPath(path)
   return resolveAgainst(path, (await listShares(env)).filter((s) => s.mounted !== false))
 }
 
@@ -207,6 +214,7 @@ function run(cmd: string, args: string[], input: string, timeoutMs: number): Pro
 /** `gio mount smb://host/share` with the credentials answered on stdin; returns the mounted path. */
 export async function mountShare(req: MountRequest, env?: ShareEnv): Promise<string> {
   const url = normalizeShareUrl(req.url)
+  if (process.platform === 'win32' && !env) return mountWindowsShare(req, url)
   const already = await resolveSharePath(url, env)
   if (already) return already
   const args = req.anonymous ? ['mount', '-a', url] : ['mount', url]
@@ -220,4 +228,24 @@ export async function mountShare(req: MountRequest, env?: ShareEnv): Promise<str
   const path = await resolveSharePath(url, env)
   if (!path) throw new ConnectorError(`${url} was mounted, but its local path wasn't found under /run/user/<uid>/gvfs.`)
   return path
+}
+
+/** Windows: SMB shares are reached as UNC paths; `net use` signs in when credentials are given. NFS needs the Windows NFS client. */
+async function mountWindowsShare(req: MountRequest, url: string): Promise<string> {
+  const unc = uncPath(url)
+  if (!unc) throw new ConnectorError(`${url}: only SMB shares (\\\\server\\share) are supported on Windows. Map other shares to a drive letter and open that.`)
+  if (!req.anonymous && req.user) {
+    const user = req.domain ? `${req.domain}\\${req.user}` : req.user
+    const r = await run('net', ['use', unc.replace(/\//g, '\\'), req.password ?? '', `/user:${user}`], '', 60_000)
+    if (r.code !== 0 && !/multiple connections|already/i.test(r.out)) {
+      const msg = r.out.trim() || `net use exited with ${r.code}`
+      throw new ConnectorError(`Connecting to ${unc} failed: ${msg}`, /denied|password|logon|authenticat/i.test(msg) ? 'credentials' : 'error')
+    }
+  }
+  try {
+    await access(unc)
+  } catch {
+    throw new ConnectorError(`${unc} isn't reachable. Check the server name and that you're signed in to it.`, 'credentials')
+  }
+  return unc
 }

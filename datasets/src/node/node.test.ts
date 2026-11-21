@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import ExcelJS from 'exceljs'
 import { parquetMetadata, parquetReadObjects } from 'hyparquet'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -130,7 +130,7 @@ describe.each(UNIVERSES.map((u) => [u.id, u] as const))('lakehouse output %s', (
       const adds = actions.slice(3).map((a) => a.add as { path: string; size: number; partitionValues: Record<string, string>; stats: string; dataChange: boolean })
       expect(adds.length).toBeGreaterThan(0)
       let rows = 0
-      const onDisk = walk(dir).filter((f) => f.endsWith('.parquet')).map((f) => relative(dir, f))
+      const onDisk = walk(dir).filter((f) => f.endsWith('.parquet')).map((f) => relative(dir, f).split(sep).join('/'))
       expect(adds.map((a) => a.path).sort()).toEqual(onDisk.sort())
       for (const a of adds) {
         const file = join(dir, a.path)
@@ -214,7 +214,7 @@ describe.each(UNIVERSES.map((u) => [u.id, u] as const))('lakehouse output %s', (
       }
     }
     const lakePath = model.expressions.find((e) => e.name === 'LakehousePath')!.expression
-    expect(lakePath).toContain(JSON.stringify(lake).slice(1, -1))
+    expect(lakePath).toContain(`"${lake}"`)
     const pbip = JSON.parse(readFileSync(join(out, u.id, `${u.name}.pbip`), 'utf8')) as { artifacts: Array<{ report: { path: string } }> }
     expect(pbip.artifacts[0].report.path).toBe(`${u.name}.Report`)
     const rep = join(out, u.id, `${u.name}.Report`)

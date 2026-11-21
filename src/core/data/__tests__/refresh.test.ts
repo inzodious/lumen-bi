@@ -277,12 +277,14 @@ in
 // Fictional datasets (datasets/): Parquet partitions + LakehousePath parameter, end to end
 
 const DATASETS_CLI = resolve(import.meta.dirname, '../../../../datasets/src/node/cli.ts')
+// Node strips TypeScript types by default only from 22.18 / 23.6; older 22.x need the flag
+const TS_FLAGS = (process.features as { typescript?: unknown }).typescript ? [] : ['--experimental-strip-types']
 
 describe.skipIf(!existsSync(DATASETS_CLI))('refresh a generated lakehouse dataset end to end', () => {
   it('loads every table with the row counts of the gold Parquet files', async () => {
     const out = mkdtempSync(join(tmpdir(), 'lumen-ds-'))
     try {
-      execFileSync(process.execPath, [DATASETS_CLI, 'generate', 'starlite', '--scale', 'tiny', '--out', out], { stdio: 'pipe' })
+      execFileSync(process.execPath, [...TS_FLAGS, DATASETS_CLI, 'generate', 'starlite', '--scale', 'tiny', '--out', out], { stdio: 'pipe' })
       const root = join(out, 'starlite')
       const pbip = readdirSync(root).find((f) => f.endsWith('.pbip'))!
       const { openProject } = await import('../../io/open')
@@ -327,7 +329,7 @@ describe.skipIf(!existsSync(DATASETS_CLI))('refresh a generated lakehouse datase
   it('reads a partitioned Delta table folder with DeltaLake.Table', async () => {
     const out = mkdtempSync(join(tmpdir(), 'lumen-ds-'))
     try {
-      execFileSync(process.execPath, [DATASETS_CLI, 'generate', 'starlite', '--scale', 'tiny', '--out', out], { stdio: 'pipe' })
+      execFileSync(process.execPath, [...TS_FLAGS, DATASETS_CLI, 'generate', 'starlite', '--scale', 'tiny', '--out', out], { stdio: 'pipe' })
       const tables = join(out, 'starlite', readdirSync(join(out, 'starlite')).find((f) => f.endsWith('.Lakehouse'))!, 'Tables')
       const partitioned = readdirSync(tables).find((d) => readdirSync(join(tables, d)).some((x) => x.startsWith('year=')))!
       const dir = join(tables, partitioned)

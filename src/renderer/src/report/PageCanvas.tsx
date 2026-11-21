@@ -8,7 +8,8 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProper
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import type { PageDocument, ReportDocument, VisualDocument } from '@core/report/types'
 import type { DataPointIdentity, SQFilter } from '@core/report/sq'
-import { decodeValue, rawProp } from '@core/report/props'
+import { decodeValue, gradientOf, rawProp } from '@core/report/props'
+import { gradientCss, readFills } from '@core/report/gradientFill'
 import { withTransparency } from '@core/report/theme'
 import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
@@ -67,12 +68,15 @@ export interface CanvasReadyResult {
 // ---------------------------------------------------------------------------------------------
 
 export function pageBackgroundStyle(report: ReportDocument, page: PageDocument, theme = useApp.getState().theme, object = 'background'): CSSProperties {
-  const ctx = { visualType: 'page', objects: page.json?.objects, theme }
+  const ctx = { visualType: 'page', objects: page.json?.objects, theme, fills: readFills(page.json) }
   const color = decodeValue(rawProp(ctx, object, 'color'), theme)
   const transparency = Number(decodeValue(rawProp(ctx, object, 'transparency'), theme) ?? 0)
   const img = rawProp(ctx, object, 'image')
   const style: CSSProperties = {}
+  // Lumen gradient fill (core/report/gradientFill.ts): `--wbi-bg-gradient`, the solid fallback stays in backgroundColor
+  const gradient = typeof color === 'string' ? gradientOf(ctx, { object, prop: 'color' }) : undefined
   if (typeof color === 'string') style.backgroundColor = withTransparency(color, transparency)
+  if (gradient) (style as any)['--wbi-bg-gradient'] = gradientCss(gradient, transparency)
   const imageProps = img?.image ?? img
   if (imageProps?.url) {
     const ref = decodeValue(imageProps.url, theme)
@@ -88,16 +92,23 @@ export function pageBackgroundStyle(report: ReportDocument, page: PageDocument, 
   return { ...style, ['--wbi-bg-opacity' as any]: String(1 - Math.max(0, Math.min(100, transparency)) / 100) }
 }
 
+/** pageBackgroundStyle as one plain CSS layer stack (image over the gradient fill), without the custom properties. */
+export function flatBackgroundStyle(st: CSSProperties): CSSProperties {
+  const { ['--wbi-bg-opacity' as any]: _o, ['--wbi-bg-gradient' as any]: gradient, ...rest } = st as any
+  if (!gradient) return rest
+  return { ...rest, backgroundImage: rest.backgroundImage ? `${rest.backgroundImage}, ${gradient}` : gradient }
+}
+
 /** Page background layer: color + image with PBI transparency applied to the whole layer (image included). */
 function PageBackground({ report, page }: { report: ReportDocument; page: PageDocument }) {
   const theme = useApp((s) => s.theme)
   const st = useMemo(() => pageBackgroundStyle(report, page, theme), [report, page, theme])
   const opacity = Number((st as any)['--wbi-bg-opacity'] ?? 1)
-  const { backgroundColor, ...rest } = st
+  const { backgroundColor, ['--wbi-bg-gradient' as any]: gradient, ...rest } = st as any
   // color already carries alpha via withTransparency; image layer gets the opacity
   return (
     <>
-      {backgroundColor ? <div className="wbi-page-bg" style={{ backgroundColor }} /> : null}
+      {gradient ? <div className="wbi-page-bg" style={{ background: gradient }} /> : backgroundColor ? <div className="wbi-page-bg" style={{ backgroundColor }} /> : null}
       {rest.backgroundImage ? <div className="wbi-page-bg" style={{ ...rest, opacity }} /> : null}
     </>
   )

@@ -93,6 +93,8 @@ export function ShapeVisual({ visual, width, height, ctx }: VisualProps) {
   const fill = p.bool('fill', 'show', true, sel) ? withTransparency(p.color('fill', 'fillColor', defFill, sel), p.num('fill', 'transparency', 0, sel)) : undefined
   const outlineOn = p.bool('outline', 'show', true, sel)
   const stroke = outlineOn ? withTransparency(p.color('outline', 'lineColor', defFill, sel), p.num('outline', 'transparency', 0, sel)) : undefined
+  const fillGradient = fill ? p.gradient('fill', 'fillColor', sel) : undefined
+  const strokeGradient = stroke ? p.gradient('outline', 'lineColor', sel) : undefined
   const weight = outlineOn ? p.num('outline', 'weight', SHAPE_DEFAULTS.weight, sel) : 0
   const rotation = p.num('rotation', 'shapeAngle', p.num('rotation', 'angle', 0))
   const text = readShapeText(p, state, { size: SHAPE_DEFAULTS.textSize, color: SHAPE_DEFAULTS.textColor })
@@ -111,6 +113,8 @@ export function ShapeVisual({ visual, width, height, ctx }: VisualProps) {
         radius={radius}
         fill={fill}
         stroke={stroke}
+        fillPaint={fillGradient ? { gradient: fillGradient, transparency: p.num('fill', 'transparency', 0, sel) } : undefined}
+        strokePaint={strokeGradient ? { gradient: strokeGradient, transparency: p.num('outline', 'transparency', 0, sel) } : undefined}
         strokeWidth={weight}
         rotation={rotation}
         shadow={readShadow(p, 'shadow', state)}

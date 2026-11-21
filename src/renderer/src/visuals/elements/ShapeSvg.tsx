@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { isStrokeOnly, shapePath, type ShapeKind } from './shapes'
+import { SvgGradientDef, svgPaintRef, type SvgPaint } from '../common/svgPaint'
 
 export interface ShadowSpec {
   color: string
@@ -21,6 +22,10 @@ export interface ShapeSvgProps {
   radius?: number
   fill?: string
   stroke?: string
+  /** Lumen gradient fill drawn instead of `fill` (which stays the solid fallback) */
+  fillPaint?: SvgPaint
+  /** Lumen gradient outline drawn instead of `stroke` */
+  strokePaint?: SvgPaint
   strokeWidth?: number
   rotation?: number
   shadow?: ShadowSpec
@@ -37,10 +42,19 @@ export function ShapeSvg(p: ShapeSvgProps) {
   const filters: string[] = []
   if (p.shadow) filters.push(`url(#sh${id})`)
   if (p.glow) filters.push(`url(#gl${id})`)
+  // a line's box has no height, so a bounding-box gradient can't paint it: lines keep the solid color
+  const fillPaint = p.fill && !strokeOnly ? p.fillPaint : undefined
+  const strokePaint = p.stroke && !strokeOnly ? p.strokePaint : undefined
+  const fill = fillPaint ? svgPaintRef(fillPaint) : p.fill
+  const stroke = strokePaint ? svgPaintRef(strokePaint) : p.stroke
+  const paints = [fillPaint, strokePaint].filter((x): x is SvgPaint => !!x)
   return (
     <svg width={p.width} height={p.height} style={{ position: 'absolute', inset: 0, overflow: 'visible', pointerEvents: 'none' }}>
-      {(p.shadow || p.glow) && (
+      {(p.shadow || p.glow || paints.length > 0) && (
         <defs>
+          {paints.map((pt, i) => (
+            <SvgGradientDef key={i} paint={pt} />
+          ))}
           {p.shadow && (
             <filter id={`sh${id}`} x="-50%" y="-50%" width="200%" height="200%">
               <feDropShadow dx={p.shadow.dx} dy={p.shadow.dy} stdDeviation={p.shadow.blur / 2} floodColor={p.shadow.color} />
@@ -57,8 +71,8 @@ export function ShapeSvg(p: ShapeSvgProps) {
         <g filter={filters.length > 1 ? filters[1] : undefined}>
           <path
             d={strokeOnly ? shapePath(p.kind, 0, 0, p.width, p.height) : d}
-            fill={strokeOnly ? 'none' : p.fill ?? 'none'}
-            stroke={strokeOnly ? p.stroke ?? p.fill ?? '#000' : p.stroke ?? 'none'}
+            fill={strokeOnly ? 'none' : fill ?? 'none'}
+            stroke={strokeOnly ? stroke ?? fill ?? '#000' : stroke ?? 'none'}
             strokeWidth={strokeOnly ? Math.max(1, sw || 1) : sw}
             strokeLinejoin="round"
           />

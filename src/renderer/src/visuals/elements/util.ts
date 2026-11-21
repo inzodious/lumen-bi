@@ -3,7 +3,8 @@
  * typed property access with button-state selectors, and the hover/press state hook.
  */
 import { useCallback, useState, type MouseEvent as ReactMouseEvent } from 'react'
-import { getProp, makePropContext, rawProp, type PropContext, type Selector } from '@core/report/props'
+import { getProp, gradientForRaw, gradientOf, makePropContext, rawProp, type PropContext, type Selector } from '@core/report/props'
+import type { GradientFill } from '@core/report/gradientFill'
 import type { ResolvedTheme } from '@core/report/theme'
 import { withTransparency } from '@core/report/theme'
 
@@ -26,6 +27,16 @@ export class Props {
     readonly theme: ResolvedTheme
   ) {
     this.pc = makePropContext(visualJson, theme)
+  }
+
+  /**
+   * The Lumen gradient fill of a color property (core/report/gradientFill.ts). A state (hover, press…) without a
+   * color of its own inherits the default state's gradient, like it inherits its color.
+   */
+  gradient(object: string, prop: string, sel?: Selector): GradientFill | undefined {
+    const g = gradientOf(this.pc, { object, prop, selector: sel })
+    if (g || !sel) return g
+    return gradientForRaw(this.pc, { object, prop }, rawProp(this.pc, object, prop, sel))
   }
 
   has(object: string, prop: string, sel?: Selector): boolean {

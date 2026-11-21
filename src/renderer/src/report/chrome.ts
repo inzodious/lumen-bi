@@ -3,7 +3,8 @@
  * padding, header, tooltip, link, alt text, lock aspect) from `visual.visualContainerObjects` +
  * theme visualStyles, with Power BI's defaults. Pure — no React.
  */
-import { decodeValue, getProp, isDataBound, makePropContext, rawProp, type PropContext } from '@core/report/props'
+import { decodeValue, getProp, gradientOf, isDataBound, makePropContext, rawProp, type PropContext } from '@core/report/props'
+import { gradientCss } from '@core/report/gradientFill'
 import { withTransparency, type ResolvedTheme } from '@core/report/theme'
 import { fontWeightOf as sharedFontWeightOf, resolveFont } from '../visuals/common/text'
 import { parseFontSize } from '../visuals/common/textStyle'
@@ -132,6 +133,12 @@ export interface ChromeSpec {
 /** Visual types whose container title is on by default (charts / maps). Also read by the Format pane (effective.ts). */
 export const TITLE_ON_BY_DEFAULT = /Chart$|^map$|^filledMap$|^azureMap$|^shapeMap$|^scatterChart$|^treemap$|^funnel$|^gauge$|^waterfallChart$|^kpi$|^decompositionTreeVisual$|^keyDriversVisual$|^qnaVisual$|^scriptVisual$|^pythonVisual$/
 
+/** A container color as CSS: its Lumen gradient fill when one applies (core/report/gradientFill.ts), else the solid color. */
+function paint(ctx: PropContext, object: string, prop: string, solid: string, transparency: number): string {
+  const g = gradientOf(ctx, { object, prop, container: true })
+  return g ? gradientCss(g, transparency) : withTransparency(solid, transparency)
+}
+
 const num = (v: any, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
 const str = (v: any, d: string) => (typeof v === 'string' && v ? v : d)
 const bool = (v: any, d: boolean) => (typeof v === 'boolean' ? v : d)
@@ -149,7 +156,7 @@ function textSpec(ctx: PropContext, object: string, theme: ResolvedTheme, defaul
     text: typeof text === 'string' ? text : undefined,
     boundExpr: bound ? rawText : undefined,
     color: str(getProp(ctx, object, 'fontColor', defaults.color), defaults.color),
-    background: typeof bg === 'string' ? withTransparency(bg, bgTransparency) : undefined,
+    background: typeof bg === 'string' ? paint(ctx, object, 'background', bg, bgTransparency) : undefined,
     // points; files also carry the size as a string literal ('14') or with a unit
     fontSizePx: parseFontSize(getProp(ctx, object, 'fontSize', defaults.sizePt), defaults.sizePt),
     fontFamily: font.fontFamily,
@@ -302,7 +309,7 @@ export function resolveChrome(visualJson: any, theme: ResolvedTheme, opts: Chrom
     subTitle,
     divider,
     spacing,
-    background: bgShow ? withTransparency(bgColor, bgTransparency) : undefined,
+    background: bgShow ? paint(ctx, 'background', 'color', bgColor, bgTransparency) : undefined,
     border,
     radius,
     shadow,

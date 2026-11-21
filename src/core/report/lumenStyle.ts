@@ -88,7 +88,7 @@ export function lumenStyleCss(s: LumenStyle, solid: string | undefined): { backg
   const layers: string[] = []
   if (s.radial) layers.push(`radial-gradient(circle at ${s.radial.at}, ${s.radial.stops.join(', ')})`)
   if (s.gradient) layers.push(`linear-gradient(${s.gradient.angle}deg, ${s.gradient.stops.join(', ')})`)
-  else if (layers.length && solid) layers.push(`linear-gradient(${solid}, ${solid})`)
+  else if (layers.length && solid) layers.push(/^(linear|radial)-gradient\(/.test(solid) ? solid : `linear-gradient(${solid}, ${solid})`)
   return {
     ...(layers.length ? { background: layers.join(', ') } : {}),
     ...(s.blur ? { backdropFilter: `blur(${s.blur}px) saturate(140%)` } : {}),

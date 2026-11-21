@@ -87,6 +87,9 @@ The [visual support reference](../reference/visual-support.md) gives a status to
   [Code visual](../visuals/code-visual.md).
 - **Sample data** for reports whose sources you cannot reach, with privacy defaults for names and identifiers.
   See [Reports without data and sample data](../files-and-compatibility/reports-without-data-and-sample-data.md).
+- **A gallery of designed report templates** with sample data, some Power BI compatible and some using Lumen-only
+  container effects (frosted glass, gradients, glow, rotation) and bundled fonts (Barlow, Roboto Condensed, Open Sans).
+  See [Start from a report template](../create-reports/start-from-a-template.md).
 - **The `.wbi` bundle**, a single file with the project and its data. See [The .wbi bundle](../files-and-compatibility/the-wbi-bundle.md).
 - **Export to PNG images and to a self-contained HTML page**, besides PDF and PowerPoint. See
   [Export a report](../create-reports/export-a-report.md).

@@ -1,0 +1,51 @@
+table _Pulse
+	lineageTag: cd67bda1-a09f-42c5-ad0b-1e6da1d8c00e
+
+	measure Streams = SUM(Streams[Streams])
+		formatString: #,0
+		lineageTag: b0fed520-4d7c-4e46-ab10-1f1f522415f1
+
+	measure Listeners = SUM(Streams[Listeners])
+		formatString: #,0
+		lineageTag: 00e0fc33-4ea0-4e89-afc5-ce752933f36d
+
+	measure Saves = SUM(Streams[Saves])
+		formatString: #,0
+		lineageTag: 4c6cad21-0d4f-47d5-acfc-7628cb8f3ea7
+
+	measure 'New Followers' = SUM(Streams[Followers])
+		formatString: #,0
+		lineageTag: 05dcb0d9-581e-4ccb-aa50-9cb095c68519
+
+	measure 'Save Rate' = DIVIDE([Saves], [Listeners])
+		formatString: 0.0%
+		lineageTag: b3490f22-3f37-4a2c-aaea-f483285d991b
+
+	measure 'Streams Growth' = VAR m = MAX(Streams[MonthNo]) VAR a = CALCULATE([Streams], Streams[MonthNo] = m) VAR b = CALCULATE([Streams], Streams[MonthNo] = m - 1) RETURN DIVIDE(a - b, b)
+		formatString: +0.0%;-0.0%
+		lineageTag: 5e398486-4615-45b7-ad21-95b2a623dd67
+
+	measure 'Streams Note' = FORMAT([Streams Growth], "+0.0%;-0.0%") & " vs last month"
+		lineageTag: b861a484-d09e-4306-ab5a-862385aa53f4
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: fdb14f41-2987-409d-ad19-4d8774319a76
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Pulse = m
+		mode: import
+		source =
+				let
+				    // sample data for the template: replace this query with your own source
+				    Source = #table(type table [Column1 = text], {
+				        {null}
+				    })
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

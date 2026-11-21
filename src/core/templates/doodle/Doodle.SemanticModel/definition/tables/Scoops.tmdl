@@ -1,0 +1,348 @@
+table Scoops
+	lineageTag: 68cbe45f-74fb-48e8-a81f-70cf71691424
+
+	column Month
+		dataType: string
+		lineageTag: 2e97ded0-7fb3-4d1f-a84c-60d7836e9729
+		summarizeBy: none
+		sourceColumn: Month
+		sortByColumn: MonthNo
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthNo
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 43d4c979-6f8b-4067-a314-48c22f2d269f
+		summarizeBy: none
+		sourceColumn: MonthNo
+
+		annotation SummarizationSetBy = Automatic
+
+	column Flavor
+		dataType: string
+		lineageTag: 7ef09050-a9bb-4b83-a1f3-5d422d5cea84
+		summarizeBy: none
+		sourceColumn: Flavor
+
+		annotation SummarizationSetBy = Automatic
+
+	column Serving
+		dataType: string
+		lineageTag: 2eecf8f8-a00c-45aa-a8c7-aca38112005f
+		summarizeBy: none
+		sourceColumn: Serving
+
+		annotation SummarizationSetBy = Automatic
+
+	column Scoops
+		dataType: int64
+		formatString: 0
+		lineageTag: 8b0ac3d5-ae13-4269-a443-4dfb900aa06a
+		summarizeBy: sum
+		sourceColumn: Scoops
+
+		annotation SummarizationSetBy = Automatic
+
+	column Sales
+		dataType: double
+		formatString: \$#,0.00
+		lineageTag: f2177ffc-8373-4342-a2c6-bacd275c714a
+		summarizeBy: sum
+		sourceColumn: Sales
+
+		annotation SummarizationSetBy = Automatic
+
+	column HappyCustomers
+		dataType: int64
+		formatString: 0
+		lineageTag: d7d73f0a-7495-4a04-a167-a2e092904884
+		summarizeBy: sum
+		sourceColumn: HappyCustomers
+
+		annotation SummarizationSetBy = Automatic
+
+	column Rating
+		dataType: double
+		formatString: 0.0
+		lineageTag: 317ede27-5ba9-4c82-ae5a-930c0c3ba5bb
+		summarizeBy: average
+		sourceColumn: Rating
+
+		annotation SummarizationSetBy = Automatic
+
+	column TempC
+		dataType: double
+		formatString: 0.0
+		lineageTag: cb328dcd-36e7-41eb-aad1-927a23258297
+		summarizeBy: average
+		sourceColumn: TempC
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Scoops = m
+		mode: import
+		source =
+				let
+				    // sample data for the template: replace this query with your own source
+				    Source = #table(type table [Month = text, MonthNo = Int64.Type, Flavor = text, Serving = text, Scoops = Int64.Type, Sales = number, HappyCustomers = Int64.Type, Rating = number, TempC = number], {
+				        {"Jan", 1, "Strawberry Swirl", "Cone", 246, 799.72, 215, 4.59, 1.4},
+				        {"Jan", 1, "Strawberry Swirl", "Cup", 189, 580.9, 144, 4.61, 1.4},
+				        {"Jan", 1, "Strawberry Swirl", "Shake", 82, 403.57, 63, 4.78, 1.4},
+				        {"Jan", 1, "Mint Chip", "Cone", 192, 682.03, 156, 4.43, 1.4},
+				        {"Jan", 1, "Mint Chip", "Cup", 144, 456.98, 124, 4.41, 1.4},
+				        {"Jan", 1, "Mint Chip", "Shake", 64, 376.4, 48, 4.5, 1.4},
+				        {"Jan", 1, "Lemon Sorbet", "Cone", 154, 538.04, 128, 4.31, 1.4},
+				        {"Jan", 1, "Lemon Sorbet", "Cup", 98, 302, 87, 4.26, 1.4},
+				        {"Jan", 1, "Lemon Sorbet", "Shake", 43, 260.74, 39, 4.19, 1.4},
+				        {"Jan", 1, "Choco Fudge", "Cone", 291, 994.53, 226, 4.82, 1.4},
+				        {"Jan", 1, "Choco Fudge", "Cup", 194, 681.27, 162, 4.74, 1.4},
+				        {"Jan", 1, "Choco Fudge", "Shake", 96, 489.73, 70, 4.91, 1.4},
+				        {"Jan", 1, "Cookie Dough", "Cone", 205, 690.57, 164, 4.54, 1.4},
+				        {"Jan", 1, "Cookie Dough", "Cup", 171, 603.45, 126, 4.63, 1.4},
+				        {"Jan", 1, "Cookie Dough", "Shake", 72, 431.29, 63, 4.51, 1.4},
+				        {"Jan", 1, "Mango Tango", "Cone", 171, 533.43, 142, 4.36, 1.4},
+				        {"Jan", 1, "Mango Tango", "Cup", 125, 386.63, 103, 4.47, 1.4},
+				        {"Jan", 1, "Mango Tango", "Shake", 52, 313.2, 46, 4.48, 1.4},
+				        {"Jan", 1, "Bubblegum", "Cone", 110, 393.85, 91, 4.02, 1.4},
+				        {"Jan", 1, "Bubblegum", "Cup", 87, 311.29, 79, 3.95, 1.4},
+				        {"Jan", 1, "Bubblegum", "Shake", 42, 209.15, 33, 4.11, 1.4},
+				        {"Feb", 2, "Strawberry Swirl", "Cone", 240, 767.86, 214, 4.72, 1.4},
+				        {"Feb", 2, "Strawberry Swirl", "Cup", 190, 599.89, 142, 4.76, 1.4},
+				        {"Feb", 2, "Strawberry Swirl", "Shake", 95, 519.48, 78, 4.63, 1.4},
+				        {"Feb", 2, "Mint Chip", "Cone", 193, 674.89, 144, 4.58, 1.4},
+				        {"Feb", 2, "Mint Chip", "Cup", 154, 544.22, 131, 4.61, 1.4},
+				        {"Feb", 2, "Mint Chip", "Shake", 70, 425.3, 58, 4.56, 1.4},
+				        {"Feb", 2, "Lemon Sorbet", "Cone", 139, 443.63, 100, 4.18, 1.4},
+				        {"Feb", 2, "Lemon Sorbet", "Cup", 97, 301.36, 70, 4.15, 1.4},
+				        {"Feb", 2, "Lemon Sorbet", "Shake", 49, 257.14, 37, 4.18, 1.4},
+				        {"Feb", 2, "Choco Fudge", "Cone", 262, 924.39, 237, 4.69, 1.4},
+				        {"Feb", 2, "Choco Fudge", "Cup", 203, 631.29, 178, 4.83, 1.4},
+				        {"Feb", 2, "Choco Fudge", "Shake", 98, 484.82, 80, 4.8, 1.4},
+				        {"Feb", 2, "Cookie Dough", "Cone", 237, 775.45, 201, 4.5, 1.4},
+				        {"Feb", 2, "Cookie Dough", "Cup", 151, 535.68, 133, 4.56, 1.4},
+				        {"Feb", 2, "Cookie Dough", "Shake", 84, 509.19, 70, 4.49, 1.4},
+				        {"Feb", 2, "Mango Tango", "Cone", 160, 560.7, 135, 4.42, 1.4},
+				        {"Feb", 2, "Mango Tango", "Cup", 123, 361.3, 113, 4.41, 1.4},
+				        {"Feb", 2, "Mango Tango", "Shake", 55, 290.76, 40, 4.48, 1.4},
+				        {"Feb", 2, "Bubblegum", "Cone", 106, 352.91, 79, 4.06, 1.4},
+				        {"Feb", 2, "Bubblegum", "Cup", 80, 258.44, 59, 4.05, 1.4},
+				        {"Feb", 2, "Bubblegum", "Shake", 41, 235.25, 36, 4.09, 1.4},
+				        {"Mar", 3, "Strawberry Swirl", "Cone", 328, 1226.07, 297, 4.68, 4.8},
+				        {"Mar", 3, "Strawberry Swirl", "Cup", 214, 639.06, 169, 4.81, 4.8},
+				        {"Mar", 3, "Strawberry Swirl", "Shake", 108, 604.11, 81, 4.61, 4.8},
+				        {"Mar", 3, "Mint Chip", "Cone", 240, 911.21, 208, 4.44, 4.8},
+				        {"Mar", 3, "Mint Chip", "Cup", 184, 612.75, 153, 4.58, 4.8},
+				        {"Mar", 3, "Mint Chip", "Shake", 98, 542.23, 83, 4.44, 4.8},
+				        {"Mar", 3, "Lemon Sorbet", "Cone", 186, 637.76, 165, 4.15, 4.8},
+				        {"Mar", 3, "Lemon Sorbet", "Cup", 130, 423.38, 113, 4.09, 4.8},
+				        {"Mar", 3, "Lemon Sorbet", "Shake", 61, 365.91, 46, 4.26, 4.8},
+				        {"Mar", 3, "Choco Fudge", "Cone", 384, 1291.85, 305, 4.9, 4.8},
+				        {"Mar", 3, "Choco Fudge", "Cup", 290, 872.14, 248, 4.89, 4.8},
+				        {"Mar", 3, "Choco Fudge", "Shake", 123, 650.83, 91, 4.73, 4.8},
+				        {"Mar", 3, "Cookie Dough", "Cone", 254, 961.7, 187, 4.6, 4.8},
+				        {"Mar", 3, "Cookie Dough", "Cup", 216, 708.26, 174, 4.71, 4.8},
+				        {"Mar", 3, "Cookie Dough", "Shake", 94, 553.22, 70, 4.55, 4.8},
+				        {"Mar", 3, "Mango Tango", "Cone", 215, 768.98, 159, 4.45, 4.8},
+				        {"Mar", 3, "Mango Tango", "Cup", 147, 527.6, 117, 4.32, 4.8},
+				        {"Mar", 3, "Mango Tango", "Shake", 63, 344.12, 51, 4.32, 4.8},
+				        {"Mar", 3, "Bubblegum", "Cone", 156, 566.96, 128, 4.04, 4.8},
+				        {"Mar", 3, "Bubblegum", "Cup", 94, 328.32, 68, 3.93, 4.8},
+				        {"Mar", 3, "Bubblegum", "Shake", 47, 243.18, 35, 3.96, 4.8},
+				        {"Apr", 4, "Strawberry Swirl", "Cone", 472, 1713.44, 345, 4.72, 10.6},
+				        {"Apr", 4, "Strawberry Swirl", "Cup", 374, 1091.19, 331, 4.71, 10.6},
+				        {"Apr", 4, "Strawberry Swirl", "Shake", 154, 767.64, 117, 4.77, 10.6},
+				        {"Apr", 4, "Mint Chip", "Cone", 325, 1220.21, 289, 4.51, 10.6},
+				        {"Apr", 4, "Mint Chip", "Cup", 296, 1043.05, 258, 4.45, 10.6},
+				        {"Apr", 4, "Mint Chip", "Shake", 122, 636.58, 104, 4.53, 10.6},
+				        {"Apr", 4, "Lemon Sorbet", "Cone", 230, 873.44, 196, 4.25, 10.6},
+				        {"Apr", 4, "Lemon Sorbet", "Cup", 167, 492.47, 131, 4.25, 10.6},
+				        {"Apr", 4, "Lemon Sorbet", "Shake", 84, 407.41, 72, 4.2, 10.6},
+				        {"Apr", 4, "Choco Fudge", "Cone", 456, 1538.1, 331, 4.74, 10.6},
+				        {"Apr", 4, "Choco Fudge", "Cup", 333, 1056, 299, 4.83, 10.6},
+				        {"Apr", 4, "Choco Fudge", "Shake", 170, 932.64, 156, 4.71, 10.6},
+				        {"Apr", 4, "Cookie Dough", "Cone", 388, 1344.44, 288, 4.59, 10.6},
+				        {"Apr", 4, "Cookie Dough", "Cup", 292, 842.73, 251, 4.7, 10.6},
+				        {"Apr", 4, "Cookie Dough", "Shake", 132, 790.42, 99, 4.57, 10.6},
+				        {"Apr", 4, "Mango Tango", "Cone", 304, 949.06, 231, 4.28, 10.6},
+				        {"Apr", 4, "Mango Tango", "Cup", 214, 684.82, 157, 4.35, 10.6},
+				        {"Apr", 4, "Mango Tango", "Shake", 98, 588.08, 74, 4.48, 10.6},
+				        {"Apr", 4, "Bubblegum", "Cone", 184, 721.06, 134, 4.07, 10.6},
+				        {"Apr", 4, "Bubblegum", "Cup", 147, 439.47, 135, 4.08, 10.6},
+				        {"Apr", 4, "Bubblegum", "Shake", 75, 392.82, 66, 4.05, 10.6},
+				        {"May", 5, "Strawberry Swirl", "Cone", 611, 2286.82, 445, 4.81, 17.4},
+				        {"May", 5, "Strawberry Swirl", "Cup", 502, 1677.96, 412, 4.75, 17.4},
+				        {"May", 5, "Strawberry Swirl", "Shake", 222, 1364.2, 186, 4.79, 17.4},
+				        {"May", 5, "Mint Chip", "Cone", 508, 1686.74, 458, 4.58, 17.4},
+				        {"May", 5, "Mint Chip", "Cup", 324, 1154.96, 254, 4.62, 17.4},
+				        {"May", 5, "Mint Chip", "Shake", 148, 848.7, 125, 4.5, 17.4},
+				        {"May", 5, "Lemon Sorbet", "Cone", 319, 1017.92, 253, 4.1, 17.4},
+				        {"May", 5, "Lemon Sorbet", "Cup", 257, 735.62, 213, 4.09, 17.4},
+				        {"May", 5, "Lemon Sorbet", "Shake", 131, 783.68, 107, 4.18, 17.4},
+				        {"May", 5, "Choco Fudge", "Cone", 592, 2158.48, 466, 4.92, 17.4},
+				        {"May", 5, "Choco Fudge", "Cup", 430, 1438.09, 370, 4.8, 17.4},
+				        {"May", 5, "Choco Fudge", "Shake", 202, 1072.55, 158, 4.76, 17.4},
+				        {"May", 5, "Cookie Dough", "Cone", 552, 1723.3, 461, 4.53, 17.4},
+				        {"May", 5, "Cookie Dough", "Cup", 443, 1393.39, 346, 4.66, 17.4},
+				        {"May", 5, "Cookie Dough", "Shake", 173, 890.55, 129, 4.66, 17.4},
+				        {"May", 5, "Mango Tango", "Cone", 411, 1347.17, 326, 4.51, 17.4},
+				        {"May", 5, "Mango Tango", "Cup", 293, 915.58, 236, 4.33, 17.4},
+				        {"May", 5, "Mango Tango", "Shake", 128, 726.24, 104, 4.51, 17.4},
+				        {"May", 5, "Bubblegum", "Cone", 256, 966.45, 222, 3.96, 17.4},
+				        {"May", 5, "Bubblegum", "Cup", 193, 577.55, 148, 4.05, 17.4},
+				        {"May", 5, "Bubblegum", "Shake", 93, 566.49, 76, 4.01, 17.4},
+				        {"Jun", 6, "Strawberry Swirl", "Cone", 671, 2180.7, 537, 4.7, 23.2},
+				        {"Jun", 6, "Strawberry Swirl", "Cup", 492, 1649.3, 430, 4.79, 23.2},
+				        {"Jun", 6, "Strawberry Swirl", "Shake", 273, 1604.93, 239, 4.71, 23.2},
+				        {"Jun", 6, "Mint Chip", "Cone", 533, 1996.08, 391, 4.6, 23.2},
+				        {"Jun", 6, "Mint Chip", "Cup", 395, 1299.99, 317, 4.48, 23.2},
+				        {"Jun", 6, "Mint Chip", "Shake", 189, 1098.6, 166, 4.48, 23.2},
+				        {"Jun", 6, "Lemon Sorbet", "Cone", 376, 1348.7, 339, 4.09, 23.2},
+				        {"Jun", 6, "Lemon Sorbet", "Cup", 307, 987.64, 244, 4.28, 23.2},
+				        {"Jun", 6, "Lemon Sorbet", "Shake", 137, 795.15, 115, 4.09, 23.2},
+				        {"Jun", 6, "Choco Fudge", "Cone", 833, 3111.64, 728, 4.77, 23.2},
+				        {"Jun", 6, "Choco Fudge", "Cup", 540, 1853.46, 491, 4.81, 23.2},
+				        {"Jun", 6, "Choco Fudge", "Shake", 276, 1671.78, 253, 4.69, 23.2},
+				        {"Jun", 6, "Cookie Dough", "Cone", 700, 2471.59, 598, 4.61, 23.2},
+				        {"Jun", 6, "Cookie Dough", "Cup", 487, 1576.9, 359, 4.53, 23.2},
+				        {"Jun", 6, "Cookie Dough", "Shake", 209, 1150.04, 170, 4.68, 23.2},
+				        {"Jun", 6, "Mango Tango", "Cone", 482, 1788.14, 413, 4.33, 23.2},
+				        {"Jun", 6, "Mango Tango", "Cup", 340, 1013.85, 306, 4.28, 23.2},
+				        {"Jun", 6, "Mango Tango", "Shake", 180, 951.89, 144, 4.46, 23.2},
+				        {"Jun", 6, "Bubblegum", "Cone", 355, 1313.34, 310, 3.95, 23.2},
+				        {"Jun", 6, "Bubblegum", "Cup", 236, 766.58, 179, 3.97, 23.2},
+				        {"Jun", 6, "Bubblegum", "Shake", 107, 657.66, 83, 4.05, 23.2},
+				        {"Jul", 7, "Strawberry Swirl", "Cone", 820, 2856.75, 651, 4.64, 26.6},
+				        {"Jul", 7, "Strawberry Swirl", "Cup", 608, 1917.57, 442, 4.74, 26.6},
+				        {"Jul", 7, "Strawberry Swirl", "Shake", 283, 1401.46, 257, 4.75, 26.6},
+				        {"Jul", 7, "Mint Chip", "Cone", 711, 2326.88, 575, 4.47, 26.6},
+				        {"Jul", 7, "Mint Chip", "Cup", 501, 1634.03, 404, 4.49, 26.6},
+				        {"Jul", 7, "Mint Chip", "Shake", 237, 1225.34, 174, 4.51, 26.6},
+				        {"Jul", 7, "Lemon Sorbet", "Cone", 503, 1922.54, 381, 4.11, 26.6},
+				        {"Jul", 7, "Lemon Sorbet", "Cup", 360, 1223.61, 308, 4.17, 26.6},
+				        {"Jul", 7, "Lemon Sorbet", "Shake", 174, 927.34, 155, 4.12, 26.6},
+				        {"Jul", 7, "Choco Fudge", "Cone", 877, 3088.62, 764, 4.82, 26.6},
+				        {"Jul", 7, "Choco Fudge", "Cup", 631, 2254.07, 579, 4.8, 26.6},
+				        {"Jul", 7, "Choco Fudge", "Shake", 297, 1805.43, 261, 4.72, 26.6},
+				        {"Jul", 7, "Cookie Dough", "Cone", 625, 2153.64, 571, 4.71, 26.6},
+				        {"Jul", 7, "Cookie Dough", "Cup", 475, 1687.34, 381, 4.66, 26.6},
+				        {"Jul", 7, "Cookie Dough", "Shake", 270, 1356.39, 195, 4.65, 26.6},
+				        {"Jul", 7, "Mango Tango", "Cone", 518, 1771.34, 455, 4.42, 26.6},
+				        {"Jul", 7, "Mango Tango", "Cup", 364, 1044.73, 311, 4.31, 26.6},
+				        {"Jul", 7, "Mango Tango", "Shake", 194, 1102.05, 176, 4.47, 26.6},
+				        {"Jul", 7, "Bubblegum", "Cone", 384, 1447.51, 324, 4.11, 26.6},
+				        {"Jul", 7, "Bubblegum", "Cup", 292, 917.63, 231, 3.9, 26.6},
+				        {"Jul", 7, "Bubblegum", "Shake", 118, 720.51, 103, 3.91, 26.6},
+				        {"Aug", 8, "Strawberry Swirl", "Cone", 769, 2730.41, 600, 4.71, 26.6},
+				        {"Aug", 8, "Strawberry Swirl", "Cup", 545, 1843.4, 466, 4.72, 26.6},
+				        {"Aug", 8, "Strawberry Swirl", "Shake", 272, 1506.16, 219, 4.81, 26.6},
+				        {"Aug", 8, "Mint Chip", "Cone", 572, 2222.13, 520, 4.39, 26.6},
+				        {"Aug", 8, "Mint Chip", "Cup", 510, 1825, 417, 4.47, 26.6},
+				        {"Aug", 8, "Mint Chip", "Shake", 234, 1412.21, 205, 4.54, 26.6},
+				        {"Aug", 8, "Lemon Sorbet", "Cone", 480, 1753.86, 439, 4.27, 26.6},
+				        {"Aug", 8, "Lemon Sorbet", "Cup", 312, 1050.72, 232, 4.3, 26.6},
+				        {"Aug", 8, "Lemon Sorbet", "Shake", 148, 852.39, 127, 4.27, 26.6},
+				        {"Aug", 8, "Choco Fudge", "Cone", 822, 2990.12, 675, 4.8, 26.6},
+				        {"Aug", 8, "Choco Fudge", "Cup", 599, 2063.14, 527, 4.82, 26.6},
+				        {"Aug", 8, "Choco Fudge", "Shake", 312, 1772.06, 278, 4.85, 26.6},
+				        {"Aug", 8, "Cookie Dough", "Cone", 712, 2615.34, 606, 4.55, 26.6},
+				        {"Aug", 8, "Cookie Dough", "Cup", 558, 1668.72, 461, 4.68, 26.6},
+				        {"Aug", 8, "Cookie Dough", "Shake", 259, 1395.05, 204, 4.55, 26.6},
+				        {"Aug", 8, "Mango Tango", "Cone", 470, 1728.05, 422, 4.47, 26.6},
+				        {"Aug", 8, "Mango Tango", "Cup", 408, 1443.77, 297, 4.44, 26.6},
+				        {"Aug", 8, "Mango Tango", "Shake", 181, 918.74, 134, 4.48, 26.6},
+				        {"Aug", 8, "Bubblegum", "Cone", 354, 1155.92, 293, 4.07, 26.6},
+				        {"Aug", 8, "Bubblegum", "Cup", 284, 956.65, 229, 4.06, 26.6},
+				        {"Aug", 8, "Bubblegum", "Shake", 126, 740.01, 114, 4.08, 26.6},
+				        {"Sep", 9, "Strawberry Swirl", "Cone", 745, 2475.34, 627, 4.79, 23.2},
+				        {"Sep", 9, "Strawberry Swirl", "Cup", 560, 2020.99, 423, 4.59, 23.2},
+				        {"Sep", 9, "Strawberry Swirl", "Shake", 262, 1524.8, 206, 4.69, 23.2},
+				        {"Sep", 9, "Mint Chip", "Cone", 602, 1929.52, 546, 4.4, 23.2},
+				        {"Sep", 9, "Mint Chip", "Cup", 478, 1553.98, 414, 4.48, 23.2},
+				        {"Sep", 9, "Mint Chip", "Shake", 181, 939.25, 135, 4.55, 23.2},
+				        {"Sep", 9, "Lemon Sorbet", "Cone", 427, 1487.04, 364, 4.27, 23.2},
+				        {"Sep", 9, "Lemon Sorbet", "Cup", 299, 866.92, 262, 4.16, 23.2},
+				        {"Sep", 9, "Lemon Sorbet", "Shake", 160, 807.92, 147, 4.09, 23.2},
+				        {"Sep", 9, "Choco Fudge", "Cone", 718, 2691.1, 536, 4.89, 23.2},
+				        {"Sep", 9, "Choco Fudge", "Cup", 545, 1709.25, 400, 4.71, 23.2},
+				        {"Sep", 9, "Choco Fudge", "Shake", 299, 1749.13, 264, 4.86, 23.2},
+				        {"Sep", 9, "Cookie Dough", "Cone", 568, 1851.12, 420, 4.67, 23.2},
+				        {"Sep", 9, "Cookie Dough", "Cup", 480, 1554.05, 433, 4.54, 23.2},
+				        {"Sep", 9, "Cookie Dough", "Shake", 243, 1286.7, 199, 4.56, 23.2},
+				        {"Sep", 9, "Mango Tango", "Cone", 447, 1744.21, 357, 4.33, 23.2},
+				        {"Sep", 9, "Mango Tango", "Cup", 355, 1044.89, 291, 4.51, 23.2},
+				        {"Sep", 9, "Mango Tango", "Shake", 181, 1039.72, 157, 4.43, 23.2},
+				        {"Sep", 9, "Bubblegum", "Cone", 317, 1064.52, 274, 4.03, 23.2},
+				        {"Sep", 9, "Bubblegum", "Cup", 264, 952.85, 206, 4.1, 23.2},
+				        {"Sep", 9, "Bubblegum", "Shake", 103, 572.32, 76, 3.95, 23.2},
+				        {"Oct", 10, "Strawberry Swirl", "Cone", 586, 1935.54, 497, 4.74, 17.4},
+				        {"Oct", 10, "Strawberry Swirl", "Cup", 447, 1577.39, 350, 4.67, 17.4},
+				        {"Oct", 10, "Strawberry Swirl", "Shake", 191, 1061.66, 145, 4.65, 17.4},
+				        {"Oct", 10, "Mint Chip", "Cone", 449, 1726.68, 342, 4.38, 17.4},
+				        {"Oct", 10, "Mint Chip", "Cup", 384, 1341.93, 315, 4.5, 17.4},
+				        {"Oct", 10, "Mint Chip", "Shake", 160, 946.99, 120, 4.49, 17.4},
+				        {"Oct", 10, "Lemon Sorbet", "Cone", 369, 1273.38, 332, 4.2, 17.4},
+				        {"Oct", 10, "Lemon Sorbet", "Cup", 272, 854.59, 205, 4.28, 17.4},
+				        {"Oct", 10, "Lemon Sorbet", "Shake", 105, 566.74, 82, 4.29, 17.4},
+				        {"Oct", 10, "Choco Fudge", "Cone", 588, 2213.58, 533, 4.82, 17.4},
+				        {"Oct", 10, "Choco Fudge", "Cup", 475, 1495.78, 347, 4.74, 17.4},
+				        {"Oct", 10, "Choco Fudge", "Shake", 208, 1102.48, 183, 4.73, 17.4},
+				        {"Oct", 10, "Cookie Dough", "Cone", 559, 1967.25, 487, 4.54, 17.4},
+				        {"Oct", 10, "Cookie Dough", "Cup", 362, 1103.27, 306, 4.54, 17.4},
+				        {"Oct", 10, "Cookie Dough", "Shake", 189, 1100.87, 153, 4.57, 17.4},
+				        {"Oct", 10, "Mango Tango", "Cone", 405, 1573.05, 369, 4.5, 17.4},
+				        {"Oct", 10, "Mango Tango", "Cup", 310, 1072.69, 261, 4.48, 17.4},
+				        {"Oct", 10, "Mango Tango", "Shake", 148, 835.66, 132, 4.38, 17.4},
+				        {"Oct", 10, "Bubblegum", "Cone", 234, 747.34, 195, 3.88, 17.4},
+				        {"Oct", 10, "Bubblegum", "Cup", 184, 544.5, 163, 4.1, 17.4},
+				        {"Oct", 10, "Bubblegum", "Shake", 101, 514.35, 74, 3.92, 17.4},
+				        {"Nov", 11, "Strawberry Swirl", "Cone", 482, 1500.48, 435, 4.81, 10.6},
+				        {"Nov", 11, "Strawberry Swirl", "Cup", 297, 895.94, 257, 4.59, 10.6},
+				        {"Nov", 11, "Strawberry Swirl", "Shake", 139, 848.38, 114, 4.64, 10.6},
+				        {"Nov", 11, "Mint Chip", "Cone", 339, 1233.37, 305, 4.46, 10.6},
+				        {"Nov", 11, "Mint Chip", "Cup", 263, 837.9, 192, 4.6, 10.6},
+				        {"Nov", 11, "Mint Chip", "Shake", 126, 763.2, 105, 4.41, 10.6},
+				        {"Nov", 11, "Lemon Sorbet", "Cone", 233, 882.95, 185, 4.31, 10.6},
+				        {"Nov", 11, "Lemon Sorbet", "Cup", 175, 605.6, 146, 4.25, 10.6},
+				        {"Nov", 11, "Lemon Sorbet", "Shake", 97, 576.19, 87, 4.18, 10.6},
+				        {"Nov", 11, "Choco Fudge", "Cone", 506, 1686.95, 393, 4.79, 10.6},
+				        {"Nov", 11, "Choco Fudge", "Cup", 387, 1148.93, 291, 4.83, 10.6},
+				        {"Nov", 11, "Choco Fudge", "Shake", 187, 981.77, 146, 4.82, 10.6},
+				        {"Nov", 11, "Cookie Dough", "Cone", 375, 1179.5, 303, 4.58, 10.6},
+				        {"Nov", 11, "Cookie Dough", "Cup", 279, 928.5, 227, 4.66, 10.6},
+				        {"Nov", 11, "Cookie Dough", "Shake", 129, 762.38, 114, 4.63, 10.6},
+				        {"Nov", 11, "Mango Tango", "Cone", 258, 951.6, 196, 4.5, 10.6},
+				        {"Nov", 11, "Mango Tango", "Cup", 190, 661.34, 154, 4.39, 10.6},
+				        {"Nov", 11, "Mango Tango", "Shake", 107, 586.13, 91, 4.48, 10.6},
+				        {"Nov", 11, "Bubblegum", "Cone", 186, 650.39, 163, 3.95, 10.6},
+				        {"Nov", 11, "Bubblegum", "Cup", 152, 483.85, 117, 3.99, 10.6},
+				        {"Nov", 11, "Bubblegum", "Shake", 69, 353.24, 58, 3.95, 10.6},
+				        {"Dec", 12, "Strawberry Swirl", "Cone", 340, 1098.23, 259, 4.81, 4.8},
+				        {"Dec", 12, "Strawberry Swirl", "Cup", 215, 739.6, 191, 4.79, 4.8},
+				        {"Dec", 12, "Strawberry Swirl", "Shake", 124, 608.57, 98, 4.62, 4.8},
+				        {"Dec", 12, "Mint Chip", "Cone", 242, 791.77, 199, 4.57, 4.8},
+				        {"Dec", 12, "Mint Chip", "Cup", 194, 701.96, 168, 4.59, 4.8},
+				        {"Dec", 12, "Mint Chip", "Shake", 97, 537.81, 70, 4.49, 4.8},
+				        {"Dec", 12, "Lemon Sorbet", "Cone", 171, 582.36, 146, 4.08, 4.8},
+				        {"Dec", 12, "Lemon Sorbet", "Cup", 149, 498.2, 126, 4.27, 4.8},
+				        {"Dec", 12, "Lemon Sorbet", "Shake", 61, 329.64, 54, 4.19, 4.8},
+				        {"Dec", 12, "Choco Fudge", "Cone", 342, 1307.9, 250, 4.91, 4.8},
+				        {"Dec", 12, "Choco Fudge", "Cup", 238, 859.58, 196, 4.88, 4.8},
+				        {"Dec", 12, "Choco Fudge", "Shake", 129, 674.52, 102, 4.69, 4.8},
+				        {"Dec", 12, "Cookie Dough", "Cone", 306, 1126.53, 271, 4.49, 4.8},
+				        {"Dec", 12, "Cookie Dough", "Cup", 216, 734.38, 194, 4.57, 4.8},
+				        {"Dec", 12, "Cookie Dough", "Shake", 87, 422.43, 70, 4.62, 4.8},
+				        {"Dec", 12, "Mango Tango", "Cone", 195, 696, 154, 4.31, 4.8},
+				        {"Dec", 12, "Mango Tango", "Cup", 150, 446.65, 123, 4.48, 4.8},
+				        {"Dec", 12, "Mango Tango", "Shake", 76, 408.3, 63, 4.49, 4.8},
+				        {"Dec", 12, "Bubblegum", "Cone", 144, 559.96, 114, 3.99, 4.8},
+				        {"Dec", 12, "Bubblegum", "Cup", 114, 326.15, 91, 3.91, 4.8},
+				        {"Dec", 12, "Bubblegum", "Shake", 51, 306.47, 40, 3.96, 4.8}
+				    })
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

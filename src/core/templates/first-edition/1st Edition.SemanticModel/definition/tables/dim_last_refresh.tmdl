@@ -1,0 +1,43 @@
+table dim_last_refresh
+	isHidden
+	lineageTag: 69fb8fb8-e2be-40ae-8b2b-2eff424a896c
+
+	column last_refresh
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 3a8dd4c7-501e-4176-a491-be356e47cb94
+		summarizeBy: none
+		sourceColumn: last_refresh
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_last_refresh = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    // Last refresh in US Eastern time (the service refreshes in UTC); DST from the second Sunday of March to the first Sunday of November
+				    UtcNow = DateTimeZone.UtcNow(),
+				    Utc = DateTime.From(UtcNow),
+				    Year = Date.Year(Utc),
+
+				    Mar1Dow = Date.DayOfWeek(#datetime(Year, 3, 1, 0, 0, 0), Day.Sunday),
+				    FirstSunMar = 1 + (if Mar1Dow = 0 then 0 else 7 - Mar1Dow),
+				    DstStartUtc = #datetime(Year, 3, FirstSunMar + 7, 7, 0, 0),
+
+				    Nov1Dow = Date.DayOfWeek(#datetime(Year, 11, 1, 0, 0, 0), Day.Sunday),
+				    FirstSunNov = 1 + (if Nov1Dow = 0 then 0 else 7 - Nov1Dow),
+				    DstEndUtc = #datetime(Year, 11, FirstSunNov, 6, 0, 0),
+
+				    IsDst = Utc >= DstStartUtc and Utc < DstEndUtc,
+				    Offset = if IsDst then #duration(0, 4, 0, 0) else #duration(0, 5, 0, 0),
+				    Eastern = Utc - Offset,
+
+				    OutputTable = #table(type table [last_refresh = datetime], {{Eastern}})
+				in
+				    OutputTable
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

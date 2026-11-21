@@ -77,6 +77,8 @@ check the code before you start one. Open themes there include:
 
 - **Canvas and formatting**: further sizing and snapping helpers and a richer dropdown slicer (select-all, chips,
   date presets).
+- **Transitions and animations**: animated visuals when data loads or filters change, and optional page transitions
+  (a Lumen extension, since Power BI Desktop has none), off under reduced motion and in exports.
 - **Model view follow-ups**: obstacle-aware routing of relationship lines, nested table groups, renaming layout tabs,
   arrow-key nudging, persistent card collapse state.
 - **Connectors**: Azure Blob, ADLS Gen2 and OneLake; Google Sheets, BigQuery and Snowflake; privacy levels in full;

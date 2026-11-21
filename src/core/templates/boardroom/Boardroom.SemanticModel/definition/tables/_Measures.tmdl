@@ -1,0 +1,87 @@
+table _Measures
+	lineageTag: ad6761d6-05d8-4b4b-ab30-d6dbc7ea914d
+
+	measure Revenue = SUM(Finance[Revenue])
+		formatString: \$#,0.0"M"
+		lineageTag: 4af6c79a-1a43-4393-acf2-b9d51184e730
+
+	measure 'Revenue FY' = CALCULATE(SUM(Finance[Revenue]), Finance[Year] = MAX(Finance[Year]))
+		formatString: \$#,0.0"M"
+		lineageTag: d9047bf4-6d65-4113-a682-43686ba82600
+
+	measure 'Budget FY' = CALCULATE(SUM(Finance[Budget]), Finance[Year] = MAX(Finance[Year]))
+		formatString: \$#,0.0"M"
+		lineageTag: 93890f1d-7f07-4385-acab-f68c279251cd
+
+	measure 'Gross Margin FY' = CALCULATE(SUM(Finance[Revenue]) - SUM(Finance[COGS]), Finance[Year] = MAX(Finance[Year]))
+		formatString: \$#,0.0"M"
+		lineageTag: 0d6bca89-6881-45a8-ae42-9f4bfde6e6f1
+
+	measure 'Gross Margin %' = DIVIDE([Gross Margin FY], [Revenue FY])
+		formatString: 0.0%
+		lineageTag: 3e9e4184-b538-400d-a344-67e49269b34d
+
+	measure 'Operating Income FY' = CALCULATE(SUM(Finance[Revenue]) - SUM(Finance[COGS]) - SUM(Finance[Opex]), Finance[Year] = MAX(Finance[Year]))
+		formatString: \$#,0.0"M"
+		lineageTag: 7b2275a8-03e0-46fb-aa1c-72664ee9001a
+
+	measure 'Operating Margin %' = DIVIDE([Operating Income FY], [Revenue FY])
+		formatString: 0.0%
+		lineageTag: b59584fc-80d0-4d8b-a800-ceb704e46276
+
+	measure 'Revenue PY' = VAR y = MAX(Finance[Year]) RETURN CALCULATE(SUM(Finance[Revenue]), Finance[Year] = y - 1)
+		formatString: \$#,0.0"M"
+		lineageTag: 9f8ada7a-2a54-4529-a942-9a5b7bd3c1ee
+
+	measure 'Revenue YoY %' = DIVIDE([Revenue FY] - [Revenue PY], [Revenue PY])
+		formatString: +0.0%;-0.0%
+		lineageTag: 9f4a9b67-5b65-439b-a98c-9a495642e74a
+
+	measure 'vs Budget %' = DIVIDE([Revenue FY] - [Budget FY], [Budget FY])
+		formatString: +0.0%;-0.0%
+		lineageTag: af6ae649-f579-4036-adc2-391ebaedfb19
+
+	measure 'Operating Income PY' = VAR y = MAX(Finance[Year]) RETURN CALCULATE(SUM(Finance[Revenue]) - SUM(Finance[COGS]) - SUM(Finance[Opex]), Finance[Year] = y - 1)
+		formatString: \$#,0.0"M"
+		lineageTag: a0c74bd6-771a-498c-ac8b-e39edfccb456
+
+	measure 'Gross Margin % PY' = VAR y = MAX(Finance[Year]) RETURN CALCULATE(DIVIDE(SUM(Finance[Revenue]) - SUM(Finance[COGS]), SUM(Finance[Revenue])), Finance[Year] = y - 1)
+		formatString: 0.0%
+		lineageTag: 44f33ea6-5b1d-4e8f-ac5d-9424825d717c
+
+	measure 'Revenue Note' = VAR d = [Revenue YoY %] RETURN IF(ISBLANK(d), BLANK(), IF(d >= 0, "▲ ", "▼ ") & FORMAT(ABS(d), "0.0%") & " vs prior year")
+		lineageTag: aa34d4b6-b6b7-4a22-abf8-e1fbccae3ad2
+
+	measure 'Margin Note' = VAR d = [Gross Margin %] - [Gross Margin % PY] RETURN IF(ISBLANK([Gross Margin % PY]), BLANK(), IF(d >= 0, "▲ ", "▼ ") & FORMAT(ABS(d) * 10000, "0") & " bps vs prior year")
+		lineageTag: 081e0f24-ce03-4636-aea4-c6aeb87135c8
+
+	measure 'Income Note' = VAR d = DIVIDE([Operating Income FY] - [Operating Income PY], [Operating Income PY]) RETURN IF(ISBLANK(d), BLANK(), IF(d >= 0, "▲ ", "▼ ") & FORMAT(ABS(d), "0.0%") & " vs prior year")
+		lineageTag: 2854d324-e68c-4768-a72f-78f45bf5adbd
+
+	measure 'Budget Note' = VAR d = [vs Budget %] RETURN IF(ISBLANK(d), BLANK(), IF(d >= 0, "Ahead of plan by ", "Behind plan by ") & FORMAT(ABS(d), "0.0%"))
+		lineageTag: 11d9b52d-133b-445e-a8b0-d9813ce83d43
+
+	measure 'Fiscal Year Label' = "Fiscal year " & MAX(Finance[Year]) & "  ·  " & DISTINCTCOUNT(Finance[Segment]) & " segments  ·  " & DISTINCTCOUNT(Finance[Region]) & " regions"
+		lineageTag: 8e962f30-d093-4773-a895-71f4dcb30969
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: a4b50c43-af82-4acf-ab74-c3f062aa2e52
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Measures = m
+		mode: import
+		source =
+				let
+				    // sample data for the template: replace this query with your own source
+				    Source = #table(type table [Column1 = text], {
+				        {null}
+				    })
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

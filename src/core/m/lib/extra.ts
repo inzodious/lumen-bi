@@ -30,7 +30,7 @@ import {
   type MValue,
 } from "../values.ts";
 import { assertUnique, condition, defaultNames, missingMode, sortKeys } from "./table.ts";
-import { MISSING_ERROR, cultureArg, fn, list, num, numOr, record, table, text, textOrNull, texts, type, type LibContext, type Library } from "./util.ts";
+import { MISSING_ERROR, cultureArg, fn, list, maxOf, num, numOr, record, table, text, textOrNull, texts, type, type LibContext, type Library } from "./util.ts";
 
 // ---------------------------------------------------------------------------------------------
 // helpers
@@ -313,7 +313,7 @@ function installTableExtra(lib: Library): void {
 
   lib.def("Table.FromColumns", "lists, ?columns", ([l, c]) => {
     const cols = list(l!).values().map((x) => list(x).cells);
-    const height = Math.max(0, ...cols.map((x) => x.length));
+    const height = maxOf(cols.map((x) => x.length), 0);
     let names: string[];
     let types: MType[];
     if (c instanceof MType && c.fields) {
@@ -772,7 +772,7 @@ function installListExtra(lib: Library): void {
   });
   lib.def("List.Zip", "lists", ([l]) => {
     const ls = list(l!).values().map((x) => list(x).cells);
-    const n = Math.max(0, ...ls.map((x) => x.length));
+    const n = maxOf(ls.map((x) => x.length), 0);
     return MList.of(Array.from({ length: n }, (_x, i) => new MList(ls.map((x) => x[i] ?? null))));
   });
   lib.def("List.Split", "list, pageSize", ([l, p]) => {
@@ -923,7 +923,7 @@ function installListExtra(lib: Library): void {
       e.n++;
       counts.set(hashKey(v), e);
     }
-    const max = Math.max(0, ...[...counts.values()].map((e) => e.n));
+    const max = maxOf([...counts.values()].map((e) => e.n), 0);
     return MList.of([...counts.values()].filter((e) => e.n === max).map((e) => e.v));
   });
   lib.def("List.StandardDeviation", "numbersList", ([l]) => {

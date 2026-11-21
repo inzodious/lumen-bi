@@ -158,3 +158,10 @@ export function toTextOptions(options: MValue, culture: MValue): { format: strin
   const r = record(options);
   return { format: textOrNull(flag(r, "Format")), culture: cultureArg(r.has("Culture") ? r.get("Culture") : culture) };
 }
+
+/** Largest value, at least `floor`, without spreading into Math.max (a spread overflows the stack past ~100k items). */
+export function maxOf(values: Iterable<number>, floor: number): number {
+  let m = floor;
+  for (const v of values) if (v > m) m = v;
+  return m;
+}

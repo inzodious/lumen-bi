@@ -1,0 +1,79 @@
+table _Stats
+	lineageTag: e14e2853-957b-4c79-a58b-9125628efb7b
+
+	measure Points = SUM(Games[Points])
+		formatString: #,0
+		lineageTag: 4b53f5cb-b0f5-4f52-ac86-ab9336a4dfc7
+
+	measure Assists = SUM(Games[Assists])
+		formatString: #,0
+		lineageTag: b01d487d-a750-41aa-adee-7e3544ef8d39
+
+	measure Boards = SUM(Games[Rebounds])
+		formatString: #,0
+		lineageTag: 37a14a2f-32ff-4794-ad6b-971ca341234b
+
+	measure Dunks = SUM(Games[Dunks])
+		formatString: #,0
+		lineageTag: 0cd23e50-9b61-4274-a046-f4968b98b3b3
+
+	measure Threes = SUM(Games[Threes])
+		formatString: #,0
+		lineageTag: 384c5365-4995-42fb-a97f-3ce7d491cbe4
+
+	measure Games = COUNTROWS(Games)
+		formatString: #,0
+		lineageTag: 6956305b-4a22-4239-afc3-bdb9ab03ca9d
+
+	measure PPG = DIVIDE([Points], [Games])
+		formatString: 0.0
+		lineageTag: 2b8d0f7c-f1a5-4a08-afa1-e3cd6f6ba329
+
+	measure Wins = SUM(Games[Win])
+		formatString: #,0
+		lineageTag: 150c83db-ae76-4dd3-ad31-35b31c124c43
+
+	measure 'Win %' = DIVIDE([Wins], [Games])
+		formatString: 0%
+		lineageTag: 2038bccc-a358-4651-a2f5-4b3f6c2cd20e
+
+	measure 'Crowd Hype' = AVERAGE(Games[CrowdDb])
+		formatString: 0" dB"
+		lineageTag: 0f0ca2a5-6908-4cd8-aa5a-527fb5cd9e1b
+
+	measure 'Top Scorer' = FIRSTNONBLANK(TOPN(1, VALUES(Games[Player]), [Points]), 1)
+		lineageTag: d4edb262-5a34-4490-aa4e-cc47237e382d
+
+	measure 'Points Note' = "top dog: " & [Top Scorer]
+		lineageTag: 435afce4-02dc-46ba-a546-9c6980f7e02a
+
+	measure 'Assists Note' = FORMAT(DIVIDE([Assists], [Games]), "0.0") & " dimes a game"
+		lineageTag: 60d71790-0dd0-435c-a43c-b1b8fef22fbd
+
+	measure 'Boards Note' = FORMAT(DIVIDE([Boards], [Games]), "0.0") & " per run"
+		lineageTag: d3f668b0-838d-457a-afb6-c2bf3f34433c
+
+	measure 'Dunks Note' = [Threes] & " threes splashed"
+		lineageTag: 026869d9-a421-4571-aa9d-b6a560cf1b02
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: c3a2d744-23f3-4886-a5f3-8802b7345bc8
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Stats = m
+		mode: import
+		source =
+				let
+				    // sample data for the template: replace this query with your own source
+				    Source = #table(type table [Column1 = text], {
+				        {null}
+				    })
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

@@ -1,0 +1,35 @@
+table Parks
+	lineageTag: 67762106-b041-4abb-a3a8-87bea066a84b
+
+	column Park
+		dataType: string
+		lineageTag: 9649f815-23e2-475d-a122-9b2dc038335b
+		summarizeBy: none
+		sourceColumn: Park
+
+		annotation SummarizationSetBy = Automatic
+
+	column Terrain
+		dataType: string
+		lineageTag: dbd25418-4453-497b-a539-cebfe9c0529c
+		summarizeBy: none
+		sourceColumn: Terrain
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Parks = m
+		mode: import
+		source =
+				let
+				    // sample data for the template: replace this query with your own source
+				    Source = #table(type table [Park = text, Terrain = text], {
+				        {"Cedar Ridge", "Alpine"},
+				        {"Fox Hollow", "Forest"},
+				        {"Granite Basin", "Alpine"},
+				        {"Mirror Lake", "Lakeshore"},
+				        {"Pine Bluff", "Forest"}
+				    })
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

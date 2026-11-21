@@ -157,6 +157,18 @@ describe("Csv.Document QuoteStyle default", () => {
   });
 });
 
+describe("large inputs", () => {
+  // Widths and counts were taken with Math.max(...rows): a spread of more than ~100k arguments overflows the stack.
+  it("Csv.Document reads 200,000 rows", () => {
+    const csv = Array.from({ length: 200000 }, (_x, i) => `${i},x`).join("#(lf)");
+    expect(js(`Table.RowCount(Csv.Document("${csv}", [Delimiter = ","]))`)).toBe(200000);
+  });
+  it("Table.FromColumns and List.Mode take long lists", () => {
+    expect(js(`Table.RowCount(Table.FromColumns({List.Numbers(1, 200000)}))`)).toBe(200000);
+    expect(js(`List.Mode(List.Repeat({1, 2, 2}, 70000))`)).toBe(2);
+  });
+});
+
 describe("blank text in Changed Type", () => {
   it("turns blank text into null in number and date columns", () => {
     expect(js('Table.TransformColumnTypes(#table({"n", "d", "t"}, {{"", "", ""}}), {{"n", Int64.Type}, {"d", type date}, {"t", type text}})')).toEqual([

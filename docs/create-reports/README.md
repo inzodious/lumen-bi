@@ -14,6 +14,7 @@ follow them without your own data. Where Lumen behaves differently from Power BI
 |---|---|---|
 | [Report view overview](report-view-overview.md) | Overview | The parts of the window, the panes and the ribbon tabs |
 | [Tutorial: design a dashboard page](tutorial-design-a-dashboard-page.md) | Tutorial | Build a page with KPI cards, icons, slicers, a combo chart and a matrix, apply a theme and export it to PDF |
+| [Start from a report template](start-from-a-template.md) | How-to | The gallery's designed templates, which are Power BI compatible, and how to swap in your own data |
 
 ## Build pages and visuals
 

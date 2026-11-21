@@ -10,6 +10,7 @@ Read `docs/ARCHITECTURE.md` before changing anything — it lists the contracts 
 ## Commands
 - `npm run dev` (HMR app) · `npm run build` · `npm start` (preview build)
 - `npm test` · `npx vitest run <path>` · `npm run typecheck`
+- `npm run dist` (Linux AppImage + deb) · `npm run dist:win` (on Windows: NSIS installer + portable exe; CI uploads both)
 - `scripts/capture.sh /abs/out.png ['#/route'] [path-to-open] [WxH]` — headless screenshot after `npm run build`
 - `e2e/run.sh [--no-build] [filter]` — end-to-end UI journeys (Playwright Electron driver, private Xvfb display; builds into `out/e2e/`).
   `LUMEN_SAMPLES_DIR=<dir of Microsoft sample .pbix>` enables the sample-file journeys; failure screenshots/logs go to `$LUMEN_E2E_OUT` (default a temp dir).

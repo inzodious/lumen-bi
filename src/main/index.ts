@@ -1,9 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme } from 'electron'
-import { dirname, join } from 'node:path'
+import { dirname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promises as fsp } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { registerFsIpc } from './ipc/fs'
+import { portablePath } from '../core/io/fs'
 import { registerConnectorIpc } from './ipc/connectors'
 import { buildMenu } from './menu'
 import { blockCacheArgs } from '../shared/cacheGuard'
@@ -53,9 +54,14 @@ async function readRecent(): Promise<Array<{ path: string; name: string; openedA
   }
 }
 
+/** App path → the OS's own form for native dialogs and the file manager (backslashes on Windows). */
+function nativePath(p: string | undefined): string | undefined {
+  return p && process.platform === 'win32' ? normalize(p) : p
+}
+
 function launchFiles(): string[] {
   const args = process.argv.slice(isDev ? 2 : 1)
-  return args.filter((a) => !a.startsWith('-') && /\.(pbix|pbit|pbip|wbi)$|\.Report\/?$|\.SemanticModel\/?$/i.test(a))
+  return args.filter((a) => !a.startsWith('-') && /\.(pbix|pbit|pbip|wbi)$|\.Report[\\/]?$|\.SemanticModel[\\/]?$/i.test(a)).map(portablePath)
 }
 
 function createWindow(): void {
@@ -187,22 +193,22 @@ function runSweepHost(win: BrowserWindow): void {
 
 function registerAppIpc(): void {
   ipcMain.handle('dialog:openFile', async (_e, opts: any = {}) => {
-    const r = await dialog.showOpenDialog(mainWindow!, { title: opts.title, defaultPath: opts.defaultPath, filters: opts.filters, properties: ['openFile', ...(opts.multi ? (['multiSelections'] as const) : [])] })
-    return r.canceled ? null : r.filePaths
+    const r = await dialog.showOpenDialog(mainWindow!, { title: opts.title, defaultPath: nativePath(opts.defaultPath), filters: opts.filters, properties: ['openFile', ...(opts.multi ? (['multiSelections'] as const) : [])] })
+    return r.canceled ? null : r.filePaths.map(portablePath)
   })
   ipcMain.handle('dialog:openDirectory', async (_e, opts: any = {}) => {
-    const r = await dialog.showOpenDialog(mainWindow!, { title: opts.title, defaultPath: opts.defaultPath, properties: ['openDirectory'] })
-    return r.canceled ? null : r.filePaths[0]
+    const r = await dialog.showOpenDialog(mainWindow!, { title: opts.title, defaultPath: nativePath(opts.defaultPath), properties: ['openDirectory'] })
+    return r.canceled || !r.filePaths[0] ? null : portablePath(r.filePaths[0])
   })
   ipcMain.handle('dialog:saveFile', async (_e, opts: any = {}) => {
-    const r = await dialog.showSaveDialog(mainWindow!, { title: opts.title, defaultPath: opts.defaultPath, filters: opts.filters })
-    return r.canceled ? null : r.filePath
+    const r = await dialog.showSaveDialog(mainWindow!, { title: opts.title, defaultPath: nativePath(opts.defaultPath), filters: opts.filters })
+    return r.canceled || !r.filePath ? null : portablePath(r.filePath)
   })
   ipcMain.handle('dialog:message', async (_e, opts: any) => {
     const r = await dialog.showMessageBox(mainWindow!, { type: opts.type ?? 'info', title: opts.title, message: opts.message, detail: opts.detail, buttons: opts.buttons ?? ['OK'] })
     return r.response
   })
-  ipcMain.handle('app:getPath', (_e, name: any) => app.getPath(name))
+  ipcMain.handle('app:getPath', (_e, name: any) => portablePath(app.getPath(name)))
   ipcMain.handle('app:getRecent', () => readRecent())
   ipcMain.handle('app:addRecent', async (_e, path: string, name: string) => {
     const list = (await readRecent()).filter((r) => r.path !== path)
@@ -211,9 +217,9 @@ function registerAppIpc(): void {
     await fsp.writeFile(recentFile(), JSON.stringify(list.slice(0, 20), null, 2))
   })
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
-  ipcMain.handle('app:showItemInFolder', (_e, p: string) => shell.showItemInFolder(p))
+  ipcMain.handle('app:showItemInFolder', (_e, p: string) => shell.showItemInFolder(nativePath(p)!))
   ipcMain.handle('app:setTitle', (_e, t: string) => mainWindow?.setTitle(t))
-  ipcMain.handle('app:getLaunchFiles', () => (process.env['WBI_OPEN'] ? [process.env['WBI_OPEN']] : launchFiles()))
+  ipcMain.handle('app:getLaunchFiles', () => (process.env['WBI_OPEN'] ? [portablePath(process.env['WBI_OPEN'])] : launchFiles()))
   ipcMain.handle('win:minimize', () => mainWindow?.minimize())
   ipcMain.handle('win:toggleMaximize', () => (mainWindow?.isMaximized() ? mainWindow.unmaximize() : mainWindow?.maximize()))
   ipcMain.handle('win:close', () => mainWindow?.close())

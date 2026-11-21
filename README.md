@@ -59,11 +59,26 @@ npm install
 npm run dev                         # run with live reload
 npm run build && npm start          # run a production build
 scripts/install-desktop.sh --pin    # app menu entry, .pbix/.pbit/.pbip/.wbi file associations, panel pin (Cinnamon)
-npm run dist                        # AppImage + .deb in dist/ (does not build a package yet; see below)
+npm run dist                        # AppImage + .deb in dist/
 ```
 
-There is no published package or installer yet: `npm run dist` currently stops with an electron-builder configuration
-error. See [Build and packaging](docs/developer/build-and-packaging.md).
+### Windows
+
+Requires Node.js 20.19 or later (`winget install OpenJS.NodeJS.LTS`) and Git. In PowerShell:
+
+```powershell
+git clone https://github.com/inzodious/lumen-bi.git
+cd lumen-bi
+npm ci
+npm run dev                         # run with live reload
+npm run build; npm start            # run a production build
+npm run dist:win                    # dist\Lumen-Setup-<version>.exe and dist\Lumen-<version>-portable.exe
+```
+
+Every CI run also builds both executables: open the latest run of the **CI** workflow under the repository's Actions
+tab and download the `Lumen-windows-x64` artifact. The builds are unsigned, so SmartScreen asks once ("More info" ▸
+"Run anyway"). The Linux shell scripts under `scripts/` (capture, sweep, compare, desktop integration) are not
+available on Windows. See [Build and packaging](docs/developer/build-and-packaging.md).
 
 ## Development
 

@@ -7,7 +7,7 @@
  */
 import { spawn } from 'node:child_process'
 import { access, readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { posix } from 'node:path'
 import type { MountRequest, ShareInfo } from '../../../shared/host'
 import { ConnectorError } from './common'
 
@@ -24,7 +24,7 @@ export function parseGvfsName(dir: string, name: string): ShareInfo | null {
     const j = kv.indexOf('=')
     if (j > 0) params.set(kv.slice(0, j), decodeURIComponent(kv.slice(j + 1).replace(/%(?![0-9a-f]{2})/gi, '%25')))
   }
-  const path = join(dir, name)
+  const path = posix.join(dir, name)
   const host = params.get('server') ?? params.get('host')
   switch (scheme) {
     case 'smb-share': {

@@ -39,7 +39,7 @@ function rootOf(p: string): string {
 }
 
 export function joinPath(...parts: string[]): string {
-  const raw = parts.filter(Boolean).join('/')
+  const raw = portablePath(parts.filter(Boolean).join('/'))
   const root = rootOf(raw)
   const segs: string[] = []
   for (const s of raw.slice(root.length).split('/')) {
@@ -50,7 +50,8 @@ export function joinPath(...parts: string[]): string {
   return root + segs.join('/') || '/'
 }
 
-export function dirname(p: string): string {
+export function dirname(path: string): string {
+  const p = portablePath(path)
   const root = rootOf(p)
   const s = p.replace(/\/+$/, '')
   const i = s.lastIndexOf('/')

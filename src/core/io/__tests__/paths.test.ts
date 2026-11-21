@@ -24,6 +24,11 @@ describe('joinPath', () => {
     expect(joinPath('C:/', '..', 'x')).toBe('C:/x')
     expect(joinPath('//nas/share', 'dir', 'f.csv')).toBe('//nas/share/dir/f.csv')
   })
+  it('accepts native Windows paths', () => {
+    expect(joinPath('C:\\Temp\\x', 'Demo.Report')).toBe('C:/Temp/x/Demo.Report')
+    expect(dirname('C:\\Temp\\x\\Demo.pbip')).toBe('C:/Temp/x')
+    expect(dirname('C:\\Demo.pbip')).toBe('C:/')
+  })
 })
 
 describe('dirname / basename', () => {

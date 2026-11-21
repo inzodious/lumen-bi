@@ -598,6 +598,9 @@ const LAKEHOUSE_COLUMNS = ["Id", "Name", "ItemKind", "Data", "IsLeaf"];
 function lakehouseFolder(ctx: LibContext, path: string, options: MValue): MTable {
   const { loc, root } = locationOf(ctx, path, options);
   const tablesDir = `${root}/Tables`;
+  // entry paths are compared in '/' form: on Windows the root and the listed paths may use backslashes
+  const slash = (s: string) => s.replace(/\\/g, "/");
+  const tablesKey = slash(tablesDir);
   const nav = navTable(LAKEHOUSE_COLUMNS, () => {
     let entries: HostFileEntry[] = [];
     try {
@@ -610,14 +613,14 @@ function lakehouseFolder(ctx: LibContext, path: string, options: MValue): MTable
     for (const e of entries) {
       const folder = folderOf(e.path);
       const m = /^(.*)\/_delta_log\/$/.exec(folder);
-      if (m && m[1]!.startsWith(`${tablesDir}/`)) tables.set(m[1]!, []);
+      if (m && m[1]!.startsWith(`${tablesKey}/`)) tables.set(m[1]!, []);
     }
     const dirs = [...tables.keys()].sort((a, b) => b.length - a.length);
     for (const e of entries) {
-      const dir = dirs.find((d) => e.path.startsWith(`${d}/`));
+      const dir = dirs.find((d) => slash(e.path).startsWith(`${d}/`));
       if (dir) tables.get(dir)!.push(e);
     }
-    const rel = (d: string) => d.slice(tablesDir.length + 1);
+    const rel = (d: string) => d.slice(tablesKey.length + 1);
     const tableRow = (dir: string): Cell[] => {
       const name = rel(dir).split("/").pop()!;
       return [name, name, "Table", new Lazy(() => deltaTableFromFiles(ctx, deltaFiles(loc, tables.get(dir)!))), true];

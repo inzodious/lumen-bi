@@ -132,7 +132,8 @@ function createWindow(): void {
  * stale frame (e.g. an earlier layout or the open progress overlay).
  */
 function showOnPrivateDisplay(win: BrowserWindow, envVar: string): void {
-  if (process.env[envVar]) win.once('ready-to-show', () => win.showInactive())
+  // Windows has no private display: a hidden window stops painting there too, so always show it (unfocused)
+  if (process.env[envVar] || process.platform === 'win32') win.once('ready-to-show', () => win.showInactive())
 }
 
 function runCapture(win: BrowserWindow, out: string): void {

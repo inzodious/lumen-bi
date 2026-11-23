@@ -26,6 +26,8 @@ Without Docker: `LUMEN_SERVER_TOKEN=<token> LUMEN_SERVER_DATA=./data node main.m
 | `LUMEN_SERVER_TITLE` | `Dashboards` | Heading of the home page. |
 | `LUMEN_SERVER_LISTING` | `on` | `off` hides the home page list. Dashboards stay reachable at their own address. |
 | `LUMEN_SERVER_MAX_MB` | `200` | Largest upload accepted, in MB. |
+| `LUMEN_SERVER_TRUST_PROXY` | `auto` | Where the visitor's address comes from, for the wrong-password limit. `auto` reads `CF-Connecting-IP`, `X-Real-IP` or `X-Forwarded-For` when the request comes from a private address (a reverse proxy or tunnel on the same network); `on` always reads them; `off` never does. |
+| `LUMEN_SERVER_UID` | `1000` | In Docker, the server starts as root, gives the data folder to this user and runs as it. |
 | `LUMEN_SERVER_SECURE_COOKIES` | `false` | `true` marks password cookies Secure. Set it when the server is only reached over HTTPS. Behind a proxy that sends `X-Forwarded-Proto: https`, this happens on its own. |
 
 ## Addresses
@@ -41,7 +43,8 @@ Without Docker: `LUMEN_SERVER_TOKEN=<token> LUMEN_SERVER_DATA=./data node main.m
 
 Each dashboard is either open to anyone with its address, or protected by a password chosen when publishing. A
 correct password keeps that browser signed in to the dashboard for 30 days. Changing the password signs everyone out.
-After 10 wrong passwords from one address, that address waits 15 minutes.
+After 10 wrong passwords from one address, that address waits 15 minutes. Behind a reverse proxy or a Cloudflare
+Tunnel, the address is the visitor's, taken from the proxy's headers (see `LUMEN_SERVER_TRUST_PROXY`).
 
 A password keeps casual visitors out. It is not per-person access control: anyone who has the password sees the whole
 dashboard, data included. For sign-in with accounts, put the server behind a reverse proxy that does it (for example

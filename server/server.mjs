@@ -18,7 +18,7 @@ import { promises as fsp, existsSync, readFileSync, writeFileSync, mkdirSync } f
 import { extname, join } from 'node:path'
 import { isSafePath, readZip } from './zip.mjs'
 
-export const VERSION = '1.0.0'
+export const VERSION = '1.0.1'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/
 const COOKIE_DAYS = 30
 
@@ -85,6 +85,28 @@ button{margin-top:12px;padding:8px 16px;border:0;border-radius:4px;background:va
 </style></head><body><main>${body}</main></body></html>`
 }
 
+const PRIVATE = [/^127\./, /^10\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./, /^169\.254\./, /^::1$/, /^f[cd][0-9a-f]{2}:/i, /^fe80:/i]
+
+/** True for loopback and private-network addresses (where a reverse proxy or tunnel connector runs). */
+export function isPrivateAddress(addr) {
+  const a = String(addr ?? '').replace(/^::ffff:/i, '')
+  return PRIVATE.some((re) => re.test(a))
+}
+
+/**
+ * The visitor's address. Behind a reverse proxy or a Cloudflare Tunnel every request comes from the proxy, so the
+ * proxy's CF-Connecting-IP / X-Real-IP / X-Forwarded-For header is used instead: always with trustProxy true, never
+ * with false, and with 'auto' (default) only when the request comes from a private address.
+ */
+export function clientAddress(req, trustProxy = 'auto') {
+  const remote = req.socket.remoteAddress ?? ''
+  const trusted = trustProxy === true || (trustProxy === 'auto' && isPrivateAddress(remote))
+  if (!trusted) return remote
+  const h = req.headers
+  const forwarded = h['cf-connecting-ip'] ?? h['x-real-ip'] ?? String(h['x-forwarded-for'] ?? '').split(',')[0]
+  return String(forwarded ?? '').trim() || remote
+}
+
 export function createLumenServer(opts) {
   const dataDir = opts.dataDir
   const token = opts.token
@@ -92,9 +114,15 @@ export function createLumenServer(opts) {
   const listing = opts.listing !== false
   const siteTitle = opts.title || 'Dashboards'
   const now = opts.now ?? (() => Date.now())
+  const trustProxy = opts.trustProxy ?? 'auto'
   if (!token || String(token).length < 16) throw new Error('Set LUMEN_SERVER_TOKEN to a random value of at least 16 characters.')
   const root = join(dataDir, 'dashboards')
-  mkdirSync(root, { recursive: true })
+  try {
+    mkdirSync(root, { recursive: true })
+  } catch (e) {
+    if (e?.code === 'EACCES') throw new Error(`Lumen Server cannot write to ${dataDir}. Give the user it runs as write access to that folder.`)
+    throw e
+  }
   const secretFile = join(dataDir, 'secret.key')
   if (!existsSync(secretFile)) writeFileSync(secretFile, randomBytes(32).toString('hex'), { mode: 0o600 })
   const secret = readFileSync(secretFile, 'utf8').trim()
@@ -200,7 +228,7 @@ export function createLumenServer(opts) {
   }
 
   async function login(req, res, slug, meta) {
-    const key = `${req.socket.remoteAddress}|${slug}`
+    const key = `${clientAddress(req, trustProxy)}|${slug}`
     const f = failures.get(key)
     if (f && f.count >= 10 && now() - f.at < 15 * 60 * 1000) return send(res, 429, loginPage(slug, meta.title, 'Too many attempts. Try again in 15 minutes.'), { 'content-type': 'text/html; charset=utf-8' })
     const body = (await readBody(req, 4096)).toString('utf8')
@@ -244,7 +272,7 @@ export function createLumenServer(opts) {
     if (!listing) return send(res, 404, page(siteTitle, '<h1>Nothing here</h1>'), { 'content-type': 'text/html; charset=utf-8' })
     const all = await allMeta()
     const cards = all
-      .map((m) => `<a class="card" href="/d/${m.slug}/"><div class="t">${esc(m.title)}</div><div class="m">${m.access?.mode === 'password' ? 'Password protected · ' : ''}Published ${esc(String(m.publishedAt).slice(0, 10))}${m.pages?.length ? ` · ${m.pages.length} page${m.pages.length === 1 ? '' : 's'}` : ''}</div></a>`)
+      .map((m) => `<a class="card" href="/d/${m.slug}/"><div class="t">${esc(m.title)}</div><div class="m">/d/${m.slug}/</div><div class="m">${m.access?.mode === 'password' ? 'Password protected · ' : ''}Published ${esc(String(m.publishedAt).slice(0, 10))}${m.pages?.length ? ` · ${m.pages.length} page${m.pages.length === 1 ? '' : 's'}` : ''}</div></a>`)
       .join('')
     send(res, 200, page(siteTitle, `<h1>${esc(siteTitle)}</h1>${cards ? `<div class="grid">${cards}</div>` : '<p class="empty">No dashboards yet. Publish one from Lumen.</p>'}`), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' })
   }

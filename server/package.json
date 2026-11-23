@@ -1,6 +1,6 @@
 {
   "name": "lumen-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Hosts dashboards published from Lumen",
   "type": "module",
   "private": true,

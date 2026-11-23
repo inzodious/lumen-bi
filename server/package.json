@@ -1,0 +1,14 @@
+{
+  "name": "lumen-server",
+  "version": "1.0.0",
+  "description": "Hosts dashboards published from Lumen",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node main.mjs"
+  }
+}

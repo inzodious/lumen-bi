@@ -274,6 +274,8 @@ export interface PublishDeployRequest {
   site: string
   title: string
   files: Record<string, Uint8Array | string>
+  /** Lumen Server only: who may open the dashboard (absent: keep what the server has, public for a new one) */
+  access?: { mode: 'public' | 'password'; password?: string }
 }
 
 export interface PublishProgress {

@@ -4,10 +4,13 @@
  */
 import { describe, expect, it } from 'vitest'
 import { createServer, type Server } from 'node:http'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { extname, join, normalize } from 'node:path'
 import { unzipSync } from 'fflate'
 import type { Page } from 'playwright-core'
+// @ts-expect-error plain ES module without types (server/ runs on Node alone)
+import { createLumenServer } from '../server/server.mjs'
 import { useLumen, stubOpenDialog, stubSaveDialog, untilNode, rendererErrors } from './harness'
 
 const SHOTS = process.env['LUMEN_E2E_SHOTS'] ?? ''
@@ -133,5 +136,61 @@ describe('publish dashboard', () => {
     await page.getByRole('dialog', { name: 'Remove destination?' }).getByRole('button', { name: 'Remove', exact: true }).click()
     await expect.poll(() => page.evaluate(() => window.wbi.publish!.destinations.list())).toEqual([])
     await dlg.getByRole('button', { name: 'Cancel', exact: true }).click()
+  })
+
+  it('publishes to a Lumen Server behind a password', async () => {
+    const { page, app } = lumen()
+    const token = 'e2e-token-0123456789abcdef'
+    const server: Server = createLumenServer({ dataDir: mkdtempSync(join(tmpdir(), 'lumen-e2e-srv-')), token })
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+    const addr = server.address()
+    const base = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`
+    try {
+      let dlg = await openPublish(page)
+      await dlg.getByRole('button', { name: 'Add destination' }).click()
+      const ed = page.getByRole('dialog', { name: 'Add destination' })
+      await ed.getByRole('button', { name: /GitHub Pages/ }).click()
+      await page.getByRole('option', { name: 'Lumen Server' }).click()
+      await ed.getByLabel('Name').fill('Home server')
+      await ed.getByLabel('Server address').fill(base)
+      await ed.getByLabel('Server token').fill(token)
+      await ed.getByRole('button', { name: 'Save', exact: true }).click()
+      dlg = page.getByRole('dialog', { name: 'Publish dashboard' })
+      await expect.poll(() => dlg.getByRole('radio', { name: 'Home server' }).getAttribute('aria-checked')).toBe('true')
+      await dlg.getByLabel('Dashboard name').fill('sales-e2e')
+      await dlg.getByRole('button', { name: 'Check connection' }).click()
+      await expect.poll(() => dlg.locator('.wbi-pub__ok').innerText().catch(() => '')).toMatch(/Connected to Lumen Server/)
+      await dlg.getByRole('radio', { name: 'People with a password' }).click()
+      expect(await dlg.getByRole('button', { name: 'Publish', exact: true }).isDisabled()).toBe(true)
+      await dlg.getByLabel(/^Password/).fill('e2e pass')
+      await dlg.getByRole('button', { name: 'Publish', exact: true }).click()
+      let listed: Array<{ slug: string; access: string }> = []
+      await untilNode(
+        async () => {
+          listed = await (await fetch(`${base}/api/dashboards`, { headers: { authorization: `Bearer ${token}` } })).json()
+          return listed.length > 0
+        },
+        90_000,
+        'dashboard on the server'
+      )
+      expect(listed).toEqual([expect.objectContaining({ slug: 'sales-e2e', access: 'password' })])
+      expect((await fetch(`${base}/d/sales-e2e/report.wbi`)).status).toBe(401)
+
+      const opened = app.waitForEvent('window')
+      await app.evaluate(({ BrowserWindow }, u) => {
+        const w = new BrowserWindow({ width: 1280, height: 800, show: false, webPreferences: { backgroundThrottling: false } })
+        void w.loadURL(u)
+      }, `${base}/d/sales-e2e/`)
+      const viewer = await opened
+      await viewer.locator('input[type=password]').fill('e2e pass')
+      await viewer.locator('input[type=password]').press('Enter')
+      await viewer.waitForFunction(() => document.body.dataset.wbiReady === '1' && document.body.dataset.wbiBusy !== '1', null, { timeout: 90_000 })
+      expect(await viewer.locator('.lv-status--error').count()).toBe(0)
+      expect(await viewer.locator('[data-visual]').count()).toBeGreaterThan(0)
+      await viewer.close()
+    } finally {
+      server.close()
+    }
+    expect(await rendererErrors(page)).toEqual([])
   })
 })

@@ -151,6 +151,7 @@ describe('publish dashboard', () => {
       const ed = page.getByRole('dialog', { name: 'Add destination' })
       await ed.getByRole('button', { name: /GitHub Pages/ }).click()
       await page.getByRole('option', { name: 'Lumen Server' }).click()
+      expect(await ed.getByRole('button', { name: 'Sign in with Google' }).isDisabled()).toBe(true)
       await ed.getByLabel('Name').fill('Home server')
       await ed.getByLabel('Server address').fill(base)
       await ed.getByLabel('Server token').fill(token)
@@ -160,6 +161,7 @@ describe('publish dashboard', () => {
       await dlg.getByLabel('Dashboard name').fill('sales-e2e')
       await dlg.getByRole('button', { name: 'Check connection' }).click()
       await expect.poll(() => dlg.locator('.wbi-pub__ok').innerText().catch(() => '')).toMatch(/Connected to Lumen Server/)
+      expect(await dlg.getByRole('radio', { name: 'Only approved Google accounts' }).count()).toBe(1)
       await dlg.getByRole('radio', { name: 'People with a password' }).click()
       expect(await dlg.getByRole('button', { name: 'Publish', exact: true }).isDisabled()).toBe(true)
       await dlg.getByLabel(/^Password/).fill('e2e pass')
@@ -175,6 +177,12 @@ describe('publish dashboard', () => {
       )
       expect(listed).toEqual([expect.objectContaining({ slug: 'sales-e2e', access: 'password' })])
       expect((await fetch(`${base}/d/sales-e2e/report.wbi`)).status).toBe(401)
+      // page previews rendered while publishing: one per visible page, shown on the home page only after sign-in
+      const meta = (await (await fetch(`${base}/api/dashboards/sales-e2e`, { headers: { authorization: `Bearer ${token}` } })).json()) as { previews: Array<{ src: string; displayName: string }> }
+      expect(meta.previews.length).toBeGreaterThan(0)
+      expect(meta.previews[0].displayName).toBeTruthy()
+      expect((await fetch(`${base}${meta.previews[0].src}`)).status).toBe(401)
+      expect(await (await fetch(`${base}/`)).text()).toContain(`data-src="${meta.previews[0].src}"`)
 
       const opened = app.waitForEvent('window')
       await app.evaluate(({ BrowserWindow }, u) => {

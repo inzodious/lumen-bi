@@ -44,7 +44,7 @@ function PublishBody() {
   const [title, setTitle] = useState(project.name)
   const [editing, setEditing] = useState<PublishDestination | 'new' | null>(null)
   const [sites, setSites] = useState<Record<string, string>>({})
-  const [access, setAccess] = useState<'keep' | 'public' | 'password'>('keep')
+  const [access, setAccess] = useState<'keep' | 'public' | 'password' | 'users'>('keep')
   const [password, setPassword] = useState('')
   const [check, setCheck] = useState<{ id: string; ok: boolean; message: string } | 'running' | null>(null)
   useEffect(() => {
@@ -163,6 +163,7 @@ function PublishBody() {
                 <Radio checked={access === 'keep'} onChange={() => setAccess('keep')} label="Keep the current setting (anyone with the link for a new dashboard)" />
                 <Radio checked={access === 'public'} onChange={() => setAccess('public')} label="Anyone with the link" />
                 <Radio checked={access === 'password'} onChange={() => setAccess('password')} label="People with a password" />
+                <Radio checked={access === 'users'} onChange={() => setAccess('users')} label="Only approved Google accounts" />
                 {access === 'password' ? <TextField label="Password" type="password" value={password} onChange={setPassword} hint="Viewers type it once per browser. The server stores only a hash." /> : null}
               </div>
             ) : null}

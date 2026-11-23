@@ -84,10 +84,10 @@ export const DESTINATION_KINDS: DestinationKindInfo[] = [
   {
     kind: 'lumen-server',
     label: 'Lumen Server',
-    help: 'Your own server for dashboards (server/ in the Lumen repository, run with Docker). It lists the dashboards it holds and can protect each one with a password.',
+    help: 'Your own server for dashboards (server/ in the Lumen repository, run with Docker). It lists the dashboards it holds and can limit each one to a password or to approved Google accounts.',
     fields: [
-      { key: 'url', label: 'Server address', placeholder: 'http://nas.local:8080', required: true },
-      { key: 'token', label: 'Server token', secret: true, required: true, hint: 'The LUMEN_SERVER_TOKEN the server was started with.' }
+      { key: 'url', label: 'Server address', placeholder: 'https://dashboards.example.com', required: true },
+      { key: 'token', label: 'Server token', secret: true, required: true, hint: 'Filled in by Sign in with Google. On a server without Google sign-in, paste its LUMEN_SERVER_TOKEN.' }
     ],
     siteLabel: 'Dashboard name',
     siteHint: 'The address becomes <server>/d/<dashboard name>/.',

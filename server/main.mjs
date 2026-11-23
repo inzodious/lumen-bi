@@ -3,6 +3,7 @@
 import { chownSync, lstatSync, mkdirSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createLumenServer, VERSION } from './server.mjs'
+import { parseAllowed } from './auth.mjs'
 
 const env = process.env
 const port = Number(env.PORT || 8080)
@@ -35,6 +36,12 @@ try {
     listing: (env.LUMEN_SERVER_LISTING || 'on').toLowerCase() !== 'off',
     maxBytes: Number(env.LUMEN_SERVER_MAX_MB || 200) * 1024 * 1024,
     secureCookies: (env.LUMEN_SERVER_SECURE_COOKIES || '').toLowerCase() === 'true',
+    google: {
+      clientId: env.LUMEN_SERVER_GOOGLE_CLIENT_ID,
+      clientSecret: env.LUMEN_SERVER_GOOGLE_CLIENT_SECRET,
+      publicUrl: env.LUMEN_SERVER_PUBLIC_URL,
+      allowed: parseAllowed(env.LUMEN_SERVER_ALLOWED_EMAILS)
+    },
     trustProxy: { true: true, on: true, false: false, off: false }[(env.LUMEN_SERVER_TRUST_PROXY || '').toLowerCase()] ?? 'auto'
   })
   server.listen(port, () => console.log(`Lumen Server ${VERSION} listening on port ${port}`))

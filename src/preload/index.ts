@@ -80,6 +80,7 @@ const host: WbiHost = {
       remove: (id) => invoke('publish:dest:remove', id),
       test: (id, site) => invoke('publish:dest:test', id, site)
     },
+    connectLumenServer: (url) => invoke('publish:lumen:connect', url),
     deploy: (r) => invoke('publish:deploy', r),
     onProgress: (cb) => on('publish:progress', cb)
   },

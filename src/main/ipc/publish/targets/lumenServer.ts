@@ -1,17 +1,18 @@
 /**
  * Lumen Server (server/ in this repository): a self-hosted server for published dashboards. Each publish uploads
  * the site as a zip to `PUT /api/dashboards/<slug>`, with the dashboard's access (anyone with the link, or a password).
- * Settings: server URL. Secret: the server's LUMEN_SERVER_TOKEN.
+ * Settings: server URL. Secret: a key from "Sign in with Google" (../lumenConnect.ts), or the server's LUMEN_SERVER_TOKEN.
  */
 import { zipSite } from '../site'
 import { PublishError, requestJson, requireSecret, requireSetting, type PublishTarget } from './common'
 
 export interface LumenAccess {
-  mode: 'public' | 'password'
+  mode: 'public' | 'password' | 'users'
   password?: string
 }
 
-function baseUrl(raw: string): string {
+/** The server's base address: scheme added when missing, trailing slashes removed. */
+export function lumenServerBase(raw: string): string {
   const withScheme = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`
   try {
     const u = new URL(withScheme)
@@ -25,7 +26,7 @@ export const lumenServer: PublishTarget & {
   deployWithAccess: (...args: [...Parameters<PublishTarget['deploy']>, LumenAccess | undefined]) => ReturnType<PublishTarget['deploy']>
 } = {
   async test(dest, site, ctx) {
-    const base = baseUrl(requireSetting(dest, 'url', 'The server address'))
+    const base = lumenServerBase(requireSetting(dest, 'url', 'The server address'))
     const token = requireSecret(dest, 'token', 'server token')
     const health = await requestJson<{ ok?: boolean; name?: string; version?: string }>(ctx, 'Lumen Server', `${base}/api/health`).catch((e: unknown) => {
       throw e instanceof PublishError && e.status === 404 ? new PublishError(`${base} answers, but it is not a Lumen Server.`) : e
@@ -33,7 +34,8 @@ export const lumenServer: PublishTarget & {
     if (health?.name !== 'lumen-server') throw new PublishError(`${base} answers, but it is not a Lumen Server.`)
     const list = await requestJson<Array<{ slug: string }>>(ctx, 'Lumen Server', `${base}/api/dashboards`, { headers: { authorization: `Bearer ${token}` } })
     const exists = site ? list.some((d) => d.slug === site) : false
-    return `Connected to Lumen Server ${health.version ?? ''} (${list.length} dashboard${list.length === 1 ? '' : 's'}).${site ? (exists ? ` Publishing replaces ${site}.` : ` ${site} will be created.`) : ''}`
+    const me = await requestJson<{ email?: string | null }>(ctx, 'Lumen Server', `${base}/api/me`, { headers: { authorization: `Bearer ${token}` } }).catch(() => null)
+    return `Connected to Lumen Server ${health.version ?? ''}${me?.email ? ` as ${me.email}` : ''} (${list.length} dashboard${list.length === 1 ? '' : 's'}).${site ? (exists ? ` Publishing replaces ${site}.` : ` ${site} will be created.`) : ''}`
   },
 
   deploy(dest, site, files, title, ctx) {
@@ -41,7 +43,7 @@ export const lumenServer: PublishTarget & {
   },
 
   async deployWithAccess(dest, site, files, _title, ctx, access) {
-    const base = baseUrl(requireSetting(dest, 'url', 'The server address'))
+    const base = lumenServerBase(requireSetting(dest, 'url', 'The server address'))
     const token = requireSecret(dest, 'token', 'server token')
     ctx.progress({ message: `Uploading to ${base}`, fraction: 0.3 })
     const headers: Record<string, string> = { authorization: `Bearer ${token}`, 'content-type': 'application/zip' }

@@ -19,6 +19,7 @@ import { promises as fsp, existsSync, readFileSync, writeFileSync, mkdirSync } f
 import { extname, join } from 'node:path'
 import { isSafePath, readZip } from './zip.mjs'
 import { createAuth } from './auth.mjs'
+import { createAdmin } from './admin.mjs'
 
 export const VERSION = '1.1.0'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/
@@ -134,6 +135,23 @@ export function createLumenServer(opts) {
   const auth = createAuth({ dataDir, secret, clientId: google.clientId, clientSecret: google.clientSecret, publicUrl: google.publicUrl, allowed: google.allowed ?? [], now, fetch: opts.fetch, secureCookies: opts.secureCookies })
   const failures = new Map()
 
+  // site settings: the environment gives the defaults, the admin console (admin.mjs) saves changes to settings.json
+  const settingsFile = join(dataDir, 'settings.json')
+  let saved = existsSync(settingsFile) ? JSON.parse(readFileSync(settingsFile, 'utf8')) : {}
+  function siteSettings() {
+    return {
+      title: saved.title || siteTitle,
+      tagline: saved.tagline ?? '',
+      accent: /^#[0-9a-f]{6}$/i.test(saved.accent ?? '') ? saved.accent : '',
+      listing: saved.listing ?? listing,
+      defaultAccess: ['public', 'users'].includes(saved.defaultAccess) ? saved.defaultAccess : auth.enabled ? 'users' : 'public'
+    }
+  }
+  async function saveSettings(next) {
+    saved = { ...saved, ...next }
+    await fsp.writeFile(settingsFile, JSON.stringify(saved, null, 2))
+  }
+
   const dir = (slug) => join(root, slug)
   async function readMeta(slug) {
     try {
@@ -151,7 +169,35 @@ export function createLumenServer(opts) {
     }
     return out.sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)))
   }
-  const publicMeta = (m) => ({ slug: m.slug, title: m.title, publishedAt: m.publishedAt, access: m.access?.mode ?? 'public', bytes: m.bytes, pages: m.pages ?? [], url: `/d/${m.slug}/` })
+  async function writeMeta(slug, meta) {
+    await fsp.writeFile(join(dir(slug), 'meta.json'), JSON.stringify(meta, null, 2))
+  }
+  /**
+   * What a dashboard shows as: the published title and the admin console's changes (meta.custom), which republishing
+   * keeps. `previews` are site-relative image paths saved at publish (served behind the dashboard's own access).
+   */
+  function displayMeta(m) {
+    const c = m.custom ?? {}
+    return {
+      slug: m.slug,
+      title: c.title || m.title,
+      publishedTitle: m.title,
+      description: c.description ?? '',
+      tags: Array.isArray(c.tags) ? c.tags : [],
+      listed: c.listed !== false,
+      featured: c.featured === true,
+      order: Number.isFinite(c.order) ? c.order : 0,
+      embed: { enabled: c.embed?.enabled === true, origins: Array.isArray(c.embed?.origins) ? c.embed.origins : [] },
+      access: m.access?.mode ?? 'public',
+      publishedAt: m.publishedAt,
+      bytes: m.bytes,
+      pages: m.pages ?? [],
+      previews: Array.isArray(m.previews) ? m.previews : [],
+      url: `/d/${m.slug}/`
+    }
+  }
+  const publicMeta = (m) => displayMeta(m)
+  const byPlacement = (a, b) => Number(b.featured) - Number(a.featured) || a.order - b.order || String(b.publishedAt).localeCompare(String(a.publishedAt))
 
   // password cookies: expiry + HMAC over slug, expiry and the password hash (a new password signs everyone out)
   const sign = (slug, access, exp) => createHmac('sha256', secret).update(`${slug}|${exp}|${access.hash}`).digest('base64url')
@@ -201,7 +247,7 @@ export function createLumenServer(opts) {
       return json(res, 400, { error: 'lumen-publish.json is not valid JSON.' })
     }
     const prev = await readMeta(slug)
-    const mode = String(req.headers['x-lumen-access'] ?? prev?.access?.mode ?? 'public')
+    const mode = String(req.headers['x-lumen-access'] ?? prev?.access?.mode ?? siteSettings().defaultAccess)
     if (mode !== 'public' && mode !== 'password' && mode !== 'users') return json(res, 400, { error: 'x-lumen-access must be public, password or users.' })
     if (mode === 'users' && !auth.enabled) return json(res, 400, { error: 'Google sign-in is not set up on this server, so a dashboard cannot be limited to approved accounts.' })
     let access = { mode: mode === 'users' ? 'users' : 'public' }
@@ -221,7 +267,8 @@ export function createLumenServer(opts) {
       await fsp.writeFile(target, data)
       bytes += data.length
     }
-    const meta = { slug, title: String(manifest.title || slug).slice(0, 200), publishedAt: new Date(now()).toISOString(), pages: Array.isArray(manifest.pages) ? manifest.pages.slice(0, 200) : [], bytes, access }
+    const previews = Array.isArray(manifest.previews) ? manifest.previews.filter((p) => typeof p === 'string' && isSafePath(p) && files.has(p)).slice(0, 50) : []
+    const meta = { slug, title: String(manifest.title || slug).slice(0, 200), publishedAt: new Date(now()).toISOString(), pages: Array.isArray(manifest.pages) ? manifest.pages.slice(0, 200) : [], previews, bytes, access, ...(prev?.custom ? { custom: prev.custom } : {}) }
     await fsp.writeFile(join(staging, 'meta.json'), JSON.stringify(meta, null, 2))
     const old = join(root, `.${slug}-old-${randomBytes(4).toString('hex')}`)
     if (existsSync(dir(slug))) await fsp.rename(dir(slug), old)
@@ -253,6 +300,13 @@ export function createLumenServer(opts) {
     send(res, 303, '', { location: `/d/${slug}/`, 'set-cookie': `lumen_${slug}=${exp}.${sign(slug, meta.access, exp)}; Path=/d/${slug}/; Max-Age=${COOKIE_DAYS * 86400}; HttpOnly; SameSite=Lax${secure}` })
   }
 
+  /** Which sites may show a dashboard in an iframe: this server only, unless embedding is on for a public dashboard. */
+  function frameHeaders(meta) {
+    const d = displayMeta(meta)
+    const origins = d.access === 'public' && d.embed.enabled ? (d.embed.origins.length ? d.embed.origins.join(' ') : '*') : ''
+    return { 'content-security-policy': `frame-ancestors 'self'${origins ? ` ${origins}` : ''}` }
+  }
+
   async function serveDashboard(req, res, slug, rest) {
     const meta = await readMeta(slug)
     if (!meta) return send(res, 404, page('Not found', '<h1>Dashboard not found</h1><p class="empty">It may have been removed or renamed.</p>'), { 'content-type': 'text/html; charset=utf-8' })
@@ -277,6 +331,7 @@ export function createLumenServer(opts) {
     }
     const immutable = rel.startsWith('assets/')
     send(res, 200, req.method === 'HEAD' ? '' : data, {
+      ...frameHeaders(meta),
       'content-type': TYPES[extname(rel).toLowerCase()] ?? 'application/octet-stream',
       'content-length': String(data.length),
       'cache-control': meta.access?.mode === 'password' || meta.access?.mode === 'users' ? 'private, no-cache' : immutable ? 'public, max-age=31536000, immutable' : 'no-cache'
@@ -286,7 +341,10 @@ export function createLumenServer(opts) {
   /** Dashboards a home-page visitor may see listed: approved-accounts-only ones only when signed in. */
   async function listedFor(req) {
     const user = auth.currentUser(req)
-    return (await allMeta()).filter((m) => m.access?.mode !== 'users' || user)
+    return (await allMeta())
+      .filter((m) => (m.access?.mode !== 'users' || user) && m.custom?.listed !== false)
+      .map(displayMeta)
+      .sort(byPlacement)
   }
 
   /** Sign-in / account link for the home page header ('' without Google sign-in). */
@@ -297,8 +355,10 @@ export function createLumenServer(opts) {
   }
 
   async function index(req, res) {
-    if (!listing) return send(res, 404, page(siteTitle, '<h1>Nothing here</h1>'), { 'content-type': 'text/html; charset=utf-8' })
+    const site = siteSettings()
+    if (!site.listing) return send(res, 404, page(site.title, `${accountLink(req)}<h1>Nothing here</h1>`), { 'content-type': 'text/html; charset=utf-8' })
     const all = await listedFor(req)
+    const siteTitle = site.title
     const cards = all
       .map((m) => `<a class="card" href="/d/${m.slug}/"><div class="t">${esc(m.title)}</div><div class="m">/d/${m.slug}/</div><div class="m">${m.access?.mode === 'password' ? 'Password protected · ' : ''}Published ${esc(String(m.publishedAt).slice(0, 10))}${m.pages?.length ? ` · ${m.pages.length} page${m.pages.length === 1 ? '' : 's'}` : ''}</div></a>`)
       .join('')
@@ -310,6 +370,17 @@ export function createLumenServer(opts) {
     const path = decodeURIComponent(url.pathname)
     if (path === '/api/health') return json(res, 200, { ok: true, name: 'lumen-server', version: VERSION, signIn: auth.enabled ? 'google' : 'token' })
     if (await auth.handle(req, res, path, url, { send, readBody })) return
+    if (path === '/api/public/dashboards') {
+      // for other sites (a portfolio): public, listed dashboards with their embed addresses
+      const base = google.publicUrl ? String(google.publicUrl).replace(/\/+$/, '') : ''
+      const list = (await allMeta())
+        .map(displayMeta)
+        .filter((d) => d.access === 'public' && d.listed)
+        .sort(byPlacement)
+        .map(({ slug, title, description, tags, featured, publishedAt, pages, previews, url, embed }) => ({ slug, title, description, tags, featured, publishedAt, pages: pages.length, url: `${base}${url}`, preview: previews[0] ? `${base}${url}${previews[0]}` : null, embedUrl: embed.enabled ? `${base}${url}?embed=1` : null }))
+      return send(res, 200, JSON.stringify(list), { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=60', 'access-control-allow-origin': '*' })
+    }
+    if (path === '/admin' || path.startsWith('/admin/')) return admin.handle(req, res, path, url)
     if (path.startsWith('/api/')) {
       const caller = apiCaller(req)
       if (!caller) return json(res, 401, { error: auth.enabled ? 'Sign in with Google from Lumen again: this computer is not connected.' : 'Sign in with the server token.' })
@@ -340,6 +411,8 @@ export function createLumenServer(opts) {
     }
     return send(res, 404, page('Not found', '<h1>Not found</h1>'), { 'content-type': 'text/html; charset=utf-8' })
   }
+
+  const admin = createAdmin({ auth, allMeta, readMeta, writeMeta, displayMeta, dir, siteSettings, saveSettings, send, readBody, now, byPlacement, publicUrl: google.publicUrl })
 
   return createServer((req, res) => {
     handle(req, res).catch((e) => {

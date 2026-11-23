@@ -220,5 +220,5 @@ export function createAuth(opts) {
     return true
   }
 
-  return { enabled, currentUser, keyUser, handle, loginRedirect }
+  return { enabled, currentUser, keyUser, handle, loginRedirect, csrf }
 }

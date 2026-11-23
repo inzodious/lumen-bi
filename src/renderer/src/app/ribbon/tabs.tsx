@@ -210,7 +210,7 @@ function ShareGroup() {
   const hasReport = useHasReport()
   return (
     <RibbonGroup label="Share">
-      <RibbonButton label="Publish" icon={L(CloudArrowUpRegular)} disabled={!hasReport} tooltip="Publish an interactive web version of this report as a folder or a zip file for a web host. Publishing to the Power BI service isn't available; save as PBIP and use Fabric Git integration for that." onClick={openPublishDialog} />
+      <RibbonButton label="Publish" icon={L(CloudArrowUpRegular)} disabled={!hasReport} tooltip={hasReport ? "Publish an interactive web version of this report: to your dashboards server, GitHub Pages, Netlify, Cloudflare Pages, S3, a folder or a zip file." : "Open a report to publish it."} onClick={openPublishDialog} />
     </RibbonGroup>
   )
 }

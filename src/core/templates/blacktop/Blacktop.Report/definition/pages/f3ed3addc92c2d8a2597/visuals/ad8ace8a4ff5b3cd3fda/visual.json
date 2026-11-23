@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "cardVisual",
-    "query": {
-      "queryState": {
-        "Data": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Stats"
-                    }
-                  },
-                  "Property": "Boards Note"
-                }
-              },
-              "queryRef": "_Stats.Boards Note",
-              "nativeQueryRef": "Boards Note"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "fillCustom": [
         {
@@ -231,6 +209,10 @@
     {
       "name": "Lumen_Style",
       "value": "{\"rotate\":-1.5}"
+    },
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Boards Note\"}},\"queryRef\":\"_Stats.Boards Note\",\"nativeQueryRef\":\"Boards Note\"}]}}}}"
     }
   ]
 }

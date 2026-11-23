@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "clusteredBarChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Region"
-                }
-              },
-              "queryRef": "Finance.Region",
-              "nativeQueryRef": "Region"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Revenue FY"
-                }
-              },
-              "queryRef": "_Measures.Revenue FY",
-              "nativeQueryRef": "Revenue FY"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Measures"
-                  }
-                },
-                "Property": "Revenue FY"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -291,5 +233,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Region\"}},\"queryRef\":\"Finance.Region\",\"nativeQueryRef\":\"Region\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Revenue FY\"}},\"queryRef\":\"_Measures.Revenue FY\",\"nativeQueryRef\":\"Revenue FY\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Revenue FY\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

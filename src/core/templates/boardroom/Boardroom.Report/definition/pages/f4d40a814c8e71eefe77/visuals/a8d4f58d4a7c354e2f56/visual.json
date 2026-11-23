@@ -11,136 +11,6 @@
   },
   "visual": {
     "visualType": "tableEx",
-    "query": {
-      "queryState": {
-        "Values": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Segment"
-                }
-              },
-              "queryRef": "Finance.Segment",
-              "nativeQueryRef": "Segment"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Revenue FY"
-                }
-              },
-              "queryRef": "_Measures.Revenue FY",
-              "nativeQueryRef": "Revenue FY",
-              "displayName": "Revenue"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Revenue YoY %"
-                }
-              },
-              "queryRef": "_Measures.Revenue YoY %",
-              "nativeQueryRef": "Revenue YoY %",
-              "displayName": "Growth"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Gross Margin %"
-                }
-              },
-              "queryRef": "_Measures.Gross Margin %",
-              "nativeQueryRef": "Gross Margin %",
-              "displayName": "Gross margin"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Operating Income FY"
-                }
-              },
-              "queryRef": "_Measures.Operating Income FY",
-              "nativeQueryRef": "Operating Income FY",
-              "displayName": "Op. income"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Operating Margin %"
-                }
-              },
-              "queryRef": "_Measures.Operating Margin %",
-              "nativeQueryRef": "Operating Margin %",
-              "displayName": "Op. margin"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "vs Budget %"
-                }
-              },
-              "queryRef": "_Measures.vs Budget %",
-              "nativeQueryRef": "vs Budget %",
-              "displayName": "vs Budget"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Measures"
-                  }
-                },
-                "Property": "Revenue FY"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "grid": [
         {
@@ -409,5 +279,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Segment\"}},\"queryRef\":\"Finance.Segment\",\"nativeQueryRef\":\"Segment\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Revenue FY\"}},\"queryRef\":\"_Measures.Revenue FY\",\"nativeQueryRef\":\"Revenue FY\",\"displayName\":\"Revenue\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Revenue YoY %\"}},\"queryRef\":\"_Measures.Revenue YoY %\",\"nativeQueryRef\":\"Revenue YoY %\",\"displayName\":\"Growth\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Gross Margin %\"}},\"queryRef\":\"_Measures.Gross Margin %\",\"nativeQueryRef\":\"Gross Margin %\",\"displayName\":\"Gross margin\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Operating Income FY\"}},\"queryRef\":\"_Measures.Operating Income FY\",\"nativeQueryRef\":\"Operating Income FY\",\"displayName\":\"Op. income\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Operating Margin %\"}},\"queryRef\":\"_Measures.Operating Margin %\",\"nativeQueryRef\":\"Operating Margin %\",\"displayName\":\"Op. margin\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"vs Budget %\"}},\"queryRef\":\"_Measures.vs Budget %\",\"nativeQueryRef\":\"vs Budget %\",\"displayName\":\"vs Budget\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Revenue FY\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

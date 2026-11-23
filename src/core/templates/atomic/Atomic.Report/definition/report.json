@@ -92,6 +92,12 @@
       ]
     }
   ],
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "on"
+    }
+  ],
   "settings": {
     "useStylableVisualContainerHeader": true,
     "exportDataMode": "AllowSummarized",

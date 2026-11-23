@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "areaChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Visits"
-                    }
-                  },
-                  "Property": "Month"
-                }
-              },
-              "queryRef": "Visits.Month",
-              "nativeQueryRef": "Month"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Trail"
-                    }
-                  },
-                  "Property": "Visitors"
-                }
-              },
-              "queryRef": "_Trail.Visitors",
-              "nativeQueryRef": "Visitors"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -179,26 +139,6 @@
                 }
               }
             }
-          }
-        }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#2F5D45'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Trail.Visitors"
           }
         }
       ]
@@ -367,5 +307,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Visits\"}},\"Property\":\"Month\"}},\"queryRef\":\"Visits.Month\",\"nativeQueryRef\":\"Month\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Trail\"}},\"Property\":\"Visitors\"}},\"queryRef\":\"_Trail.Visitors\",\"nativeQueryRef\":\"Visitors\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#2F5D45'\"}}}}}},\"selector\":{\"metadata\":\"_Trail.Visitors\"}}]}}"
+    }
+  ]
 }

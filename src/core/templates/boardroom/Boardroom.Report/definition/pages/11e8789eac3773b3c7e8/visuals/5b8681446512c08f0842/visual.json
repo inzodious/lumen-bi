@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "lineChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Month"
-                }
-              },
-              "queryRef": "Finance.Month",
-              "nativeQueryRef": "Month"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Operating Margin %"
-                }
-              },
-              "queryRef": "_Measures.Operating Margin %",
-              "nativeQueryRef": "Operating Margin %"
-            }
-          ]
-        },
-        "Series": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Segment"
-                }
-              },
-              "queryRef": "Finance.Segment",
-              "nativeQueryRef": "Segment"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -313,5 +255,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Month\"}},\"queryRef\":\"Finance.Month\",\"nativeQueryRef\":\"Month\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Operating Margin %\"}},\"queryRef\":\"_Measures.Operating Margin %\",\"nativeQueryRef\":\"Operating Margin %\"}]},\"Series\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Segment\"}},\"queryRef\":\"Finance.Segment\",\"nativeQueryRef\":\"Segment\"}]}}}}"
+    }
+  ]
 }

@@ -6,11 +6,15 @@ model Model
 		legacyRedirects
 		returnErrorValuesAsNull
 
-annotation PBI_QueryOrder = ["_Telemetry","Missions"]
+queryGroup Measures
+
+	annotation PBI_QueryGroupOrder = 0
+
+annotation PBI_QueryOrder = ["_measures_kpi","_measures_format"]
 
 annotation __PBI_TimeIntelligenceEnabled = 0
 
 annotation Lumen_Template = orbital
 
-ref table _Telemetry
-ref table Missions
+ref table _measures_kpi
+ref table _measures_format

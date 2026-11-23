@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "cardVisual",
-    "query": {
-      "queryState": {
-        "Data": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_OEE"
-                    }
-                  },
-                  "Property": "OEE"
-                }
-              },
-              "queryRef": "_OEE.OEE",
-              "nativeQueryRef": "OEE"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "fillCustom": [
         {
@@ -226,5 +204,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_OEE\"}},\"Property\":\"OEE\"}},\"queryRef\":\"_OEE.OEE\",\"nativeQueryRef\":\"OEE\"}]}}}}"
+    }
+  ]
 }

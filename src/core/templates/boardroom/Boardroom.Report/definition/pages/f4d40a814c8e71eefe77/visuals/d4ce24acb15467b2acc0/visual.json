@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "cardVisual",
-    "query": {
-      "queryState": {
-        "Data": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Operating Income FY"
-                }
-              },
-              "queryRef": "_Measures.Operating Income FY",
-              "nativeQueryRef": "Operating Income FY"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "fillCustom": [
         {
@@ -226,5 +204,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Operating Income FY\"}},\"queryRef\":\"_Measures.Operating Income FY\",\"nativeQueryRef\":\"Operating Income FY\"}]}}}}"
+    }
+  ]
 }

@@ -12,6 +12,7 @@ import {
 import { useApp } from '../state/store'
 import { useShell } from './shellState'
 import { openExportDialog } from '../export'
+import { reportShowsSampleData, toggleSampleData } from '../report/sampleActions'
 import { importThemeFile } from './themes'
 import { insertIcon, insertImage, insertTextBox, insertVisual, newPage, newReport, openFileDialog, refreshAll, runModelingCommand, save, saveAs, useSampleData, regenerateSampleData, undo, redo, loadSampleProject } from './commands'
 
@@ -44,6 +45,7 @@ function commands(): SearchableCommand[] {
     { id: 'refresh', label: 'Refresh', group: 'Home', icon: ic(ArrowSyncRegular), run: () => refreshAll() },
     { id: 'sample', label: 'Use sample data for empty tables', group: 'Data', keywords: 'synthetic fake mock', icon: ic(BeakerRegular), run: () => void useSampleData() },
     { id: 'resample', label: 'Regenerate sample data (new random values)', group: 'Data', keywords: 'synthetic fake mock seed shuffle randomize', icon: ic(BeakerRegular), run: () => void regenerateSampleData() },
+    { id: 'mockup', label: reportShowsSampleData() ? 'Hide sample data on empty visuals' : 'Show sample data on empty visuals', group: 'View', keywords: 'mockup placeholder template empty visuals fake', icon: ic(BeakerRegular), run: toggleSampleData },
     { id: 'demo', label: 'Open sample report', group: 'File', keywords: 'demo example', icon: ic(BeakerRegular), run: () => void loadSampleProject() },
     { id: 'visual', label: 'New visual', group: 'Insert', keywords: 'chart', icon: ic(DataBarVerticalAddRegular), run: () => void insertVisual('clusteredColumnChart') },
     { id: 'text', label: 'Text box', group: 'Insert', icon: ic(TextFieldRegular), run: insertTextBox },

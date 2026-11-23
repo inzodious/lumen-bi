@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "cardVisual",
-    "query": {
-      "queryState": {
-        "Data": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Treats"
-                    }
-                  },
-                  "Property": "Happy Customers"
-                }
-              },
-              "queryRef": "_Treats.Happy Customers",
-              "nativeQueryRef": "Happy Customers"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "fillCustom": [
         {
@@ -226,5 +204,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Treats\"}},\"Property\":\"Happy Customers\"}},\"queryRef\":\"_Treats.Happy Customers\",\"nativeQueryRef\":\"Happy Customers\"}]}}}}"
+    }
+  ]
 }

@@ -10,7 +10,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { hex, measureTable, objects, relationshipsTmdl, tableTmdl, c, raw, literal } from './lib.mjs'
+import { hex, measureTable, objects, sampleDataset, c, literal } from './lib.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..', '..')
@@ -61,15 +61,12 @@ function build(design) {
   // --- semantic model
   write(join(sm, 'definition.pbism'), json({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/definitionProperties/1.0.0/schema.json', version: '4.2', settings: {} }))
   write(join(sm, 'definition', 'database.tmdl'), 'database\n\tcompatibilityLevel: 1606\n\n')
-  const tables = []
-  for (const t of design.tables) {
-    tables.push(t.name)
-    write(join(sm, 'definition', 'tables', `${t.name}.tmdl`), tableTmdl(seed, t))
-  }
-  if (design.measures) {
-    tables.unshift(design.measures.table)
-    write(join(sm, 'definition', 'tables', `${design.measures.table}.tmdl`), measureTable(seed, design.measures.table, design.measures.list))
-  }
+  // no data tables: the model holds the two default measure tables, and the design's tables become the sample
+  // dataset the empty visuals draw (sampleData.lumen.json, Lumen-only, never loaded into the model)
+  const tables = ['_measures_kpi', '_measures_format']
+  write(join(sm, 'definition', 'tables', '_measures_kpi.tmdl'), measureTable(seed, '_measures_kpi', 'kpi_blank'))
+  write(join(sm, 'definition', 'tables', '_measures_format.tmdl'), measureTable(seed, '_measures_format', 'fmt_blank'))
+  write(join(sm, 'sampleData.lumen.json'), JSON.stringify(sampleDataset(design)) + '\n')
   const model = [
     'model Model',
     '\tculture: en-US',
@@ -79,17 +76,20 @@ function build(design) {
     '\t\tlegacyRedirects',
     '\t\treturnErrorValuesAsNull',
     '',
+    'queryGroup Measures',
+    '',
+    '\tannotation PBI_QueryGroupOrder = 0',
+    '',
     `annotation PBI_QueryOrder = ${JSON.stringify(tables)}`,
     '',
     'annotation __PBI_TimeIntelligenceEnabled = 0',
     '',
     `annotation Lumen_Template = ${design.id}`,
     '',
-    ...tables.map((t) => `ref table ${/^[A-Za-z_][A-Za-z0-9_]*$/.test(t) ? t : `'${t}'`}`),
+    ...tables.map((t) => `ref table ${t}`),
     ''
   ]
   write(join(sm, 'definition', 'model.tmdl'), model.join('\n'))
-  if (design.relationships?.length) write(join(sm, 'definition', 'relationships.tmdl'), relationshipsTmdl(seed, design.relationships))
 
   // --- report
   write(join(rp, 'definition.pbir'), json({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definitionProperties/2.0.0/schema.json', version: '4.0', datasetReference: { byPath: { path: `../${design.name}.SemanticModel` } } }))
@@ -114,6 +114,7 @@ function build(design) {
       },
       { name: 'SharedResources', type: 'SharedResources', items: [{ name: 'CY24SU10', path: 'BaseThemes/CY24SU10.json', type: 'BaseTheme' }] }
     ],
+    annotations: [{ name: 'Lumen_SampleData', value: 'on' }],
     settings: {
       useStylableVisualContainerHeader: true,
       exportDataMode: 'AllowSummarized',

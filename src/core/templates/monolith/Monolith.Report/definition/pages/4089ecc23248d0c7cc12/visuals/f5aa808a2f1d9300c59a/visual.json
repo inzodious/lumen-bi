@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "areaChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Usage"
-                    }
-                  },
-                  "Property": "MonthNo"
-                }
-              },
-              "queryRef": "Usage.MonthNo",
-              "nativeQueryRef": "MonthNo"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Pulse"
-                    }
-                  },
-                  "Property": "MRR (sum)"
-                }
-              },
-              "queryRef": "_Pulse.MRR (sum)",
-              "nativeQueryRef": "MRR (sum)"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -181,26 +141,6 @@
             }
           }
         }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#D4FF3A'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Pulse.MRR (sum)"
-          }
-        }
       ]
     },
     "visualContainerObjects": {
@@ -258,5 +198,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Usage\"}},\"Property\":\"MonthNo\"}},\"queryRef\":\"Usage.MonthNo\",\"nativeQueryRef\":\"MonthNo\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Pulse\"}},\"Property\":\"MRR (sum)\"}},\"queryRef\":\"_Pulse.MRR (sum)\",\"nativeQueryRef\":\"MRR (sum)\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#D4FF3A'\"}}}}}},\"selector\":{\"metadata\":\"_Pulse.MRR (sum)\"}}]}}"
+    }
+  ]
 }

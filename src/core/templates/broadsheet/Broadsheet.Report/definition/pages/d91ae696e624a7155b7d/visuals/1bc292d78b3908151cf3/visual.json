@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "cardVisual",
-    "query": {
-      "queryState": {
-        "Data": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Desk"
-                    }
-                  },
-                  "Property": "On-Time %"
-                }
-              },
-              "queryRef": "_Desk.On-Time %",
-              "nativeQueryRef": "On-Time %"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "fillCustom": [
         {
@@ -226,5 +204,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Desk\"}},\"Property\":\"On-Time %\"}},\"queryRef\":\"_Desk.On-Time %\",\"nativeQueryRef\":\"On-Time %\"}]}}}}"
+    }
+  ]
 }

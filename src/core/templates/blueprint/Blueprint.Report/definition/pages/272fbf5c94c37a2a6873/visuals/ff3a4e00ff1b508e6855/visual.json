@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "clusteredBarChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Downtime"
-                    }
-                  },
-                  "Property": "Cause"
-                }
-              },
-              "queryRef": "Downtime.Cause",
-              "nativeQueryRef": "Cause"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_OEE"
-                    }
-                  },
-                  "Property": "Downtime (h)"
-                }
-              },
-              "queryRef": "_OEE.Downtime (h)",
-              "nativeQueryRef": "Downtime (h)"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_OEE"
-                  }
-                },
-                "Property": "Downtime (h)"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -393,5 +335,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Downtime\"}},\"Property\":\"Cause\"}},\"queryRef\":\"Downtime.Cause\",\"nativeQueryRef\":\"Cause\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_OEE\"}},\"Property\":\"Downtime (h)\"}},\"queryRef\":\"_OEE.Downtime (h)\",\"nativeQueryRef\":\"Downtime (h)\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_OEE\"}},\"Property\":\"Downtime (h)\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

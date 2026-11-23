@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "clusteredColumnChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Segment"
-                }
-              },
-              "queryRef": "Finance.Segment",
-              "nativeQueryRef": "Segment"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Revenue YoY %"
-                }
-              },
-              "queryRef": "_Measures.Revenue YoY %",
-              "nativeQueryRef": "Revenue YoY %"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -266,5 +226,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Segment\"}},\"queryRef\":\"Finance.Segment\",\"nativeQueryRef\":\"Segment\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Revenue YoY %\"}},\"queryRef\":\"_Measures.Revenue YoY %\",\"nativeQueryRef\":\"Revenue YoY %\"}]}}}}"
+    }
+  ]
 }

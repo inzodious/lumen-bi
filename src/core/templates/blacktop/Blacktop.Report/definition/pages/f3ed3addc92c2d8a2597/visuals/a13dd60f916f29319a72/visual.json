@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "lineChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Games"
-                    }
-                  },
-                  "Property": "Week"
-                }
-              },
-              "queryRef": "Games.Week",
-              "nativeQueryRef": "Week"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Stats"
-                    }
-                  },
-                  "Property": "Crowd Hype"
-                }
-              },
-              "queryRef": "_Stats.Crowd Hype",
-              "nativeQueryRef": "Crowd Hype"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -179,26 +139,6 @@
                 }
               }
             }
-          }
-        }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FF3D7F'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Stats.Crowd Hype"
           }
         }
       ],
@@ -483,6 +423,10 @@
     {
       "name": "Lumen_Style",
       "value": "{\"rotate\":2.5}"
+    },
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Games\"}},\"Property\":\"Week\"}},\"queryRef\":\"Games.Week\",\"nativeQueryRef\":\"Week\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Crowd Hype\"}},\"queryRef\":\"_Stats.Crowd Hype\",\"nativeQueryRef\":\"Crowd Hype\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FF3D7F'\"}}}}}},\"selector\":{\"metadata\":\"_Stats.Crowd Hype\"}}]}}"
     }
   ]
 }

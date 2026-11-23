@@ -6,11 +6,15 @@ model Model
 		legacyRedirects
 		returnErrorValuesAsNull
 
-annotation PBI_QueryOrder = ["_Measures","Finance"]
+queryGroup Measures
+
+	annotation PBI_QueryGroupOrder = 0
+
+annotation PBI_QueryOrder = ["_measures_kpi","_measures_format"]
 
 annotation __PBI_TimeIntelligenceEnabled = 0
 
 annotation Lumen_Template = boardroom
 
-ref table _Measures
-ref table Finance
+ref table _measures_kpi
+ref table _measures_format

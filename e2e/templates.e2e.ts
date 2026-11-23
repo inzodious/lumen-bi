@@ -1,7 +1,7 @@
 /**
  * Start screen → Gallery: the template cards with their Power BI compatible / Lumen only badges and filter; a
  * Power BI compatible design (Boardroom), a Lumen-only one (Orbital, glass panels from Lumen_Style) and the 1st
- * Edition starter each open as a new unsaved report with their sample data refreshed.
+ * Edition starter each open as a new unsaved report; the designs' empty visuals draw their sample data.
  * `LUMEN_E2E_SHOTS=<dir>` additionally saves screenshots of the start screen, the gallery and the new reports.
  */
 import { join } from 'node:path'
@@ -48,7 +48,7 @@ describe('template gallery', () => {
     await expect.poll(() => cards.count()).toBe(11)
   })
 
-  it('opens a Power BI compatible design with its sample data', async () => {
+  it('opens a Power BI compatible design: no data tables, its empty visuals draw the designed sample', async () => {
     const { page } = lumen()
     const start = await openGallery(page)
     await page.evaluate(() => (document.body.dataset.wbiReady = '0'))
@@ -58,9 +58,10 @@ describe('template gallery', () => {
     expect(await pageTabs(page)).toEqual(['Overview', 'Segments'])
     const info = await lumenEval(page, (l) => {
       const p = l.useApp.getState().project!
-      return { name: p.name, kind: p.source.kind, rows: p.data.tables.get('Finance')?.rowCount ?? 0 }
+      return { name: p.name, kind: p.source.kind, tables: p.model.tables.map((t) => t.name) }
     })
-    expect(info).toEqual({ name: 'Boardroom', kind: 'new', rows: 288 })
+    expect(info).toEqual({ name: 'Boardroom', kind: 'new', tables: ['_measures_kpi', '_measures_format'] })
+    await expect.poll(() => page.locator('.wbi-page .wbi-vc[data-sample="report"]').count()).toBeGreaterThan(4)
     await expect.poll(() => page.getByText('Quarterly Performance Review', { exact: true }).count()).toBe(1)
     await expect.poll(() => page.getByText('$490.4M', { exact: true }).count()).toBe(1)
     if (SHOTS) await page.screenshot({ path: join(SHOTS, 'boardroom.png') })

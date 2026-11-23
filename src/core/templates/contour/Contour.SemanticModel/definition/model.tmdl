@@ -6,13 +6,15 @@ model Model
 		legacyRedirects
 		returnErrorValuesAsNull
 
-annotation PBI_QueryOrder = ["_Trail","Parks","Visits","Sightings"]
+queryGroup Measures
+
+	annotation PBI_QueryGroupOrder = 0
+
+annotation PBI_QueryOrder = ["_measures_kpi","_measures_format"]
 
 annotation __PBI_TimeIntelligenceEnabled = 0
 
 annotation Lumen_Template = contour
 
-ref table _Trail
-ref table Parks
-ref table Visits
-ref table Sightings
+ref table _measures_kpi
+ref table _measures_format

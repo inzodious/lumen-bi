@@ -1,7 +1,0 @@
-relationship 76e349e9-a72f-499a-aff7-f83de83fe136
-	fromColumn: Visits.Park
-	toColumn: Parks.Park
-
-relationship 6c4b0d06-a49d-4f22-a13b-eac521e640a4
-	fromColumn: Sightings.Park
-	toColumn: Parks.Park

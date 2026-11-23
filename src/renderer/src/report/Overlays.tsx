@@ -2,6 +2,8 @@
  * Screen-space overlays of the report view: data-point tooltip (default PBI-style, or a report-page
  * tooltip rendered live with the hovered point's filters) and the visual context menu.
  */
+import { sampleStatus } from './sampleData'
+import { setVisualSampleData } from './sampleActions'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRightRegular } from '@fluentui/react-icons'
 import type { DataPointIdentity, SQExpr } from '@core/report/sq'
@@ -338,6 +340,16 @@ export function buildVisualMenu(state: ContextMenuState, ctx: VisualHostContext 
         { label: 'Sort ascending', checked: direction === 'Ascending', disabled: !target, onClick: () => target && sortVisual(page, visual, target, 'Ascending') }
       ]
     })
+  }
+  const sample = opts.editing ? sampleStatus(v.json, def, report?.report) : null
+  if (sample) {
+    sep()
+    items.push(
+      sample === 'on'
+        ? { label: 'Clear sample data', onClick: () => setVisualSampleData(page, visual, false) }
+        : { label: 'Show sample data', onClick: () => setVisualSampleData(page, visual, true) }
+    )
+    sep()
   }
   if (opts.editing) {
     // Group / Ungroup the selected visuals (the Selection pane's groups)

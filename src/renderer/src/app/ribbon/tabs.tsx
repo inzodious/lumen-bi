@@ -14,7 +14,8 @@ import {
   TableSimpleRegular, FullScreenMaximizeRegular, DocumentArrowRightRegular, GlobeRegular, FolderRegular, DocumentTextRegular, TableEditRegular, ShieldPersonRegular,
   ArrowRepeatAllRegular, BranchForkRegular, ArrowSyncCircleRegular, CheckboxCheckedRegular, CheckboxUncheckedRegular, EyeRegular, CloudArrowUpRegular, CodeRegular,
   AlignCenterHorizontalRegular, AlignRightRegular, AlignTopRegular, AlignCenterVerticalRegular, AlignBottomRegular, AlignSpaceEvenlyHorizontalRegular,
-  AlignSpaceEvenlyVerticalRegular, KeyRegular, GridRegular, LayoutColumnTwoRegular, ArrowExportRegular
+  AlignSpaceEvenlyVerticalRegular, KeyRegular, GridRegular, LayoutColumnTwoRegular, ArrowExportRegular,
+  BeakerRegular
 } from '@fluentui/react-icons'
 import type { FluentIcon } from '@fluentui/react-icons'
 import { useApp } from '../../state/store'
@@ -35,6 +36,8 @@ import { MobileRibbonGroup } from '../../report/mobile'
 import { toggleFormatPainter, useFormatPainter } from '../../report/formatPainter'
 import { seedDrillState } from '../../report/host'
 import { drillStateKey } from '../../state/interaction'
+import { reportSampleDataOn } from '@core/sample/spec'
+import { toggleSampleData } from '../../report/sampleActions'
 
 const L = (I: FluentIcon, cls?: string) => <I fontSize={32} className={cls} />
 const S = (I: FluentIcon, cls?: string) => <I fontSize={16} className={cls} />
@@ -351,6 +354,8 @@ function PaneToggle({ id, label, icon }: { id: PaneId; label: string; icon: Reac
 
 function ViewTab() {
   const pageView = useApp((s) => s.pageView)
+  const sampleOn = useApp((s) => reportSampleDataOn(s.project?.report?.report))
+  const hasReport = useApp((s) => !!s.project?.report)
   const prefs = useCanvasPrefs()
   const editMode = useApp((s) => s.editMode)
   const pv = pageView ?? 'fitToPage'
@@ -377,6 +382,16 @@ function ViewTab() {
         </RibbonStack>
       </RibbonGroup>
       <LayoutGuidesGroup />
+      <RibbonGroup label="Sample data">
+        <RibbonButton
+          label="Sample data"
+          icon={L(BeakerRegular)}
+          checked={sampleOn}
+          disabled={!hasReport}
+          onClick={toggleSampleData}
+          tooltip="Draw realistic sample data on visuals that have no fields yet, for quick mockups. Drop fields into a visual to replace its sample. Sample data is never part of the model or of what Power BI opens."
+        />
+      </RibbonGroup>
       <RibbonGroup label="Show panes">
         <PaneToggle id="filters" label="Filters" icon={L(FilterRegular)} />
         <PaneToggle id="bookmarks" label="Bookmarks" icon={L(BookmarkRegular)} />

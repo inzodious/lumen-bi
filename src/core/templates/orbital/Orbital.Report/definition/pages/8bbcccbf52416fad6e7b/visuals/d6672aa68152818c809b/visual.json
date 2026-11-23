@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "cardVisual",
-    "query": {
-      "queryState": {
-        "Data": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Telemetry"
-                    }
-                  },
-                  "Property": "Payload Note"
-                }
-              },
-              "queryRef": "_Telemetry.Payload Note",
-              "nativeQueryRef": "Payload Note"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "fillCustom": [
         {
@@ -226,5 +204,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Telemetry\"}},\"Property\":\"Payload Note\"}},\"queryRef\":\"_Telemetry.Payload Note\",\"nativeQueryRef\":\"Payload Note\"}]}}}}"
+    }
+  ]
 }

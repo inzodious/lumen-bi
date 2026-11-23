@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "donutChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Usage"
-                    }
-                  },
-                  "Property": "Plan"
-                }
-              },
-              "queryRef": "Usage.Plan",
-              "nativeQueryRef": "Plan"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Pulse"
-                    }
-                  },
-                  "Property": "Active Users (sum)"
-                }
-              },
-              "queryRef": "_Pulse.Active Users (sum)",
-              "nativeQueryRef": "Active Users (sum)"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "legend": [
         {
@@ -120,172 +80,6 @@
                 }
               }
             }
-          }
-        }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#D6D5CE'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Usage"
-                          }
-                        },
-                        "Property": "Plan"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Free'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#0E0E0E'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Usage"
-                          }
-                        },
-                        "Property": "Plan"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Pro'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#D4FF3A'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Usage"
-                          }
-                        },
-                        "Property": "Plan"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Team'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#5B5BF0'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Usage"
-                          }
-                        },
-                        "Property": "Plan"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Enterprise'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
           }
         }
       ]
@@ -447,5 +241,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Usage\"}},\"Property\":\"Plan\"}},\"queryRef\":\"Usage.Plan\",\"nativeQueryRef\":\"Plan\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Pulse\"}},\"Property\":\"Active Users (sum)\"}},\"queryRef\":\"_Pulse.Active Users (sum)\",\"nativeQueryRef\":\"Active Users (sum)\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#D6D5CE'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Usage\"}},\"Property\":\"Plan\"}},\"Right\":{\"Literal\":{\"Value\":\"'Free'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#0E0E0E'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Usage\"}},\"Property\":\"Plan\"}},\"Right\":{\"Literal\":{\"Value\":\"'Pro'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#D4FF3A'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Usage\"}},\"Property\":\"Plan\"}},\"Right\":{\"Literal\":{\"Value\":\"'Team'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#5B5BF0'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Usage\"}},\"Property\":\"Plan\"}},\"Right\":{\"Literal\":{\"Value\":\"'Enterprise'\"}}}}}]}}]}}"
+    }
+  ]
 }

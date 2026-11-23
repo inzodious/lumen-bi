@@ -38,6 +38,7 @@ import { useShell } from '../app/shellState'
 import { isSlicerType, visualFields, visualTypeOf, type Rect } from './pbir'
 import { applyBookmark, drillthrough, goBack, navigatePage, openUrl, clearAllSlicers, setDrill } from './runtime'
 import { describeFilters } from './filterSummary'
+import { sampleContext, sampleDatasetText, sampleDrawFor } from './sampleData'
 
 // ---------------------------------------------------------------------------------------------
 // Error boundary
@@ -273,7 +274,13 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   const type = visualTypeOf(visual)
   const def = getVisual(type)
   const isSlicer = def?.isSlicer ?? isSlicerType(type)
-  const ctx = useVisualHost(env, visual.name, props.filters, props.highlightFilters, isSlicer)
+  const hostCtx = useVisualHost(env, visual.name, props.filters, props.highlightFilters, isSlicer)
+  // an empty visual of a report with sample data on draws a sample (sampleData.ts); `drawn` is what it draws
+  const reportJson = env.report.report
+  const sampleText = useApp((s) => sampleDatasetText(s.project?.model.sidecarFiles))
+  const sample = useMemo(() => sampleDrawFor(visual.json, def, reportJson, sampleText), [visual.json, def, reportJson, sampleText])
+  const drawn: VisualDocument = useMemo(() => (sample ? { ...visual, json: sample.json } : visual), [sample, visual])
+  const ctx = useMemo(() => (sample && hostCtx ? sampleContext(hostCtx, sample.engine) : hostCtx), [sample, hostCtx])
   const baseChrome: ChromeSpec = useMemo(
     () => resolveChrome(visual.json, theme, def ? { titleOnByDefault: def.category === 'chart' || def.category === 'map' ? undefined : false, element: def.category === 'element' } : {}),
     [visual.json, theme, def]
@@ -281,7 +288,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   // fx on container colors (title / background / border …) evaluated in the visual's filter context
   const chrome: ChromeSpec = useMemo(() => applyBoundContainerColors(baseChrome, visual.json, ctx), [baseChrome, visual.json, ctx])
   // fx on the visual's other colors that have one value for the whole visual (boundColors.ts)
-  const rendered = useMemo(() => resolveBoundColors(visual, ctx), [visual, ctx])
+  const rendered = useMemo(() => resolveBoundColors(drawn, ctx), [drawn, ctx])
   useEffect(() => (env.interactive ? registerLiveContext(env.pageName, visual.name, ctx) : undefined), [env.interactive, env.pageName, visual.name, ctx])
   const [hover, setHoverState] = useState(false)
   // the header can sit outside the container (above it, in the canvas header layer): leaving the container towards the
@@ -345,12 +352,12 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   // Performance analyzer (report/perf.ts): one entry per (re)load of this visual while recording
   useVisualPerf(ctx, env.interactive && canRenderVisual, visual.json?.visual, () => ({
     visual: visual.name,
-    title: (chrome.title.text ?? autoTitle(visual.json, ctx)) || def?.displayName || type,
+    title: (chrome.title.text ?? autoTitle(drawn.json, ctx)) || def?.displayName || type,
     type,
     page: env.pageName
   }))
 
-  const titleText = chrome.title.show ? (chrome.title.boundExpr ? evalBoundText(chrome.title.boundExpr, ctx) : (chrome.title.text ?? generatedTitle(visual.json, ctx))) : undefined
+  const titleText = chrome.title.show ? (chrome.title.boundExpr ? evalBoundText(chrome.title.boundExpr, ctx) : (chrome.title.text ?? generatedTitle(drawn.json, ctx))) : undefined
   const subText = chrome.subTitle.show ? (chrome.subTitle.boundExpr ? evalBoundText(chrome.subTitle.boundExpr, ctx) : chrome.subTitle.text) : undefined
   const engineError = useApp((s) => s.engineError)
   // fields that no longer resolve against the model → PBI's field error state
@@ -423,6 +430,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
       className="wbi-vc"
       data-visual={visual.name}
       data-type={type}
+      data-sample={sample?.source}
       style={outer}
       aria-label={chrome.altText ?? titleText ?? type}
       title={linkActive && link?.tooltip ? link.tooltip : undefined}
@@ -476,6 +484,11 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
             </VisualErrorBoundary>
           ) : null}
         </div>
+        {sample && env.editing && hover && (
+          <div className="wbi-vc-sample" title="Sample data: this visual has no fields yet. Drop fields in to show real data, or turn sample data off on the View tab.">
+            Sample data
+          </div>
+        )}
       </div>
       {env.headers && hover && chrome.header.show && def && ctx && (
         <PlacedHeader layer={env.headerLayer} anchor={outerRef} scale={env.scale} rect={rect} onHover={setHover}>

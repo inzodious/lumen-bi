@@ -11,107 +11,6 @@
   },
   "visual": {
     "visualType": "tableEx",
-    "query": {
-      "queryState": {
-        "Values": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Usage"
-                    }
-                  },
-                  "Property": "Plan"
-                }
-              },
-              "queryRef": "Usage.Plan",
-              "nativeQueryRef": "Plan",
-              "displayName": "plan"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Pulse"
-                    }
-                  },
-                  "Property": "Active Users"
-                }
-              },
-              "queryRef": "_Pulse.Active Users",
-              "nativeQueryRef": "Active Users",
-              "displayName": "active"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Pulse"
-                    }
-                  },
-                  "Property": "MRR"
-                }
-              },
-              "queryRef": "_Pulse.MRR",
-              "nativeQueryRef": "MRR",
-              "displayName": "mrr"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Pulse"
-                    }
-                  },
-                  "Property": "Retention"
-                }
-              },
-              "queryRef": "_Pulse.Retention",
-              "nativeQueryRef": "Retention",
-              "displayName": "retention"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Pulse"
-                    }
-                  },
-                  "Property": "NPS"
-                }
-              },
-              "queryRef": "_Pulse.NPS",
-              "nativeQueryRef": "NPS",
-              "displayName": "nps"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Pulse"
-                  }
-                },
-                "Property": "MRR"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "grid": [
         {
@@ -482,5 +381,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Usage\"}},\"Property\":\"Plan\"}},\"queryRef\":\"Usage.Plan\",\"nativeQueryRef\":\"Plan\",\"displayName\":\"plan\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Pulse\"}},\"Property\":\"Active Users\"}},\"queryRef\":\"_Pulse.Active Users\",\"nativeQueryRef\":\"Active Users\",\"displayName\":\"active\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Pulse\"}},\"Property\":\"MRR\"}},\"queryRef\":\"_Pulse.MRR\",\"nativeQueryRef\":\"MRR\",\"displayName\":\"mrr\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Pulse\"}},\"Property\":\"Retention\"}},\"queryRef\":\"_Pulse.Retention\",\"nativeQueryRef\":\"Retention\",\"displayName\":\"retention\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Pulse\"}},\"Property\":\"NPS\"}},\"queryRef\":\"_Pulse.NPS\",\"nativeQueryRef\":\"NPS\",\"displayName\":\"nps\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Pulse\"}},\"Property\":\"MRR\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

@@ -48,10 +48,12 @@ describe('missing data detection', () => {
     expect(syntheticTables(p)).toEqual(['Sales'])
     expect(syntheticTables(null)).toEqual([])
   })
-  it('creates a blank project with one page', () => {
+  it('creates a blank project with one page, the two default measure tables and sample data on', () => {
     const p = blankProject('X')
     expect(p.report?.pages).toHaveLength(1)
-    expect(p.model.tables).toHaveLength(0)
+    expect(p.model.tables.map((t) => t.name)).toEqual(['_measures_kpi', '_measures_format'])
+    expect(tablesWithoutData(p)).toEqual([])
+    expect(p.report?.report.annotations).toEqual([{ name: 'Lumen_SampleData', value: 'on' }])
     expect(p.dirty).toBe(false)
   })
 })

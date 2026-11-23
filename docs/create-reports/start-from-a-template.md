@@ -2,9 +2,10 @@
 
 > **Applies to:** Creators · Analysts
 
-The gallery holds designed reports that open with sample data, so you can see a finished page and then swap in your
-own data. Each template is a complete PBIP project: a semantic model whose tables are Power Query queries with the
-sample rows written out, a theme, vector artwork and one or more pages of visuals.
+The gallery holds designed reports for quick mockups: every page looks finished, but the report holds no data. Each
+template is a complete PBIP project: a semantic model with only the two default measure tables, a theme, vector
+artwork and one or more pages of empty visuals that draw sample data until you give them fields (see
+[Sample data on empty visuals](sample-data-on-empty-visuals.md)).
 
 ## Open the gallery
 
@@ -13,14 +14,14 @@ sample rows written out, a theme, vector artwork and one or more pages of visual
 
 ![The gallery on the start screen: template cards with previews, style and a Power BI compatible or Lumen only badge.](../images/create-reports/start-from-a-template-gallery.png)
 
-Select a card to create a new, unsaved report from it. Lumen runs the template's queries first, so the visuals show the
-sample data right away. **Save** asks where to put the report, as for any new report.
+Select a card to create a new, unsaved report from it. The visuals show their sample data right away. **Save** asks
+where to put the report, as for any new report.
 
 The chips above the cards filter the list: **All**, **Power BI compatible** and **Lumen only**.
 
 ## The templates
 
-| Template | Style | Data | Power BI |
+| Template | Style | Sample data | Power BI |
 |---|---|---|---|
 | Boardroom | Professional: ivory paper, navy and brass, serif headings, a ruled statement row | Quarterly finance, two pages | Compatible |
 | Monolith | Modern: bento grid, giant light numerals, black and electric-lime tiles | Product usage and revenue | Compatible |
@@ -48,20 +49,27 @@ as a PBIP project and it opens in Power BI Desktop as it looks in Lumen.
 Power BI Desktop still opens these reports: it ignores the annotation, draws each container with its ordinary
 background, border and shadow, straight and without blur, and substitutes its default font for the bundled ones.
 
-## Replace the sample data
+## Put in your own data
 
-Each table's query starts with a `#table(...)` step holding the sample rows. To use your own data:
+The Data pane of a template holds two measure tables and nothing else:
 
-1. Select **Transform data** and open the table's query.
-2. Replace the `Source` step with your own source (for example **Get data > Excel** and the matching sheet), keeping
-   the column names, or rename the fields in the visuals afterwards.
-3. Select **Close & Apply**.
+| Table | Holds | Starts with |
+|---|---|---|
+| `_measures_kpi` | Metric measures (totals, rates, comparisons) | `kpi_blank` |
+| `_measures_format` | Formatting measures (dynamic titles, colors, labels) | `fmt_blank` |
 
-The measures live in a separate measure table (its name starts with an underscore), so they keep working when the
-fact table's source changes. Text boxes such as headlines and footers are placeholders: double-click one to edit it.
+**New measure** adds to `_measures_kpi` unless another table is selected. To build the report on your data:
+
+1. Load your tables (**Get data**, **Enter data** or **Transform data**).
+2. Write your measures in `_measures_kpi` and `_measures_format`.
+3. Drop fields into a visual. Its sample disappears as soon as it has a field; remove the fields and it comes back.
+
+Text boxes such as headlines and footers are placeholders: double-click one to edit it.
 
 ## For developers
 
 The templates are generated: `node scripts/templates/build.mjs` writes `src/core/templates/<id>/` from the designs in
-`scripts/templates/designs/`, and `scripts/templates/previews.sh` renders the gallery thumbnails with Lumen itself.
+`scripts/templates/designs/`. A design still describes its visuals with fields and sample tables; the build stores each
+visual's fields in its `Lumen_SampleData` annotation, the tables in `sampleData.lumen.json` and leaves the visual
+itself empty, and `scripts/templates/previews.sh` renders the gallery thumbnails with Lumen itself.
 Lettering drawn as vector art (Blacktop's title) is outlined from Barlow by `scripts/templates/outline.py`.

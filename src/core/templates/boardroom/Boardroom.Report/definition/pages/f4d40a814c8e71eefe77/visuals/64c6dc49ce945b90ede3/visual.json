@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "waterfallChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Segment"
-                }
-              },
-              "queryRef": "Finance.Segment",
-              "nativeQueryRef": "Segment"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Operating Income FY"
-                }
-              },
-              "queryRef": "_Measures.Operating Income FY",
-              "nativeQueryRef": "Operating Income FY"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -320,5 +280,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Segment\"}},\"queryRef\":\"Finance.Segment\",\"nativeQueryRef\":\"Segment\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Operating Income FY\"}},\"queryRef\":\"_Measures.Operating Income FY\",\"nativeQueryRef\":\"Operating Income FY\"}]}}}}"
+    }
+  ]
 }

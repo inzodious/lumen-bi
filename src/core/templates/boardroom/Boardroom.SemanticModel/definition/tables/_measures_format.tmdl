@@ -1,0 +1,29 @@
+table _measures_format
+	lineageTag: 45ae606a-d867-4528-a6ab-ee9acf56f6aa
+
+	measure fmt_blank = BLANK()
+		formatString: 0
+		lineageTag: af34f84a-07f4-46bd-a430-3637b13b8a61
+
+	column Column1
+		isHidden
+		dataType: string
+		lineageTag: 34ab75c9-42e5-49b8-abf3-e30556b98fe5
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_format = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

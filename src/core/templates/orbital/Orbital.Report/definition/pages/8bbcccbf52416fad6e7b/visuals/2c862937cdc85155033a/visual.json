@@ -11,105 +11,6 @@
   },
   "visual": {
     "visualType": "tableEx",
-    "query": {
-      "queryState": {
-        "Values": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Missions"
-                    }
-                  },
-                  "Property": "Mission"
-                }
-              },
-              "queryRef": "Missions.Mission",
-              "nativeQueryRef": "Mission"
-            },
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Missions"
-                    }
-                  },
-                  "Property": "Orbit"
-                }
-              },
-              "queryRef": "Missions.Orbit",
-              "nativeQueryRef": "Orbit"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Telemetry"
-                    }
-                  },
-                  "Property": "Launches"
-                }
-              },
-              "queryRef": "_Telemetry.Launches",
-              "nativeQueryRef": "Launches",
-              "displayName": "Launches"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Telemetry"
-                    }
-                  },
-                  "Property": "Uptime"
-                }
-              },
-              "queryRef": "_Telemetry.Uptime",
-              "nativeQueryRef": "Uptime",
-              "displayName": "Uptime"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Telemetry"
-                    }
-                  },
-                  "Property": "Payload (t)"
-                }
-              },
-              "queryRef": "_Telemetry.Payload (t)",
-              "nativeQueryRef": "Payload (t)",
-              "displayName": "Payload"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Telemetry"
-                  }
-                },
-                "Property": "Launches"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "grid": [
         {
@@ -378,5 +279,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Missions\"}},\"Property\":\"Mission\"}},\"queryRef\":\"Missions.Mission\",\"nativeQueryRef\":\"Mission\"},{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Missions\"}},\"Property\":\"Orbit\"}},\"queryRef\":\"Missions.Orbit\",\"nativeQueryRef\":\"Orbit\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Telemetry\"}},\"Property\":\"Launches\"}},\"queryRef\":\"_Telemetry.Launches\",\"nativeQueryRef\":\"Launches\",\"displayName\":\"Launches\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Telemetry\"}},\"Property\":\"Uptime\"}},\"queryRef\":\"_Telemetry.Uptime\",\"nativeQueryRef\":\"Uptime\",\"displayName\":\"Uptime\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Telemetry\"}},\"Property\":\"Payload (t)\"}},\"queryRef\":\"_Telemetry.Payload (t)\",\"nativeQueryRef\":\"Payload (t)\",\"displayName\":\"Payload\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Telemetry\"}},\"Property\":\"Launches\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

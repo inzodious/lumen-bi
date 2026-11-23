@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "areaChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Missions"
-                    }
-                  },
-                  "Property": "Month"
-                }
-              },
-              "queryRef": "Missions.Month",
-              "nativeQueryRef": "Month"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Telemetry"
-                    }
-                  },
-                  "Property": "Data Downlinked"
-                }
-              },
-              "queryRef": "_Telemetry.Data Downlinked",
-              "nativeQueryRef": "Data Downlinked"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -174,26 +134,6 @@
             }
           }
         }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#3BF0FF'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Telemetry.Data Downlinked"
-          }
-        }
       ]
     },
     "visualContainerObjects": {
@@ -251,5 +191,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Missions\"}},\"Property\":\"Month\"}},\"queryRef\":\"Missions.Month\",\"nativeQueryRef\":\"Month\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Telemetry\"}},\"Property\":\"Data Downlinked\"}},\"queryRef\":\"_Telemetry.Data Downlinked\",\"nativeQueryRef\":\"Data Downlinked\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#3BF0FF'\"}}}}}},\"selector\":{\"metadata\":\"_Telemetry.Data Downlinked\"}}]}}"
+    }
+  ]
 }

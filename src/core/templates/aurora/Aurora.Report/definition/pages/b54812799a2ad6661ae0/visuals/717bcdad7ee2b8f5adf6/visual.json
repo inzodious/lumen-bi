@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "donutChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Streams"
-                    }
-                  },
-                  "Property": "Region"
-                }
-              },
-              "queryRef": "Streams.Region",
-              "nativeQueryRef": "Region"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Pulse"
-                    }
-                  },
-                  "Property": "Listeners"
-                }
-              },
-              "queryRef": "_Pulse.Listeners",
-              "nativeQueryRef": "Listeners"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "legend": [
         {
@@ -127,172 +87,6 @@
                 }
               }
             }
-          }
-        }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#7B5CFF'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Streams"
-                          }
-                        },
-                        "Property": "Region"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'North America'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#2FD6C3'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Streams"
-                          }
-                        },
-                        "Property": "Region"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Europe'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FF5FA2'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Streams"
-                          }
-                        },
-                        "Property": "Region"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Latin America'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FFA374'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Streams"
-                          }
-                        },
-                        "Property": "Region"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Asia Pacific'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
           }
         }
       ]
@@ -466,6 +260,10 @@
     {
       "name": "Lumen_Style",
       "value": "{\"blur\":22,\"gradient\":{\"angle\":145,\"stops\":[\"#FFFFFFB8\",\"#FFFFFF59\"]},\"glow\":{\"color\":\"#2FD6C3\",\"size\":26,\"opacity\":0.16}}"
+    },
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Streams\"}},\"Property\":\"Region\"}},\"queryRef\":\"Streams.Region\",\"nativeQueryRef\":\"Region\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Pulse\"}},\"Property\":\"Listeners\"}},\"queryRef\":\"_Pulse.Listeners\",\"nativeQueryRef\":\"Listeners\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#7B5CFF'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Streams\"}},\"Property\":\"Region\"}},\"Right\":{\"Literal\":{\"Value\":\"'North America'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#2FD6C3'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Streams\"}},\"Property\":\"Region\"}},\"Right\":{\"Literal\":{\"Value\":\"'Europe'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FF5FA2'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Streams\"}},\"Property\":\"Region\"}},\"Right\":{\"Literal\":{\"Value\":\"'Latin America'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FFA374'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Streams\"}},\"Property\":\"Region\"}},\"Right\":{\"Literal\":{\"Value\":\"'Asia Pacific'\"}}}}}]}}]}}"
     }
   ]
 }

@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "cardVisual",
-    "query": {
-      "queryState": {
-        "Data": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Ledger"
-                    }
-                  },
-                  "Property": "Revenue Note"
-                }
-              },
-              "queryRef": "_Ledger.Revenue Note",
-              "nativeQueryRef": "Revenue Note"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "fillCustom": [
         {
@@ -233,5 +211,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Ledger\"}},\"Property\":\"Revenue Note\"}},\"queryRef\":\"_Ledger.Revenue Note\",\"nativeQueryRef\":\"Revenue Note\"}]}}}}"
+    }
+  ]
 }

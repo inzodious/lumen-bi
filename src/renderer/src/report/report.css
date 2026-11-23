@@ -18,6 +18,7 @@
 .wbi-vc-box { box-sizing: border-box; }
 .wbi-vc-titles { flex: 0 0 auto; min-height: 0; }
 .wbi-vc-content { flex: 1 1 auto; position: relative; min-height: 0; min-width: 0; overflow: hidden; }
+.wbi-vc-sample { position: absolute; right: 6px; bottom: 6px; z-index: 2; padding: 1px 6px; border-radius: 8px; background: rgba(50, 49, 48, 0.72); color: #fff; font: 10px/16px var(--wbi-font, "Segoe UI", sans-serif); pointer-events: auto; cursor: default; user-select: none; }
 .wbi-page-outer.editing .wbi-vc:hover > .wbi-vc-box { outline: 1px dashed #A19F9D; outline-offset: -1px; }
 .wbi-group { box-sizing: border-box; }
 

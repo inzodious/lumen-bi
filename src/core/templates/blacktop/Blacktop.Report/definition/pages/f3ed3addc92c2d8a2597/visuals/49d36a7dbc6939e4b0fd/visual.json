@@ -11,107 +11,6 @@
   },
   "visual": {
     "visualType": "tableEx",
-    "query": {
-      "queryState": {
-        "Values": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Games"
-                    }
-                  },
-                  "Property": "Crew"
-                }
-              },
-              "queryRef": "Games.Crew",
-              "nativeQueryRef": "Crew",
-              "displayName": "CREW"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Stats"
-                    }
-                  },
-                  "Property": "Wins"
-                }
-              },
-              "queryRef": "_Stats.Wins",
-              "nativeQueryRef": "Wins",
-              "displayName": "W"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Stats"
-                    }
-                  },
-                  "Property": "Win %"
-                }
-              },
-              "queryRef": "_Stats.Win %",
-              "nativeQueryRef": "Win %",
-              "displayName": "WIN %"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Stats"
-                    }
-                  },
-                  "Property": "PPG"
-                }
-              },
-              "queryRef": "_Stats.PPG",
-              "nativeQueryRef": "PPG",
-              "displayName": "PPG"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Stats"
-                    }
-                  },
-                  "Property": "Dunks"
-                }
-              },
-              "queryRef": "_Stats.Dunks",
-              "nativeQueryRef": "Dunks",
-              "displayName": "DUNKS"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Stats"
-                  }
-                },
-                "Property": "Wins"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "grid": [
         {
@@ -567,6 +466,10 @@
     {
       "name": "Lumen_Style",
       "value": "{\"rotate\":1}"
+    },
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Games\"}},\"Property\":\"Crew\"}},\"queryRef\":\"Games.Crew\",\"nativeQueryRef\":\"Crew\",\"displayName\":\"CREW\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Wins\"}},\"queryRef\":\"_Stats.Wins\",\"nativeQueryRef\":\"Wins\",\"displayName\":\"W\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Win %\"}},\"queryRef\":\"_Stats.Win %\",\"nativeQueryRef\":\"Win %\",\"displayName\":\"WIN %\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"PPG\"}},\"queryRef\":\"_Stats.PPG\",\"nativeQueryRef\":\"PPG\",\"displayName\":\"PPG\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Dunks\"}},\"queryRef\":\"_Stats.Dunks\",\"nativeQueryRef\":\"Dunks\",\"displayName\":\"DUNKS\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Wins\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
     }
   ]
 }

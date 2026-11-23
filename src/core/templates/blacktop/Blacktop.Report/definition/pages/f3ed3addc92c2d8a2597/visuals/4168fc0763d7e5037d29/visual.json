@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "donutChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Games"
-                    }
-                  },
-                  "Property": "Court"
-                }
-              },
-              "queryRef": "Games.Court",
-              "nativeQueryRef": "Court"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Stats"
-                    }
-                  },
-                  "Property": "Points"
-                }
-              },
-              "queryRef": "_Stats.Points",
-              "nativeQueryRef": "Points"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "legend": [
         {
@@ -159,172 +119,6 @@
                 }
               }
             }
-          }
-        }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FF6A13'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Games"
-                          }
-                        },
-                        "Property": "Court"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Pier 9'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#1FA2FF'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Games"
-                          }
-                        },
-                        "Property": "Court"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'The Cage'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FFE135'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Games"
-                          }
-                        },
-                        "Property": "Court"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'The Rooftop'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FF3D7F'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Games"
-                          }
-                        },
-                        "Property": "Court"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Union Park'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
           }
         }
       ]
@@ -571,6 +365,10 @@
     {
       "name": "Lumen_Style",
       "value": "{\"rotate\":-2}"
+    },
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Games\"}},\"Property\":\"Court\"}},\"queryRef\":\"Games.Court\",\"nativeQueryRef\":\"Court\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Points\"}},\"queryRef\":\"_Stats.Points\",\"nativeQueryRef\":\"Points\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FF6A13'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Games\"}},\"Property\":\"Court\"}},\"Right\":{\"Literal\":{\"Value\":\"'Pier 9'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#1FA2FF'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Games\"}},\"Property\":\"Court\"}},\"Right\":{\"Literal\":{\"Value\":\"'The Cage'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FFE135'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Games\"}},\"Property\":\"Court\"}},\"Right\":{\"Literal\":{\"Value\":\"'The Rooftop'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FF3D7F'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Games\"}},\"Property\":\"Court\"}},\"Right\":{\"Literal\":{\"Value\":\"'Union Park'\"}}}}}]}}]}}"
     }
   ]
 }

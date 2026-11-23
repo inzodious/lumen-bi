@@ -1,9 +1,10 @@
 /**
  * Building blocks for the gallery report templates (scripts/templates/build.mjs).
  *
- * Each design (scripts/templates/designs/*.mjs) describes a PBIP project in plain JS: an M-computed
- * sample-data model (literal `#table` rows, so the report refreshes offline and in Power BI Desktop),
- * a custom theme, SVG artwork as registered resources and pages of visuals. The helpers here turn
+ * Each design (scripts/templates/designs/*.mjs) describes a PBIP project in plain JS: sample tables and
+ * measures, a custom theme, SVG artwork as registered resources and pages of visuals bound to the sample
+ * fields. The build turns the tables into the report's sample dataset and each visual's fields into its
+ * `Lumen_SampleData` annotation, so the template ships with empty visuals and no data tables. The helpers here turn
  * that into the PBIR / TMDL files Power BI Desktop writes. Everything is deterministic: ids and
  * lineage tags are hashes of the template id and the object's name, so a rebuild changes nothing.
  */
@@ -141,14 +142,21 @@ function containerObjects(o = {}) {
 export function visual(seed, spec) {
   const name = hex(`${seed}/${spec.name ?? JSON.stringify([spec.type, spec.x, spec.y, spec.w, spec.h])}`)
   const v = { visualType: spec.type }
+  let sample
   if (spec.roles) {
     const queryState = {}
     for (const [role, fields] of Object.entries(spec.roles)) queryState[role] = { projections: fields.map(projection) }
-    v.query = { queryState }
-    if (spec.sort) v.query.sortDefinition = { sort: [{ field: fieldExpr(spec.sort.field), direction: spec.sort.dir ?? 'Descending' }], isDefaultSort: true }
+    sample = { query: { queryState } }
+    if (spec.sort) sample.query.sortDefinition = { sort: [{ field: fieldExpr(spec.sort.field), direction: spec.sort.dir ?? 'Descending' }], isDefaultSort: true }
   }
   if (spec.objects) v.objects = objects(spec.objects)
   if (spec.rawObjects) v.objects = { ...(v.objects ?? {}), ...spec.rawObjects }
+  if (sample && v.objects) {
+    const { plain, fieldBound } = splitFieldObjects(v.objects)
+    if (plain) v.objects = plain
+    else delete v.objects
+    if (fieldBound) sample.objects = fieldBound
+  }
   v.visualContainerObjects = containerObjects(spec.box)
   v.drillFilterOtherVisuals = true
   const out = {
@@ -157,8 +165,24 @@ export function visual(seed, spec) {
     position: { x: spec.x, y: spec.y, z: spec.z ?? 1000, height: spec.h, width: spec.w, tabOrder: spec.z ?? 1000 },
     visual: v
   }
-  if (spec.style) out.annotations = [{ name: 'Lumen_Style', value: JSON.stringify(spec.style) }]
+  const annotations = []
+  if (spec.style) annotations.push({ name: 'Lumen_Style', value: JSON.stringify(spec.style) })
+  if (sample) annotations.push({ name: 'Lumen_SampleData', value: JSON.stringify(sample) })
+  if (annotations.length) out.annotations = annotations
   return out
+}
+
+/** The objects entries that name fields (data / metadata selectors, field expressions): kept with the sample query. */
+function splitFieldObjects(o) {
+  const plain = {}
+  const fieldBound = {}
+  for (const [key, entries] of Object.entries(o)) {
+    for (const e of entries) {
+      const bound = !!e.selector?.data || !!e.selector?.metadata || JSON.stringify(e.properties ?? {}).includes('"SourceRef"')
+      ;(bound ? (fieldBound[key] ??= []) : (plain[key] ??= [])).push(e)
+    }
+  }
+  return { plain: Object.keys(plain).length ? plain : undefined, fieldBound: Object.keys(fieldBound).length ? fieldBound : undefined }
 }
 
 /**
@@ -222,90 +246,70 @@ export function shape(seed, spec) {
 // semantic model (TMDL)
 // ---------------------------------------------------------------------------------------------
 
-const M_TYPES = { string: 'text', int64: 'Int64.Type', double: 'number', dateTime: 'date', boolean: 'logical' }
-
-function mValue(v, type) {
-  if (v === null || v === undefined) return 'null'
-  if (type === 'string') return `"${String(v).replace(/"/g, '""')}"`
-  if (type === 'dateTime') {
-    const [y, mo, d] = String(v).split('-').map(Number)
-    return `#date(${y}, ${mo}, ${d})`
-  }
-  if (type === 'boolean') return v ? 'true' : 'false'
-  if (type === 'double') return String(Math.round(v * 100) / 100)
-  return String(Math.round(v))
-}
-
-function tmdlName(n) {
-  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(n) ? n : `'${n.replace(/'/g, "''")}'`
+/**
+ * A default measure table (`_measures_kpi`, `_measures_format`): a placeholder measure and the hidden Column1 of a
+ * Power BI "Enter data" table, in the Measures query group.
+ */
+export function measureTable(seed, name, placeholder) {
+  return [
+    `table ${name}`,
+    `\tlineageTag: ${uuid(`${seed}/table/${name}`)}`,
+    '',
+    `\tmeasure ${placeholder} = BLANK()`,
+    '\t\tformatString: 0',
+    `\t\tlineageTag: ${uuid(`${seed}/measure/${name}/${placeholder}`)}`,
+    '',
+    '\tcolumn Column1',
+    '\t\tisHidden',
+    '\t\tdataType: string',
+    `\t\tlineageTag: ${uuid(`${seed}/column/${name}/Column1`)}`,
+    '\t\tsummarizeBy: none',
+    '\t\tsourceColumn: Column1',
+    '',
+    '\t\tannotation SummarizationSetBy = Automatic',
+    '',
+    `\tpartition ${name} = m`,
+    '\t\tmode: import',
+    '\t\tqueryGroup: Measures',
+    '\t\tsource =',
+    '\t\t\t\tlet',
+    '\t\t\t\t    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),',
+    '\t\t\t\t    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})',
+    '\t\t\t\tin',
+    '\t\t\t\t    #"Changed Type"',
+    '',
+    '\tannotation PBI_NavigationStepName = Navigation',
+    '',
+    '\tannotation PBI_ResultType = Table',
+    ''
+  ].join('\n')
 }
 
 /**
- * A table whose rows are literal M (`#table`).
- * spec: { name, columns: [{ name, type, format?, sortBy?, hidden?, summarize?, category? }], rows: [[…]], measures?: [{ name, dax, format, folder? }], hidden? }
+ * The design's tables and measures as the report's sample dataset (`sampleData.lumen.json`, see
+ * src/core/sample/dataset.ts): the rows the empty visuals draw, never part of the model.
  */
-export function tableTmdl(seed, spec) {
-  const L = []
-  L.push(`table ${tmdlName(spec.name)}`)
-  if (spec.hidden) L.push('\tisHidden')
-  L.push(`\tlineageTag: ${uuid(`${seed}/table/${spec.name}`)}`)
-  L.push('')
-  for (const ms of spec.measures ?? []) {
-    L.push(`\tmeasure ${tmdlName(ms.name)} = ${ms.dax}`)
-    if (ms.format) L.push(`\t\tformatString: ${ms.format}`)
-    if (ms.folder) L.push(`\t\tdisplayFolder: ${ms.folder}`)
-    L.push(`\t\tlineageTag: ${uuid(`${seed}/measure/${spec.name}/${ms.name}`)}`)
-    L.push('')
+export function sampleDataset(design) {
+  const cell = (v, type) => (v === null || v === undefined ? null : type === 'double' ? Math.round(v * 100) / 100 : type === 'int64' ? Math.round(v) : v)
+  return {
+    $lumen: 'sampleData',
+    version: 1,
+    tables: design.tables.map((t) => ({
+      name: t.name,
+      columns: t.columns.map((c) => {
+        const out = { name: c.name, type: c.type }
+        if (c.sortBy) out.sortBy = c.sortBy
+        if (c.format) out.format = c.format
+        if (c.hidden) out.hidden = true
+        if (c.category) out.category = c.category
+        return out
+      }),
+      rows: t.rows.map((r) => r.map((v, i) => cell(v, t.columns[i].type)))
+    })),
+    measures: [
+      ...(design.measures?.list ?? []).map((ms) => ({ table: design.measures.table, name: ms.name, expression: ms.dax, ...(ms.format ? { format: ms.format } : {}) })),
+      ...design.tables.flatMap((t) => (t.measures ?? []).map((ms) => ({ table: t.name, name: ms.name, expression: ms.dax, ...(ms.format ? { format: ms.format } : {}) })))
+    ],
+    ...(design.relationships?.length ? { relationships: design.relationships.map((r) => ({ from: r.from, to: r.to })) } : {})
   }
-  for (const cdef of spec.columns) {
-    L.push(`\tcolumn ${tmdlName(cdef.name)}`)
-    L.push(`\t\tdataType: ${cdef.type}`)
-    if (cdef.hidden) L.push('\t\tisHidden')
-    const fmt = cdef.format ?? (cdef.type === 'dateTime' ? 'Short Date' : cdef.type === 'int64' ? '0' : cdef.type === 'double' ? '#,0.00' : undefined)
-    if (fmt) L.push(`\t\tformatString: ${fmt}`)
-    L.push(`\t\tlineageTag: ${uuid(`${seed}/column/${spec.name}/${cdef.name}`)}`)
-    if (cdef.category) L.push(`\t\tdataCategory: ${cdef.category}`)
-    L.push(`\t\tsummarizeBy: ${cdef.summarize ?? (cdef.type === 'int64' || cdef.type === 'double' ? 'sum' : 'none')}`)
-    L.push(`\t\tsourceColumn: ${cdef.name}`)
-    if (cdef.sortBy) L.push(`\t\tsortByColumn: ${tmdlName(cdef.sortBy)}`)
-    L.push('')
-    if (cdef.sortBy) {
-      L.push('\t\tchangedProperty = SortByColumn')
-      L.push('')
-    }
-    L.push('\t\tannotation SummarizationSetBy = Automatic')
-    if (cdef.type === 'dateTime') {
-      L.push('')
-      L.push('\t\tannotation UnderlyingDateTimeDataType = Date')
-    }
-    L.push('')
-  }
-  const typeRow = spec.columns.map((cdef) => `${/^[A-Za-z_][A-Za-z0-9_]*$/.test(cdef.name) ? cdef.name : `#"${cdef.name}"`} = ${M_TYPES[cdef.type]}`).join(', ')
-  L.push(`\tpartition ${tmdlName(spec.name)} = m`)
-  L.push('\t\tmode: import')
-  L.push('\t\tsource =')
-  L.push('\t\t\t\tlet')
-  L.push(`\t\t\t\t    // sample data for the template: replace this query with your own source`)
-  L.push(`\t\t\t\t    Source = #table(type table [${typeRow}], {`)
-  spec.rows.forEach((r, i) => {
-    L.push(`\t\t\t\t        {${r.map((v, j) => mValue(v, spec.columns[j].type)).join(', ')}}${i < spec.rows.length - 1 ? ',' : ''}`)
-  })
-  L.push('\t\t\t\t    })')
-  L.push('\t\t\t\tin')
-  L.push('\t\t\t\t    Source')
-  L.push('')
-  L.push('\tannotation PBI_ResultType = Table')
-  L.push('')
-  return L.join('\n')
-}
-
-/** A measures-only table (one hidden placeholder column, like Power BI's "Enter data" measure tables). */
-export function measureTable(seed, name, measures) {
-  return tableTmdl(seed, { name, columns: [{ name: 'Column1', type: 'string', hidden: true }], rows: [[null]], measures })
-}
-
-export function relationshipsTmdl(seed, rels) {
-  return rels
-    .map((r) => [`relationship ${uuid(`${seed}/rel/${r.from}/${r.to}`)}`, `\tfromColumn: ${r.from}`, `\ttoColumn: ${r.to}`, ''].join('\n'))
-    .join('\n')
 }

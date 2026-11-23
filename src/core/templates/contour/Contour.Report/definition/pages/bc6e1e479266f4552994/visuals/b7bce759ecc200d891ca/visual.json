@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "clusteredBarChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Parks"
-                    }
-                  },
-                  "Property": "Park"
-                }
-              },
-              "queryRef": "Parks.Park",
-              "nativeQueryRef": "Park"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Trail"
-                    }
-                  },
-                  "Property": "Visitors"
-                }
-              },
-              "queryRef": "_Trail.Visitors",
-              "nativeQueryRef": "Visitors"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Trail"
-                  }
-                },
-                "Property": "Visitors"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -393,5 +335,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Parks\"}},\"Property\":\"Park\"}},\"queryRef\":\"Parks.Park\",\"nativeQueryRef\":\"Park\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Trail\"}},\"Property\":\"Visitors\"}},\"queryRef\":\"_Trail.Visitors\",\"nativeQueryRef\":\"Visitors\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Trail\"}},\"Property\":\"Visitors\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

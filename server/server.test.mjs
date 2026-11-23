@@ -138,7 +138,26 @@ describe('Lumen Server', () => {
 
   it('shows each dashboard address on the home page', async () => {
     const html = await (await fetch(`${base}/`)).text()
-    expect(html).toContain('/d/proxied/</div>')
+    expect(html).toContain('/d/proxied/</span>')
+  })
+
+  it('keeps page previews and shows them on the home page, but never a locked dashboard\'s to strangers', async () => {
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
+    const manifest = (title) => strToU8(JSON.stringify({ title, pages: [{ name: 'a', displayName: 'Overview' }, { name: 'b', displayName: 'Detail' }], previews: [{ page: 'a', displayName: 'Overview', src: 'previews/0.jpg', width: 960, height: 540 }, { page: 'b', displayName: 'Detail', src: 'previews/1.jpg' }, { src: '../evil.jpg' }, { src: 'previews/9.jpg' }] }))
+    let r = await put('pics', site('Pics', { 'lumen-publish.json': manifest('Pics <b>'), 'previews/0.jpg': jpg, 'previews/1.jpg': jpg }))
+    const meta = await r.json()
+    expect(meta.previews.map((p) => p.src)).toEqual(['/d/pics/previews/0.jpg', '/d/pics/previews/1.jpg'])
+    expect((await fetch(`${base}/d/pics/previews/0.jpg`)).headers.get('content-type')).toBe('image/jpeg')
+    r = await put('pics-locked', site('Locked pics', { 'lumen-publish.json': manifest('Locked pics'), 'previews/0.jpg': jpg, 'previews/1.jpg': jpg }), { 'x-lumen-access': 'password', 'x-lumen-password': Buffer.from('pw').toString('base64') })
+    expect(r.status).toBe(201)
+    expect((await fetch(`${base}/d/pics-locked/previews/0.jpg`)).status).toBe(401)
+    const html = await (await fetch(`${base}/`)).text()
+    expect(html).toContain(' src="/d/pics/previews/0.jpg"')
+    expect(html).toContain('Pics &lt;b&gt;')
+    expect(html).not.toContain('Pics <b>')
+    // the locked card only probes its preview (the request carries that dashboard's cookie, if any)
+    expect(html).not.toContain(' src="/d/pics-locked/previews/0.jpg"')
+    expect(html).toContain('data-src="/d/pics-locked/previews/0.jpg"')
   })
 
   it('hides the listing when asked', async () => {

@@ -92,7 +92,7 @@ export function createAdmin(ctx) {
     const all = (await allMeta()).map(displayMeta).sort(byPlacement)
     const rows = all
       .map((d) => {
-        const thumb = d.previews[0] ? `style="background-image:url('${esc(d.url + d.previews[0])}')"` : ''
+        const thumb = d.previews[0] ? `style="background-image:url('${esc(d.previews[0].src)}')"` : ''
         return `<tr><td class="hide-sm"><div class="thumb" ${thumb}></div></td><td><a href="/admin/d/${d.slug}">${esc(d.title)}</a><div class="slug">/d/${d.slug}/</div></td><td><span class="chip ${d.access}">${ACCESS_LABEL[d.access] ?? d.access}</span>${d.featured ? '<span class="chip star">Featured</span>' : ''}${d.listed ? '' : '<span class="chip">Unlisted</span>'}${d.embed.enabled && d.access === 'public' ? '<span class="chip">Embeddable</span>' : ''}</td><td class="hide-sm">${d.pages.length}</td><td class="hide-sm">${esc(String(d.publishedAt).slice(0, 10))}</td><td><a class="btn ghost" href="/admin/d/${d.slug}">Edit</a></td></tr>`
       })
       .join('')

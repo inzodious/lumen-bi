@@ -13,6 +13,7 @@ import { assembleSite, siteBytes, writeSiteFolder, zipSite } from './site'
 import { PublishError, TARGETS, slugify, type DeployContext } from './targets'
 import { lumenServer } from './targets/lumenServer'
 import { connectLumenServer } from './lumenConnect'
+import { withPreviews } from './preview'
 
 let store: DestinationStore | null = null
 
@@ -81,7 +82,13 @@ export function registerPublishIpc(): void {
       const files = await assembleSite(viewerDir(), req.files)
       const site = dest.kind === 'github-pages' || dest.kind === 's3' ? req.site.split('/').map((s) => (s ? slugify(s) : '')).filter(Boolean).join('/') : slugify(req.site)
       const ctx = context((p) => e.sender.send('publish:progress', p))
-      const out = dest.kind === 'lumen-server' ? await lumenServer.deployWithAccess(dest, site, files, req.title, ctx, req.access) : await target.deploy(dest, site, files, req.title, ctx)
+      let out: { url: string }
+      if (dest.kind === 'lumen-server') {
+        // page previews for the server's home page (best effort; see ./preview.ts)
+        ctx.progress({ message: 'Making page previews', fraction: 0.05 })
+        const withPics = await withPreviews(files, (f) => ctx.progress({ message: 'Making page previews', fraction: 0.05 + f * 0.2 }))
+        out = await lumenServer.deployWithAccess(dest, site, withPics, req.title, ctx, req.access)
+      } else out = await target.deploy(dest, site, files, req.title, ctx)
       return { ok: true, location: dest.name, url: out.url, files: Object.keys(files).length, bytes: siteBytes(files) }
     } catch (err) {
       return { ok: false, reason: 'failed', message: err instanceof PublishError || err instanceof Error ? err.message : String(err) }

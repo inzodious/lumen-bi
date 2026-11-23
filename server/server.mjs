@@ -20,6 +20,7 @@ import { extname, join } from 'node:path'
 import { isSafePath, readZip } from './zip.mjs'
 import { createAuth } from './auth.mjs'
 import { createAdmin } from './admin.mjs'
+import { homePage, readPreviews } from './home.mjs'
 
 export const VERSION = '1.1.0'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/
@@ -174,7 +175,8 @@ export function createLumenServer(opts) {
   }
   /**
    * What a dashboard shows as: the published title and the admin console's changes (meta.custom), which republishing
-   * keeps. `previews` are site-relative image paths saved at publish (served behind the dashboard's own access).
+   * keeps. `previews` are the page images saved at publish (home.mjs readPreviews), with `src` made absolute; they are served
+   * behind the dashboard's own access.
    */
   function displayMeta(m) {
     const c = m.custom ?? {}
@@ -192,7 +194,7 @@ export function createLumenServer(opts) {
       publishedAt: m.publishedAt,
       bytes: m.bytes,
       pages: m.pages ?? [],
-      previews: Array.isArray(m.previews) ? m.previews : [],
+      previews: (Array.isArray(m.previews) ? m.previews : []).filter((p) => p && typeof p.src === 'string').map((p) => ({ ...p, src: `/d/${m.slug}/${p.src}` })),
       url: `/d/${m.slug}/`
     }
   }
@@ -267,8 +269,7 @@ export function createLumenServer(opts) {
       await fsp.writeFile(target, data)
       bytes += data.length
     }
-    const previews = Array.isArray(manifest.previews) ? manifest.previews.filter((p) => typeof p === 'string' && isSafePath(p) && files.has(p)).slice(0, 50) : []
-    const meta = { slug, title: String(manifest.title || slug).slice(0, 200), publishedAt: new Date(now()).toISOString(), pages: Array.isArray(manifest.pages) ? manifest.pages.slice(0, 200) : [], previews, bytes, access, ...(prev?.custom ? { custom: prev.custom } : {}) }
+    const meta = { slug, title: String(manifest.title || slug).slice(0, 200), publishedAt: new Date(now()).toISOString(), pages: Array.isArray(manifest.pages) ? manifest.pages.slice(0, 200) : [], previews: readPreviews(manifest, files), bytes, access, ...(prev?.custom ? { custom: prev.custom } : {}) }
     await fsp.writeFile(join(staging, 'meta.json'), JSON.stringify(meta, null, 2))
     const old = join(root, `.${slug}-old-${randomBytes(4).toString('hex')}`)
     if (existsSync(dir(slug))) await fsp.rename(dir(slug), old)
@@ -351,18 +352,14 @@ export function createLumenServer(opts) {
   function accountLink(req) {
     if (!auth.enabled) return ''
     const user = auth.currentUser(req)
-    return user ? `<a class="acct" href="/account">${esc(user.name || user.email)}</a>` : '<a class="acct" href="/auth/login">Sign in</a>'
+    return user ? `<a class="acct" href="/admin">Admin</a><a class="acct" href="/account" title="${esc(user.email)}">${esc(user.name || user.email)}</a>` : '<a class="acct" href="/auth/login">Sign in</a>'
   }
 
   async function index(req, res) {
     const site = siteSettings()
     if (!site.listing) return send(res, 404, page(site.title, `${accountLink(req)}<h1>Nothing here</h1>`), { 'content-type': 'text/html; charset=utf-8' })
     const all = await listedFor(req)
-    const siteTitle = site.title
-    const cards = all
-      .map((m) => `<a class="card" href="/d/${m.slug}/"><div class="t">${esc(m.title)}</div><div class="m">/d/${m.slug}/</div><div class="m">${m.access?.mode === 'password' ? 'Password protected · ' : ''}Published ${esc(String(m.publishedAt).slice(0, 10))}${m.pages?.length ? ` · ${m.pages.length} page${m.pages.length === 1 ? '' : 's'}` : ''}</div></a>`)
-      .join('')
-    send(res, 200, page(siteTitle, `${accountLink(req)}<h1>${esc(siteTitle)}</h1>${cards ? `<div class="grid">${cards}</div>` : '<p class="empty">No dashboards yet. Publish one from Lumen.</p>'}`), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', vary: 'cookie' })
+    send(res, 200, homePage({ title: site.title, tagline: site.tagline, accent: site.accent, account: accountLink(req), dashboards: all }), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', vary: 'cookie' })
   }
 
   async function handle(req, res) {
@@ -377,7 +374,7 @@ export function createLumenServer(opts) {
         .map(displayMeta)
         .filter((d) => d.access === 'public' && d.listed)
         .sort(byPlacement)
-        .map(({ slug, title, description, tags, featured, publishedAt, pages, previews, url, embed }) => ({ slug, title, description, tags, featured, publishedAt, pages: pages.length, url: `${base}${url}`, preview: previews[0] ? `${base}${url}${previews[0]}` : null, embedUrl: embed.enabled ? `${base}${url}?embed=1` : null }))
+        .map(({ slug, title, description, tags, featured, publishedAt, pages, previews, url, embed }) => ({ slug, title, description, tags, featured, publishedAt, pages: pages.length, url: `${base}${url}`, preview: previews[0] ? `${base}${previews[0].src}` : null, embedUrl: embed.enabled ? `${base}${url}?embed=1` : null }))
       return send(res, 200, JSON.stringify(list), { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=60', 'access-control-allow-origin': '*' })
     }
     if (path === '/admin' || path.startsWith('/admin/')) return admin.handle(req, res, path, url)

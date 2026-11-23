@@ -1,0 +1,79 @@
+table fact_anomaly
+	lineageTag: d36c877b-be25-4cb3-a365-6032c1acec12
+
+	column anomaly_id
+		dataType: string
+		lineageTag: d8b6ced5-08ed-4b10-a0c5-bae225e5edaf
+		summarizeBy: none
+		sourceColumn: anomaly_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column date
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: fa597eaa-9eae-4276-a1d0-ad3e887587d0
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column mission_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 7ca4128c-8a71-4610-a102-3fef879c7a4c
+		summarizeBy: none
+		sourceColumn: mission_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column subsystem
+		dataType: string
+		lineageTag: aa89f401-b3be-44da-a098-81b7f85e9f35
+		summarizeBy: none
+		sourceColumn: subsystem
+
+		annotation SummarizationSetBy = Automatic
+
+	column severity
+		dataType: string
+		lineageTag: c7833f47-0901-4238-a630-fd98a58c0543
+		summarizeBy: none
+		sourceColumn: severity
+
+		annotation SummarizationSetBy = Automatic
+
+	column minutes_to_resolve
+		dataType: int64
+		formatString: #,0
+		lineageTag: 8c25b653-5911-4f04-a74a-19bbc8b04653
+		summarizeBy: sum
+		sourceColumn: minutes_to_resolve
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_resolved
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 03ad15ac-d12a-42b0-abc2-28907b86e06a
+		summarizeBy: none
+		sourceColumn: is_resolved
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_anomaly = m
+		mode: import
+		queryGroup: Fact
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("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", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [anomaly_id = _t, date = _t, mission_key = _t, subsystem = _t, severity = _t, minutes_to_resolve = _t, is_resolved = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"anomaly_id", type text}, {"date", type date}, {"mission_key", Int64.Type}, {"subsystem", type text}, {"severity", type text}, {"minutes_to_resolve", Int64.Type}, {"is_resolved", type logical}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

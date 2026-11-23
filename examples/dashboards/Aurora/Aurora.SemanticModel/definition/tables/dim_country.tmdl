@@ -1,0 +1,43 @@
+table dim_country
+	lineageTag: fabb8ffd-dfdf-4b1c-a371-2108c04ea9fa
+
+	column country_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: dcdd7a0a-7c4c-4524-afad-61128942dad0
+		summarizeBy: none
+		sourceColumn: country_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column country
+		dataType: string
+		lineageTag: 2d349329-2610-4780-a166-bb98f9e35a74
+		dataCategory: Country
+		summarizeBy: none
+		sourceColumn: country
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: 7bbe860b-a6fb-4030-a3e6-486a7bf4c789
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_country = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("Vc+5CsJAFIXhV5FT38J9Kceg4oqgqUKKS+YSBvRGJiMuTy/RYkz7/cXhZBl6IKTqgtjOKXCQGoSDQU4Z+iAkrGw52gCEvTxdUYGwM2ez//IQhLnnt7u0eASC8aVocMqtMo6zW6elra4gLNJvm4CwEn9lfUWcgrD0rIVEm4FweogVjdbrgrDhGzdmjib5aXPT3Ovg+eK4VZqXa7WVSv1X8g8=", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [country_key = _t, country = _t, region = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"country_key", Int64.Type}, {"country", type text}, {"region", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

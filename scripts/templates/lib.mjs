@@ -115,6 +115,15 @@ export const as = (f, displayName) => ({ ...f, displayName })
 
 const VC_SCHEMA = 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json'
 
+/**
+ * Templates keep each visual's fields in its `Lumen_SampleData` annotation (empty visuals drawing a sample). The
+ * live dashboards (scripts/dashboards) bind the same fields for real: the visual's own `query`.
+ */
+let liveQueries = false
+export function setLiveQueries(on) {
+  liveQueries = !!on
+}
+
 /** Container defaults for a template visual: no background, no header, title off unless given. */
 function containerObjects(o = {}) {
   const { title, subTitle, background, border, shadow, padding, header, divider, spacing, ...rest } = o
@@ -149,8 +158,13 @@ export function visual(seed, spec) {
     sample = { query: { queryState } }
     if (spec.sort) sample.query.sortDefinition = { sort: [{ field: fieldExpr(spec.sort.field), direction: spec.sort.dir ?? 'Descending' }], isDefaultSort: true }
   }
+  if (sample && liveQueries) {
+    v.query = sample.query
+    sample = undefined
+  }
   if (spec.objects) v.objects = objects(spec.objects)
   if (spec.rawObjects) v.objects = { ...(v.objects ?? {}), ...spec.rawObjects }
+  if (spec.syncGroup) v.syncGroup = { groupName: spec.syncGroup, fieldChanges: true, filterChanges: true }
   if (sample && v.objects) {
     const { plain, fieldBound } = splitFieldObjects(v.objects)
     if (plain) v.objects = plain
@@ -165,6 +179,7 @@ export function visual(seed, spec) {
     position: { x: spec.x, y: spec.y, z: spec.z ?? 1000, height: spec.h, width: spec.w, tabOrder: spec.z ?? 1000 },
     visual: v
   }
+  if (spec.filters) out.filterConfig = { filters: spec.filters }
   const annotations = []
   if (spec.style) annotations.push({ name: 'Lumen_Style', value: JSON.stringify(spec.style) })
   if (sample) annotations.push({ name: 'Lumen_SampleData', value: JSON.stringify(sample) })

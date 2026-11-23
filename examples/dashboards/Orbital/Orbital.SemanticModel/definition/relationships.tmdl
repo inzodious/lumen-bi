@@ -1,0 +1,35 @@
+relationship dc1bec3a-f60b-40d5-ac3f-758726b782e4
+	fromColumn: fact_launch.launch_date
+	toColumn: dim_calendar.date
+
+relationship a9e41c1f-b1de-46d7-a091-276c70306571
+	fromColumn: fact_launch.mission_key
+	toColumn: dim_mission.mission_key
+
+relationship 99fbc09a-f0aa-4f30-a0ae-c798c7f601ad
+	fromColumn: fact_telemetry.date
+	toColumn: dim_calendar.date
+
+relationship 900fb3a9-c40c-4779-aca4-dadd5713f2fa
+	fromColumn: fact_telemetry.mission_key
+	toColumn: dim_mission.mission_key
+
+relationship 517e5174-4e96-4255-a47d-ff3dfb340bb0
+	fromColumn: fact_anomaly.date
+	toColumn: dim_calendar.date
+
+relationship 89690e05-8b01-4c28-af02-a48cefc78d53
+	fromColumn: fact_anomaly.mission_key
+	toColumn: dim_mission.mission_key
+
+relationship 4c3e37c3-5ca9-4b13-a18f-c7073f2f768d
+	fromColumn: fact_ground_pass.month_start
+	toColumn: dim_calendar.date
+
+relationship ddc01079-43e5-48b3-a4f4-e4cda4ea1960
+	fromColumn: fact_ground_pass.station_key
+	toColumn: dim_ground_station.station_key
+
+relationship 9b82b8c6-2f94-44bf-a780-4715f1825e69
+	fromColumn: fact_ground_pass.mission_key
+	toColumn: dim_mission.mission_key

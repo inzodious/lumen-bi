@@ -1,0 +1,79 @@
+table dim_park
+	lineageTag: 56ffef40-a546-41c3-a0e5-634b8bda1905
+
+	column park_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 7927059d-2054-41ca-a632-9c0275f2078f
+		summarizeBy: none
+		sourceColumn: park_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column park
+		dataType: string
+		lineageTag: 386b15f3-66d4-4997-a633-c9b1ca246c23
+		summarizeBy: none
+		sourceColumn: park
+
+		annotation SummarizationSetBy = Automatic
+
+	column terrain
+		dataType: string
+		lineageTag: f2a6408d-8bb7-4f42-a9f1-1c66138070af
+		summarizeBy: none
+		sourceColumn: terrain
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: 91856503-b3d1-4bb2-ab45-4fa4b58e0a21
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	column area_km2
+		dataType: int64
+		formatString: #,0
+		lineageTag: af6874bc-c022-4645-a1f9-78e67837ccb4
+		summarizeBy: sum
+		sourceColumn: area_km2
+
+		annotation SummarizationSetBy = Automatic
+
+	column campsites
+		dataType: int64
+		formatString: 0
+		lineageTag: f1bdc8b3-9270-4040-a2ef-953c05511f23
+		summarizeBy: sum
+		sourceColumn: campsites
+
+		annotation SummarizationSetBy = Automatic
+
+	column established
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 4bbde11a-4085-4155-abf9-7c09717c7d76
+		summarizeBy: none
+		sourceColumn: established
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition dim_park = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("bZCxTsQwDIZfJfIcS06btunIIeAGDiEYGKobIjVHI6IEpT3B4yO7AwxMdqx8+X5nmsCAhtsw+6pe4vweQMNN+oyZm6dStwU0WNOAhrEHDWbsG6QeycBZT8Dz+/KtjiWl8iWHGtYNNNx5KcY50NBbQQeD1KHpBG1Bw0P1OW5BHfwa83/mtmOpJcGdRRqQrOD84inWWqp69B/McFmXUrl/20MYy9uZZuc7h+SwIeE70PAcc1CHdL1c/iZ/LVdxjwOrnaBji2TR7ChHOoZasjr5ui6i25LP8+/aPd9ha0NkkUb5r/MP", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [park_key = _t, park = _t, terrain = _t, region = _t, area_km2 = _t, campsites = _t, established = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"park_key", Int64.Type}, {"park", type text}, {"terrain", type text}, {"region", type text}, {"area_km2", Int64.Type}, {"campsites", Int64.Type}, {"established", type date}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

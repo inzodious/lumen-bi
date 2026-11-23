@@ -1,0 +1,34 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+queryGroup Measures
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup Dimension
+
+	annotation PBI_QueryGroupOrder = 1
+
+queryGroup Fact
+
+	annotation PBI_QueryGroupOrder = 2
+
+annotation PBI_QueryOrder = ["_measures_kpi","_measures_format","dim_calendar","dim_park","dim_trail","dim_species","fact_visit","fact_trail_work","fact_planting","fact_sighting"]
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+ref table _measures_kpi
+ref table _measures_format
+ref table dim_calendar
+ref table dim_park
+ref table dim_trail
+ref table dim_species
+ref table fact_visit
+ref table fact_trail_work
+ref table fact_planting
+ref table fact_sighting

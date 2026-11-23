@@ -8,7 +8,7 @@ import { m, col, as, c, rng } from '../lib.mjs'
 import { svg, f, smooth, contours, noise2, pathOf } from '../art.mjs'
 import { MONTHS, monthColumns, jitter, round, season } from '../data.mjs'
 
-const T = {
+export const T = {
   bg: '#EFE8D8',
   ink: '#21362B',
   muted: '#5D6B5A',
@@ -113,29 +113,40 @@ export const WAYPOINTS = [
 ]
 const trailPts = [[-20, 420], ...WAYPOINTS, [1300, 380]]
 
-const bg = svg(
-  W,
-  H,
-  `<rect width="${W}" height="${H}" fill="${T.bg}"/>` +
-    `<g transform="translate(0 ${BAND})">${topo.map((p, i) => `<path d="${p.d}" fill="none" stroke="${i % 5 === 0 ? '#C9BA94' : '#DCCFAE'}" stroke-width="${i % 5 === 0 ? 1.3 : 0.8}"/>`).join('')}</g>` +
-    `<rect width="${W}" height="${BAND}" fill="url(#sky)"/>` +
-    `<circle cx="1040" cy="78" r="38" fill="#F6E7BF"/><circle cx="1040" cy="78" r="56" fill="#F6E7BF" opacity="0.35"/>` +
-    birds(860, 64) +
-    birds(300, 46) +
-    `<path d="${ridge('r1', 150, 90, 70, 0.006)}" fill="#A9BFB8"/>` +
-    `<path d="${ridge('r2', 178, 70, 60, 0.009)}" fill="#7E9C8C"/>` +
-    `<path d="${ridge('r3', 202, 50, 50, 0.012)}" fill="#557A63"/>` +
-    pines('p1', 46, 220, 26, 44, '#3E6B50') +
-    `<path d="${ridge('r4', 226, 18, 40, 0.02)}" fill="${T.forest}"/>` +
-    pines('p2', 60, 240, 30, 58, T.ink) +
-    `<rect y="${BAND}" width="${W}" height="10" fill="${T.ink}"/>` +
-    // the trail
-    `<path d="${smooth(trailPts, false, 0.5)}" fill="none" stroke="${T.clay}" stroke-width="4" stroke-dasharray="10 9" stroke-linecap="round"/>` +
-    WAYPOINTS.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="62" fill="${T.bg}" stroke="${T.ink}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="55" fill="none" stroke="${T.clay}" stroke-width="1.5" stroke-dasharray="3 4"/>`).join(''),
-  `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CFE0DA"/><stop offset="1" stop-color="#F2E6C9"/></linearGradient>`
-)
+/**
+ * The panorama over contour lines. `trail` draws the dashed trail and its waypoint rings; `band` < 1 squashes the
+ * mountains into a lower strip (the dashboards' detail pages).
+ */
+export function backdrop({ trail = true, band = 1 } = {}) {
+  const top = BAND * band
+  return svg(
+    W,
+    H,
+    `<rect width="${W}" height="${H}" fill="${T.bg}"/>` +
+      `<g transform="translate(0 ${top})">${topo.map((p, i) => `<path d="${p.d}" fill="none" stroke="${i % 5 === 0 ? '#C9BA94' : '#DCCFAE'}" stroke-width="${i % 5 === 0 ? 1.3 : 0.8}"/>`).join('')}</g>` +
+      (band === 1 ? '' : `<g transform="scale(1 ${band})">`) +
+      `<rect width="${W}" height="${BAND}" fill="url(#sky)"/>` +
+      `<circle cx="1040" cy="78" r="38" fill="#F6E7BF"/><circle cx="1040" cy="78" r="56" fill="#F6E7BF" opacity="0.35"/>` +
+      birds(860, 64) +
+      birds(300, 46) +
+      `<path d="${ridge('r1', 150, 90, 70, 0.006)}" fill="#A9BFB8"/>` +
+      `<path d="${ridge('r2', 178, 70, 60, 0.009)}" fill="#7E9C8C"/>` +
+      `<path d="${ridge('r3', 202, 50, 50, 0.012)}" fill="#557A63"/>` +
+      pines('p1', 46, 220, 26, 44, '#3E6B50') +
+      `<path d="${ridge('r4', 226, 18, 40, 0.02)}" fill="${T.forest}"/>` +
+      pines('p2', 60, 240, 30, 58, T.ink) +
+      `<rect y="${BAND}" width="${W}" height="10" fill="${T.ink}"/>` +
+      (band === 1 ? '' : '</g>') +
+      (trail
+        ? `<path d="${smooth(trailPts, false, 0.5)}" fill="none" stroke="${T.clay}" stroke-width="4" stroke-dasharray="10 9" stroke-linecap="round"/>` +
+          WAYPOINTS.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="62" fill="${T.bg}" stroke="${T.ink}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="55" fill="none" stroke="${T.clay}" stroke-width="1.5" stroke-dasharray="3 4"/>`).join('')
+        : ''),
+    `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CFE0DA"/><stop offset="1" stop-color="#F2E6C9"/></linearGradient>`
+  )
+}
+const bg = backdrop()
 
-const compass = svg(
+export const compass = svg(
   90,
   90,
   `<circle cx="45" cy="45" r="40" fill="${T.bg}" stroke="${T.ink}" stroke-width="2.5"/><circle cx="45" cy="45" r="33" fill="none" stroke="${T.ink}" stroke-width="0.8"/>` +

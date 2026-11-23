@@ -1,0 +1,19 @@
+relationship a462ee8b-c23f-487b-a3fe-9efc8bca79e9
+	fromColumn: fact_stream.month_start
+	toColumn: dim_calendar.date
+
+relationship 9cdd70b7-e6dc-417f-aafe-4cbed02f0644
+	fromColumn: fact_stream.track_key
+	toColumn: dim_track.track_key
+
+relationship 4dfef253-0fea-4879-a375-18e7413e4aec
+	fromColumn: fact_stream.country_key
+	toColumn: dim_country.country_key
+
+relationship 7e754df7-be88-4adf-a3a9-326acfe67b2e
+	fromColumn: fact_audience.month_start
+	toColumn: dim_calendar.date
+
+relationship 7f544a56-bb58-48f7-ae5a-053b11f11360
+	fromColumn: fact_audience.country_key
+	toColumn: dim_country.country_key

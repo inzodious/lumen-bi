@@ -1,0 +1,171 @@
+table _measures_kpi
+	lineageTag: 94849b87-90d9-46b8-a912-042ae0dbb4e8
+
+	measure kpi_streams = SUM(fact_stream[streams])
+		formatString: #,0
+		displayFolder: Streams
+		lineageTag: fb410de5-4364-47c2-a94d-fdae2a077cc2
+
+	measure kpi_streams_py =
+			CALCULATE(
+				[kpi_streams],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: #,0
+		displayFolder: Streams
+		lineageTag: e140637d-e947-43a5-a4a8-e55737bb7c65
+
+	measure kpi_streams_yoy_pct = DIVIDE([kpi_streams] - [kpi_streams_py], [kpi_streams_py])
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Streams
+		lineageTag: 5bf2c334-78f9-4b79-a0b3-435a5fa09411
+
+	measure kpi_streams_last_month =
+			VAR _last = MAX(fact_stream[month_start])
+			RETURN
+				CALCULATE(
+					[kpi_streams],
+					fact_stream[month_start] = _last
+				)
+		formatString: #,0
+		displayFolder: Streams
+		lineageTag: 28be8e22-3429-454f-ab72-71de889e6bd8
+
+	measure kpi_streams_mom_pct =
+			VAR _last = MAX(fact_stream[month_start])
+			VAR _prior = EDATE(_last, -1)
+			VAR _now =
+				CALCULATE(
+					[kpi_streams],
+					fact_stream[month_start] = _last
+				)
+			VAR _before =
+				CALCULATE(
+					[kpi_streams],
+					REMOVEFILTERS(dim_calendar),
+					fact_stream[month_start] = _prior
+				)
+			RETURN
+				DIVIDE(_now - _before, _before)
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Streams
+		lineageTag: 0f34d551-c9eb-425b-afb8-1dc393b1f4cb
+
+	measure kpi_stream_listeners = SUM(fact_stream[listeners])
+		formatString: #,0
+		displayFolder: Streams
+		lineageTag: 3a69780e-fa77-43a3-a463-b4187b92a6e6
+
+	measure kpi_saves = SUM(fact_stream[saves])
+		formatString: #,0
+		displayFolder: Streams
+		lineageTag: f53b3266-a236-47ec-af4a-fc1f8b842dda
+
+	measure kpi_save_rate_pct = DIVIDE([kpi_saves], [kpi_streams])
+		formatString: 0.00%
+		displayFolder: Streams
+		lineageTag: d4461315-dd1d-477c-a2ea-c2e899b2b6f5
+
+	measure kpi_skip_rate_pct = DIVIDE(SUM(fact_stream[skips]), [kpi_streams])
+		formatString: 0.0%
+		displayFolder: Streams
+		lineageTag: 45d02e0f-776e-46ec-aa86-589c06f7b06c
+
+	measure kpi_streams_per_listener = DIVIDE([kpi_streams], [kpi_stream_listeners])
+		formatString: 0.00
+		displayFolder: Streams
+		lineageTag: a1343264-e8ec-4045-a038-62142c6551c5
+
+	measure kpi_discovery_share_pct =
+			DIVIDE(
+				CALCULATE(
+					[kpi_streams],
+					KEEPFILTERS(fact_stream[source] IN {"Editorial playlists", "Algorithmic", "Search"})
+				),
+				[kpi_streams]
+			)
+		formatString: 0%
+		displayFolder: Streams
+		lineageTag: f65b0360-efdf-49a0-aed3-01b0e6189552
+
+	measure kpi_revenue = SUM(fact_stream[revenue_usd])
+		formatString: \$#,0
+		displayFolder: Revenue
+		lineageTag: a3f880a3-5429-4158-a590-2bdc70fef95a
+
+	measure kpi_revenue_per_1k_streams = DIVIDE([kpi_revenue] * 1000, [kpi_streams])
+		formatString: \$#,0.00
+		displayFolder: Revenue
+		lineageTag: 3dae0a75-b59b-4451-a443-c260f042a166
+
+	measure kpi_revenue_py =
+			CALCULATE(
+				[kpi_revenue],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: \$#,0
+		displayFolder: Revenue
+		lineageTag: 0894edae-0814-4dc5-a6c0-18c551ef5a05
+
+	measure kpi_monthly_listeners =
+			VAR _last = MAX(fact_audience[month_start])
+			RETURN
+				CALCULATE(
+					SUM(fact_audience[monthly_listeners]),
+					fact_audience[month_start] = _last
+				)
+		formatString: #,0
+		displayFolder: Audience
+		lineageTag: 5f20c085-9737-4626-a336-e3bcd7ee708a
+
+	measure kpi_monthly_listeners_avg =
+			AVERAGEX(
+				VALUES(fact_audience[month_start]),
+				CALCULATE(SUM(fact_audience[monthly_listeners]))
+			)
+		formatString: #,0
+		displayFolder: Audience
+		lineageTag: 257c3a7f-e8dd-4d76-ac1e-93f03e7e8a3f
+
+	measure kpi_followers_gained = SUM(fact_audience[followers_gained])
+		formatString: #,0
+		displayFolder: Audience
+		lineageTag: eb7c8c71-c8a7-4bca-a3f8-a4988dcd6505
+
+	measure kpi_followers_lost = SUM(fact_audience[followers_lost])
+		formatString: #,0
+		displayFolder: Audience
+		lineageTag: 5cdf3710-15f8-46e4-a356-c5d4f4c20085
+
+	measure kpi_followers_net = [kpi_followers_gained] - [kpi_followers_lost]
+		formatString: +#,0;-#,0;0
+		displayFolder: Audience
+		lineageTag: c5c91f59-315e-443c-ac43-d340e0c9c1af
+
+	measure kpi_countries = DISTINCTCOUNT(fact_stream[country_key])
+		formatString: 0
+		displayFolder: Audience
+		lineageTag: ba7c71bc-4bea-4344-ade7-d38264530b55
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: 2ee978db-72ac-4076-a34c-9d941badfd15
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_kpi = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

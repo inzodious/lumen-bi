@@ -9,7 +9,7 @@ import { svg, stars, f, pathOf } from '../art.mjs'
 import { MONTHS, monthColumns, jitter, round } from '../data.mjs'
 import { rng } from '../lib.mjs'
 
-const T = {
+export const T = {
   bg: '#070817',
   ink: '#E9F1FF',
   muted: '#8C9AC4',
@@ -125,26 +125,30 @@ const defs =
   `<radialGradient id="terminator" cx="0.75" cy="0.8" r="0.9"><stop offset="0.45" stop-color="#05061A" stop-opacity="0"/><stop offset="1" stop-color="#05061A" stop-opacity="0.85"/></radialGradient>` +
   `<linearGradient id="rule" x1="0" x2="1"><stop offset="0" stop-color="${T.cyan}" stop-opacity="0.9"/><stop offset="0.5" stop-color="${T.violet}" stop-opacity="0.5"/><stop offset="1" stop-color="${T.magenta}" stop-opacity="0"/></linearGradient>`
 
-const bg = svg(
-  W,
-  H,
-  `<rect width="${W}" height="${H}" fill="url(#sky)"/>` +
-    neb.map((n) => n[1]).join('') +
-    stars(W, H, 340, 'orbital-stars', { color: '#DDE6FF', max: 1.5 }) +
-    moon(574, 52, 20) +
-    ring() +
-    `<rect x="40" y="86" width="1200" height="1.2" fill="url(#rule)"/>`,
-  defs
-)
+/** The deep-space backdrop; `hud` adds the ring around the headline (the dashboards' detail pages leave it out). */
+export function backdrop({ hud = true } = {}) {
+  return svg(
+    W,
+    H,
+    `<rect width="${W}" height="${H}" fill="url(#sky)"/>` +
+      neb.map((n) => n[1]).join('') +
+      stars(W, H, 340, 'orbital-stars', { color: '#DDE6FF', max: 1.5 }) +
+      moon(574, 52, 20) +
+      (hud ? ring() : '') +
+      `<rect x="40" y="86" width="1200" height="1.2" fill="url(#rule)"/>`,
+    defs
+  )
+}
+const bg = backdrop()
 
-const logo = svg(
+export const logo = svg(
   64,
   64,
   `<circle cx="32" cy="32" r="15" fill="url(#p)"/><ellipse cx="32" cy="32" rx="29" ry="9" transform="rotate(-24 32 32)" fill="none" stroke="${T.cyan}" stroke-width="2.2"/><path d="M17.5 36.5a15 15 0 0 0 29-9" fill="none" stroke="#070817" stroke-width="0"/><circle cx="56" cy="21" r="2.6" fill="${T.amber}"/>`,
   `<linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${T.violet}"/><stop offset="1" stop-color="${T.magenta}"/></linearGradient>`
 )
 
-const satellite = svg(
+export const satellite = svg(
   220,
   120,
   `<g transform="rotate(-18 110 60)">` +
@@ -161,7 +165,7 @@ const satellite = svg(
 const ORBIT_COLORS = { LEO: T.cyan, MEO: T.violet, GEO: T.magenta, Polar: T.amber }
 
 // ---------------------------------------------------------------- page
-const glass = (extra = {}) => ({
+export const glass = (extra = {}) => ({
   box: { background: { color: c('#FFFFFF'), transparency: 93 }, border: { color: c('#7F8CFF'), width: 1, radius: 14 }, padding: 14, ...extra.box },
   style: { blur: 14, gradient: { angle: 155, stops: ['#FFFFFF1F', '#8B6BFF14', '#FFFFFF08'] }, glow: { color: extra.glow ?? T.cyan, size: 22, opacity: 0.22 } }
 })

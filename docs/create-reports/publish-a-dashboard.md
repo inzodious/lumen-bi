@@ -33,7 +33,7 @@ settings without publishing.
 | Netlify | Its own site, `https://<site name>.netlify.app`, created on first publish | none | Personal access token |
 | Cloudflare Pages | Its own Pages project, `https://<project name>.pages.dev`, created on first publish | Account ID | API token with Account ▸ Cloudflare Pages ▸ Edit |
 | S3-compatible storage | A key prefix in a bucket served as a website (AWS S3 static hosting, Cloudflare R2, MinIO) | Bucket, endpoint, region, prefix, public URL | Access key ID and secret access key, or the AWS default credentials |
-| Lumen Server | `<server>/d/<dashboard name>/` on your own server, listed on its home page | Server address | The server's `LUMEN_SERVER_TOKEN` |
+| Lumen Server | `<server>/d/<dashboard name>/` on your own server, shown in its gallery | Server address | **Sign in with Google**, or the server's `LUMEN_SERVER_TOKEN` |
 
 With a hosted destination selected, the dialog asks for the dashboard's **Folder**, **Site name** or **Project name**
 there. It starts from the title and is remembered per report, so the next publish of the same report updates the
@@ -52,13 +52,21 @@ To set it up:
 2. Create a token with `openssl rand -hex 24` and put `LUMEN_SERVER_TOKEN=<token>` in `server/.env`.
 3. Run `docker compose up -d --build` in that folder. The server listens on port 8080.
 4. In Lumen, add a **Lumen Server** destination with the address, for example `http://nas.local:8080`, and the token.
+   With Google sign-in set up on the server (see `server/README.md`), choose **Sign in with Google** instead: the
+   server opens in your browser, and after you sign in and select **Connect**, Lumen is connected without a token.
 
 With a Lumen Server destination selected, **Who can open it** sets the dashboard's access:
 
-- **Keep the current setting** leaves a republished dashboard as it was. A new dashboard is open to anyone with the link.
+- **Keep the current setting** leaves a republished dashboard as it was. A new dashboard starts as the server's
+  default: private with Google sign-in, otherwise open to anyone with the link.
 - **Anyone with the link** removes a password.
 - **People with a password** asks viewers for the password once per browser (for 30 days). The server stores only a
   salted hash of it.
+- **Only approved Google accounts** asks viewers to sign in with Google (servers with Google sign-in).
+
+When publishing to Lumen Server, Lumen also saves a picture of each page (up to 8) for the server's gallery. The
+server's admin console (`/admin`) changes a dashboard's title, description, tags, visibility, place on the home page
+and embedding afterwards.
 
 A password keeps the dashboard's files, data included, behind the sign-in page. Use HTTPS (a reverse proxy such as
 Caddy or a Cloudflare Tunnel in front of the server) when the server is reachable from the internet, so the password

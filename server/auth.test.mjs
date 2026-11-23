@@ -111,6 +111,56 @@ describe('Google sign-in', () => {
     expect((await fetch(`${base}/api/me`, { headers: auth })).status).toBe(401)
   })
 
+  it('keeps new dashboards private, and lets the admin console make one public, featured and embeddable', async () => {
+    const session = cookiesOf(await signIn()).find((c) => c.startsWith('lumen_session='))
+    const cb = 'http://127.0.0.1:5999/cb'
+    const html = await (await fetch(`${base}/connect?callback=${encodeURIComponent(cb)}&state=s`, { headers: { cookie: session } })).text()
+    const csrf = /name="csrf" value="([^"]+)"/.exec(html)[1]
+    const ok = await fetch(`${base}/connect`, { method: 'POST', redirect: 'manual', headers: { cookie: session, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ callback: cb, state: 's', csrf }) })
+    const auth = { authorization: `Bearer ${new URL(ok.headers.get('location')).searchParams.get('key')}` }
+
+    expect((await (await fetch(`${base}/api/dashboards/sales`, { method: 'PUT', body: site('Sales'), headers: auth })).json()).access).toBe('users')
+    expect((await fetch(`${base}/admin`, { redirect: 'manual' })).status).toBe(302)
+    const list = await (await fetch(`${base}/admin`, { headers: { cookie: session } })).text()
+    expect(list).toContain('/admin/d/sales')
+    const edit = await (await fetch(`${base}/admin/d/sales`, { headers: { cookie: session } })).text()
+    const token = /name="csrf" value="([^"]+)"/.exec(edit)[1]
+    const save = (fields) => fetch(`${base}/admin/d/sales`, { method: 'POST', headers: { cookie: session, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf: token, ...fields }) })
+    expect((await save({ csrf: 'forged', title: 'X' })).status).toBe(400)
+    const saved = await (await save({ title: 'Sales overview', description: 'Monthly sales', tags: 'sales, monthly', access: 'public', listed: 'on', featured: 'on', order: '1', embed: 'on', origins: 'hemlineanalytics.com\nhttps://example.org/path' })).text()
+    expect(saved).toContain('Saved.')
+    expect(saved).toContain('?embed=1')
+
+    const page = await fetch(`${base}/d/sales/`)
+    expect(page.status).toBe(200)
+    expect(page.headers.get('content-security-policy')).toBe("frame-ancestors 'self' https://hemlineanalytics.com https://example.org")
+    const pub = await (await fetch(`${base}/api/public/dashboards`)).json()
+    expect(pub).toEqual([expect.objectContaining({ slug: 'sales', title: 'Sales overview', description: 'Monthly sales', tags: ['sales', 'monthly'], featured: true, url: 'https://dash.example.com/d/sales/', embedUrl: 'https://dash.example.com/d/sales/?embed=1' })])
+    expect(await (await fetch(`${base}/`)).text()).toContain('Sales overview')
+
+    // republishing keeps the console's changes
+    await fetch(`${base}/api/dashboards/sales`, { method: 'PUT', body: site('Sales v2'), headers: auth })
+    expect((await (await fetch(`${base}/api/public/dashboards`)).json())[0].title).toBe('Sales overview')
+
+    // private again: no embedding, gone from the public list
+    await save({ title: 'Sales overview', access: 'users', embed: 'on' })
+    expect((await fetch(`${base}/api/public/dashboards`).then((r) => r.json())).length).toBe(0)
+    expect((await fetch(`${base}/d/sales/`, { headers: { cookie: session } })).headers.get('content-security-policy')).toBe("frame-ancestors 'self'")
+
+    const settings = await (await fetch(`${base}/admin/settings`, { headers: { cookie: session } })).text()
+    const t2 = /name="csrf" value="([^"]+)"/.exec(settings)[1]
+    await fetch(`${base}/admin/settings`, { method: 'POST', headers: { cookie: session, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf: t2, title: 'Hemline Dashboards', tagline: 'Work samples', accent: '#1E3A2B', listing: 'on', defaultAccess: 'users' }) })
+    const home = await (await fetch(`${base}/`)).text()
+    expect(home).toContain('Hemline Dashboards')
+    expect(home).toContain('Work samples')
+    expect(home).toContain('--accent:#1E3A2B')
+
+    const del = await (await fetch(`${base}/admin/d/sales`, { headers: { cookie: session } })).text()
+    const t3 = /name="csrf" value="([^"]+)"/.exec(del)[1]
+    await fetch(`${base}/admin/d/sales/delete`, { method: 'POST', headers: { cookie: session, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf: t3 }) })
+    expect((await fetch(`${base}/api/dashboards/sales`, { headers: auth })).status).toBe(404)
+  })
+
   it('refuses to send a key anywhere but this computer', async () => {
     const session = cookiesOf(await signIn()).find((c) => c.startsWith('lumen_session='))
     expect((await fetch(`${base}/connect?callback=${encodeURIComponent('https://evil.example/cb')}`, { headers: { cookie: session } })).status).toBe(400)

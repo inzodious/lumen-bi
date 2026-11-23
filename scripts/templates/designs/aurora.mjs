@@ -9,7 +9,7 @@ import { m, col, as, c, rng } from '../lib.mjs'
 import { svg, f, smooth } from '../art.mjs'
 import { MONTHS, monthColumns, jitter, round, season } from '../data.mjs'
 
-const T = {
+export const T = {
   bg: '#F4F1FF',
   ink: '#1E1838',
   muted: '#6B6489',
@@ -93,7 +93,7 @@ const blobs = [
   [700, 300, 200, T.sky, 0.32]
 ]
 const ribbons = [ribbon('a', 250, 70, T.violet, T.pink, 46, 0.35), ribbon('b', 330, 60, T.aqua, T.violet, 26, 0.35), ribbon('c', 420, 80, T.pink, T.peach, 14, 0.45), ribbon('d', 300, 50, '#FFFFFF', T.sky, 6, 0.8)]
-const bg = svg(
+export const bg = svg(
   W,
   H,
   `<rect width="${W}" height="${H}" fill="${T.bg}"/>` +
@@ -106,7 +106,7 @@ const bg = svg(
   `<filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="70"/></filter><filter id="glow" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>` + ribbons.map((r) => r[0]).join('')
 )
 
-const wave = svg(
+export const wave = svg(
   320,
   120,
   Array.from({ length: 40 }, (_, i) => {
@@ -116,7 +116,7 @@ const wave = svg(
   `<linearGradient id="w" x1="0" x2="1"><stop offset="0" stop-color="${T.violet}"/><stop offset="0.5" stop-color="${T.pink}"/><stop offset="1" stop-color="${T.peach}"/></linearGradient>`
 )
 
-const orb = svg(
+export const orb = svg(
   120,
   120,
   `<circle cx="60" cy="60" r="52" fill="url(#o)"/><ellipse cx="44" cy="38" rx="20" ry="12" fill="#FFFFFF" opacity="0.6" transform="rotate(-30 44 38)"/><circle cx="60" cy="60" r="52" fill="none" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="2"/>`,
@@ -124,7 +124,7 @@ const orb = svg(
 )
 
 // ---------------------------------------------------------------- page
-const glass = (extra = {}) => ({
+export const glass = (extra = {}) => ({
   box: { background: { color: c('#FFFFFF'), transparency: 45 }, border: { color: c('#FFFFFF'), width: 1.5, radius: 22 }, padding: 16, ...(extra.box ?? {}) },
   style: { blur: 22, gradient: { angle: 145, stops: ['#FFFFFFB8', '#FFFFFF59'] }, glow: { color: extra.glow ?? T.violet, size: 26, opacity: 0.16 } }
 })

@@ -25,5 +25,5 @@
       "@parity/lakehouse/node": ["tests/support/lakehouse/node-entry.ts"]
     }
   },
-  "include": ["src/**/*", "electron.vite.config.ts", "viewer.vite.config.ts", "vitest.config.ts", "tests/**/*", "datasets/src/**/*"]
+  "include": ["src/**/*", "electron.vite.config.ts", "viewer.vite.config.ts", "vitest.config.ts", "tests/**/*", "datasets/src/**/*", "examples/**/*.ts"]
 }

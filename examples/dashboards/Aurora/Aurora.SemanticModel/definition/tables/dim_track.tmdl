@@ -1,0 +1,79 @@
+table dim_track
+	lineageTag: d8ea7cff-1230-4b96-af21-c366ee0a0f6a
+
+	column track_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 8e6b5cb5-d558-43b1-a8dc-f2c096ef9c4d
+		summarizeBy: none
+		sourceColumn: track_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column track
+		dataType: string
+		lineageTag: 0de16ff6-66e2-41f7-a6e7-6f624c1645ce
+		summarizeBy: none
+		sourceColumn: track
+
+		annotation SummarizationSetBy = Automatic
+
+	column release
+		dataType: string
+		lineageTag: 3e01df7f-2271-4bc3-ac59-ce10cbb831db
+		summarizeBy: none
+		sourceColumn: release
+
+		annotation SummarizationSetBy = Automatic
+
+	column release_type
+		dataType: string
+		lineageTag: 0c9e0f34-ea45-479d-a225-770cf9ffc7f2
+		summarizeBy: none
+		sourceColumn: release_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column release_date
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: d910dd0a-0df3-4612-a286-dbcda40cb436
+		summarizeBy: none
+		sourceColumn: release_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column track_number
+		dataType: int64
+		formatString: 0
+		lineageTag: 10800c24-835d-4eb5-a628-cfb9f94d4bfa
+		summarizeBy: none
+		sourceColumn: track_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column duration_sec
+		dataType: int64
+		formatString: 0
+		lineageTag: a6d4941d-5aa1-40b1-a2d0-2e8513f3479d
+		summarizeBy: none
+		sourceColumn: duration_sec
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_track = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("lZHNasQgFEZfRe5aQW/+lx0ozWJaBtJdyMK2TiI4sahhXr9omFKmXdiVXvEcPv3GEQRQeLEuLMqt5KjnJfg/Tx7M23YBCsixZIIzXgJNMGIJEx0BgcKTkd4vdvMq3xE50bXJUQCFk/xUjjxbu/4jSASxFEkS58GeAxmCDPo9X5LS8CZJKqDwqj+kyccjgjUmvI6XzkG52dhrviJiWBRJ0QCFXhpLBiW9XX9Nj6edrhjvmMBbG2Kn2/gJMihjdFCkV9KFDEOytF0ydEDhaK8mBs5AUwNVlVDBY49O+8uPddDrbNSO1YyXTDS3zHwvTsThYDZFeru5u/0d3jJsv5/cwTR9AQ==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [track_key = _t, track = _t, release = _t, release_type = _t, release_date = _t, track_number = _t, duration_sec = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"track_key", Int64.Type}, {"track", type text}, {"release", type text}, {"release_type", type text}, {"release_date", type date}, {"track_number", Int64.Type}, {"duration_sec", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

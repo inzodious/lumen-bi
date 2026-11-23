@@ -1,0 +1,165 @@
+table dim_calendar
+	lineageTag: 99c481a0-9b28-4192-ab09-7f09bfebd88a
+	dataCategory: Time
+
+	column date
+		dataType: dateTime
+		isKey
+		formatString: Short Date
+		lineageTag: 10e64fd6-866b-442d-a791-18e7ec8ece08
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: 326bc7b1-98c6-49f7-a2d7-e38bce2780bb
+		summarizeBy: none
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+	column quarter
+		dataType: string
+		lineageTag: b0264143-78b6-4656-ad41-349cc7a647b2
+		summarizeBy: none
+		sourceColumn: quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column month
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 58c77e5e-0cf8-476f-af07-37164055c88a
+		summarizeBy: none
+		sourceColumn: month
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_name
+		dataType: string
+		lineageTag: 17d791e5-daa4-4102-a09f-20a6d78a0b95
+		summarizeBy: none
+		sourceColumn: month_name
+		sortByColumn: month
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_abbr
+		dataType: string
+		lineageTag: a27e8f7a-4ef3-4e04-a4d2-3d2abc15deca
+		summarizeBy: none
+		sourceColumn: month_abbr
+		sortByColumn: month
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_start
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 07bd55d4-ecbb-45c1-a1d2-938405fd324a
+		summarizeBy: none
+		sourceColumn: month_start
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column month_label
+		dataType: string
+		lineageTag: 1c720c07-19d9-4c5b-a32b-ab13061ae4e0
+		summarizeBy: none
+		sourceColumn: month_label
+		sortByColumn: month_start
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column week_start
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 574534a3-5d8b-42ba-a3df-66c08c136179
+		summarizeBy: none
+		sourceColumn: week_start
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column day_of_week
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: e215a9f2-8af8-4e62-a1e0-c5dbc1323902
+		summarizeBy: none
+		sourceColumn: day_of_week
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_name
+		dataType: string
+		lineageTag: 88853d28-65c6-42be-add6-4e93fa7aade1
+		summarizeBy: none
+		sourceColumn: day_name
+		sortByColumn: day_of_week
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_abbr
+		dataType: string
+		lineageTag: a40d3530-f55d-4d1e-ae9a-1a7f45d6aa1b
+		summarizeBy: none
+		sourceColumn: day_abbr
+		sortByColumn: day_of_week
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_weekend
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 3a6fa16b-1b65-4867-a0a6-abd334b01139
+		summarizeBy: none
+		sourceColumn: is_weekend
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_calendar = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = List.Dates(#date(2025, 1, 1), Duration.Days(#date(2026, 10, 31) - #date(2025, 1, 1)) + 1, #duration(1, 0, 0, 0)),
+				    #"Converted to Table" = Table.FromList(Source, Splitter.SplitByNothing(), {"date"}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Converted to Table", {{"date", type date}}),
+				    #"Added Year" = Table.AddColumn(#"Changed Type", "year", each Date.Year([date]), Int64.Type),
+				    #"Added Quarter" = Table.AddColumn(#"Added Year", "quarter", each "Q" & Text.From(Date.QuarterOfYear([date])), type text),
+				    #"Added Month" = Table.AddColumn(#"Added Quarter", "month", each Date.Month([date]), Int64.Type),
+				    #"Added Month Name" = Table.AddColumn(#"Added Month", "month_name", each Date.MonthName([date], "en-US"), type text),
+				    #"Added Month Abbr" = Table.AddColumn(#"Added Month Name", "month_abbr", each Text.Start([month_name], 3), type text),
+				    #"Added Month Start" = Table.AddColumn(#"Added Month Abbr", "month_start", each Date.StartOfMonth([date]), type date),
+				    #"Added Month Label" = Table.AddColumn(#"Added Month Start", "month_label", each [month_abbr] & " " & Text.End(Text.From([year]), 2), type text),
+				    #"Added Week Start" = Table.AddColumn(#"Added Month Label", "week_start", each Date.StartOfWeek([date], Day.Monday), type date),
+				    #"Added Day of Week" = Table.AddColumn(#"Added Week Start", "day_of_week", each Date.DayOfWeek([date], Day.Monday) + 1, Int64.Type),
+				    #"Added Day Name" = Table.AddColumn(#"Added Day of Week", "day_name", each Date.DayOfWeekName([date], "en-US"), type text),
+				    #"Added Day Abbr" = Table.AddColumn(#"Added Day Name", "day_abbr", each Text.Start([day_name], 3), type text),
+				    #"Added Weekend Flag" = Table.AddColumn(#"Added Day Abbr", "is_weekend", each [day_of_week] > 5, type logical)
+				in
+				    #"Added Weekend Flag"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

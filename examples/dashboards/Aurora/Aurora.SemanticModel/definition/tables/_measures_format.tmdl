@@ -1,0 +1,78 @@
+table _measures_format
+	lineageTag: ec3b2908-07bd-417d-a515-1f74aba816ce
+
+	measure fmt_period =
+			VAR _first = MIN(dim_calendar[date])
+			VAR _last = MAX(dim_calendar[date])
+			RETURN
+				FORMAT(_first, "mmm") & " – " & FORMAT(_last, "mmm yyyy")
+		lineageTag: ad12a08b-4cf9-45f8-a673-25de58863320
+
+	measure fmt_streams_note = FORMAT([kpi_streams_yoy_pct], "+0%;-0%;0%") & " vs last year  ·  " & FORMAT([kpi_streams_mom_pct], "+0%;-0%;0%") & " last month"
+		lineageTag: 67983d91-ca10-490c-aaae-36342dfb2e42
+
+	measure fmt_listeners_note = "in " & FORMAT(MAX(fact_audience[month_start]), "mmmm")
+		lineageTag: a81ca0a9-7f82-4433-a2b5-0be24842cef1
+
+	measure fmt_saves_note = FORMAT([kpi_save_rate_pct], "0.0%") & " of streams saved"
+		lineageTag: ee0f03ab-35e9-4281-aa23-ea1922bf2482
+
+	measure fmt_followers_note = FORMAT([kpi_followers_net], "+#,0;-#,0") & " net"
+		lineageTag: 2409b3bb-bf07-46bd-a03d-49fbca50597b
+
+	measure fmt_skip_note = FORMAT([kpi_streams_per_listener], "0.0") & " streams per listener"
+		lineageTag: 0a3981d5-49bd-45b7-aeea-793a22e6b632
+
+	measure fmt_revenue_note = FORMAT([kpi_revenue_per_1k_streams], "$0.00") & " per 1,000 streams"
+		lineageTag: aeded462-ba36-43ad-a008-a659af045bc7
+
+	measure fmt_discovery_note = "playlists, algorithm and search"
+		lineageTag: 65ff475d-5444-49b1-ae1e-dd4a7dd64d9a
+
+	measure fmt_churn_note = FORMAT(DIVIDE([kpi_followers_lost], [kpi_followers_gained]), "0%") & " of new follows"
+		lineageTag: e09bb144-7f8a-4f62-a4ce-fcb366a2500a
+
+	measure fmt_top_track =
+			VAR _top =
+				TOPN(
+					1,
+					VALUES(dim_track[track]),
+					[kpi_streams]
+				)
+			RETURN
+				"top track: " & MAXX(_top, dim_track[track])
+		lineageTag: df871699-a867-41e6-ac28-5d1d790aa07b
+
+	measure fmt_top_country =
+			VAR _top =
+				TOPN(
+					1,
+					VALUES(dim_country[country]),
+					[kpi_streams]
+				)
+			RETURN
+				"most streams: " & MAXX(_top, dim_country[country])
+		lineageTag: 7d23f7b2-3fad-49c2-a39a-47df9f624234
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: d42f2666-2c34-46c7-ad94-d3a0ea769c7f
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_format = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

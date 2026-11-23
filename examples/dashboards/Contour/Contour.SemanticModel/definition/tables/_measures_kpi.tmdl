@@ -1,0 +1,175 @@
+table _measures_kpi
+	lineageTag: 142c76d0-209e-44cd-a2c2-561194436533
+
+	measure kpi_visitors = SUM(fact_visit[visitors])
+		formatString: #,0
+		displayFolder: Visitors
+		lineageTag: e9830b25-42eb-444c-a2ee-21bc3a24cff7
+
+	measure kpi_visitors_py =
+			CALCULATE(
+				[kpi_visitors],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: #,0
+		displayFolder: Visitors
+		lineageTag: 57be2104-067c-4964-a7c8-8215e536be7b
+
+	measure kpi_visitors_yoy_pct = DIVIDE([kpi_visitors] - [kpi_visitors_py], [kpi_visitors_py])
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Visitors
+		lineageTag: 30cb81ce-2fc1-4879-a165-09ab178de824
+
+	measure kpi_vehicles = SUM(fact_visit[vehicles])
+		formatString: #,0
+		displayFolder: Visitors
+		lineageTag: 13b53bf5-2bae-4fe7-af32-6e3052855116
+
+	measure kpi_permit_revenue = SUM(fact_visit[permit_revenue])
+		formatString: \$#,0
+		displayFolder: Visitors
+		lineageTag: 187cd30c-c5f8-4d4e-a4cf-89152ab62932
+
+	measure kpi_permit_revenue_py =
+			CALCULATE(
+				[kpi_permit_revenue],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: \$#,0
+		displayFolder: Visitors
+		lineageTag: 7215d10d-fb56-4d52-a077-829f414daf5c
+
+	measure kpi_revenue_per_visitor = DIVIDE([kpi_permit_revenue], [kpi_visitors])
+		formatString: \$#,0.00
+		displayFolder: Visitors
+		lineageTag: c0454fe9-e876-421b-afaa-97ae16fefe32
+
+	measure kpi_campsite_nights = SUM(fact_visit[campsite_nights])
+		formatString: #,0
+		displayFolder: Visitors
+		lineageTag: 0b4cef74-256d-4d69-a223-4f7462d1f78f
+
+	measure kpi_campsite_occupancy_pct =
+			DIVIDE(
+				[kpi_campsite_nights],
+				SUMX(
+					VALUES(dim_park[park_key]),
+					CALCULATE(MAX(dim_park[campsites])) * CALCULATE(DISTINCTCOUNT(fact_visit[date]))
+				)
+			)
+		formatString: 0.0%
+		displayFolder: Visitors
+		lineageTag: 79393215-0159-4cb2-a3b1-54447af4e8bd
+
+	measure kpi_avg_daily_visitors = AVERAGEX(VALUES(dim_calendar[date]), [kpi_visitors])
+		formatString: #,0
+		displayFolder: Visitors
+		lineageTag: af6d320c-f11f-417d-ae25-b6513acad135
+
+	measure kpi_work_orders = COUNTROWS(fact_trail_work)
+		formatString: #,0
+		displayFolder: Trails
+		lineageTag: 221d541f-35a2-4feb-aea6-c75546da724b
+
+	measure kpi_trail_km_maintained = SUM(fact_trail_work[km_maintained])
+		formatString: "#,0"" km"""
+		displayFolder: Trails
+		lineageTag: 9b416c06-6ac2-4148-a88e-91acc2ff4c13
+
+	measure kpi_volunteer_hours = SUM(fact_trail_work[volunteer_hours])
+		formatString: #,0
+		displayFolder: Trails
+		lineageTag: fec1474e-42a1-4471-a113-2d986ba93d75
+
+	measure kpi_staff_hours = SUM(fact_trail_work[staff_hours])
+		formatString: #,0
+		displayFolder: Trails
+		lineageTag: d6aeccdb-5984-4f59-a6a7-6d8d0618d2ca
+
+	measure kpi_volunteer_share_pct = DIVIDE([kpi_volunteer_hours], [kpi_volunteer_hours] + [kpi_staff_hours])
+		formatString: 0%
+		displayFolder: Trails
+		lineageTag: 52d57bf7-283a-4d8f-ac77-9b699bfe338e
+
+	measure kpi_maintenance_cost = SUM(fact_trail_work[cost])
+		formatString: \$#,0
+		displayFolder: Trails
+		lineageTag: bc1c9d14-6df9-4647-aae4-9c882dd5b800
+
+	measure kpi_cost_per_km = DIVIDE([kpi_maintenance_cost], [kpi_trail_km_maintained])
+		formatString: \$#,0
+		displayFolder: Trails
+		lineageTag: 112cf732-bb65-4e25-a583-a68bedf6bb3d
+
+	measure kpi_trees_planted = SUM(fact_planting[trees_planted])
+		formatString: #,0
+		displayFolder: Conservation
+		lineageTag: 747a75e6-bfc3-4960-aa42-6adeffd00fdf
+
+	measure kpi_tree_survival_pct =
+			DIVIDE(
+				SUM(fact_planting[trees_alive_after_1yr]),
+				CALCULATE(
+					SUM(fact_planting[trees_planted]),
+					KEEPFILTERS(NOT ISBLANK(fact_planting[trees_alive_after_1yr]))
+				)
+			)
+		formatString: 0.0%
+		displayFolder: Conservation
+		lineageTag: 2de60cad-463b-4ad3-a475-db2795fc035e
+
+	measure kpi_sightings = COUNTROWS(fact_sighting)
+		formatString: #,0
+		displayFolder: Conservation
+		lineageTag: 210d49ec-7cf8-4cb0-afe2-cc7aa42968e9
+
+	measure kpi_sightings_py =
+			CALCULATE(
+				[kpi_sightings],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: #,0
+		displayFolder: Conservation
+		lineageTag: 8ebbe282-3c0c-4c0e-a370-e672b685f6be
+
+	measure kpi_animals_counted = SUM(fact_sighting[animals])
+		formatString: #,0
+		displayFolder: Conservation
+		lineageTag: 71546dff-2f5b-4ecd-a54f-a63f2e0a0a4f
+
+	measure kpi_species_logged = DISTINCTCOUNT(fact_sighting[species_key])
+		formatString: 0
+		displayFolder: Conservation
+		lineageTag: 7976dfd9-14e2-4145-a134-5cad1041dfe8
+
+	measure kpi_at_risk_sightings =
+			CALCULATE(
+				[kpi_sightings],
+				KEEPFILTERS(dim_species[conservation_status] IN {"Vulnerable", "Endangered"})
+			)
+		formatString: #,0
+		displayFolder: Conservation
+		lineageTag: 38cfae5b-c01c-4187-a010-fbbd27503069
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: 03a0ca17-8275-4807-ad92-b8f1305d7bb9
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_kpi = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

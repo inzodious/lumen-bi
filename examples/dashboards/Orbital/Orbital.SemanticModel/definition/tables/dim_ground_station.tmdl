@@ -1,0 +1,51 @@
+table dim_ground_station
+	lineageTag: f36596bd-83a7-4010-a61e-0ca0b31d6f06
+
+	column station_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 79b6029e-d91a-4aed-af09-9b492d4d5f73
+		summarizeBy: none
+		sourceColumn: station_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column station
+		dataType: string
+		lineageTag: a9da5efe-ea17-4d6f-afec-f29b2e1f4a44
+		summarizeBy: none
+		sourceColumn: station
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: 6600f292-5104-4506-afa8-a8ffd160351e
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	column antennas
+		dataType: int64
+		formatString: 0
+		lineageTag: 8caa6f4b-9eef-4b3c-ab86-87093192844f
+		summarizeBy: sum
+		sourceColumn: antennas
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_ground_station = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("Xc+9DoJAEATgV7lMvY2gWBN/QmWIloRiPY5w5mTNwsX49uYoiLHdfJmZbRpsQLiIzsObZzuAUEtgBaFASw0yECrWu6ipxY8zCOXTqbc8gbBdTJ6OoXNqzg/RDoRTVHm5FWxBuMWxYzWVDyHxybOp2freWxDyhe1AOIhyMFfHy5Y/li2sAOEYR2dKVf4k1ac9a8w+tUmcB6syTT8fZWjbLw==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [station_key = _t, station = _t, region = _t, antennas = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"station_key", Int64.Type}, {"station", type text}, {"region", type text}, {"antennas", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

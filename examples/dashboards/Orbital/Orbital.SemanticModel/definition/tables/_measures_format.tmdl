@@ -1,0 +1,77 @@
+table _measures_format
+	lineageTag: 78f3a765-9200-4e43-af53-218491a85961
+
+	measure fmt_period =
+			VAR _first = MIN(dim_calendar[date])
+			VAR _last = MAX(dim_calendar[date])
+			RETURN
+				UPPER(FORMAT(_first, "MMM") & " – " & FORMAT(_last, "MMM yyyy"))
+		lineageTag: 72564450-a2f9-4ffb-a153-2bf53e6bbfe8
+
+	measure fmt_launch_note = FORMAT([kpi_launches_yoy_pct], "+0%;-0%;0%") & " vs last year  ·  " & FORMAT([kpi_launch_success_pct], "0%") & " nominal"
+		lineageTag: d2eab3bc-4039-4d9f-ab2f-b40b6097a91b
+
+	measure fmt_payload_note = FORMAT([kpi_satellites_deployed], "#,0") & " satellites  ·  " & FORMAT([kpi_cost_per_kg], "$#,0") & " per kg"
+		lineageTag: 0aac7526-e9e5-4be6-a8e8-12b06a8ee6c1
+
+	measure fmt_data_note = FORMAT([kpi_data_yoy_pct], "+0%;-0%;0%") & " vs last year  ·  " & FORMAT([kpi_passes], "#,0") & " passes"
+		lineageTag: 56dd5f9a-8c00-4684-ab9f-bf977ef41a24
+
+	measure fmt_uptime_note =
+			VAR _delta = ([kpi_uptime_pct] - [kpi_uptime_py_pct]) * 100
+			RETURN
+				FORMAT(_delta, "+0.00;-0.00;0.00") & " pts vs last year  ·  " & [kpi_anomalies] & " anomalies"
+		lineageTag: 011bf504-36cb-435c-a10d-ee4b8173ff8b
+
+	measure fmt_margin_note = "lowest mission: " & FORMAT(MINX(VALUES(dim_mission[mission]), [kpi_power_margin_pct]), "0.0%")
+		lineageTag: ba9f3ce1-22eb-47fd-a554-958998e422de
+
+	measure fmt_anomaly_note = [kpi_anomalies_critical] & " critical  ·  " & [kpi_anomalies_open] & " still open"
+		lineageTag: 0c128f4d-fd0c-4e44-afc2-c577e4f5b29c
+
+	measure fmt_mttr_note = FORMAT([kpi_anomalies_per_1k_sat_days], "0.00") & " per 1,000 satellite-days"
+		lineageTag: 2445fa52-8ab8-450d-a5b3-eb13025584b0
+
+	measure fmt_fleet_note = FORMAT(SUM(dim_mission[fleet_size]), "#,0") & " satellites in orbit"
+		lineageTag: ef7fd35a-c1f8-4c36-a3e3-a5505113f222
+
+	measure fmt_success_note = FORMAT([kpi_launches] - CALCULATE(COUNTROWS(fact_launch), KEEPFILTERS(fact_launch[outcome] = "Nominal")), "0") & " partial or failed"
+		lineageTag: fd70fee1-4c88-430c-a03d-32b8709ea2e2
+
+	measure fmt_cost_note = FORMAT([kpi_launch_cost_musd], "$#,0") & "M across " & [kpi_launches] & " launches"
+		lineageTag: d97b6dbb-3ff3-4d6c-a844-7dd2b2870af6
+
+	measure fmt_pass_note = FORMAT([kpi_pass_success_pct], "0.0%") & " completed"
+		lineageTag: ee4179b7-1f3b-44a1-af5e-af7735fb562c
+
+	measure fmt_uptime_color =
+			SWITCH(
+				TRUE(),
+				[kpi_uptime_pct] < 0.99, "#FF4FB8",
+				[kpi_uptime_pct] < 0.995, "#FFB347",
+				"#5CFFB0"
+			)
+		lineageTag: f7969a54-cb41-4271-a407-d9d087804023
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: 73710b5b-86c0-46d1-a86e-0cad3f7733b0
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_format = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

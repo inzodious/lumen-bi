@@ -83,7 +83,7 @@ export interface PublishRunOptions extends PublishOptions {
   /** saved destinations: the dashboard's folder, site or project name there */
   site?: string
   /** Lumen Server: who may open the dashboard (absent: keep the server's setting) */
-  access?: { mode: 'public' | 'password'; password?: string }
+  access?: { mode: 'public' | 'password' | 'users'; password?: string }
   /** write into a folder that holds other files without asking */
   replace?: boolean
 }

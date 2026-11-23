@@ -275,7 +275,7 @@ export interface PublishDeployRequest {
   title: string
   files: Record<string, Uint8Array | string>
   /** Lumen Server only: who may open the dashboard (absent: keep what the server has, public for a new one) */
-  access?: { mode: 'public' | 'password'; password?: string }
+  access?: { mode: 'public' | 'password' | 'users'; password?: string }
 }
 
 export interface PublishProgress {
@@ -368,6 +368,8 @@ export interface WbiHost {
       /** sign-in / access check against the destination; `site` checks that one site too */
       test(id: string, site?: string): Promise<{ ok: boolean; message: string }>
     }
+    /** Lumen Server "Sign in with Google": opens the browser and resolves with a publishing key for the destination */
+    connectLumenServer?(url: string): Promise<{ ok: boolean; key?: string; email?: string; message?: string }>
     /** upload to a saved destination; `url` of the result is where the dashboard is live */
     deploy(req: PublishDeployRequest): Promise<PublishResult>
     onProgress(cb: (p: PublishProgress) => void): () => void

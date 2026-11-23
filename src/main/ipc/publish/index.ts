@@ -2,7 +2,7 @@
  * Publish IPC: write a published dashboard to a folder or a zip (./site.ts), or upload it to a saved destination
  * (./destinations.ts, ./targets/*). Upload progress goes to the requesting window as `publish:progress`.
  */
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, shell } from 'electron'
 import { promises as fsp, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,6 +12,7 @@ import { DestinationStore } from './destinations'
 import { assembleSite, siteBytes, writeSiteFolder, zipSite } from './site'
 import { PublishError, TARGETS, slugify, type DeployContext } from './targets'
 import { lumenServer } from './targets/lumenServer'
+import { connectLumenServer } from './lumenConnect'
 
 let store: DestinationStore | null = null
 
@@ -49,6 +50,13 @@ export function registerPublishIpc(): void {
       return { ok: true, location: req.path, files: Object.keys(files).length, bytes: siteBytes(files) }
     } catch (e) {
       return failure(e)
+    }
+  })
+  ipcMain.handle('publish:lumen:connect', async (_e, url: string) => {
+    try {
+      return { ok: true, ...(await connectLumenServer(url, (u) => shell.openExternal(u))) }
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : String(e) }
     }
   })
   ipcMain.handle('publish:dest:list', () => destinations().list())

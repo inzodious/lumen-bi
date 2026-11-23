@@ -11,9 +11,23 @@ export function DestinationEditor({ existing, onClose }: { existing?: PublishDes
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [signedIn, setSignedIn] = useState<string | null>(null)
   const info = kindInfo(kind)!
   const missing = info.fields.filter((f) => f.required && !(f.secret ? secrets[f.key] || existing?.secrets.includes(f.key) : values[f.key]?.trim())).map((f) => f.label)
   const canSave = !busy && !!name.trim() && !missing.length
+
+  const signInWithGoogle = async () => {
+    const url = values.url?.trim()
+    if (!url) return setError('Enter the server address first.')
+    setBusy(true)
+    setError(null)
+    const r = await window.wbi.publish!.connectLumenServer!(url)
+    setBusy(false)
+    if (!r.ok || !r.key) return setError(r.message ?? 'The sign-in did not finish.')
+    setSecrets((s) => ({ ...s, token: r.key! }))
+    setSignedIn(r.email ?? '')
+    if (!name.trim()) setName('My dashboards')
+  }
 
   const save = async () => {
     if (!canSave) return
@@ -54,7 +68,11 @@ export function DestinationEditor({ existing, onClose }: { existing?: PublishDes
         <div className="wbi-dlg-help">{info.help}</div>
         <TextField label="Name" value={name} placeholder={`My ${info.label}`} onChange={setName} />
         {info.fields.map((f) =>
-          f.secret ? (
+          f.secret && kind === 'lumen-server' && signedIn !== null ? (
+            <div key={`${kind}:${f.key}`} className="wbi-pub__ok">
+              Signed in with Google as {signedIn}. Save to keep this computer connected.
+            </div>
+          ) : f.secret ? (
             <TextField
               key={`${kind}:${f.key}`}
               label={f.label}
@@ -68,6 +86,14 @@ export function DestinationEditor({ existing, onClose }: { existing?: PublishDes
             <TextField key={`${kind}:${f.key}`} label={f.label} value={values[f.key] ?? ''} placeholder={f.placeholder} hint={f.hint} onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
           )
         )}
+        {kind === 'lumen-server' && window.wbi.publish?.connectLumenServer && signedIn === null ? (
+          <div>
+            <Button onClick={() => void signInWithGoogle()} disabled={busy || !values.url?.trim()}>
+              {busy ? 'Waiting for the browser…' : 'Sign in with Google'}
+            </Button>
+            <span className="wbi-pub__hint"> Opens the server's sign-in page in your browser.</span>
+          </div>
+        ) : null}
         <div className="wbi-pub__summary">Tokens and keys are stored encrypted with your system keyring and are only sent to the service they belong to.</div>
       </div>
     </Modal>

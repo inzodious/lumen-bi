@@ -138,7 +138,9 @@ describe('Lumen Server', () => {
 
   it('shows each dashboard address on the home page', async () => {
     const html = await (await fetch(`${base}/`)).text()
-    expect(html).toContain('/d/proxied/</span>')
+    expect(html).toContain('href="/d/proxied/"')
+    expect((await fetch(`${base}/no/such/page`)).status).toBe(404)
+    expect(await (await fetch(`${base}/dashboards/nope`)).text()).toContain('Dashboard not found')
   })
 
   it('keeps page previews and shows them on the home page, but never a locked dashboard\'s to strangers', async () => {

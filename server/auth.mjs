@@ -103,8 +103,9 @@ export function createAuth(opts) {
     return { email: k.email, key: k.id }
   }
 
+  const LAPTOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10H4V5Zm-2 12h20v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1Z"/></svg>'
   const csrf = (req) => mac(`csrf|${parseCookies(req.headers.cookie).lumen_session ?? ''}`)
-  const html = (h, res, status, title, body, extra = {}) => h.send(res, status, page(title, body), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...extra })
+  const html = (h, res, status, title, body, extra = {}, o = {}) => h.send(res, status, h.render ? h.render(title, body, o) : page(title, body), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...extra })
   const safeNext = (n) => (typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') ? n : '/')
 
   function loginRedirect(res, h, next) {
@@ -115,16 +116,16 @@ export function createAuth(opts) {
     const cookie = parseCookies(req.headers.cookie).lumen_oauth ?? ''
     const [state, nextB64] = cookie.split('.')
     const clear = `lumen_oauth=; Path=/auth/; Max-Age=0; HttpOnly; SameSite=Lax${secure(req)}`
-    if (url.searchParams.get('error')) return html(h, res, 400, 'Sign-in cancelled', `<h1>Sign-in cancelled</h1><p class="empty">Google did not sign you in (${esc(url.searchParams.get('error'))}).</p><p><a href="/auth/login">Try again</a></p>`, { 'set-cookie': clear })
+    if (url.searchParams.get('error')) return html(h, res, 400, 'Sign-in cancelled', `<h1>Sign-in cancelled</h1><p>Google did not sign you in (${esc(url.searchParams.get('error'))}).</p><div class="actions"><a class="btn" href="/auth/login">Try again</a><a class="btn ghost" href="/">All dashboards</a></div>`, { 'set-cookie': clear }, { icon: 'info' })
     if (!state || !safeEqual(url.searchParams.get('state') ?? '', state))
-      return html(h, res, 400, 'Sign-in expired', '<h1>Sign-in expired</h1><p class="empty">The sign-in took too long or came from another browser.</p><p><a href="/auth/login">Sign in again</a></p>', { 'set-cookie': clear })
+      return html(h, res, 400, 'Sign-in expired', '<h1>Sign-in expired</h1><p>The sign-in took too long or came from another browser.</p><div class="actions"><a class="btn" href="/auth/login">Sign in again</a><a class="btn ghost" href="/">All dashboards</a></div>', { 'set-cookie': clear }, { icon: 'info' })
     const r = await doFetch(GOOGLE_TOKEN, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ code: url.searchParams.get('code') ?? '', client_id: opts.clientId, client_secret: opts.clientSecret, redirect_uri: redirectUri, grant_type: 'authorization_code' }).toString()
     })
     const tok = await r.json().catch(() => ({}))
-    if (!r.ok || !tok.id_token) return html(h, res, 502, 'Sign-in failed', `<h1>Sign-in failed</h1><p class="empty">Google did not confirm the sign-in${tok.error ? ` (${esc(tok.error)})` : ''}.</p><p><a href="/auth/login">Try again</a></p>`, { 'set-cookie': clear })
+    if (!r.ok || !tok.id_token) return html(h, res, 502, 'Sign-in failed', `<h1>Sign-in failed</h1><p>Google did not confirm the sign-in${tok.error ? ` (${esc(tok.error)})` : ''}.</p><div class="actions"><a class="btn" href="/auth/login">Try again</a><a class="btn ghost" href="/">All dashboards</a></div>`, { 'set-cookie': clear }, { icon: 'info' })
     let claims
     try {
       claims = JSON.parse(unb64u(String(tok.id_token).split('.')[1]))
@@ -133,9 +134,9 @@ export function createAuth(opts) {
     }
     const issOk = claims.iss === 'https://accounts.google.com' || claims.iss === 'accounts.google.com'
     if (!issOk || claims.aud !== opts.clientId || !(claims.exp * 1000 > now()) || claims.email_verified !== true || !claims.email)
-      return html(h, res, 403, 'Sign-in failed', '<h1>Sign-in failed</h1><p class="empty">Google did not return a verified email address.</p>', { 'set-cookie': clear })
+      return html(h, res, 403, 'Sign-in failed', '<h1>Sign-in failed</h1><p>Google did not return a verified email address.</p><div class="actions"><a class="btn ghost" href="/">All dashboards</a></div>', { 'set-cookie': clear }, { icon: 'info' })
     if (!isAllowed(allowed, claims.email))
-      return html(h, res, 403, 'Not approved', `<h1>Not approved</h1><p class="empty">${esc(claims.email)} is not approved for this server. Ask its owner to add it.</p><p><a href="/auth/logout">Use another account</a></p>`, { 'set-cookie': clear })
+      return html(h, res, 403, 'Not approved', `<h1>Not approved</h1><p><b>${esc(claims.email)}</b> is not approved for this server. Ask its owner to add it.</p><div class="actions"><a class="btn" href="/auth/login">Use another account</a><a class="btn ghost" href="/">All dashboards</a></div>`, { 'set-cookie': clear }, { icon: 'lock' })
     const session = `lumen_session=${sessionValue({ email: String(claims.email).toLowerCase(), name: claims.name })}; Path=/; Max-Age=${SESSION_DAYS * 86400}; HttpOnly; SameSite=Lax${secure(req)}`
     res.setHeader('set-cookie', [session, clear])
     return h.send(res, 303, '', { location: safeNext(nextB64 ? unb64u(nextB64) : '/'), 'cache-control': 'no-store' })
@@ -143,7 +144,7 @@ export function createAuth(opts) {
 
   function connectPage(req, res, url, h, user) {
     const cb = url.searchParams.get('callback') ?? ''
-    if (!isLoopbackCallback(cb)) return html(h, res, 400, 'Cannot connect', '<h1>Cannot connect</h1><p class="empty">Start the sign-in from Lumen (File &gt; Publish &gt; Add destination &gt; Lumen Server).</p>')
+    if (!isLoopbackCallback(cb)) return html(h, res, 400, 'Cannot connect', '<h1>Cannot connect</h1><p>Start the sign-in from Lumen: File › Publish › Add destination › Lumen Server.</p>', {}, { icon: 'laptop' })
     const name = String(url.searchParams.get('name') ?? 'this computer').slice(0, 80)
     const field = (k, v) => `<input type="hidden" name="${k}" value="${esc(v)}">`
     return html(
@@ -151,15 +152,16 @@ export function createAuth(opts) {
       res,
       200,
       'Connect Lumen',
-      `<h1>Connect Lumen</h1><form method="post" action="/connect"><p>Let Lumen on <b>${esc(name)}</b> publish dashboards to this server as <b>${esc(user.email)}</b>?</p>${field('callback', cb)}${field('state', url.searchParams.get('state') ?? '')}${field('name', name)}${field('csrf', csrf(req))}<button type="submit">Connect</button></form><p class="empty">You can disconnect it any time on <a href="/account">your account page</a>.</p>`,
-      { 'x-frame-options': 'DENY' }
+      `<h1>Connect Lumen</h1><p>Let Lumen on <b>${esc(name)}</b> publish dashboards to this server as <b>${esc(user.email)}</b>?</p><form method="post" action="/connect">${field('callback', cb)}${field('state', url.searchParams.get('state') ?? '')}${field('name', name)}${field('csrf', csrf(req))}<div class="actions"><button class="btn" type="submit">Connect this computer</button><a class="btn ghost" href="/">Cancel</a></div></form><p class="hint" style="margin-top:18px">You can disconnect it any time under Admin › Computers.</p>`,
+      { 'x-frame-options': 'DENY' },
+      { icon: 'laptop' }
     )
   }
 
   async function connect(req, res, h, user) {
     const form = new URLSearchParams((await h.readBody(req, 8192)).toString('utf8'))
     const cb = form.get('callback') ?? ''
-    if (!safeEqual(form.get('csrf') ?? '', csrf(req)) || !isLoopbackCallback(cb)) return html(h, res, 400, 'Cannot connect', '<h1>Cannot connect</h1><p class="empty">Start the sign-in again from Lumen.</p>')
+    if (!safeEqual(form.get('csrf') ?? '', csrf(req)) || !isLoopbackCallback(cb)) return html(h, res, 400, 'Cannot connect', '<h1>Cannot connect</h1><p>Start the sign-in again from Lumen.</p>', {}, { icon: 'laptop' })
     const key = `lsk_${randomBytes(24).toString('base64url')}`
     keys.push({ id: randomBytes(6).toString('hex'), hash: sha256(key), email: user.email, name: String(form.get('name') ?? '').slice(0, 80), createdAt: new Date(now()).toISOString() })
     await saveKeys()
@@ -173,14 +175,20 @@ export function createAuth(opts) {
   function account(req, res, h, user) {
     const mine = keys.filter((k) => k.email === user.email)
     const rows = mine
-      .map((k) => `<li><b>${esc(k.name || 'Lumen')}</b> <span class="empty">connected ${esc(k.createdAt.slice(0, 10))}${k.lastUsedAt ? `, last used ${esc(k.lastUsedAt.slice(0, 10))}` : ''}</span><form method="post" action="/account/revoke" style="display:inline;padding:0;border:0;background:none"><input type="hidden" name="id" value="${esc(k.id)}"><input type="hidden" name="csrf" value="${esc(csrf(req))}"><button type="submit" style="margin:0 0 0 8px;padding:2px 10px">Disconnect</button></form></li>`)
+      .map(
+        (k) =>
+          `<div class="krow"><span class="kic">${LAPTOP}</span><div class="kt"><b>${esc(k.name || 'Lumen')}</b><small>Connected ${esc(k.createdAt.slice(0, 10))}${k.lastUsedAt ? ` · last used <span data-rel="${esc(k.lastUsedAt)}">${esc(k.lastUsedAt.slice(0, 10))}</span>` : ' · not used yet'}</small></div><form method="post" action="/account/revoke"><input type="hidden" name="id" value="${esc(k.id)}"><input type="hidden" name="csrf" value="${esc(csrf(req))}"><button class="btn ghost sm" type="submit">Disconnect</button></form></div>`
+      )
       .join('')
-    return html(h, res, 200, 'Account', `<h1>${esc(user.name || user.email)}</h1><p class="empty">Signed in with Google as ${esc(user.email)}. <a href="/auth/logout">Sign out</a> · <a href="/">Dashboards</a></p><h2 style="font-size:16px">Connected computers</h2>${rows ? `<ul>${rows}</ul>` : '<p class="empty">None yet. In Lumen, add a Lumen Server destination and choose Sign in with Google.</p>'}`)
+    const body = `<div class="head"><div><h1>Connected computers</h1><p>Each Lumen that signed in with Google as <b>${esc(user.email)}</b> gets its own key to publish here. Disconnecting one stops it at once.</p></div><a class="btn ghost" href="/auth/logout">Sign out</a></div>
+<style>.krow{display:flex;align-items:center;gap:14px;padding:14px 18px;border-top:1px solid var(--line2)}.krow:first-child{border-top:0}.kic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--soft);color:var(--accent)}.kt{flex:1;min-width:0}.kt b,.kt small{display:block}.kt small{color:var(--fg3)}.krow form{margin:0}</style>
+${rows ? `<div class="panel">${rows}</div>` : `<div class="empty"><div class="ill">${LAPTOP}</div><h2>No computers yet</h2><p>In Lumen: File › Publish › Add destination › Lumen Server, then Sign in with Google.</p></div>`}`
+    return html(h, res, 200, 'Connected computers', body, {}, { admin: 'account', crumbs: [['Admin', '/admin'], ['Connected computers']], keys: mine.length })
   }
 
   async function revoke(req, res, h, user) {
     const form = new URLSearchParams((await h.readBody(req, 4096)).toString('utf8'))
-    if (!safeEqual(form.get('csrf') ?? '', csrf(req))) return html(h, res, 400, 'Expired', '<h1>That page expired</h1><p><a href="/account">Back</a></p>')
+    if (!safeEqual(form.get('csrf') ?? '', csrf(req))) return html(h, res, 400, 'Expired', '<h1>That page expired</h1><p>Reload it and try again.</p><div class="actions"><a class="btn" href="/account">Back</a></div>', {}, { icon: 'info' })
     keys = keys.filter((k) => !(k.id === form.get('id') && k.email === user.email))
     await saveKeys()
     return h.send(res, 303, '', { location: '/account' })
@@ -220,5 +228,6 @@ export function createAuth(opts) {
     return true
   }
 
-  return { enabled, currentUser, keyUser, handle, loginRedirect, csrf }
+  const keyCount = (email) => keys.filter((k) => k.email === email).length
+  return { enabled, currentUser, keyUser, handle, loginRedirect, csrf, keyCount }
 }

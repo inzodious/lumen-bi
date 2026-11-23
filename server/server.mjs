@@ -20,7 +20,8 @@ import { extname, join } from 'node:path'
 import { isSafePath, readZip } from './zip.mjs'
 import { createAuth } from './auth.mjs'
 import { createAdmin } from './admin.mjs'
-import { homePage, readPreviews } from './home.mjs'
+import { homePage, readPreviews, collectionsPage, collectionPage, detailPage, passwordPage, paletteIndex } from './home.mjs'
+import { cardPage, esc as uiEsc, ICON, THEMES } from './ui.mjs'
 
 export const VERSION = '1.1.0'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/
@@ -145,6 +146,7 @@ export function createLumenServer(opts) {
       tagline: saved.tagline ?? '',
       accent: /^#[0-9a-f]{6}$/i.test(saved.accent ?? '') ? saved.accent : '',
       listing: saved.listing ?? listing,
+      theme: THEMES[saved.theme] ? saved.theme : 'lumen',
       defaultAccess: ['public', 'users'].includes(saved.defaultAccess) ? saved.defaultAccess : auth.enabled ? 'users' : 'public'
     }
   }
@@ -278,22 +280,40 @@ export function createLumenServer(opts) {
     return json(res, prev ? 200 : 201, publicMeta(meta))
   }
 
-  function loginPage(slug, title, error) {
-    return page(
-      title,
-      `<h1>${esc(title)}</h1><form method="post" action="/d/${slug}/login"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="current-password" autofocus required><button type="submit">Open dashboard</button>${error ? `<div class="err">${esc(error)}</div>` : ''}</form>`
-    )
+  function loginPage(slug, title, error, req) {
+    const meta = { slug, title, access: { mode: 'password' } }
+    return passwordPage({ ...chrome(req), d: { ...displayMeta(meta), title }, error })
+  }
+
+  /** Shared page context: site settings, the signed-in account, whether Google sign-in is set up. */
+  function chrome(req) {
+    return { site: siteSettings(), user: req ? auth.currentUser(req) : null, authEnabled: auth.enabled }
+  }
+
+  function notFound(req, res, title = 'Not found', text = 'There is nothing at this address.') {
+    return send(res, 404, cardPage({ ...chrome(req), title, icon: 'info', body: `<h1>${uiEsc(title)}</h1><p>${uiEsc(text)}</p><div class="actions"><a class="btn" href="/">${ICON.back}All dashboards</a><button class="btn ghost" type="button" data-palette>${ICON.search}Search</button></div>` }), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' })
+  }
+
+  /** The bar a dashboard served here gets above the report: back to the gallery, where it is, details, admin. */
+  function backBar(req, meta) {
+    const d = displayMeta(meta)
+    const user = auth.currentUser(req)
+    const site = siteSettings()
+    const accent = /^#[0-9a-f]{6}$/i.test(site.accent) ? site.accent : THEMES[site.theme]?.accent ?? '#117865'
+    const a = (href, label, extra = '') => `<a href="${href}"${extra}>${label}</a>`
+    return `<style>html,body{height:100%}#root{height:calc(100% - 44px)!important}#lumen-bar{height:44px;display:flex;align-items:center;gap:6px;padding:0 10px;background:#111315;color:#e9e7e4;font:500 13px/1 'Segoe UI',system-ui,sans-serif;border-bottom:1px solid #ffffff14;box-sizing:border-box}#lumen-bar a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:7px;white-space:nowrap}#lumen-bar a:hover{background:#ffffff14}#lumen-bar svg{width:16px;height:16px;fill:currentColor}#lumen-bar .lb-home{font-weight:700}#lumen-bar .lb-home i{width:22px;height:22px;border-radius:6px;background:${accent};display:grid;place-items:center}#lumen-bar .lb-home i svg{width:13px;height:13px;fill:#fff}#lumen-bar .lb-sep{opacity:.35}#lumen-bar .lb-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;color:#fff;font-weight:600;padding:0 4px}#lumen-bar .lb-sp{flex:1}@media (max-width:640px){#lumen-bar .lb-hide{display:none}}</style>
+<nav id="lumen-bar" aria-label="Lumen Server">${a('/', `<i>${ICON.logo}</i><span class="lb-hide">${uiEsc(site.title)}</span>`, ' class="lb-home" title="All dashboards"')}<span class="lb-sep">/</span>${d.tags[0] ? `${a(`/c/${encodeURIComponent(d.tags[0].toLowerCase())}`, uiEsc(d.tags[0]), ' class="lb-hide"')}<span class="lb-sep lb-hide">/</span>` : ''}<span class="lb-t">${uiEsc(d.title)}</span><span class="lb-sp"></span>${a(`/dashboards/${d.slug}`, `${ICON.info}<span class="lb-hide">Details</span>`)}${user ? a(`/admin/d/${d.slug}`, `${ICON.edit}<span class="lb-hide">Edit</span>`) : ''}${a('/', `${ICON.back}<span class="lb-hide">All dashboards</span>`)}</nav>`
   }
 
   async function login(req, res, slug, meta) {
     const key = `${clientAddress(req, trustProxy)}|${slug}`
     const f = failures.get(key)
-    if (f && f.count >= 10 && now() - f.at < 15 * 60 * 1000) return send(res, 429, loginPage(slug, meta.title, 'Too many attempts. Try again in 15 minutes.'), { 'content-type': 'text/html; charset=utf-8' })
+    if (f && f.count >= 10 && now() - f.at < 15 * 60 * 1000) return send(res, 429, loginPage(slug, displayMeta(meta).title, 'Too many attempts. Try again in 15 minutes.', req), { 'content-type': 'text/html; charset=utf-8' })
     const body = (await readBody(req, 4096)).toString('utf8')
     const password = new URLSearchParams(body).get('password') ?? ''
     if (!checkPassword(password, meta.access)) {
       failures.set(key, { count: (f && now() - f.at < 15 * 60 * 1000 ? f.count : 0) + 1, at: now() })
-      return send(res, 401, loginPage(slug, meta.title, 'That password is not right.'), { 'content-type': 'text/html; charset=utf-8' })
+      return send(res, 401, loginPage(slug, displayMeta(meta).title, 'That password is not right.', req), { 'content-type': 'text/html; charset=utf-8' })
     }
     failures.delete(key)
     const exp = String(now() + COOKIE_DAYS * 86400000)
@@ -310,15 +330,15 @@ export function createLumenServer(opts) {
 
   async function serveDashboard(req, res, slug, rest) {
     const meta = await readMeta(slug)
-    if (!meta) return send(res, 404, page('Not found', '<h1>Dashboard not found</h1><p class="empty">It may have been removed or renamed.</p>'), { 'content-type': 'text/html; charset=utf-8' })
+    if (!meta) return notFound(req, res, 'Dashboard not found', 'It may have been removed or renamed.')
     if (rest === 'login' && req.method === 'POST' && meta.access?.mode === 'password') return login(req, res, slug, meta)
     if (meta.access?.mode === 'users' && !auth.currentUser(req)) {
-      if (!auth.enabled) return send(res, 404, page('Not found', '<h1>Dashboard not found</h1>'), { 'content-type': 'text/html; charset=utf-8' })
+      if (!auth.enabled) return notFound(req, res, 'Dashboard not found', 'It may have been removed or renamed.')
       if (rest === '' || rest === 'index.html') return auth.loginRedirect(res, { send }, `/d/${slug}/`)
       return json(res, 401, { error: 'Sign in with Google first.' })
     }
     if (meta.access?.mode === 'password' && !cookieOk(req, slug, meta.access) && !auth.currentUser(req)) {
-      if (rest === '' || rest === 'index.html') return send(res, 200, loginPage(slug, meta.title), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+      if (rest === '' || rest === 'index.html') return send(res, 200, loginPage(slug, displayMeta(meta).title, '', req), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
       return json(res, 401, { error: 'Sign in to this dashboard first.' })
     }
     const rel = rest === '' ? 'index.html' : rest
@@ -329,6 +349,12 @@ export function createLumenServer(opts) {
       data = await fsp.readFile(file)
     } catch {
       return send(res, 404, 'Not found', { 'content-type': 'text/plain; charset=utf-8' })
+    }
+    if (rel === 'index.html' && new URL(req.url ?? '/', 'http://x').searchParams.get('embed') !== '1') {
+      // not inside another site's iframe: the server's own navigation above the report
+      const page = data.toString('utf8')
+      const bar = backBar(req, meta)
+      data = Buffer.from(/<body[^>]*>/i.test(page) ? page.replace(/<body[^>]*>/i, (m) => `${m}${bar}`) : page.replace(/^(<!doctype[^>]*>)?/i, (m) => `${m}${bar}`))
     }
     const immutable = rel.startsWith('assets/')
     send(res, 200, req.method === 'HEAD' ? '' : data, {
@@ -348,25 +374,36 @@ export function createLumenServer(opts) {
       .sort(byPlacement)
   }
 
-  /** Sign-in / account link for the home page header ('' without Google sign-in). */
-  function accountLink(req) {
-    if (!auth.enabled) return ''
-    const user = auth.currentUser(req)
-    return user ? `<a class="acct" href="/admin">Admin</a><a class="acct" href="/account" title="${esc(user.email)}">${esc(user.name || user.email)}</a>` : '<a class="acct" href="/auth/login">Sign in</a>'
-  }
-
   async function index(req, res) {
     const site = siteSettings()
-    if (!site.listing) return send(res, 404, page(site.title, `${accountLink(req)}<h1>Nothing here</h1>`), { 'content-type': 'text/html; charset=utf-8' })
+    if (!site.listing && !auth.currentUser(req)) return notFound(req, res, site.title, 'Dashboards here are shared by their own address.')
+    send(res, 200, homePage({ ...chrome(req), dashboards: await listedFor(req) }), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', vary: 'cookie' })
+  }
+
+  async function collectionsRoute(req, res, tag) {
+    const site = siteSettings()
+    if (!site.listing && !auth.currentUser(req)) return notFound(req, res)
     const all = await listedFor(req)
-    send(res, 200, homePage({ title: site.title, tagline: site.tagline, accent: site.accent, account: accountLink(req), dashboards: all }), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', vary: 'cookie' })
+    if (tag === undefined) return send(res, 200, collectionsPage({ ...chrome(req), dashboards: all }), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', vary: 'cookie' })
+    const ds = all.filter((d) => d.tags.some((t) => t.toLowerCase() === tag.toLowerCase()))
+    const name = ds[0]?.tags.find((t) => t.toLowerCase() === tag.toLowerCase()) ?? tag
+    return send(res, ds.length ? 200 : 404, collectionPage({ ...chrome(req), dashboards: ds, all, tag: name }), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', vary: 'cookie' })
+  }
+
+  async function detailRoute(req, res, slug) {
+    const meta = SLUG.test(slug) ? await readMeta(slug) : null
+    const user = auth.currentUser(req)
+    if (!meta || (meta.access?.mode === 'users' && !user)) return notFound(req, res, 'Dashboard not found', 'It may have been removed, renamed or kept private.')
+    const d = displayMeta(meta)
+    const canOpen = d.access === 'public' || !!user || (d.access === 'password' && cookieOk(req, slug, meta.access))
+    send(res, 200, detailPage({ ...chrome(req), d, all: await listedFor(req), canOpen }), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', vary: 'cookie' })
   }
 
   async function handle(req, res) {
     const url = new URL(req.url ?? '/', 'http://localhost')
     const path = decodeURIComponent(url.pathname)
     if (path === '/api/health') return json(res, 200, { ok: true, name: 'lumen-server', version: VERSION, signIn: auth.enabled ? 'google' : 'token' })
-    if (await auth.handle(req, res, path, url, { send, readBody })) return
+    if (await auth.handle(req, res, path, url, { send, readBody, render: (title, body, o = {}) => (o.admin ? admin.page(req, { title, body, ...o }) : cardPage({ ...chrome(req), title, body, icon: o.icon ?? 'info' })) })) return
     if (path === '/api/public/dashboards') {
       // for other sites (a portfolio): public, listed dashboards with their embed addresses
       const base = google.publicUrl ? String(google.publicUrl).replace(/\/+$/, '') : ''
@@ -401,15 +438,20 @@ export function createLumenServer(opts) {
     }
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'POST') return send(res, 405, 'Method not allowed')
     if (path === '/' || path === '/index.html') return index(req, res)
+    if (path === '/collections' || path === '/collections/') return collectionsRoute(req, res)
+    const c = /^\/c\/([^/]+)\/?$/.exec(path)
+    if (c) return collectionsRoute(req, res, c[1])
+    const dd = /^\/dashboards\/([^/]+)\/?$/.exec(path)
+    if (dd) return detailRoute(req, res, dd[1])
     const d = /^\/d\/([^/]+)(\/(.*))?$/.exec(path)
     if (d && SLUG.test(d[1])) {
       if (d[2] === undefined) return send(res, 301, '', { location: `/d/${d[1]}/` })
       return serveDashboard(req, res, d[1], d[3] ?? '')
     }
-    return send(res, 404, page('Not found', '<h1>Not found</h1>'), { 'content-type': 'text/html; charset=utf-8' })
+    return notFound(req, res)
   }
 
-  const admin = createAdmin({ auth, allMeta, readMeta, writeMeta, displayMeta, dir, siteSettings, saveSettings, send, readBody, now, byPlacement, publicUrl: google.publicUrl })
+  const admin = createAdmin({ chrome, listedFor, paletteIndex, auth, allMeta, readMeta, writeMeta, displayMeta, dir, siteSettings, saveSettings, send, readBody, now, byPlacement, publicUrl: google.publicUrl })
 
   return createServer((req, res) => {
     handle(req, res).catch((e) => {

@@ -21,12 +21,9 @@ import { createConnectorService, type ConnectorService, type TestRequest } from 
  * encrypted with Electron safeStorage (the OS keyring) in userData/credentials.json.
  */
 
-let service: ConnectorService | null = null
-
-/** Created on first use (safeStorage needs the app to be ready). */
-function connectors(): ConnectorService {
-  if (service) return service
-  const cipher: Cipher = {
+/** Secrets at rest through Electron safeStorage (the OS keyring); also used by the publish destinations. */
+export function safeStorageCipher(): Cipher {
+  return {
     available: () => {
       try {
         return safeStorage.isEncryptionAvailable()
@@ -44,6 +41,14 @@ function connectors(): ConnectorService {
     encrypt: (plain) => safeStorage.encryptString(plain),
     decrypt: (data) => safeStorage.decryptString(data)
   }
+}
+
+let service: ConnectorService | null = null
+
+/** Created on first use (safeStorage needs the app to be ready). */
+function connectors(): ConnectorService {
+  if (service) return service
+  const cipher = safeStorageCipher()
   const store = new CredentialStore(join(app.getPath('userData'), 'credentials.json'), cipher)
   service = createConnectorService({ store, openExternal: (url) => shell.openExternal(url) })
   app.on('will-quit', () => void service?.close())

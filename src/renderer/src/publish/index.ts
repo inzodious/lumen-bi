@@ -5,7 +5,8 @@
  *   publishReport(opts)            — builds the publish files (src/core/publish) and hands them to a target in the
  *                                    main process (src/main/ipc/publish), which adds the web viewer (out/viewer)
  *
- * Targets: a folder any web server can serve, or a zip for drag-and-drop hosting.
+ * Targets: a folder any web server can serve, a zip for drag-and-drop hosting, or a saved hosted destination
+ * (GitHub Pages, Netlify, Cloudflare Pages, S3-compatible storage; publish/destinations.ts).
  */
 import { create } from 'zustand'
 import { buildPublishBundle, type PublishOptions } from '@core/publish/bundle'
@@ -14,10 +15,11 @@ import { useApp } from '../state/store'
 import { toast } from '../app/ui/Notify'
 import { confirmDialog } from '../app/ui/Modal'
 
-export type PublishTargetId = 'folder' | 'zip'
+/** 'folder', 'zip', or the id of a saved destination */
+export type PublishTargetId = string
 
 export interface PublishTargetInfo {
-  id: PublishTargetId
+  id: 'folder' | 'zip'
   label: string
   description: string
 }
@@ -41,7 +43,7 @@ function readPrefs(): PublishPrefs {
     const raw = JSON.parse(localStorage.getItem(PREFS_KEY) ?? 'null') as Partial<PublishPrefs> | null
     if (!raw) return fallback
     return {
-      target: PUBLISH_TARGETS.some((t) => t.id === raw.target) ? (raw.target as PublishTargetId) : fallback.target,
+      target: typeof raw.target === 'string' && raw.target ? raw.target : fallback.target,
       trimData: raw.trimData !== false,
       stripQueries: raw.stripQueries !== false
     }
@@ -78,6 +80,8 @@ export interface PublishRunOptions extends PublishOptions {
   target: PublishTargetId
   /** folder (folder target) or .zip path; asked with a dialog when absent */
   path?: string
+  /** saved destinations: the dashboard's folder, site or project name there */
+  site?: string
   /** write into a folder that holds other files without asking */
   replace?: boolean
 }
@@ -102,6 +106,7 @@ export async function publishReport(opts: PublishRunOptions): Promise<PublishRes
     return null
   }
   const title = (opts.title ?? '').trim() || project.name
+  if (opts.target !== 'folder' && opts.target !== 'zip') return publishToDestination(opts, title)
   let target = opts.path ?? null
   if (!target) {
     const baseDir = project.source.path ? project.source.path.replace(/\/[^/]*\/?$/, '') : await window.wbi.app.getPath('documents').catch(() => '')
@@ -150,6 +155,39 @@ export async function publishReport(opts: PublishRunOptions): Promise<PublishRes
     toast({ kind: 'error', title: 'Publish failed', message: e instanceof Error ? e.message : String(e) })
     return null
   } finally {
+    useApp.getState().setBusy(null)
+    publishing = false
+  }
+}
+
+/** Upload to a saved destination, with the main process's progress in the busy overlay. */
+async function publishToDestination(opts: PublishRunOptions, title: string): Promise<PublishResult | null> {
+  const project = useApp.getState().project!
+  const host = window.wbi.publish!
+  publishing = true
+  useApp.getState().setBusy({ message: `Publishing ${title}…` })
+  const off = host.onProgress((p) => useApp.getState().setBusy({ message: p.message, ...(p.fraction !== undefined ? { progress: p.fraction } : {}) }))
+  try {
+    const bundle = buildPublishBundle(project, { ...opts, title })
+    const result = await host.deploy({ destinationId: opts.target, site: opts.site ?? '', title, files: bundle.files })
+    if (!result.ok) {
+      toast({ kind: 'error', title: 'Publish failed', message: result.message, duration: 0 })
+      return null
+    }
+    const url = result.url
+    toast({
+      kind: 'success',
+      title: 'Dashboard published',
+      message: `${url ?? result.location} (${sizeText(result.bytes)}).`,
+      duration: 15000,
+      ...(url ? { action: { label: 'Open', onClick: () => void window.wbi.app.openExternal(url) } } : {})
+    })
+    return result
+  } catch (e) {
+    toast({ kind: 'error', title: 'Publish failed', message: e instanceof Error ? e.message : String(e), duration: 0 })
+    return null
+  } finally {
+    off()
     useApp.getState().setBusy(null)
     publishing = false
   }

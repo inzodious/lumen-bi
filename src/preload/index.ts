@@ -73,7 +73,15 @@ const host: WbiHost = {
   publish: {
     status: () => invoke('publish:status'),
     toFolder: (r) => invoke('publish:folder', r),
-    toZip: (r) => invoke('publish:zip', r)
+    toZip: (r) => invoke('publish:zip', r),
+    destinations: {
+      list: () => invoke('publish:dest:list'),
+      set: (i) => invoke('publish:dest:set', i),
+      remove: (id) => invoke('publish:dest:remove', id),
+      test: (id, site) => invoke('publish:dest:test', id, site)
+    },
+    deploy: (r) => invoke('publish:deploy', r),
+    onProgress: (cb) => on('publish:progress', cb)
   },
   exporter: {
     printToPDF: (o) => invoke('export:printToPDF', o),

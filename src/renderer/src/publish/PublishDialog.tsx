@@ -160,7 +160,7 @@ function PublishBody() {
             {selected.kind === 'lumen-server' ? (
               <div className="wbi-pub__access" role="radiogroup" aria-label="Who can open it">
                 <div className="wbi-pub__label">Who can open it</div>
-                <Radio checked={access === 'keep'} onChange={() => setAccess('keep')} label="Keep the current setting (anyone with the link for a new dashboard)" />
+                <Radio checked={access === 'keep'} onChange={() => setAccess('keep')} label="Keep the current setting (a new dashboard gets the server's default: private when Google sign-in is on)" />
                 <Radio checked={access === 'public'} onChange={() => setAccess('public')} label="Anyone with the link" />
                 <Radio checked={access === 'password'} onChange={() => setAccess('password')} label="People with a password" />
                 <Radio checked={access === 'users'} onChange={() => setAccess('users')} label="Only approved Google accounts" />

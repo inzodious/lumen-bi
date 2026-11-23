@@ -87,6 +87,7 @@ Read by the Electron main process (`src/main/index.ts`) or the preload (`src/pre
 |---|---|---|---|
 | `WBI_USE_DESKTOP` | `scripts/capture.sh`, `scripts/sweep.sh` | unset | Run on your current display instead of a private Xvfb display. |
 | `LUMEN_E2E_USE_DISPLAY` | `e2e/run.sh` | unset | Run the journeys on your current display (watch them) instead of a private Xvfb display. |
+| `LUMEN_VIEWER_OUT` | `viewer.vite.config.ts` | `out/viewer` | Output folder of the published-dashboard viewer build, relative to the repository root. `e2e/run.sh` sets it to `out/e2e/viewer`. |
 | `NVM_DIR` | `scripts/lumen.sh` | `~/.nvm` | Where the launcher looks for a Node 20+ install when the `PATH` has none. Not checked by the script above (it is not a Lumen setting). |
 
 ## Test environment variables
@@ -122,7 +123,7 @@ Read by `e2e/harness.ts`, `e2e/vitest.config.ts` and individual journeys. See
 | `LUMEN_E2E_OUT` | a new temp folder `lumen-e2e-*` | Failure screenshots and renderer error logs, plus per-run scratch files (saves, exports). |
 | `LUMEN_E2E_WORKERS` | `3` | Parallel app instances. `1` runs the files one after another. |
 | `LUMEN_E2E_APP` | `out/e2e/main/index.js` | Built main entry to launch. |
-| `LUMEN_E2E_SHOTS` | unset | Folder where `e2e/icons.e2e.ts` and `e2e/model.e2e.ts` save screenshots of key states. |
+| `LUMEN_E2E_SHOTS` | unset | Folder where `e2e/icons.e2e.ts`, `e2e/model.e2e.ts` and `e2e/publish.e2e.ts` save screenshots of key states. |
 | `CI` | unset | When set, vitest uses the `default` reporter instead of `verbose`. |
 
 ## Route options

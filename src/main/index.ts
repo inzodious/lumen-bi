@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { registerFsIpc } from './ipc/fs'
 import { portablePath } from '../core/io/fs'
 import { registerConnectorIpc } from './ipc/connectors'
+import { registerPublishIpc } from './ipc/publish'
 import { buildMenu } from './menu'
 import { blockCacheArgs } from '../shared/cacheGuard'
 
@@ -251,6 +252,7 @@ app.whenReady().then(() => {
   app.setName('Lumen')
   registerFsIpc()
   registerConnectorIpc()
+  registerPublishIpc()
   registerAppIpc()
   createWindow()
   app.on('activate', () => {

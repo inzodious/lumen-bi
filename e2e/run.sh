@@ -7,7 +7,7 @@
 #      LUMEN_E2E_OUT=<dir> (failure screenshots/logs + scratch files; default a temp dir), LUMEN_E2E_WORKERS (default 3).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if [ "${1:-}" = "--no-build" ]; then shift; else node_modules/.bin/electron-vite build --outDir out/e2e --logLevel error; fi
+if [ "${1:-}" = "--no-build" ]; then shift; else node_modules/.bin/electron-vite build --outDir out/e2e --logLevel error && LUMEN_VIEWER_OUT=out/e2e/viewer node_modules/.bin/vite build -c viewer.vite.config.ts --logLevel error; fi
 RUN=()
 if command -v xvfb-run >/dev/null 2>&1 && [ -z "${LUMEN_E2E_USE_DISPLAY:-}" ]; then
   RUN=(xvfb-run -a -s "-screen 0 1800x1200x24")

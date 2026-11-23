@@ -118,8 +118,7 @@ function warningsFor(project: ProjectDocument, model: SemanticModel): string[] {
   return out
 }
 
-/** Build `report.wbi` and `lumen-publish.json` for a project with a report. */
-export function buildPublishBundle(project: ProjectDocument, opts: PublishOptions = {}): PublishBundle {
+function prepare(project: ProjectDocument, opts: PublishOptions): { model: SemanticModel; data: DataStore; summary: PublishSummary } {
   if (!project.report) throw new Error('Only a report can be published. Open or create a report first.')
   if (project.report.pbir?.datasetReference?.byConnection && !project.model.tables.length)
     throw new Error('This report uses a live connection to a semantic model, so it has no data to publish.')
@@ -130,6 +129,17 @@ export function buildPublishBundle(project: ProjectDocument, opts: PublishOption
   model.sidecarFiles = Object.fromEntries(Object.entries(model.sidecarFiles ?? {}).filter(([k]) => keepSidecars.includes(k)))
   const usage = columnUsage(project.model, project.report)
   const { data, leftOut, columns, rows } = trimmedData(project.model, project.data, trim, usage)
+  return { model, data, summary: { tables: data.tables.size, rows, columns, columnsLeftOut: leftOut, queriesRemoved, warnings: warningsFor(project, project.model) } }
+}
+
+/** What publishing with `opts` would include, without building the bundle (the Publish dialog). Throws like buildPublishBundle. */
+export function publishPreview(project: ProjectDocument, opts: PublishOptions = {}): PublishSummary {
+  return prepare(project, opts).summary
+}
+
+/** Build `report.wbi` and `lumen-publish.json` for a project with a report. */
+export function buildPublishBundle(project: ProjectDocument, opts: PublishOptions = {}): PublishBundle {
+  const { model, data, summary } = prepare(project, opts)
   const name = project.name || 'Report'
   const { files: projectFiles } = pbipProjectFiles(name, model, project.report)
   const wbi = writeWbi(name, projectFiles, data, { kind: 'publish' })
@@ -141,12 +151,8 @@ export function buildPublishBundle(project: ProjectDocument, opts: PublishOption
     publishedAt: (opts.now ?? new Date()).toISOString(),
     generator: 'Lumen',
     bundle: PUBLISH_BUNDLE,
-    pages: orderedPageList(project.report),
+    pages: orderedPageList(project.report!),
     bytes: wbi.byteLength
   }
-  return {
-    files: { [PUBLISH_BUNDLE]: wbi, [PUBLISH_MANIFEST]: JSON.stringify(manifest, null, 2) },
-    manifest,
-    summary: { tables: data.tables.size, rows, columns, columnsLeftOut: leftOut, queriesRemoved, warnings: warningsFor(project, project.model) }
-  }
+  return { files: { [PUBLISH_BUNDLE]: wbi, [PUBLISH_MANIFEST]: JSON.stringify(manifest, null, 2) }, manifest, summary }
 }

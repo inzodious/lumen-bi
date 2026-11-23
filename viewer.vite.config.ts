@@ -19,7 +19,8 @@ export default defineConfig({
   plugins: [react()],
   worker: { format: 'es' },
   build: {
-    outDir: resolve(import.meta.dirname, 'out/viewer'),
+    // LUMEN_VIEWER_OUT: another output folder (e2e builds into out/e2e/viewer), relative to the repository root
+    outDir: resolve(import.meta.dirname, process.env.LUMEN_VIEWER_OUT || 'out/viewer'),
     emptyOutDir: true,
     chunkSizeWarningLimit: 8000,
     rollupOptions: { input: resolve(import.meta.dirname, 'src/renderer/viewer/index.html') }

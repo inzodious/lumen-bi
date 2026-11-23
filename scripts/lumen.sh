@@ -16,6 +16,6 @@ STAMP="out/main/index.js"
 if [ ! -f "$STAMP" ] || [ -n "$(find src package.json electron.vite.config.ts -newer "$STAMP" -type f -print -quit 2>/dev/null)" ]; then
   if command -v notify-send >/dev/null 2>&1; then notify-send -i "$APP_DIR/resources/icon.png" "Lumen" "Building the latest version…" || true; fi
   if ! node_ok node; then notify-send "Lumen" "Building needs Node.js 20 or newer (found $(node --version 2>/dev/null || echo none))" 2>/dev/null || true; exit 1; fi
-  ./node_modules/.bin/electron-vite build >/tmp/lumen-build.log 2>&1 || { notify-send "Lumen" "Build failed — see /tmp/lumen-build.log" 2>/dev/null || true; exit 1; }
+  { ./node_modules/.bin/electron-vite build && ./node_modules/.bin/vite build -c viewer.vite.config.ts; } >/tmp/lumen-build.log 2>&1 || { notify-send "Lumen" "Build failed — see /tmp/lumen-build.log" 2>/dev/null || true; exit 1; }
 fi
 exec env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron . "$@"

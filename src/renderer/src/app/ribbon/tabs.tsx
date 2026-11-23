@@ -38,6 +38,7 @@ import { seedDrillState } from '../../report/host'
 import { drillStateKey } from '../../state/interaction'
 import { reportSampleDataOn } from '@core/sample/spec'
 import { toggleSampleData } from '../../report/sampleActions'
+import { openPublishDialog } from '../../publish'
 
 const L = (I: FluentIcon, cls?: string) => <I fontSize={32} className={cls} />
 const S = (I: FluentIcon, cls?: string) => <I fontSize={16} className={cls} />
@@ -206,9 +207,10 @@ function CalculationsGroup({ withColumnTable }: { withColumnTable?: boolean }) {
 }
 
 function ShareGroup() {
+  const hasReport = useHasReport()
   return (
     <RibbonGroup label="Share">
-      <RibbonButton label="Publish" icon={L(CloudArrowUpRegular)} disabled tooltip="Publishing to the Power BI service isn't available in Lumen. Save as PBIP and use Fabric Git integration instead." />
+      <RibbonButton label="Publish" icon={L(CloudArrowUpRegular)} disabled={!hasReport} tooltip="Publish an interactive web version of this report as a folder or a zip file for a web host. Publishing to the Power BI service isn't available; save as PBIP and use Fabric Git integration for that." onClick={openPublishDialog} />
     </RibbonGroup>
   )
 }

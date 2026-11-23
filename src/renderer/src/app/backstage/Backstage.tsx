@@ -4,7 +4,7 @@
  */
 import type { ReactElement, ReactNode } from 'react'
 import {
-  ArrowLeftRegular, HomeRegular, DocumentAddRegular, FolderOpenRegular, SaveRegular, SaveEditRegular, ArrowExportUpRegular, SettingsRegular, InfoRegular,
+  ArrowLeftRegular, HomeRegular, DocumentAddRegular, FolderOpenRegular, SaveRegular, SaveEditRegular, ArrowExportUpRegular, CloudArrowUpRegular, SettingsRegular, InfoRegular,
   DismissCircleRegular, DocumentPdfRegular, SlideTextRegular, ImageMultipleRegular, CodeRegular, FolderZipRegular, ArchiveRegular, DocumentArrowUpRegular,
   BeakerRegular, DatabaseArrowRightRegular, ShieldKeyholeRegular
 } from '@fluentui/react-icons'
@@ -16,6 +16,7 @@ import { RecentList } from '../RecentList'
 import { cx } from '../ui/cx'
 import { closeProject, loadSampleProject, newReport, openFileDialog, openFolderDialog, save, saveAs } from '../commands'
 import { openExportDialog } from '../../export'
+import { openPublishDialog } from '../../publish'
 import { TemplateGallery } from '../TemplateGallery'
 
 interface NavItem {
@@ -43,6 +44,7 @@ export function Backstage() {
     { page: 'saveAs', label: 'Save as', icon: <SaveEditRegular fontSize={20} />, needsProject: true },
     'sep',
     { page: 'export', label: 'Export', icon: <ArrowExportUpRegular fontSize={20} />, needsProject: true },
+    { label: 'Publish', icon: <CloudArrowUpRegular fontSize={20} />, action: run(openPublishDialog), needsProject: true },
     'sep',
     { page: 'options', label: 'Options and settings', icon: <SettingsRegular fontSize={20} /> },
     { page: 'about', label: 'About', icon: <InfoRegular fontSize={20} /> },

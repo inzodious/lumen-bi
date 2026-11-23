@@ -34,7 +34,7 @@ Without Docker: `LUMEN_SERVER_TOKEN=<token> LUMEN_SERVER_DATA=./data node main.m
 
 | Address | What |
 |---|---|
-| `/` | The list of dashboards, newest first. Password-protected ones are marked. |
+| `/` | The dashboards as a gallery with a preview of every page (Lumen renders them while publishing), search and filters. A password-protected dashboard shows its preview only to a browser signed in to it. |
 | `/d/<name>/` | A dashboard. |
 | `/api/health` | `{ "ok": true }` for monitoring. No sign-in. |
 | `/api/dashboards` | List, upload (`PUT /api/dashboards/<name>` with the site as a zip) and remove (`DELETE`). Needs `Authorization: Bearer <token>`. |

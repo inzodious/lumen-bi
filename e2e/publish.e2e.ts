@@ -175,6 +175,12 @@ describe('publish dashboard', () => {
       )
       expect(listed).toEqual([expect.objectContaining({ slug: 'sales-e2e', access: 'password' })])
       expect((await fetch(`${base}/d/sales-e2e/report.wbi`)).status).toBe(401)
+      // page previews rendered while publishing: one per visible page, shown on the home page only after sign-in
+      const meta = (await (await fetch(`${base}/api/dashboards/sales-e2e`, { headers: { authorization: `Bearer ${token}` } })).json()) as { previews: Array<{ src: string; displayName: string }> }
+      expect(meta.previews.length).toBeGreaterThan(0)
+      expect(meta.previews[0].displayName).toBeTruthy()
+      expect((await fetch(`${base}${meta.previews[0].src}`)).status).toBe(401)
+      expect(await (await fetch(`${base}/`)).text()).toContain(`data-src="${meta.previews[0].src}"`)
 
       const opened = app.waitForEvent('window')
       await app.evaluate(({ BrowserWindow }, u) => {

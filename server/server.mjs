@@ -17,6 +17,7 @@ import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypt
 import { promises as fsp, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { isSafePath, readZip } from './zip.mjs'
+import { homePage, readPreviews } from './home.mjs'
 
 export const VERSION = '1.0.1'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/
@@ -145,7 +146,7 @@ export function createLumenServer(opts) {
     }
     return out.sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)))
   }
-  const publicMeta = (m) => ({ slug: m.slug, title: m.title, publishedAt: m.publishedAt, access: m.access?.mode ?? 'public', bytes: m.bytes, pages: m.pages ?? [], url: `/d/${m.slug}/` })
+  const publicMeta = (m) => ({ slug: m.slug, title: m.title, publishedAt: m.publishedAt, access: m.access?.mode ?? 'public', bytes: m.bytes, pages: m.pages ?? [], previews: (m.previews ?? []).map((p) => ({ ...p, src: `/d/${m.slug}/${p.src}` })), url: `/d/${m.slug}/` })
 
   // password cookies: expiry + HMAC over slug, expiry and the password hash (a new password signs everyone out)
   const sign = (slug, access, exp) => createHmac('sha256', secret).update(`${slug}|${exp}|${access.hash}`).digest('base64url')
@@ -211,7 +212,7 @@ export function createLumenServer(opts) {
       await fsp.writeFile(target, data)
       bytes += data.length
     }
-    const meta = { slug, title: String(manifest.title || slug).slice(0, 200), publishedAt: new Date(now()).toISOString(), pages: Array.isArray(manifest.pages) ? manifest.pages.slice(0, 200) : [], bytes, access }
+    const meta = { slug, title: String(manifest.title || slug).slice(0, 200), publishedAt: new Date(now()).toISOString(), pages: Array.isArray(manifest.pages) ? manifest.pages.slice(0, 200) : [], previews: readPreviews(manifest, files), bytes, access }
     await fsp.writeFile(join(staging, 'meta.json'), JSON.stringify(meta, null, 2))
     const old = join(root, `.${slug}-old-${randomBytes(4).toString('hex')}`)
     if (existsSync(dir(slug))) await fsp.rename(dir(slug), old)
@@ -270,11 +271,8 @@ export function createLumenServer(opts) {
 
   async function index(res) {
     if (!listing) return send(res, 404, page(siteTitle, '<h1>Nothing here</h1>'), { 'content-type': 'text/html; charset=utf-8' })
-    const all = await allMeta()
-    const cards = all
-      .map((m) => `<a class="card" href="/d/${m.slug}/"><div class="t">${esc(m.title)}</div><div class="m">/d/${m.slug}/</div><div class="m">${m.access?.mode === 'password' ? 'Password protected · ' : ''}Published ${esc(String(m.publishedAt).slice(0, 10))}${m.pages?.length ? ` · ${m.pages.length} page${m.pages.length === 1 ? '' : 's'}` : ''}</div></a>`)
-      .join('')
-    send(res, 200, page(siteTitle, `<h1>${esc(siteTitle)}</h1>${cards ? `<div class="grid">${cards}</div>` : '<p class="empty">No dashboards yet. Publish one from Lumen.</p>'}`), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' })
+    const all = (await allMeta()).map(publicMeta)
+    send(res, 200, homePage({ title: siteTitle, dashboards: all }), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' })
   }
 
   async function handle(req, res) {

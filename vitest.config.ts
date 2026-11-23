@@ -14,7 +14,7 @@ export default defineConfig({
   test: {
     globals: true,
     setupFiles: ['tests/setup.ts'],
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'tests/**/*.test.ts', 'datasets/**/*.test.ts', 'scripts/**/*.test.mjs'], exclude: ['**/node_modules/**', 'datasets/out/**'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'tests/**/*.test.ts', 'datasets/**/*.test.ts', 'scripts/**/*.test.mjs', 'server/**/*.test.mjs'], exclude: ['**/node_modules/**', 'datasets/out/**'],
     testTimeout: 60000
   }
 })

@@ -44,6 +44,8 @@ function PublishBody() {
   const [title, setTitle] = useState(project.name)
   const [editing, setEditing] = useState<PublishDestination | 'new' | null>(null)
   const [sites, setSites] = useState<Record<string, string>>({})
+  const [access, setAccess] = useState<'keep' | 'public' | 'password'>('keep')
+  const [password, setPassword] = useState('')
   const [check, setCheck] = useState<{ id: string; ok: boolean; message: string } | 'running' | null>(null)
   useEffect(() => {
     void useDestinations.getState().refresh()
@@ -61,15 +63,17 @@ function PublishBody() {
       return { summary: null, error: e instanceof Error ? e.message : String(e) }
     }
   }, [project, prefs.trimData, prefs.stripQueries])
+  const needsPassword = selected?.kind === 'lumen-server' && access === 'password' && !password
   const go = () => {
-    if (!preview.summary) return
+    if (!preview.summary || needsPassword) return
     let finalSite: string | undefined
     if (selected) {
       finalSite = normalizeSite(selected.kind, site)
       rememberSite(reportKey(project), selected.id, finalSite)
     }
     close()
-    void publishReport({ target, title, site: finalSite, trimData: prefs.trimData, stripQueries: prefs.stripQueries })
+    const lumenAccess = selected?.kind === 'lumen-server' && access !== 'keep' ? { mode: access, ...(access === 'password' ? { password } : {}) } : undefined
+    void publishReport({ target, title, site: finalSite, access: lumenAccess, trimData: prefs.trimData, stripQueries: prefs.stripQueries })
   }
   const test = async () => {
     if (!selected) return
@@ -109,7 +113,7 @@ function PublishBody() {
       footerLeft={preview.error ? <span className="wbi-pub__reason">{preview.error}</span> : undefined}
       footer={
         <>
-          <Button variant="primary" disabled={!s} onClick={go}>
+          <Button variant="primary" disabled={!s || needsPassword} onClick={go}>
             Publish
           </Button>
           <Button onClick={close}>Cancel</Button>
@@ -135,7 +139,7 @@ function PublishBody() {
               <Button size="small" icon={<AddRegular />} onClick={() => setEditing('new')}>
                 Add destination
               </Button>
-              <span className="wbi-pub__hint"> GitHub Pages, Netlify, Cloudflare Pages, S3-compatible storage</span>
+              <span className="wbi-pub__hint"> GitHub Pages, Netlify, Cloudflare Pages, S3-compatible storage, Lumen Server</span>
             </div>
           ) : null}
         </div>
@@ -153,6 +157,15 @@ function PublishBody() {
                 Remove
               </Button>
             </div>
+            {selected.kind === 'lumen-server' ? (
+              <div className="wbi-pub__access" role="radiogroup" aria-label="Who can open it">
+                <div className="wbi-pub__label">Who can open it</div>
+                <Radio checked={access === 'keep'} onChange={() => setAccess('keep')} label="Keep the current setting (anyone with the link for a new dashboard)" />
+                <Radio checked={access === 'public'} onChange={() => setAccess('public')} label="Anyone with the link" />
+                <Radio checked={access === 'password'} onChange={() => setAccess('password')} label="People with a password" />
+                {access === 'password' ? <TextField label="Password" type="password" value={password} onChange={setPassword} hint="Viewers type it once per browser. The server stores only a hash." /> : null}
+              </div>
+            ) : null}
             {shownCheck ? <div className={shownCheck.ok ? 'wbi-pub__ok' : 'wbi-pub__reason'}>{shownCheck.message}</div> : null}
           </div>
         ) : null}

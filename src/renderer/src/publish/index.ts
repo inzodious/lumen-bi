@@ -82,6 +82,8 @@ export interface PublishRunOptions extends PublishOptions {
   path?: string
   /** saved destinations: the dashboard's folder, site or project name there */
   site?: string
+  /** Lumen Server: who may open the dashboard (absent: keep the server's setting) */
+  access?: { mode: 'public' | 'password'; password?: string }
   /** write into a folder that holds other files without asking */
   replace?: boolean
 }
@@ -169,7 +171,7 @@ async function publishToDestination(opts: PublishRunOptions, title: string): Pro
   const off = host.onProgress((p) => useApp.getState().setBusy({ message: p.message, ...(p.fraction !== undefined ? { progress: p.fraction } : {}) }))
   try {
     const bundle = buildPublishBundle(project, { ...opts, title })
-    const result = await host.deploy({ destinationId: opts.target, site: opts.site ?? '', title, files: bundle.files })
+    const result = await host.deploy({ destinationId: opts.target, site: opts.site ?? '', title, files: bundle.files, ...(opts.access ? { access: opts.access } : {}) })
     if (!result.ok) {
       toast({ kind: 'error', title: 'Publish failed', message: result.message, duration: 0 })
       return null

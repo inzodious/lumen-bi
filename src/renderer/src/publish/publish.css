@@ -78,3 +78,9 @@
   border: 1px solid var(--wbi-border);
   border-radius: 4px;
 }
+
+.wbi-pub__access {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

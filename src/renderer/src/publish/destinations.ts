@@ -80,6 +80,18 @@ export const DESTINATION_KINDS: DestinationKindInfo[] = [
     siteLabel: 'Folder',
     siteHint: 'Key prefix of this dashboard inside the bucket.',
     siteIsPath: true
+  },
+  {
+    kind: 'lumen-server',
+    label: 'Lumen Server',
+    help: 'Your own server for dashboards (server/ in the Lumen repository, run with Docker). It lists the dashboards it holds and can protect each one with a password.',
+    fields: [
+      { key: 'url', label: 'Server address', placeholder: 'http://nas.local:8080', required: true },
+      { key: 'token', label: 'Server token', secret: true, required: true, hint: 'The LUMEN_SERVER_TOKEN the server was started with.' }
+    ],
+    siteLabel: 'Dashboard name',
+    siteHint: 'The address becomes <server>/d/<dashboard name>/.',
+    siteIsPath: false
   }
 ]
 

@@ -1,0 +1,4 @@
+data
+*.test.mjs
+README.md
+.env

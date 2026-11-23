@@ -11,6 +11,7 @@ import { safeStorageCipher } from '../connectors'
 import { DestinationStore } from './destinations'
 import { assembleSite, siteBytes, writeSiteFolder, zipSite } from './site'
 import { PublishError, TARGETS, slugify, type DeployContext } from './targets'
+import { lumenServer } from './targets/lumenServer'
 
 let store: DestinationStore | null = null
 
@@ -71,7 +72,8 @@ export function registerPublishIpc(): void {
     try {
       const files = await assembleSite(viewerDir(), req.files)
       const site = dest.kind === 'github-pages' || dest.kind === 's3' ? req.site.split('/').map((s) => (s ? slugify(s) : '')).filter(Boolean).join('/') : slugify(req.site)
-      const out = await target.deploy(dest, site, files, req.title, context((p) => e.sender.send('publish:progress', p)))
+      const ctx = context((p) => e.sender.send('publish:progress', p))
+      const out = dest.kind === 'lumen-server' ? await lumenServer.deployWithAccess(dest, site, files, req.title, ctx, req.access) : await target.deploy(dest, site, files, req.title, ctx)
       return { ok: true, location: dest.name, url: out.url, files: Object.keys(files).length, bytes: siteBytes(files) }
     } catch (err) {
       return { ok: false, reason: 'failed', message: err instanceof PublishError || err instanceof Error ? err.message : String(err) }

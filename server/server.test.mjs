@@ -3,7 +3,7 @@ import { mkdtempSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { zipSync, strToU8 } from 'fflate'
-import { createLumenServer } from './server.mjs'
+import { clientAddress, createLumenServer, isPrivateAddress } from './server.mjs'
 import { isSafePath, readZip } from './zip.mjs'
 
 const TOKEN = 'test-token-0123456789'
@@ -115,6 +115,30 @@ describe('Lumen Server', () => {
     let last
     for (let i = 0; i < 11; i++) last = await fetch(`${base}/d/guess/login`, { method: 'POST', body: 'password=wrong', headers: { 'content-type': 'application/x-www-form-urlencoded' } })
     expect(last.status).toBe(429)
+  })
+
+  it('counts wrong passwords per visitor behind a proxy', async () => {
+    await put('proxied', site('Proxied'), { 'x-lumen-access': 'password', 'x-lumen-password': Buffer.from('right').toString('base64') })
+    const attempt = (ip) => fetch(`${base}/d/proxied/login`, { method: 'POST', body: 'password=wrong', headers: { 'content-type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': ip } })
+    let last
+    for (let i = 0; i < 11; i++) last = await attempt('203.0.113.5')
+    expect(last.status).toBe(429)
+    expect((await attempt('198.51.100.7')).status).toBe(401)
+  })
+
+  it('reads the visitor address from proxy headers only from private addresses', () => {
+    const req = (remoteAddress, headers) => ({ socket: { remoteAddress }, headers })
+    expect(isPrivateAddress('::ffff:172.18.0.2')).toBe(true)
+    expect(isPrivateAddress('8.8.8.8')).toBe(false)
+    expect(clientAddress(req('172.18.0.2', { 'cf-connecting-ip': '203.0.113.5' }))).toBe('203.0.113.5')
+    expect(clientAddress(req('10.0.0.3', { 'x-forwarded-for': '203.0.113.9, 10.0.0.1' }))).toBe('203.0.113.9')
+    expect(clientAddress(req('8.8.8.8', { 'cf-connecting-ip': '203.0.113.5' }))).toBe('8.8.8.8')
+    expect(clientAddress(req('172.18.0.2', { 'cf-connecting-ip': '203.0.113.5' }), false)).toBe('172.18.0.2')
+  })
+
+  it('shows each dashboard address on the home page', async () => {
+    const html = await (await fetch(`${base}/`)).text()
+    expect(html).toContain('/d/proxied/</div>')
   })
 
   it('hides the listing when asked', async () => {

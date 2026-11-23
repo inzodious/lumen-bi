@@ -12,13 +12,14 @@
   },
   "scripts": {
     "dev": "node scripts/electron-vite.mjs dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && npm run build:viewer",
+    "build:viewer": "vite build -c viewer.vite.config.ts --logLevel warn",
     "start": "node scripts/electron-vite.mjs preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dist": "electron-vite build && electron-builder --linux AppImage deb",
-    "dist:win": "electron-vite build && electron-builder --win nsis portable --x64 --publish never"
+    "dist": "npm run build && electron-builder --linux AppImage deb",
+    "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never"
   },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.4",

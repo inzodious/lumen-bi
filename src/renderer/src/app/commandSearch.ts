@@ -7,11 +7,12 @@ import {
   DocumentAddRegular, FolderOpenRegular, SaveRegular, SaveEditRegular, ArrowSyncRegular, DatabaseArrowRightRegular, TableAddRegular, TableEditRegular,
   DataBarVerticalAddRegular, TextFieldRegular, SlideAddRegular, ImageRegular, IconsRegular, CalculatorRegular, MathFormulaRegular, TableSimpleRegular, OrganizationRegular,
   DocumentPdfRegular, SlideTextRegular, ImageMultipleRegular, CodeRegular, PaintBrushRegular, FilterRegular, BookmarkRegular, LayerRegular, SettingsRegular,
-  InfoRegular, BeakerRegular, ArrowUndoRegular, ArrowRedoRegular, ColorRegular, EyeRegular
+  InfoRegular, BeakerRegular, ArrowUndoRegular, ArrowRedoRegular, ColorRegular, EyeRegular, CloudArrowUpRegular
 } from '@fluentui/react-icons'
 import { useApp } from '../state/store'
 import { useShell } from './shellState'
 import { openExportDialog } from '../export'
+import { openPublishDialog } from '../publish'
 import { reportShowsSampleData, toggleSampleData } from '../report/sampleActions'
 import { importThemeFile } from './themes'
 import { insertIcon, insertImage, insertTextBox, insertVisual, newPage, newReport, openFileDialog, refreshAll, runModelingCommand, save, saveAs, useSampleData, regenerateSampleData, undo, redo, loadSampleProject } from './commands'
@@ -39,6 +40,7 @@ function commands(): SearchableCommand[] {
     { id: 'pptx', label: 'Export to PowerPoint', group: 'Export', keywords: 'pptx slides pages', icon: ic(SlideTextRegular), run: () => openExportDialog('pptx') },
     { id: 'png', label: 'Export pages as images', group: 'Export', keywords: 'png pages', icon: ic(ImageMultipleRegular), run: () => openExportDialog('png') },
     { id: 'html', label: 'Export to HTML', group: 'Export', keywords: 'web static pages', icon: ic(CodeRegular), run: () => openExportDialog('html') },
+    { id: 'publish', label: 'Publish dashboard', group: 'File', keywords: 'web site share host server github netlify cloudflare zip', icon: ic(CloudArrowUpRegular), run: () => openPublishDialog() },
     { id: 'getdata', label: 'Get data', group: 'Home', keywords: 'import source csv excel sql', icon: ic(DatabaseArrowRightRegular), run: () => shell.openDialog({ id: 'getData' }) },
     { id: 'enterdata', label: 'Enter data', group: 'Home', icon: ic(TableAddRegular), run: () => shell.openDialog({ id: 'enterData' }) },
     { id: 'transform', label: 'Transform data', group: 'Home', keywords: 'power query m editor', icon: ic(TableEditRegular), run: () => app.setView('powerquery') },

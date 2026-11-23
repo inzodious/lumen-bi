@@ -229,6 +229,20 @@ export type MenuCommand =
   | 'help.about'
   | string
 
+// ---------------------------------------------------------------------------------------------
+// Publishing dashboards (src/main/ipc/publish, src/renderer/src/publish)
+
+/** The publish files (lumen-publish.json, report.wbi; src/core/publish) and where they go; the viewer is added by main. */
+export interface PublishFilesRequest {
+  /** target folder (folder) or file (zip) */
+  path: string
+  files: Record<string, Uint8Array | string>
+}
+
+export type PublishResult =
+  | { ok: true; location: string; files: number; bytes: number; url?: string }
+  | { ok: false; reason: 'not-empty' | 'no-viewer' | 'failed'; message: string }
+
 export interface WbiHost {
   fs: FileSystem
   dialog: {
@@ -299,6 +313,13 @@ export interface WbiHost {
       /** smb://host/share/x or \\host\share\x → local mounted path (null when not mounted) */
       resolve(path: string): Promise<string | null>
     }
+  }
+  /** Publish a dashboard (additive: absent in old preloads). */
+  publish?: {
+    status(): Promise<{ viewer: boolean }>
+    /** write the site into a folder; a folder with other files is refused unless `replace` */
+    toFolder(req: PublishFilesRequest & { replace?: boolean }): Promise<PublishResult>
+    toZip(req: PublishFilesRequest): Promise<PublishResult>
   }
   exporter: {
     /** print the current window contents to PDF bytes */

@@ -70,6 +70,11 @@ const host: WbiHost = {
       resolve: (p) => invoke('shares:resolve', p)
     }
   },
+  publish: {
+    status: () => invoke('publish:status'),
+    toFolder: (r) => invoke('publish:folder', r),
+    toZip: (r) => invoke('publish:zip', r)
+  },
   exporter: {
     printToPDF: (o) => invoke('export:printToPDF', o),
     capturePng: (r) => invoke('export:capturePng', r)

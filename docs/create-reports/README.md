@@ -61,6 +61,7 @@ follow them without your own data. Where Lumen behaves differently from Power BI
 | Article | Type | What you learn |
 |---|---|---|
 | [Export a report](export-a-report.md) | How-to | PDF, PowerPoint, images and HTML; choosing pages; Power BI project |
+| [Publish a dashboard](publish-a-dashboard.md) | How-to | An interactive web version of a report for any web server or static host; what data it carries |
 | [Export data from a visual](export-data-from-a-visual.md) | How-to | Save the data behind a visual as `.xlsx` or `.csv` |
 | [Performance analyzer](performance-analyzer.md) | How-to | Time the queries and rendering of each visual |
 | [Keyboard shortcuts and context menus](keyboard-and-context-menus.md) | Concept | Canvas shortcuts and the visual context menu |

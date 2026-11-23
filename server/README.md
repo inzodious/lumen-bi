@@ -86,7 +86,9 @@ first preview image and embed address), with CORS open, for a portfolio page tha
 
 | Address | What |
 |---|---|
-| `/` | The dashboards as a gallery with a preview of every page (Lumen renders them while publishing), search and filters. A password-protected dashboard shows its preview only to a browser signed in to it. |
+| `/` | The gallery: featured dashboards in a spotlight, collections, filters, grid or list, a preview of every page. Search anything with `/` or Ctrl+K. Dashboards that are not public show their preview only to visitors who may open them. |
+| `/collections`, `/c/<tag>` | Dashboards grouped by their tags. |
+| `/dashboards/<name>` | A dashboard's details: its pages, description, collections and related dashboards. |
 | `/d/<name>/` | A dashboard. |
 | `/admin` | The admin console (approved accounts). |
 | `/account` | Your account and connected computers. `/auth/login`, `/auth/logout` sign in and out. |

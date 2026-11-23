@@ -1,6 +1,6 @@
 FROM node:22-alpine
 WORKDIR /app
-COPY package.json main.mjs server.mjs auth.mjs admin.mjs home.mjs zip.mjs ./
+COPY package.json main.mjs server.mjs auth.mjs admin.mjs home.mjs ui.mjs zip.mjs ./
 ENV NODE_ENV=production PORT=8080 LUMEN_SERVER_DATA=/data
 RUN mkdir -p /data && chown node:node /data
 # starts as root only to give /data (often a bind mount created by root) to the node user, then drops to it (main.mjs)

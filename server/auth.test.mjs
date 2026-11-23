@@ -128,7 +128,7 @@ describe('Google sign-in', () => {
     const save = (fields) => fetch(`${base}/admin/d/sales`, { method: 'POST', headers: { cookie: session, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf: token, ...fields }) })
     expect((await save({ csrf: 'forged', title: 'X' })).status).toBe(400)
     const saved = await (await save({ title: 'Sales overview', description: 'Monthly sales', tags: 'sales, monthly', access: 'public', listed: 'on', featured: 'on', order: '1', embed: 'on', origins: 'hemlineanalytics.com\nhttps://example.org/path' })).text()
-    expect(saved).toContain('Saved.')
+    expect(saved).toContain('data-flash="Saved"')
     expect(saved).toContain('?embed=1')
 
     const page = await fetch(`${base}/d/sales/`)
@@ -147,13 +147,35 @@ describe('Google sign-in', () => {
     expect((await fetch(`${base}/api/public/dashboards`).then((r) => r.json())).length).toBe(0)
     expect((await fetch(`${base}/d/sales/`, { headers: { cookie: session } })).headers.get('content-security-policy')).toBe("frame-ancestors 'self'")
 
+    // the gallery's navigation: details page, collections, the bar above the report, quick toggles from the list
+    await save({ title: 'Sales overview', tags: 'Sales, monthly', access: 'users', listed: 'on' })
+    const details = await (await fetch(`${base}/dashboards/sales`, { headers: { cookie: session } })).text()
+    expect(details).toContain('Sales overview')
+    expect(details).toContain('href="/c/monthly"')
+    expect((await fetch(`${base}/dashboards/sales`)).status).toBe(404) // private: strangers get nothing
+    expect(await (await fetch(`${base}/c/monthly`, { headers: { cookie: session } })).text()).toContain('Sales overview')
+    expect(await (await fetch(`${base}/collections`, { headers: { cookie: session } })).text()).toContain('href="/c/sales"')
+    const viewer = await (await fetch(`${base}/d/sales/`, { headers: { cookie: session } })).text()
+    expect(viewer).toContain('id="lumen-bar"')
+    expect(viewer).toContain('href="/admin/d/sales"')
+    expect(await (await fetch(`${base}/d/sales/?embed=1`, { headers: { cookie: session } })).text()).not.toContain('lumen-bar')
+    const quick = (fields, csrf = token) => fetch(`${base}/admin/d/sales/quick`, { method: 'POST', headers: { cookie: session, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf, ...fields }) })
+    expect((await quick({ field: 'featured', value: 'false' }, 'forged')).status).toBe(400)
+    expect(await (await quick({ field: 'featured', value: 'true' })).json()).toMatchObject({ ok: true, f: 'users featured' })
+    expect((await quick({ field: 'access', value: 'password' })).status).toBe(400) // needs a password set on the edit page
+    expect(await (await quick({ field: 'access', value: 'public' })).json()).toMatchObject({ ok: true, access: 'public' })
+    expect((await fetch(`${base}/dashboards/sales`)).status).toBe(200)
+    await quick({ field: 'access', value: 'users' })
+    await quick({ field: 'featured', value: 'true' })
+
     const settings = await (await fetch(`${base}/admin/settings`, { headers: { cookie: session } })).text()
     const t2 = /name="csrf" value="([^"]+)"/.exec(settings)[1]
-    await fetch(`${base}/admin/settings`, { method: 'POST', headers: { cookie: session, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf: t2, title: 'Hemline Dashboards', tagline: 'Work samples', accent: '#1E3A2B', listing: 'on', defaultAccess: 'users' }) })
+    await fetch(`${base}/admin/settings`, { method: 'POST', headers: { cookie: session, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf: t2, title: 'Hemline Dashboards', tagline: 'Work samples', accent: '#1E3A2B', theme: 'hemline', listing: 'on', defaultAccess: 'users' }) })
     const home = await (await fetch(`${base}/`)).text()
     expect(home).toContain('Hemline Dashboards')
     expect(home).toContain('Work samples')
     expect(home).toContain('--accent:#1E3A2B')
+    expect(home).toContain('Bodoni+Moda')
 
     const del = await (await fetch(`${base}/admin/d/sales`, { headers: { cookie: session } })).text()
     const t3 = /name="csrf" value="([^"]+)"/.exec(del)[1]

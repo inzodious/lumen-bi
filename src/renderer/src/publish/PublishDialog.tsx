@@ -1,13 +1,18 @@
 /**
  * File ▸ Publish: where the dashboard goes, its title, and what data it carries. The summary and warnings come from
  * src/core/publish (publishPreview) so the publisher sees what will be readable before anything is written.
+ * Destinations: a folder, a zip, or a saved hosted destination (publish/destinations.ts, DestinationEditor).
  */
-import { useMemo, useState } from 'react'
-import { WarningRegular, InfoRegular } from '@fluentui/react-icons'
+import { useEffect, useMemo, useState } from 'react'
+import { AddRegular, WarningRegular, InfoRegular } from '@fluentui/react-icons'
+import type { PublishDestination } from '@shared/host'
 import { publishPreview } from '@core/publish/bundle'
 import { Button, Checkbox, Modal, Radio, TextField } from '../app/ui'
+import { confirmDialog } from '../app/ui/Modal'
 import { useApp } from '../state/store'
 import { PUBLISH_TARGETS, publishReport, usePublishDialog, usePublishPrefs } from '.'
+import { kindInfo, normalizeSite, rememberSite, rememberedSite, slugify, useDestinations } from './destinations'
+import { DestinationEditor } from './DestinationEditor'
 import './publish.css'
 
 export function PublishDialog() {
@@ -17,11 +22,38 @@ export function PublishDialog() {
   return <PublishBody key={project.id} />
 }
 
+/** Per-report key for remembered site names: the opened file, else the project name. */
+function reportKey(project: { name: string; source: { path?: string } }): string {
+  return project.source.path || project.name
+}
+
+function DestinationRow({ d, checked, onSelect }: { d: PublishDestination; checked: boolean; onSelect(): void }) {
+  return (
+    <div className="wbi-pub__target">
+      <Radio checked={checked} onChange={onSelect} label={d.name} />
+      <div className="wbi-pub__desc">{kindInfo(d.kind)?.label ?? d.kind}</div>
+    </div>
+  )
+}
+
 function PublishBody() {
   const project = useApp((s) => s.project)!
   const prefs = usePublishPrefs()
+  const dests = useDestinations((s) => s.list)
+  const hosted = !!window.wbi.publish?.destinations
   const [title, setTitle] = useState(project.name)
+  const [editing, setEditing] = useState<PublishDestination | 'new' | null>(null)
+  const [sites, setSites] = useState<Record<string, string>>({})
+  const [check, setCheck] = useState<{ id: string; ok: boolean; message: string } | 'running' | null>(null)
+  useEffect(() => {
+    void useDestinations.getState().refresh()
+  }, [])
   const close = () => usePublishDialog.getState().set(false)
+  const selected = dests.find((d) => d.id === prefs.target)
+  const target = selected ? selected.id : prefs.target === 'zip' ? 'zip' : 'folder'
+  const info = selected ? kindInfo(selected.kind) : undefined
+  const site = selected ? (sites[selected.id] ?? rememberedSite(reportKey(project), selected.id) ?? slugify(title)) : ''
+
   const preview = useMemo(() => {
     try {
       return { summary: publishPreview(project, { trimData: prefs.trimData, stripQueries: prefs.stripQueries }), error: null }
@@ -31,15 +63,47 @@ function PublishBody() {
   }, [project, prefs.trimData, prefs.stripQueries])
   const go = () => {
     if (!preview.summary) return
+    let finalSite: string | undefined
+    if (selected) {
+      finalSite = normalizeSite(selected.kind, site)
+      rememberSite(reportKey(project), selected.id, finalSite)
+    }
     close()
-    void publishReport({ target: prefs.target, title, trimData: prefs.trimData, stripQueries: prefs.stripQueries })
+    void publishReport({ target, title, site: finalSite, trimData: prefs.trimData, stripQueries: prefs.stripQueries })
   }
+  const test = async () => {
+    if (!selected) return
+    setCheck('running')
+    const r = await window.wbi.publish!.destinations.test(selected.id, normalizeSite(selected.kind, site) || undefined)
+    setCheck({ id: selected.id, ...r })
+  }
+  const remove = async () => {
+    if (!selected) return
+    const choice = await confirmDialog({ title: 'Remove destination?', message: `"${selected.name}" and its saved token are removed from Lumen. Dashboards already published stay online.`, buttons: ['Remove', 'Cancel'], primary: 0 })
+    if (choice !== 0) return
+    await window.wbi.publish!.destinations.remove(selected.id)
+    prefs.set({ target: 'folder' })
+    await useDestinations.getState().refresh()
+  }
+
+  if (editing)
+    return (
+      <DestinationEditor
+        existing={editing === 'new' ? undefined : editing}
+        onClose={(saved) => {
+          setEditing(null)
+          if (saved) prefs.set({ target: saved.id })
+        }}
+      />
+    )
+
   const s = preview.summary
+  const shownCheck = check && check !== 'running' && check.id === selected?.id ? check : null
   return (
     <Modal
       title="Publish dashboard"
       onClose={close}
-      width={560}
+      width={580}
       onSubmit={go}
       className="wbi-pub"
       footerLeft={preview.error ? <span className="wbi-pub__reason">{preview.error}</span> : undefined}
@@ -59,11 +123,39 @@ function PublishBody() {
           <div className="wbi-pub__label">Destination</div>
           {PUBLISH_TARGETS.map((t) => (
             <div key={t.id} className="wbi-pub__target">
-              <Radio checked={prefs.target === t.id} onChange={() => prefs.set({ target: t.id })} label={t.label} />
+              <Radio checked={target === t.id} onChange={() => prefs.set({ target: t.id })} label={t.label} />
               <div className="wbi-pub__desc">{t.description}</div>
             </div>
           ))}
+          {dests.map((d) => (
+            <DestinationRow key={d.id} d={d} checked={target === d.id} onSelect={() => prefs.set({ target: d.id })} />
+          ))}
+          {hosted ? (
+            <div>
+              <Button size="small" icon={<AddRegular />} onClick={() => setEditing('new')}>
+                Add destination
+              </Button>
+              <span className="wbi-pub__hint"> GitHub Pages, Netlify, Cloudflare Pages, S3-compatible storage</span>
+            </div>
+          ) : null}
         </div>
+        {selected && info ? (
+          <div className="wbi-pub__section wbi-pub__dest">
+            <TextField label={info.siteLabel} value={site} hint={info.siteHint} onChange={(v) => setSites((x) => ({ ...x, [selected.id]: v }))} />
+            <div className="wbi-pub__row">
+              <Button size="small" onClick={() => void test()} disabled={check === 'running'}>
+                {check === 'running' ? 'Checking…' : 'Check connection'}
+              </Button>
+              <Button size="small" onClick={() => setEditing(selected)}>
+                Edit
+              </Button>
+              <Button size="small" onClick={() => void remove()}>
+                Remove
+              </Button>
+            </div>
+            {shownCheck ? <div className={shownCheck.ok ? 'wbi-pub__ok' : 'wbi-pub__reason'}>{shownCheck.message}</div> : null}
+          </div>
+        ) : null}
         <div className="wbi-pub__section">
           <div className="wbi-pub__label">Data</div>
           <Checkbox checked={prefs.trimData} onChange={(v) => prefs.set({ trimData: !!v })} label="Leave out columns the report and its measures never use" />

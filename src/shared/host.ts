@@ -243,6 +243,45 @@ export type PublishResult =
   | { ok: true; location: string; files: number; bytes: number; url?: string }
   | { ok: false; reason: 'not-empty' | 'no-viewer' | 'failed'; message: string }
 
+export type PublishDestinationKind = 'github-pages' | 'netlify' | 'cloudflare-pages' | 's3' | 'lumen-server'
+
+/** A saved place to publish to (Publish dialog ▸ Add destination); secrets stay in the main process. */
+export interface PublishDestination {
+  id: string
+  kind: PublishDestinationKind
+  name: string
+  /** non-secret settings of the kind (owner, repo, account id, bucket, server URL…) */
+  settings: Record<string, string>
+  /** names of the secrets that are set (token, secretAccessKey…) */
+  secrets: string[]
+  updatedAt: number
+}
+
+export interface PublishDestinationInput {
+  /** absent: a new destination */
+  id?: string
+  kind: PublishDestinationKind
+  name: string
+  settings: Record<string, string>
+  /** secrets left undefined keep their stored value; '' clears them */
+  secrets?: Record<string, string | undefined>
+}
+
+export interface PublishDeployRequest {
+  destinationId: string
+  /** where the dashboard goes inside the destination: a folder (GitHub Pages, S3), a site or project name (Netlify,
+   *  Cloudflare Pages) or a slug (Lumen Server) */
+  site: string
+  title: string
+  files: Record<string, Uint8Array | string>
+}
+
+export interface PublishProgress {
+  message: string
+  /** 0..1 when known */
+  fraction?: number
+}
+
 export interface WbiHost {
   fs: FileSystem
   dialog: {
@@ -320,6 +359,16 @@ export interface WbiHost {
     /** write the site into a folder; a folder with other files is refused unless `replace` */
     toFolder(req: PublishFilesRequest & { replace?: boolean }): Promise<PublishResult>
     toZip(req: PublishFilesRequest): Promise<PublishResult>
+    destinations: {
+      list(): Promise<PublishDestination[]>
+      set(input: PublishDestinationInput): Promise<PublishDestination>
+      remove(id: string): Promise<void>
+      /** sign-in / access check against the destination; `site` checks that one site too */
+      test(id: string, site?: string): Promise<{ ok: boolean; message: string }>
+    }
+    /** upload to a saved destination; `url` of the result is where the dashboard is live */
+    deploy(req: PublishDeployRequest): Promise<PublishResult>
+    onProgress(cb: (p: PublishProgress) => void): () => void
   }
   exporter: {
     /** print the current window contents to PDF bytes */

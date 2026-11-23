@@ -19,7 +19,7 @@ export interface S3Target {
 
 const clients = new Map<string, S3Client>()
 
-function client(t: S3Target): S3Client {
+export function s3Client(t: S3Target): S3Client {
   const a = t.auth
   const key = JSON.stringify([t.endpoint ?? '', t.region ?? '', !!t.forcePathStyle, a?.kind ?? '', a?.accessKeyId ?? '', a?.secretAccessKey ?? '', a?.sessionToken ?? '', a?.profile ?? ''])
   let c = clients.get(key)
@@ -47,7 +47,7 @@ export function resetS3Clients(): void {
   clients.clear()
 }
 
-function explain(e: unknown, t: S3Target): ConnectorError {
+export function explainS3Error(e: unknown, t: S3Target): ConnectorError {
   const err = e as { name?: string; message?: string; Code?: string; $metadata?: { httpStatusCode?: number } }
   const code = err.name ?? err.Code ?? ''
   const status = err.$metadata?.httpStatusCode
@@ -67,7 +67,7 @@ export async function s3List(t: S3Target, prefix: string, recursive: boolean): P
   let token: string | undefined
   try {
     do {
-      const r = await client(t).send(new ListObjectsV2Command({ Bucket: t.bucket, Prefix: prefix || undefined, Delimiter: recursive ? undefined : '/', ContinuationToken: token }))
+      const r = await s3Client(t).send(new ListObjectsV2Command({ Bucket: t.bucket, Prefix: prefix || undefined, Delimiter: recursive ? undefined : '/', ContinuationToken: token }))
       for (const p of r.CommonPrefixes ?? []) {
         if (!p.Prefix) continue
         const dir = p.Prefix.replace(/\/$/, '')
@@ -81,17 +81,17 @@ export async function s3List(t: S3Target, prefix: string, recursive: boolean): P
       token = r.IsTruncated ? r.NextContinuationToken : undefined
     } while (token)
   } catch (e) {
-    throw explain(e, t)
+    throw explainS3Error(e, t)
   }
   return out.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
 }
 
 export async function s3Get(t: S3Target, key: string): Promise<Uint8Array> {
   try {
-    const r = await client(t).send(new GetObjectCommand({ Bucket: t.bucket, Key: key }))
+    const r = await s3Client(t).send(new GetObjectCommand({ Bucket: t.bucket, Key: key }))
     if (!r.Body) return new Uint8Array()
     return await (r.Body as { transformToByteArray(): Promise<Uint8Array> }).transformToByteArray()
   } catch (e) {
-    throw explain(e, t)
+    throw explainS3Error(e, t)
   }
 }

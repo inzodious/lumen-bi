@@ -57,3 +57,24 @@
   color: var(--wbi-error);
   font-size: 12px;
 }
+
+.wbi-pub__hint {
+  color: var(--wbi-fg-3);
+  font-size: 12px;
+}
+
+.wbi-pub__ok {
+  color: #107c10;
+  font-size: 12px;
+}
+
+.wbi-pub__row {
+  display: flex;
+  gap: 8px;
+}
+
+.wbi-pub__dest {
+  padding: 10px 12px;
+  border: 1px solid var(--wbi-border);
+  border-radius: 4px;
+}

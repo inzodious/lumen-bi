@@ -33,7 +33,7 @@ function build(design) {
   )
   write(join(sm, 'definition.pbism'), json({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/definitionProperties/1.0.0/schema.json', version: '4.2', settings: {} }))
   for (const [p, text] of Object.entries(modelFiles(design))) write(join(sm, 'definition', p), text)
-  writeReport(design, rp, { motion: MOTION[design.id] })
+  writeReport(design, rp, { motion: design.motion ?? MOTION[design.id] })
 }
 
 const designDir = join(here, 'designs')

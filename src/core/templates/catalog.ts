@@ -153,5 +153,24 @@ export const GALLERY_TEMPLATES: ReportTemplate[] = [
       "#FF5FA2",
       "#2FD6C3"
     ]
+  },
+  {
+    "id": "regolith",
+    "name": "Regolith",
+    "summary": "Deep-space mining command deck: a navigation rail, copper-glow panels and an asteroid on the horizon",
+    "description": "Mining operations on a basalt-dark command deck: a left rail with a page navigator and filters, KPI tiles with a copper edge glow, an extraction trend, a celestial-body donut and a site leaderboard over a cratered asteroid and a molten horizon. Uses Lumen-only effects; in Power BI the panels show as plain dark boxes.",
+    "style": "Industrial sci-fi",
+    "compatibility": "lumen",
+    "lumenFeatures": [
+      "Panels with a copper edge glow (Lumen_Style)",
+      "Bundled Barlow and Roboto Condensed fonts",
+      "Page navigator rail"
+    ],
+    "swatch": [
+      "#0A0C10",
+      "#FF7A3D",
+      "#2FD6C3",
+      "#FFC24B"
+    ]
   }
 ]

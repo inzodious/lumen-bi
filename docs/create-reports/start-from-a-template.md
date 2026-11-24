@@ -33,6 +33,7 @@ The chips above the cards filter the list: **All**, **Power BI compatible** and 
 | Contour | Nature: mountain panorama, topographic lines, a trail through waypoint KPIs | Parks and wildlife | Compatible |
 | Blueprint | Technical: an engineering drawing sheet with a title block and a CAD gear | Plant OEE | Compatible |
 | Aurora | Glass: soft pastel light, aurora ribbons, frosted panels | Music streaming | Lumen only |
+| Regolith | Industrial sci-fi: a command rail with page navigator, copper and teal glow panels | Space mining operations | Lumen only |
 | 1st Edition | Starter: navigation, filter panel, calendar and last-refreshed date | Calendar only | Compatible |
 
 **Power BI compatible** templates use only what Power BI Desktop draws the same way: its visuals, container

@@ -16,8 +16,9 @@ function inFilter(entity, prop, literal) {
   }
 }
 
-/** Dropdown slicer on dim_calendar[year], single select, synced on every page, opening on the current year. */
+/** Dropdown slicer on dim_calendar[year], single select, synced on every page, opening on the current year (or `spec.year`). */
 export function yearSlicer(k, spec) {
+  const year = spec.year ?? CURRENT_YEAR
   return k.slicer({
     name: 'year',
     mode: 'Dropdown',
@@ -26,7 +27,7 @@ export function yearSlicer(k, spec) {
     field: cal('year'),
     syncGroup: 'year',
     objects: { selection: { singleSelect: true, strictSingleSelect: true }, ...(spec.objects ?? {}) },
-    rawObjects: { general: [{ properties: { filter: { filter: inFilter('dim_calendar', 'year', `${CURRENT_YEAR}L`) } } }] }
+    rawObjects: { general: [{ properties: { filter: { filter: inFilter('dim_calendar', 'year', `${year}L`) } } }] }
   })
 }
 

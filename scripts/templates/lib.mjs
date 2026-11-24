@@ -144,7 +144,7 @@ function containerObjects(o = {}) {
 
 /**
  * One visual container.
- * spec: { type, x, y, w, h, z?, roles?: { Category: [field], Y: [...] }, sort?: { field, dir }, objects?, box?, style?, name? }
+ * spec: { type, x, y, w, h, z?, roles?: { Category: [field], Y: [...] }, sort?: { field, dir }, objects?, box?, style?, motion?, hidden?, name? }
  *  - box: container formatting (title, background, border, shadow, padding…)
  *  - style: Lumen-only container effects, saved as the `Lumen_Style` annotation (see report/lumenStyle.ts)
  */
@@ -172,6 +172,7 @@ export function visual(seed, spec) {
     if (fieldBound) sample.objects = fieldBound
   }
   v.visualContainerObjects = containerObjects(spec.box)
+  if (spec.vcoExtra) Object.assign(v.visualContainerObjects, spec.vcoExtra)
   v.drillFilterOtherVisuals = true
   const out = {
     $schema: VC_SCHEMA,
@@ -180,8 +181,11 @@ export function visual(seed, spec) {
     visual: v
   }
   if (spec.filters) out.filterConfig = { filters: spec.filters }
+  if (spec.hidden) out.isHidden = true
   const annotations = []
   if (spec.style) annotations.push({ name: 'Lumen_Style', value: JSON.stringify(spec.style) })
+  // Lumen-only entrance / delay (src/core/report/motion.ts), e.g. { entrance: 'rise', delay: 120 }
+  if (spec.motion) annotations.push({ name: 'Lumen_Motion', value: JSON.stringify(spec.motion) })
   if (sample) annotations.push({ name: 'Lumen_SampleData', value: JSON.stringify(sample) })
   if (annotations.length) out.annotations = annotations
   return out

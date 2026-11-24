@@ -4,7 +4,7 @@
  *
  * tokens: { bg, ink, muted, grid, colors[], fontBody, fontHead, fontNum, tableHead?, tableRow? }
  */
-import { c, image, shape, textbox, visual } from './lib.mjs'
+import { c, image, props, shape, textbox, visual } from './lib.mjs'
 
 const sel = { $selector: { id: 'default' } }
 
@@ -309,6 +309,66 @@ export function kit(seed, t) {
         },
         box: spec.box
       }),
+
+    /**
+     * Page navigator (PBI pageNavigator): one button per visible page, the open page in its `selected` style.
+     * spec: { vertical, gap, radius, font, size, color, selColor, fill, selFill, hoverFill, line, selLine, align, margin }
+     */
+    pageNav: (spec) => {
+      const st = (id, o) => ({ ...o, $selector: { id } })
+      return visual(seed, {
+        ...spec,
+        type: 'pageNavigator',
+        objects: {
+          layout: { orientation: spec.vertical === false ? 0 : 1, cellPadding: spec.gap ?? 6 },
+          shape: st('default', { tileShape: 'rectangleRounded', roundEdge: spec.radius ?? 8 }),
+          text: [
+            st('default', { show: true, fontFamily: pbiFont(font(spec.font)), fontSize: spec.size ?? 10, fontColor: c(spec.color ?? t.muted), horizontalAlignment: spec.align ?? 'left', leftMargin: spec.margin ?? 16 }),
+            st('hover', { fontColor: c(spec.hoverColor ?? spec.selColor ?? t.ink) }),
+            st('selected', { fontFamily: pbiFont(font(spec.selFont ?? spec.font)), fontColor: c(spec.selColor ?? t.ink) })
+          ],
+          fill: [
+            st('default', { show: true, fillColor: c(spec.fill ?? t.bg), transparency: spec.fillTransparency ?? 100 }),
+            st('hover', { fillColor: c(spec.hoverFill ?? spec.selFill ?? t.grid), transparency: spec.hoverTransparency ?? 60 }),
+            st('selected', { fillColor: c(spec.selFill ?? t.grid), transparency: spec.selTransparency ?? 0 })
+          ],
+          outline: [
+            st('default', { show: !!spec.line, ...(spec.line ? { lineColor: c(spec.line), weight: 1 } : {}) }),
+            st('selected', { show: true, lineColor: c(spec.selLine ?? spec.line ?? t.colors[0]), weight: spec.selWeight ?? 1 })
+          ],
+          ...(spec.objects ?? {})
+        },
+        box: spec.box
+      })
+    },
+
+    /**
+     * Action button with text (PBI actionButton). action: { type: 'PageNavigation', page } | { type: 'Bookmark', bookmark }
+     * | { type: 'Drillthrough', page } | { type: 'Back' }; page and bookmark are PBIR names (pbir.mjs pageId / bookmarkId).
+     */
+    button: (spec) => {
+      const st = (id, o) => ({ ...o, $selector: { id } })
+      const a = spec.action
+      const link = { show: true, type: a.type, ...(a.type === 'PageNavigation' ? { navigationSection: a.page } : {}), ...(a.type === 'Drillthrough' ? { drillthroughSection: a.page } : {}), ...(a.type === 'Bookmark' ? { bookmark: a.bookmark } : {}), ...(a.tooltip ? { tooltip: a.tooltip } : {}) }
+      return visual(seed, {
+        ...spec,
+        type: 'actionButton',
+        objects: {
+          shape: st('default', { tileShape: 'rectangleRounded', roundEdge: spec.radius ?? 8 }),
+          icon: st('default', { show: !!spec.icon, ...(spec.icon ? { shapeType: spec.icon, lineColor: c(spec.iconColor ?? spec.color ?? t.ink), placement: 'left' } : {}) }),
+          text: [
+            st('default', { show: !!spec.text, text: spec.text ?? '', fontFamily: pbiFont(font(spec.font)), fontSize: spec.size ?? 9, fontColor: c(spec.color ?? t.ink), horizontalAlignment: spec.align ?? 'center' }),
+            st('hover', { fontColor: c(spec.hoverColor ?? spec.color ?? t.ink) })
+          ],
+          fill: [st('default', { show: true, fillColor: c(spec.fill ?? t.grid), transparency: spec.fillTransparency ?? 0 }), st('hover', { fillColor: c(spec.hoverFill ?? spec.fill ?? t.grid), transparency: 0 })],
+          outline: st('default', { show: !!spec.line, ...(spec.line ? { lineColor: c(spec.line), weight: 1 } : {}) }),
+          ...(spec.objects ?? {})
+        },
+        rawObjects: undefined,
+        box: { ...(spec.box ?? {}) },
+        vcoExtra: { visualLink: [{ properties: props(link) }] }
+      })
+    },
 
     axisOff
   }

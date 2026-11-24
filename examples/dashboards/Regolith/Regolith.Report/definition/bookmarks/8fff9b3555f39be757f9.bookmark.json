@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmark/1.4.0/schema.json",
+  "displayName": "By material",
+  "name": "8fff9b3555f39be757f9",
+  "options": {
+    "targetVisualNames": [
+      "29ba86c8a2bf65737566",
+      "d522fa67a046589fce64"
+    ],
+    "applyOnlyToTargetVisuals": true,
+    "suppressData": true,
+    "suppressActiveSection": true
+  },
+  "explorationState": {
+    "version": "1.3",
+    "activeSection": "ff190afed9edfad10c71",
+    "sections": {
+      "ff190afed9edfad10c71": {
+        "visualContainers": {
+          "29ba86c8a2bf65737566": {
+            "singleVisual": {
+              "visualType": "columnChart"
+            }
+          },
+          "d522fa67a046589fce64": {
+            "singleVisual": {
+              "visualType": "tableEx",
+              "display": {
+                "mode": "hidden"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

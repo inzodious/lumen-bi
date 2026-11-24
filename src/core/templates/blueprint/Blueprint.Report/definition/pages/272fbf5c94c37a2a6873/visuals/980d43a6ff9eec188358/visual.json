@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "lineClusteredColumnComboChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Production"
-                    }
-                  },
-                  "Property": "Line"
-                }
-              },
-              "queryRef": "Production.Line",
-              "nativeQueryRef": "Line"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_OEE"
-                    }
-                  },
-                  "Property": "OEE"
-                }
-              },
-              "queryRef": "_OEE.OEE",
-              "nativeQueryRef": "OEE"
-            }
-          ]
-        },
-        "Y2": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_OEE"
-                    }
-                  },
-                  "Property": "OEE Target"
-                }
-              },
-              "queryRef": "_OEE.OEE Target",
-              "nativeQueryRef": "OEE Target"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -277,44 +219,6 @@
             }
           }
         }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#EAF2FF'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_OEE.OEE"
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FFD23F'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_OEE.OEE Target"
-          }
-        }
       ]
     },
     "visualContainerObjects": {
@@ -481,5 +385,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Production\"}},\"Property\":\"Line\"}},\"queryRef\":\"Production.Line\",\"nativeQueryRef\":\"Line\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_OEE\"}},\"Property\":\"OEE\"}},\"queryRef\":\"_OEE.OEE\",\"nativeQueryRef\":\"OEE\"}]},\"Y2\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_OEE\"}},\"Property\":\"OEE Target\"}},\"queryRef\":\"_OEE.OEE Target\",\"nativeQueryRef\":\"OEE Target\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#EAF2FF'\"}}}}}},\"selector\":{\"metadata\":\"_OEE.OEE\"}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FFD23F'\"}}}}}},\"selector\":{\"metadata\":\"_OEE.OEE Target\"}}]}}"
+    }
+  ]
 }

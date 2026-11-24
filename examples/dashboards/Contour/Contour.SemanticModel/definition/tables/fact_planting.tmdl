@@ -1,0 +1,63 @@
+table fact_planting
+	lineageTag: 2c1dabaf-5b15-4fbd-aa84-2b63096403d2
+
+	column date
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 71c950ac-6ecd-4cdc-a6af-51215b1fce45
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column park_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: fda91137-dc46-418c-a9b1-2364dc66b9db
+		summarizeBy: none
+		sourceColumn: park_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column tree_species
+		dataType: string
+		lineageTag: 0647bb93-29d8-443f-a137-7cc28e4e361d
+		summarizeBy: none
+		sourceColumn: tree_species
+
+		annotation SummarizationSetBy = Automatic
+
+	column trees_planted
+		dataType: int64
+		formatString: #,0
+		lineageTag: dc8dc952-75cf-462c-a3e1-b05371c101a6
+		summarizeBy: sum
+		sourceColumn: trees_planted
+
+		annotation SummarizationSetBy = Automatic
+
+	column trees_alive_after_1yr
+		dataType: int64
+		formatString: #,0
+		lineageTag: e4a7e17b-65a7-4460-a22d-f50f83f77b83
+		summarizeBy: sum
+		sourceColumn: trees_alive_after_1yr
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_planting = m
+		mode: import
+		queryGroup: Fact
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("dZZBb9swDIX/SqCzDYgUScv3/YFthx2KHgwsy4JmadAu/3+Q6gy1H3npQf3y/EQ+Snp6SpxZxywjcRoSpSF9eb2fLsv74df5LQ2Jta1R1fQ87OCShvTj9/nv8XA7X49pSCLWlikjayg8N2EutoXn1cVOuC0VnpAtIEx1an+lIqxpSN/vp+Xt8Ge5XY7dbHVcsLm1UG5wmQVhtGGS2090RljQs7Y14s9V1jGXFd4Uo5RuuVZkDfYnJYNlHSmvlr/el5fz9XRY3m/Ha8NzXVsDuNNBazVl2pqmya9d6S2shjCWQ611SibewCyuMmn/Is0IM9SDrW9wV+gOKygX/YjdVrlvhJziUekjxBnx9o9vx5+H1+Wlh6I31gqCTo56u7U4MERDa+7CnwxTHom8mWrTtIvRg2XQzb0foshiLFRkTdIGri5sVLrv/8rWpiQ/mrcLXEvn9X65AOsMdjsFXNYZkomQ9avGrccuumuxScAJfF55DljdaApFNs1tGKB1tbkPbj/jXRrjKK7Z6s6Plog17+yZnI6xumNcBJR1zOxl15gCFA1L9mRn/0CbasA6M8yRLo5wngJ0GwbmiMMhk9lhydwZ05kD1rnuS4DKxmqR6PNeBxRZLn4HNAesE1sqAYu3T78zXVbhEA1l8ZSx7LD9esatFZoD1tmaWcDi08EoQN2B1L1hyh/vDO+ZGLH+gcNI91cGjG+ZLUAhjwy7a+jkqcocoYYpd7wGT5H22vNZcMCZAhT2ZSHqvMnkce88/wM=", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [date = _t, park_key = _t, tree_species = _t, trees_planted = _t, trees_alive_after_1yr = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"date", type date}, {"park_key", Int64.Type}, {"tree_species", type text}, {"trees_planted", Int64.Type}, {"trees_alive_after_1yr", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

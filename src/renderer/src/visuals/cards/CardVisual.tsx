@@ -30,6 +30,7 @@ import {
   type RefLabelModel,
   type TileStyle
 } from './cardVisualModel'
+import { COUNT_MARK } from '../common/motionMarks'
 
 export function computeCardVisual(visualJson: any, ctx: VisualHostContext): CardVisualModel {
   const labelOf = (p: any) => {
@@ -535,7 +536,7 @@ function CalloutArea({ c, image, layout }: { c: CalloutModel; image?: CalloutIma
             <CFIcon name={c.kpiIcon} size={Math.round(ptToPx(c.value.font.size) * 1.1)} />
           </div>
         ) : (
-          <div className="wbi-card-value" style={{ ...textBlock(c.value.text, fontStyle(c.value.font), c.value.wrap), flex: 'none' }}>
+          <div className="wbi-card-value" style={{ ...textBlock(c.value.text, fontStyle(c.value.font), c.value.wrap), flex: 'none' }} {...COUNT_MARK}>
             {c.value.text}
           </div>
         )

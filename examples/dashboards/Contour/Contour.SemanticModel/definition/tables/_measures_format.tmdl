@@ -1,0 +1,83 @@
+table _measures_format
+	lineageTag: 681b8bc7-447e-4c2e-a69b-ac40085ab824
+
+	measure fmt_period =
+			VAR _first = MIN(dim_calendar[date])
+			VAR _last = MAX(dim_calendar[date])
+			RETURN
+				UPPER(FORMAT(_first, "MMM") & " – " & FORMAT(_last, "MMM yyyy"))
+		lineageTag: 0ceb1f41-3005-4e46-a504-cd0254789a7c
+
+	measure fmt_busiest_park =
+			VAR _top =
+				TOPN(
+					1,
+					VALUES(dim_park[park]),
+					[kpi_visitors]
+				)
+			RETURN
+				MAXX(_top, dim_park[park])
+		lineageTag: a64ac651-d3b5-4877-a5e4-fe4443f3d212
+
+	measure fmt_visitors_note = "busiest: " & [fmt_busiest_park] & "  ·  " & FORMAT([kpi_visitors_yoy_pct], "+0%;-0%;0%") & " vs last year"
+		lineageTag: 9eb52e37-eb2b-4133-a3ab-b2bc2ef3293a
+
+	measure fmt_trail_note = FORMAT([kpi_work_orders], "#,0") & " work orders  ·  " & FORMAT([kpi_volunteer_hours], "#,0") & " volunteer hours"
+		lineageTag: 5b8cf4bb-dd46-4650-a6a2-77f3ecddff47
+
+	measure fmt_trees_note =
+			IF(
+				ISBLANK([kpi_tree_survival_pct]),
+				"first-year survival checks due next season",
+				FORMAT([kpi_tree_survival_pct], "0%") & " alive after their first year"
+			)
+		lineageTag: 1cd557f9-928c-41a2-a85a-776d5e9c31a9
+
+	measure fmt_sightings_note = [kpi_species_logged] & " species  ·  " & [kpi_at_risk_sightings] & " at-risk sightings"
+		lineageTag: 790a4457-35d4-4e9b-a701-4ae1925cbd6c
+
+	measure fmt_revenue_note = FORMAT([kpi_revenue_per_visitor], "$0.00") & " per visitor"
+		lineageTag: 6a096aa7-9428-4af4-ab5e-e26140ac00cd
+
+	measure fmt_camping_note = FORMAT([kpi_campsite_nights], "#,0") & " site nights booked"
+		lineageTag: 224708a6-82f7-4912-a419-348fe8054672
+
+	measure fmt_daily_note = "peak day: " & FORMAT(MAXX(VALUES(dim_calendar[date]), [kpi_visitors]), "#,0")
+		lineageTag: c4c5439f-789b-4370-a899-3f9823670558
+
+	measure fmt_cost_note = FORMAT([kpi_cost_per_km], "$#,0") & " per km"
+		lineageTag: 18014130-c125-432b-a948-94cc6b27f78a
+
+	measure fmt_volunteer_note = FORMAT([kpi_volunteer_share_pct], "0%") & " of all trail hours"
+		lineageTag: 25553deb-53dd-428a-ac66-4e285eb30d63
+
+	measure fmt_yoy_color =
+			IF(
+				[kpi_visitors_yoy_pct] < 0,
+				"#C2683A",
+				"#2F5D45"
+			)
+		lineageTag: 2648683e-60d6-4345-af46-7fb5e7c6388a
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: c8ad3ce4-49a1-4384-aec9-18f08a20db8a
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_format = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

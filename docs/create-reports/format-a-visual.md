@@ -78,6 +78,38 @@ An **fx** button next to a property means it can take its value from data: color
 value; titles and alt text from a field value. A property with conditional formatting shows a chip instead of the
 control; select the chip to edit the rule or **x** to remove it. See [Conditional formatting](conditional-formatting.md).
 
+## Gradient fills
+
+Lumen can fill a color with a gradient where Power BI only has a solid color. Open the color picker and select
+**Gradient** (next to **Solid**) to edit:
+
+- the stops on the bar under the preview: select a stop to change its color (theme colors, tints and shades, or a hex
+  value) and its position, drag it along the bar, and use **+** / the bin to add or remove stops (2 to 8);
+- **Linear** or **Radial**, and for a linear gradient its direction (the arrows, or an angle in degrees).
+
+Select **Apply**. The color button then shows the gradient; picking a color on the **Solid** tab or
+**Reset to default** returns to a solid color.
+
+Every color setting of a visual (Visual and General tabs) offers the same three choices: **Solid**, **Gradient**
+and **fx Conditional**, which opens the conditional formatting dialog (rules, gradient scale or field value) for that
+setting. In page formatting, **Canvas background** and **Wallpaper** take gradients too; the filter pane colors are
+solid only.
+
+Gradients apply to whatever the setting colors: fills and backgrounds, text (as gradient text), lines and gridlines
+(along their length), and chart series. Borders of cards, tables and other boxes drawn as CSS borders stay solid.
+
+Power BI has no gradient fill, so the property itself keeps a solid color, the gradient's middle color (nudged by an
+invisible step when another color in the visual is the same), which is what Power BI Desktop draws when it opens the
+report. The gradient is stored beside it in an annotation (see
+[Working with PBIP projects](../files-and-compatibility/working-with-pbip-projects.md)). If the color is later changed
+in Power BI, Lumen draws the new solid color and ignores the old gradient. Gradient fills are not conditional
+formatting: for colors that follow the data, use **fx** (below).
+
+Conditional formatting works on every color setting. Colors that vary per data point (chart data colors and data
+labels, table and matrix cell elements, the new card's callouts) are evaluated per point; every other color has one
+value for the whole visual, evaluated in the visual's filters like Power BI does for title and background colors. When
+a rule gives no color, the visual draws its default.
+
 ## Copy formatting to another visual
 
 1. Select the visual whose formatting you want to copy.
@@ -100,6 +132,7 @@ formatting: changes apply to the phone layout only* and offers **Reset to deskto
 - Some labels in the pane are not final: the button **Action** type list shows *Qn A* and *Web Url*; the new card's
   **Card shadow** preset list shows internal values such as *bottomRight*; the donut chart has two cards named
   **Slices**, and the pie and donut **Data labels** cards have two properties named **Background**.
+- **Gradient fills** are Lumen-only (see above). The **Format painter** copies them with the rest of the formatting.
 - Line and area charts show **Error bars** and **Find anomalies** on the Visual tab as well as on the Analytics tab.
 
 ## Related content

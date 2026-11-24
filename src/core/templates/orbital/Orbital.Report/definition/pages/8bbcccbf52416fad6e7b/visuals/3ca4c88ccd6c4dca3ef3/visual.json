@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "clusteredColumnChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Missions"
-                    }
-                  },
-                  "Property": "Mission"
-                }
-              },
-              "queryRef": "Missions.Mission",
-              "nativeQueryRef": "Mission"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Telemetry"
-                    }
-                  },
-                  "Property": "Anomalies"
-                }
-              },
-              "queryRef": "_Telemetry.Anomalies",
-              "nativeQueryRef": "Anomalies"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Telemetry"
-                  }
-                },
-                "Property": "Anomalies"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -284,5 +226,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Missions\"}},\"Property\":\"Mission\"}},\"queryRef\":\"Missions.Mission\",\"nativeQueryRef\":\"Mission\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Telemetry\"}},\"Property\":\"Anomalies\"}},\"queryRef\":\"_Telemetry.Anomalies\",\"nativeQueryRef\":\"Anomalies\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Telemetry\"}},\"Property\":\"Anomalies\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

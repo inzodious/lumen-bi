@@ -1,0 +1,131 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.lv-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--wbi-canvas);
+  font-family: var(--wbi-font);
+  color: var(--wbi-fg);
+}
+
+.lv-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px 0 16px;
+  background: var(--wbi-bg);
+  border-bottom: 1px solid var(--wbi-border);
+  flex: none;
+  min-width: 0;
+}
+
+.lv-title {
+  font-family: var(--wbi-font-semibold);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.lv-meta {
+  font-size: 12px;
+  color: var(--wbi-fg-3);
+  white-space: nowrap;
+}
+
+.lv-spacer {
+  flex: 1;
+}
+
+.lv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--wbi-fg-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lv-btn:hover {
+  background: var(--wbi-hover);
+}
+
+.lv-btn:active {
+  background: var(--wbi-pressed);
+}
+
+.lv-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lv-main > .wbi-report {
+  flex: 1;
+  min-height: 0;
+}
+
+.lv-status {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: var(--wbi-font);
+  font-size: 14px;
+  color: var(--wbi-fg-3);
+  background: var(--wbi-canvas);
+  padding: 16px;
+  text-align: center;
+}
+
+.lv-status__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--wbi-fg);
+}
+
+.lv-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--wbi-border);
+  border-top-color: var(--wbi-fg-3);
+  animation: lv-spin 0.9s linear infinite;
+}
+
+@keyframes lv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-spinner {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .lv-meta,
+  .lv-btn span {
+    display: none;
+  }
+}

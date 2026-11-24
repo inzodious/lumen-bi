@@ -11,7 +11,7 @@ import { useInteraction } from '../state/interaction'
 import type { PageDocument, ReportDocument } from '@core/report/types'
 import { decodeValue } from '@core/report/props'
 import { withTransparency } from '@core/report/theme'
-import { FocusBar, PageCanvas, pageBackgroundStyle } from './PageCanvas'
+import { FocusBar, PageCanvas, flatBackgroundStyle, pageBackgroundStyle } from './PageCanvas'
 import { PageTabs } from './PageTabs'
 import { ContextMenuLayer, TooltipLayer } from './Overlays'
 import { handleCanvasKey } from './commands'
@@ -50,8 +50,7 @@ function wallpaper(report: ReportDocument, page: PageDocument | undefined, theme
   const props = entries[0]?.properties ?? {}
   const color = decodeValue(props.color, theme)
   const transparency = Number(decodeValue(props.transparency, theme) ?? 0)
-  const { ['--wbi-bg-opacity' as any]: _o, ...rest } = st as any
-  return { style: { ...rest, backgroundColor: typeof color === 'string' ? withTransparency(color, transparency) : '#FFFFFF' }, explicit: true }
+  return { style: { ...flatBackgroundStyle(st), backgroundColor: typeof color === 'string' ? withTransparency(color, transparency) : '#FFFFFF' }, explicit: true }
 }
 
 /** Page format ▸ Canvas settings ▸ Vertical alignment (`page.objects.displayArea.verticalAlignment`): 'Top' | 'Middle'. */

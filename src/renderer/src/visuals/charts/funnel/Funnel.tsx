@@ -11,12 +11,15 @@ import { buildCategorical, pointIdentity } from '../../common/categorical'
 import { FormatReader, PBI } from '../../common/fmtProps'
 import { ellipsize, fontAttrs, lineHeight, measureText } from '../../common/text'
 import { contrastText, rgba } from '../../common/color'
+import { colorAt } from '@core/report/gradientFill'
+import { SvgGradientDefs, svgPaintRef, type SvgPaint } from '../../common/svgPaint'
 import { formatWithUnits, resolveDisplayUnit } from '../../common/units'
 import { makeInteractions } from '../../common/interaction'
 import { pointTooltip } from '../../common/tooltip'
 import { EmptyVisual, NoData, VisualError, useVisualQuery } from '../../common/VisualState'
 import { ICONS } from '../icons'
 import { conversionRate, formatPercent, funnelLabelText, normalizeFunnelLabelStyle, percentOfFirst, percentOfPrevious } from './funnelMath'
+import { WIDEN_MARK } from '../../common/motionMarks'
 
 /** Bar height as a fraction of the row (PBI leaves a small gap between stages). */
 const BAR_FILL = 0.85
@@ -65,13 +68,17 @@ export function Funnel({ visual, width, height, ctx }: VisualProps) {
   const lh = lineHeight(lT.font)
 
   const nodes: ReactNode[] = []
+  const paints: SvgPaint[] = []
   const labels: ReactNode[] = []
   d.categories.forEach((c, ci) => {
     const v = vals[ci]
     const w = (v / max) * plot.w
     const y = plot.y + ci * step + (step - barH) / 2
     const id = pointIdentity(c, undefined)
+    const grad = s.pointColors?.[ci] !== undefined ? s.pointGradients?.[ci] : s.gradient
+    if (grad) paints.push({ gradient: grad })
     const color = s.pointColors?.[ci] ?? s.color
+    const paint = grad ? svgPaintRef({ gradient: grad }) : color
     const op = hl ? 1 : inter.opacityFor(id)
     const handlers = {
       onClick: (e: ReactMouseEvent) => inter.onPointClick(id, e),
@@ -92,11 +99,11 @@ export function Funnel({ visual, width, height, ctx }: VisualProps) {
       const hw = (h / max) * plot.w
       nodes.push(
         <g key={c.key} {...handlers} style={{ cursor: 'pointer' }}>
-          <rect x={cx - w / 2} y={y} width={w} height={barH} fill={rgba(color, PBI.highlightBackOpacity)} />
-          <rect x={cx - hw / 2} y={y} width={hw} height={barH} fill={color} />
+          <rect x={cx - w / 2} y={y} width={w} height={barH} fill={rgba(color, PBI.highlightBackOpacity)} {...WIDEN_MARK} />
+          <rect x={cx - hw / 2} y={y} width={hw} height={barH} fill={paint} {...WIDEN_MARK} />
         </g>
       )
-    } else nodes.push(<rect key={c.key} x={cx - w / 2} y={y} width={Math.max(0, w)} height={barH} fill={color} opacity={op} style={{ cursor: 'pointer' }} {...handlers} />)
+    } else nodes.push(<rect key={c.key} x={cx - w / 2} y={y} width={Math.max(0, w)} height={barH} fill={paint} opacity={op} style={{ cursor: 'pointer' }} {...WIDEN_MARK} {...handlers} />)
     if (catShow)
       nodes.push(
         <text key={`c${c.key}`} x={plot.x - 6} y={y + barH / 2} dy="0.35em" textAnchor="end" {...fontAttrs(catT.font)} fill={catT.color} pointerEvents="none" opacity={op}>
@@ -131,7 +138,7 @@ export function Funnel({ visual, width, height, ctx }: VisualProps) {
         anchor = 'middle'
         inside = true
       }
-      const fill = lcolor ?? (inside ? contrastText(color) : lT.color)
+      const fill = lcolor ?? (inside ? contrastText(grad ? colorAt(grad, 0.5) : color) : lT.color)
       const bx = anchor === 'start' ? lx - 3 : anchor === 'end' ? lx - tw - 3 : lx - tw / 2 - 3
       if (lbg) labels.push(<rect key={`lb${c.key}`} x={bx} y={y + barH / 2 - lh / 2} width={tw + 6} height={lh} fill={lbgColor} opacity={lbgOp} pointerEvents="none" />)
       labels.push(
@@ -154,6 +161,7 @@ export function Funnel({ visual, width, height, ctx }: VisualProps) {
   }
   return (
     <svg width={width} height={height} style={{ display: 'block', userSelect: 'none' }} onClick={(e) => inter.onBackgroundClick(e)} onContextMenu={(e) => inter.onContextMenu(undefined, e)}>
+      <SvgGradientDefs paints={paints} />
       {nodes}
       {labels}
     </svg>

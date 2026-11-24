@@ -9,6 +9,7 @@ import type { SortSpec } from '@core/engine/api'
 import { fieldKey } from '@core/report/sq'
 import { CFIcon } from '../tables/cfIcons'
 import { buildLegacyCardModel, buildMultiRowRecords, fitFontSize, fitWrappedFontSize, multiRowStyle, type LegacyCardModel, type MultiRowCardRecord, type MultiRowStyle, type ResolvedValue } from './legacyCardModel'
+import { COUNT_MARK } from '../common/motionMarks'
 
 // ---------------------------------------------------------------------------------------------
 // Legacy card
@@ -87,7 +88,7 @@ export function LegacyCardView({ visual, width, height, ctx }: VisualProps) {
         </div>
       ) : (
         fit.lines.map((line, i) => (
-          <div key={i} className="wbi-card-value" style={valueStyle}>
+          <div key={i} className="wbi-card-value" style={valueStyle} {...(fit.lines.length === 1 ? COUNT_MARK : undefined)}>
             {line}
           </div>
         ))

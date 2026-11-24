@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "lineClusteredColumnComboChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Scoops"
-                    }
-                  },
-                  "Property": "Month"
-                }
-              },
-              "queryRef": "Scoops.Month",
-              "nativeQueryRef": "Month"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Treats"
-                    }
-                  },
-                  "Property": "Sales"
-                }
-              },
-              "queryRef": "_Treats.Sales",
-              "nativeQueryRef": "Sales"
-            }
-          ]
-        },
-        "Y2": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Treats"
-                    }
-                  },
-                  "Property": "Avg Temperature"
-                }
-              },
-              "queryRef": "_Treats.Avg Temperature",
-              "nativeQueryRef": "Avg Temperature"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -275,44 +217,6 @@
                 }
               }
             }
-          }
-        }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FF9F43'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Treats.Sales"
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#2B2140'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Treats.Avg Temperature"
           }
         }
       ]
@@ -547,5 +451,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Scoops\"}},\"Property\":\"Month\"}},\"queryRef\":\"Scoops.Month\",\"nativeQueryRef\":\"Month\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Treats\"}},\"Property\":\"Sales\"}},\"queryRef\":\"_Treats.Sales\",\"nativeQueryRef\":\"Sales\"}]},\"Y2\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Treats\"}},\"Property\":\"Avg Temperature\"}},\"queryRef\":\"_Treats.Avg Temperature\",\"nativeQueryRef\":\"Avg Temperature\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FF9F43'\"}}}}}},\"selector\":{\"metadata\":\"_Treats.Sales\"}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#2B2140'\"}}}}}},\"selector\":{\"metadata\":\"_Treats.Avg Temperature\"}}]}}"
+    }
+  ]
 }

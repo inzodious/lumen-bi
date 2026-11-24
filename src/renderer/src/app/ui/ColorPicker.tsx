@@ -5,21 +5,23 @@
  *
  * onChange receives the hex color and, when a theme swatch was picked, the ThemeDataColor
  * reference ({ colorId, percent }) so callers can store `{ expr: { ThemeDataColor } }` like PBI.
+ *
+ * With `onGradient`, the popover has Solid / Gradient tabs (Lumen-only gradient fills, core/report/gradientFill.ts):
+ * the Gradient tab edits `gradient` (or starts one from the current color) and the swatch shows it.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowResetRegular, ChevronDownRegular, ColorRegular } from '@fluentui/react-icons'
-import { shadeColor, parseHex, toHex } from '@core/report/theme'
+import { parseHex, toHex } from '@core/report/theme'
+import { defaultGradient, gradientCss, type GradientFill } from '@core/report/gradientFill'
+import { GradientEditor } from './GradientEditor'
 import { Popover } from './Popover'
 import { TextField } from './primitives'
+import { ThemeSwatches, type ThemeColorRef } from './ThemeSwatches'
 import { cx } from './cx'
 
-export interface ThemeColorRef {
-  colorId: number
-  percent: number
-}
+export type { ThemeColorRef }
 
 const RECENT_KEY = 'wbi.recentColors'
-const TINTS = [0.6, 0.4, 0.2, -0.25, -0.5]
 
 function readRecent(): string[] {
   try {
@@ -79,11 +81,18 @@ export interface ColorPickerProps {
   emptyTitle?: string
   /** text shown instead of the "no color" swatch when no color is set (e.g. "Auto": the visual picks the color) */
   emptyLabel?: string
+  /** the gradient fill currently applied (shown on the swatch, edited on the Gradient tab) */
+  gradient?: GradientFill
+  /** offer the Gradient tab; receives the applied gradient */
+  onGradient?(g: GradientFill): void
+  /** offer "Conditional formatting" (the fx dialog) next to Solid / Gradient */
+  onConditional?(): void
 }
 
 export function ColorPicker(p: ColorPickerProps) {
   const [open, setOpen] = useState(false)
   const [custom, setCustom] = useState(false)
+  const [tab, setTab] = useState<'solid' | 'gradient'>('solid')
   const ref = useRef<HTMLButtonElement>(null)
   const base = useMemo(() => [p.themeColors.background, p.themeColors.foreground, ...p.themeColors.dataColors.slice(0, 8)], [p.themeColors])
   const pick = (hex: string, theme?: ThemeColorRef) => {
@@ -92,10 +101,31 @@ export function ColorPicker(p: ColorPickerProps) {
     setOpen(false)
     setCustom(false)
   }
-  const cur = p.value?.toUpperCase()
+  const cur = p.gradient ? undefined : p.value?.toUpperCase()
+  const grad = p.onGradient ? p.gradient : undefined
+  const toggle = () =>
+    setOpen((o) => {
+      if (!o) setTab(grad ? 'gradient' : 'solid')
+      return !o
+    })
   const button = (
-    <button ref={ref} type="button" disabled={p.disabled} className={cx('wbi-color-btn', !p.label && p.className)} onClick={() => setOpen((o) => !o)} aria-label={p.label ?? 'Color'} title={p.value ? p.value.toUpperCase() : (p.emptyTitle ?? 'No color')}>
-      {!p.value && p.emptyLabel ? <span className="wbi-color-btn__auto">{p.emptyLabel}</span> : <span className={cx('wbi-color-btn__swatch', !p.value && 'is-empty')} style={p.value ? { background: p.value } : undefined} />}
+    <button
+      ref={ref}
+      type="button"
+      disabled={p.disabled}
+      className={cx('wbi-color-btn', !p.label && p.className)}
+      onClick={toggle}
+      aria-label={p.label ?? 'Color'}
+      data-gradient={grad ? '1' : undefined}
+      title={grad ? `Gradient: ${grad.stops.map((s) => s.color).join(' → ')}` : p.value ? p.value.toUpperCase() : (p.emptyTitle ?? 'No color')}
+    >
+      {grad ? (
+        <span className="wbi-color-btn__swatch" style={{ background: gradientCss(grad) }} />
+      ) : !p.value && p.emptyLabel ? (
+        <span className="wbi-color-btn__auto">{p.emptyLabel}</span>
+      ) : (
+        <span className={cx('wbi-color-btn__swatch', !p.value && 'is-empty')} style={p.value ? { background: p.value } : undefined} />
+      )}
       <ChevronDownRegular fontSize={12} />
     </button>
   )
@@ -112,33 +142,49 @@ export function ColorPicker(p: ColorPickerProps) {
       {open && (
         <Popover anchor={ref.current} open onClose={() => (setOpen(false), setCustom(false))} ignoreOutside={[ref.current]}>
           <div className="wbi-colorpop">
-            {custom ? (
+            {(p.onGradient || p.onConditional) && !custom && (
+              <div className="wbi-gradpop__seg wbi-colorpop__tabs" role="tablist" aria-label="Fill type">
+                <button type="button" role="tab" aria-selected={tab === 'solid'} className={cx('wbi-gradpop__segbtn', tab === 'solid' && 'is-on')} onClick={() => setTab('solid')}>
+                  Solid
+                </button>
+                {p.onGradient && (
+                  <button type="button" role="tab" aria-selected={tab === 'gradient'} className={cx('wbi-gradpop__segbtn', tab === 'gradient' && 'is-on')} onClick={() => setTab('gradient')}>
+                    Gradient
+                  </button>
+                )}
+                {p.onConditional && (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={false}
+                    className="wbi-gradpop__segbtn"
+                    title="Conditional formatting: color by rules, a gradient scale or a field value"
+                    onClick={() => {
+                      setOpen(false)
+                      p.onConditional!()
+                    }}
+                  >
+                    fx Conditional
+                  </button>
+                )}
+              </div>
+            )}
+            {p.onGradient && tab === 'gradient' && !custom ? (
+              <GradientEditor
+                initial={grad ?? defaultGradient(p.value)}
+                swatches={base}
+                onCancel={() => setOpen(false)}
+                onApply={(g) => {
+                  setOpen(false)
+                  p.onGradient!(g)
+                }}
+              />
+            ) : custom ? (
               <CustomColor initial={p.value ?? '#118DFF'} onPick={(h) => pick(h)} onBack={() => setCustom(false)} />
             ) : (
               <>
                 <div className="wbi-colorpop__title">Theme colors</div>
-                <div className="wbi-colorpop__grid">
-                  {base.map((c, i) => (
-                    <button key={i} type="button" title={`${i === 0 ? 'White' : i === 1 ? 'Black' : `Theme color ${i - 1}`}, ${c.toUpperCase()}`} className={cx('wbi-colorpop__sw', cur === c.toUpperCase() && 'is-current')} style={{ background: c }} onClick={() => pick(c.toUpperCase(), { colorId: i, percent: 0 })} />
-                  ))}
-                </div>
-                <div className="wbi-colorpop__grid wbi-colorpop__grid--tints">
-                  {TINTS.flatMap((t, row) =>
-                    base.map((c, i) => {
-                      const hex = shadeColor(c, t)
-                      return (
-                        <button
-                          key={`${row}-${i}`}
-                          type="button"
-                          title={`${hex}, ${t > 0 ? `${Math.round(t * 100)}% lighter` : `${Math.round(-t * 100)}% darker`}`}
-                          className={cx('wbi-colorpop__sw', cur === hex && 'is-current')}
-                          style={{ background: hex, borderTop: row === 0 ? undefined : 0, borderBottom: row === TINTS.length - 1 ? undefined : 0 }}
-                          onClick={() => pick(hex, { colorId: i, percent: t })}
-                        />
-                      )
-                    })
-                  )}
-                </div>
+                <ThemeSwatches base={base} current={cur} onPick={pick} />
                 <RecentRow onPick={(h) => pick(h)} current={cur} />
                 <div className="wbi-colorpop__sep" />
                 <button type="button" className="wbi-colorpop__link" onClick={() => setCustom(true)}>

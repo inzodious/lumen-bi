@@ -30,6 +30,8 @@ import { IMAGE_VISUAL_SLOT, bakeIcon } from '@core/icons/bake'
 import { loadIconPicture, renderIconPicture } from '../icons/picture'
 import { centredPlacement, visiblePageRect } from './insertPlacement'
 import { openIconPicker } from '../icons/IconPicker'
+import { addDefaultMeasureTables, defaultMeasureHome } from '@core/sample/measureTables'
+import { setReportSampleData } from '@core/sample/spec'
 import { rebakeIconsBeforeSave } from '../icons/actions'
 
 const host = () => window.wbi
@@ -114,7 +116,11 @@ export function blankProject(name = 'Untitled'): ProjectDocument {
   // Options ▸ Report settings ▸ default theme for new reports
   const theme = defaultThemeFor(useShell.getState().options.defaultTheme)
   if (theme?.json) setReportTheme(report, theme.json)
-  return { id: nanoid(), name, source: { kind: 'new' }, model: emptyModel(name), data: emptyDataStore(), report, diagnostics: [], dirty: false }
+  setReportSampleData(report.report, true)
+  const model = emptyModel(name)
+  const data = emptyDataStore()
+  addDefaultMeasureTables(model, data)
+  return { id: nanoid(), name, source: { kind: 'new' }, model, data, report, diagnostics: [], dirty: false }
 }
 
 export async function newReport(): Promise<void> {
@@ -575,7 +581,7 @@ export async function runModelingCommand(cmd: ModelingCommand, arg?: unknown): P
   const project = app.project
   if (!project) return
   const sel = app.selectedField
-  const homeTable = (sel && sel.table) || project.model.tables.find((t) => !t.isHidden && !t.isPrivate)?.name
+  const homeTable = (sel && sel.table) || (cmd === 'newMeasure' ? defaultMeasureHome(project.model) : undefined) || project.model.tables.find((t) => !t.isHidden && !t.isPrivate)?.name
   const unique = (base: string, taken: Set<string>) => {
     if (!taken.has(base.toLowerCase())) return base
     for (let i = 2; ; i++) if (!taken.has(`${base} ${i}`.toLowerCase())) return `${base} ${i}`

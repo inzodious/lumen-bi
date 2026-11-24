@@ -1,0 +1,167 @@
+table _measures_kpi
+	lineageTag: b33933d8-6cb4-4478-a482-20cf7deef8d2
+
+	measure kpi_launches = COUNTROWS(fact_launch)
+		formatString: #,0
+		displayFolder: Launches
+		lineageTag: 2f24f34f-f09b-4b13-a281-c1888aa6f6de
+
+	measure kpi_launches_py =
+			CALCULATE(
+				[kpi_launches],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: #,0
+		displayFolder: Launches
+		lineageTag: ebf2994c-bbf6-485b-aad0-75d7d24a5d88
+
+	measure kpi_launches_yoy_pct = DIVIDE([kpi_launches] - [kpi_launches_py], [kpi_launches_py])
+		formatString: +0%;-0%;0%
+		displayFolder: Launches
+		lineageTag: f1664eea-dc20-41fd-aef7-87c8e1025adf
+
+	measure kpi_launch_success_pct =
+			DIVIDE(
+				CALCULATE(
+					COUNTROWS(fact_launch),
+					KEEPFILTERS(fact_launch[outcome] = "Nominal")
+				),
+				[kpi_launches]
+			)
+		formatString: 0.0%
+		displayFolder: Launches
+		lineageTag: 783aafe9-8c6a-4c45-aa80-9faf9a6cd545
+
+	measure kpi_satellites_deployed = SUM(fact_launch[satellites_deployed])
+		formatString: #,0
+		displayFolder: Launches
+		lineageTag: 627b4c96-cf69-453f-a5c9-e7df324a9b61
+
+	measure kpi_payload_t = DIVIDE(SUM(fact_launch[payload_kg]), 1000)
+		formatString: "#,0.0"" t"""
+		displayFolder: Launches
+		lineageTag: e316f916-3ebd-4152-adff-311c6d3d1e24
+
+	measure kpi_launch_cost_musd = SUM(fact_launch[cost_musd])
+		formatString: "\$#,0.0""M"""
+		displayFolder: Launches
+		lineageTag: 6eb5381c-2635-4338-a5e8-7b690a963a66
+
+	measure kpi_cost_per_kg = DIVIDE(SUM(fact_launch[cost_musd]) * 1000000, SUM(fact_launch[payload_kg]))
+		formatString: \$#,0
+		displayFolder: Launches
+		lineageTag: 840cc4ec-74a7-4345-ae36-843de0750c0f
+
+	measure kpi_active_missions = DISTINCTCOUNT(fact_telemetry[mission_key])
+		formatString: 0
+		displayFolder: Fleet
+		lineageTag: bbb17183-e815-45bf-a712-1b9cb24ab8bf
+
+	measure kpi_uptime_pct = AVERAGE(fact_telemetry[uptime_pct])
+		formatString: 0.00%
+		displayFolder: Fleet
+		lineageTag: 6894b628-3fd1-4e72-a55a-4e9d373a8c49
+
+	measure kpi_uptime_py_pct =
+			CALCULATE(
+				[kpi_uptime_pct],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: 0.00%
+		displayFolder: Fleet
+		lineageTag: 90f97d5d-da57-4764-a294-678008d81cbe
+
+	measure kpi_power_margin_pct = AVERAGE(fact_telemetry[power_margin_pct])
+		formatString: 0.0%
+		displayFolder: Fleet
+		lineageTag: 28213dec-1e20-406f-afc1-d4d0d228bfec
+
+	measure kpi_satellite_days = SUMX(fact_telemetry, RELATED(dim_mission[fleet_size]))
+		formatString: #,0
+		displayFolder: Fleet
+		lineageTag: 3c0ce79e-8632-47ba-a463-783c7b2b41ea
+
+	measure kpi_anomalies = COUNTROWS(fact_anomaly)
+		formatString: #,0
+		displayFolder: Anomalies
+		lineageTag: 50e49392-90b5-4d12-a1b0-3ee9bf18eb73
+
+	measure kpi_anomalies_critical =
+			CALCULATE(
+				COUNTROWS(fact_anomaly),
+				KEEPFILTERS(fact_anomaly[severity] = "Critical")
+			)
+		formatString: #,0
+		displayFolder: Anomalies
+		lineageTag: abc84c9a-81ba-43ba-a18c-0ea63cf5f89c
+
+	measure kpi_anomalies_open =
+			CALCULATE(
+				COUNTROWS(fact_anomaly),
+				KEEPFILTERS(fact_anomaly[is_resolved] = FALSE())
+			) + 0
+		formatString: #,0
+		displayFolder: Anomalies
+		lineageTag: 752140cb-de4a-4427-acf7-7f606ec6be4b
+
+	measure kpi_anomalies_per_1k_sat_days = DIVIDE([kpi_anomalies] * 1000, [kpi_satellite_days])
+		formatString: 0.00
+		displayFolder: Anomalies
+		lineageTag: 6b8317cc-110d-47c4-ad0a-fca601780f07
+
+	measure kpi_mttr_hrs = DIVIDE(AVERAGE(fact_anomaly[minutes_to_resolve]), 60)
+		formatString: "0.0"" h"""
+		displayFolder: Anomalies
+		lineageTag: 424a1071-2970-467e-a585-afe9e4ec6c06
+
+	measure kpi_passes = SUM(fact_ground_pass[passes])
+		formatString: #,0
+		displayFolder: Ground
+		lineageTag: 8e93ddc9-8ae9-4e42-a9d7-8f9719c2c690
+
+	measure kpi_pass_success_pct = DIVIDE([kpi_passes] - SUM(fact_ground_pass[failed_passes]), [kpi_passes])
+		formatString: 0.00%
+		displayFolder: Ground
+		lineageTag: 3766d700-f7c6-4b14-ae5e-a4755c8b2d8f
+
+	measure kpi_data_tb = SUM(fact_ground_pass[data_tb])
+		formatString: "#,0"" TB"""
+		displayFolder: Ground
+		lineageTag: 472f4cb8-29ba-4b86-acc9-5412b4098a4d
+
+	measure kpi_data_py_tb =
+			CALCULATE(
+				[kpi_data_tb],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: "#,0"" TB"""
+		displayFolder: Ground
+		lineageTag: d6be7ef7-4e7a-491d-ae87-31feed97c9e8
+
+	measure kpi_data_yoy_pct = DIVIDE([kpi_data_tb] - [kpi_data_py_tb], [kpi_data_py_tb])
+		formatString: +0%;-0%;0%
+		displayFolder: Ground
+		lineageTag: b0532945-c519-4851-a5f7-f49957c938f8
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: 80140768-aaa6-4198-a89e-22286b86ed6d
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_kpi = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

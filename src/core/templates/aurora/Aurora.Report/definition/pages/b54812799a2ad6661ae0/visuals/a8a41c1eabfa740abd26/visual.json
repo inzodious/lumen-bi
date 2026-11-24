@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "slicer",
-    "query": {
-      "queryState": {
-        "Values": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Streams"
-                    }
-                  },
-                  "Property": "Track"
-                }
-              },
-              "queryRef": "Streams.Track",
-              "nativeQueryRef": "Track"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "data": [
         {
@@ -209,5 +187,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Streams\"}},\"Property\":\"Track\"}},\"queryRef\":\"Streams.Track\",\"nativeQueryRef\":\"Track\"}]}}}}"
+    }
+  ]
 }

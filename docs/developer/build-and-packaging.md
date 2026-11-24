@@ -59,21 +59,29 @@ So a `git pull` followed by opening a `.pbix` from the file manager runs the new
 
 ## Distributable packages
 
-`package.json` has a `dist` script (`electron-vite build && electron-builder --linux AppImage deb`) and a `build`
-section for electron-builder: app id `dev.lumen.app`, AppImage and `.deb` targets, file associations for the four
+`package.json`'s `build` section configures electron-builder: app id `dev.lumen.app`, file associations for the four
 extensions, `.wasm` files unpacked from the archive, output folder `dist/`.
 
-> [!WARNING]
-> No distributable package or installer exists today. `npm run dist` stops before packaging: electron-builder
-> 26.18 rejects the configuration with "configuration.linux.desktop should be one of these" (the `linux.desktop`
-> block uses a shape the current electron-builder schema does not accept). No AppImage or `.deb` has been produced
-> or tested from this configuration. To use Lumen on another machine, clone the repository, run `npm install` and
-> use `scripts/lumen.sh` or `scripts/install-desktop.sh`.
+| Command | Output |
+|---|---|
+| `npm run dist` | Linux AppImage and `.deb` |
+| `npm run dist:win` (on Windows) | `Lumen-Setup-<version>.exe` (per-user NSIS installer, registers the file associations) and `Lumen-<version>-portable.exe` |
+
+Only the packages the main process loads at run time (`@aws-sdk/client-s3`, `@azure/identity`,
+`google-auth-library`, `mysql2`, `pg`, `tedious`, `sql.js`) are `dependencies`. Everything the renderer uses is bundled
+by Vite, so it is a `devDependency` and stays out of the package. Move a package back to `dependencies` only when
+`src/main` imports it.
+
+CI (`.github/workflows/ci.yml`) builds the Windows installer and portable exe on every pull request, starts the
+packaged app once with a sample report as a smoke test, and uploads both executables as the `Lumen-windows-x64`
+artifact.
 
 ## Considerations and limitations
 
-- Linux only. There is no Windows or macOS build configuration.
-- The app is not signed, and there is no auto-update.
+- Linux and Windows. There is no macOS build configuration.
+- The app is not signed (Windows SmartScreen warns on first run), and there is no auto-update.
+- The shell scripts in `scripts/` and `e2e/run.sh` (captures, sweeps, compare, desktop integration) need Linux and
+  Xvfb. On Windows use the npm scripts.
 - The renderer's main chunk is large (several megabytes) because the engines, decoders and every visual load at
   startup; only the gallery, developer routes, export libraries and icon sets are split out.
 - `lumen.sh` rebuilds into the shared `out/` folder. A capture or sweep running from the same checkout at that

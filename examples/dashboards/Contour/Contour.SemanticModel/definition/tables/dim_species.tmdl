@@ -1,0 +1,50 @@
+table dim_species
+	lineageTag: 42d7b729-fe53-4121-a5f5-975e91d27ef4
+
+	column species_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c9f857be-90f0-43ce-ada5-011fb6544377
+		summarizeBy: none
+		sourceColumn: species_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column species
+		dataType: string
+		lineageTag: 471e42af-7f3c-488a-ac84-59fd4551a149
+		summarizeBy: none
+		sourceColumn: species
+
+		annotation SummarizationSetBy = Automatic
+
+	column class
+		dataType: string
+		lineageTag: cfe9b133-e529-4371-a266-c996d090dae3
+		summarizeBy: none
+		sourceColumn: class
+
+		annotation SummarizationSetBy = Automatic
+
+	column conservation_status
+		dataType: string
+		lineageTag: b57d81ad-d963-4a31-aa00-e04c909e9b33
+		summarizeBy: none
+		sourceColumn: conservation_status
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_species = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("hZFPT8MwDMW/iuVzDpT/HBmauABCQ4JDtYPbuG00x6nSFNi3R4k4jGkqN0v+Je89v7rGCg2uZYcGn8l7EjT4xDQlaIO2HBW3psZzNLgSanfQMMVl9iKvQ5h4GbtEgxu20IXvZfAqg+6TI4SU+B/xazT4GGkPX0G6Q/R9FuVIjXDhbtDgAylZAtnrHwdrtaQ9R7aFvM3RSSww9ZIzrVy0J7XvijZTgkZmhoFj0CW+OssmgvdBQcIh+8IUIQ35L9ZfH1Uu6pUj99EpQ0fSHj45ylflxj5CsJDmmIrvDY/JlekoYZUbexvzdS1MJORJbTn0vR8H1zjSU562Pw==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [species_key = _t, species = _t, class = _t, conservation_status = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"species_key", Int64.Type}, {"species", type text}, {"class", type text}, {"conservation_status", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

@@ -1,0 +1,39 @@
+relationship 90003ba6-9ce3-462c-a792-3cb9dd988c98
+	fromColumn: dim_trail.park_key
+	toColumn: dim_park.park_key
+
+relationship 2f6929a2-ba40-450b-a78a-978fbc516a73
+	fromColumn: fact_visit.date
+	toColumn: dim_calendar.date
+
+relationship 61dc725f-1d97-4c68-a51d-d9257887e203
+	fromColumn: fact_visit.park_key
+	toColumn: dim_park.park_key
+
+relationship b7591875-3e86-4afc-a802-b85036b1990c
+	fromColumn: fact_trail_work.date
+	toColumn: dim_calendar.date
+
+relationship da92e082-01ac-413c-ac4f-bfccd9b4f8ab
+	fromColumn: fact_trail_work.trail_key
+	toColumn: dim_trail.trail_key
+
+relationship d5d57627-b332-4ebb-ac19-7d625b3cfb20
+	fromColumn: fact_planting.date
+	toColumn: dim_calendar.date
+
+relationship 7a3677b8-133b-4e7e-a2fd-0027dabc9b9c
+	fromColumn: fact_planting.park_key
+	toColumn: dim_park.park_key
+
+relationship 17fd5bce-f4d7-4c6c-a6cd-0b25451ac5c1
+	fromColumn: fact_sighting.date
+	toColumn: dim_calendar.date
+
+relationship 41a6943d-0166-4c7f-abf4-ca75f41a3c59
+	fromColumn: fact_sighting.park_key
+	toColumn: dim_park.park_key
+
+relationship 97e6cc7b-636d-49ce-a3c2-2915046ebb60
+	fromColumn: fact_sighting.species_key
+	toColumn: dim_species.species_key

@@ -17,7 +17,7 @@ It saves your work as a Power BI project (PBIP) folder or as a single-file Lumen
 | [Quickstart: open a report](get-started/quickstart-open-a-report.md) | [Connect to data and transform it](connect-and-transform/README.md) | [Developer guide](developer/README.md) |
 | [Tour of the interface](get-started/tour-of-the-interface.md) | [Model your data](model-data/README.md) | [How Lumen reads PBIX files](files-and-compatibility/how-lumen-reads-pbix.md) |
 | [Tutorial: build your first report](get-started/tutorial-build-your-first-report.md) | [DAX in Lumen](dax/README.md) | [Working with PBIP projects](files-and-compatibility/working-with-pbip-projects.md) |
-| [Create reports](create-reports/README.md) | [Reports without data and sample data](files-and-compatibility/reports-without-data-and-sample-data.md) | [Documentation style guide](STYLE.md) | 25 |
+| [Create reports](create-reports/README.md) | [Reports without data and sample data](files-and-compatibility/reports-without-data-and-sample-data.md) | [Documentation style guide](STYLE.md) | 26 |
 | [Visuals](visuals/README.md) | [Reference tables](reference/README.md) | [Architecture](ARCHITECTURE.md) | 14 |
 
 Coming from Power BI Desktop? Read [Coming from Power BI Desktop](get-started/coming-from-power-bi-desktop.md)
@@ -28,7 +28,7 @@ first: it lists what is the same, what differs and what is missing.
 | Section | What you find there | Mainly for | Articles |
 |---|---|---|---|
 | [Get started](get-started/README.md) | What Lumen is, installing it, opening a report, a tour of the window, a first report, saving | Everyone | 7 |
-| [Create reports](create-reports/README.md) | Pages, adding and formatting visuals, themes, slicers, filters, interactions, bookmarks, icons, export, mobile layout, the performance analyzer | Creators | 25 |
+| [Create reports](create-reports/README.md) | Pages, adding and formatting visuals, themes, slicers, filters, interactions, bookmarks, icons, export, mobile layout, the performance analyzer, sample data for mockups | Creators | 26 |
 | [Visuals](visuals/README.md) | One article per visual family (bar and column, line and area, pie, maps, tables and matrices, cards, slicers, AI visuals, elements, custom visuals) and a visual gallery | Creators | 14 |
 | [Connect and transform data](connect-and-transform/README.md) | Get data, the connectors, the Power Query editor, refresh, sample data | Analysts | 18 |
 | [Model data](model-data/README.md) | Table view, Model view, relationships, auto arrange, table groups | Analysts | 12 |

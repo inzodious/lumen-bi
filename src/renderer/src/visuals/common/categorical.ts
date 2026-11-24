@@ -19,7 +19,8 @@ import { describe, expandParameters, getProjections, labelOf, valueId, type Proj
 import { formatScalar } from './units'
 import { highDensitySample } from './sampling'
 import { isVisualCalc, summarizeWithVisualCalcs } from './visualCalcs'
-import { conditionalRule, defaultFill, evalConditional, findEntry, staticFill, type ConditionalRule, type ScopeField } from './color'
+import { conditionalRule, defaultFill, evalConditional, findEntry, pointGradient, staticFill, type ConditionalRule, type ScopeField } from './color'
+import type { GradientFill } from '@core/report/gradientFill'
 import type { FormatReader } from './fmtProps'
 
 export interface FieldRef {
@@ -52,6 +53,10 @@ export interface Series {
   color: string
   /** per point colors (show all data points / conditional formatting) */
   pointColors?: Array<string | undefined>
+  /** Lumen gradient fill of the series (bars / slices drawn with `color`), color.ts `pointGradient` */
+  gradient?: GradientFill
+  /** per point gradient fills, parallel to pointColors */
+  pointGradients?: Array<GradientFill | undefined>
   /** extra per-point values requested with CategoricalOptions.pointValues, keyed by id */
   pointValues?: Record<string, Array<Scalar>>
   /** per point conditional colors of other color properties, keyed `object.prop` (e.g. 'labels.color') */
@@ -451,6 +456,11 @@ export function buildCategorical(visualJson: any, ctx: VisualHostContext, opts: 
       if (opts.varyColors) s.pointColors = reCats.map((c, ci) => staticFill(fmt.pc, { fields: c.scope, index: ci }))
       else if (single && !s.split && fmt.bool('dataPoint', 'showAllDataPoints', false))
         s.pointColors = reCats.map((c, ci) => (hasPointFill(fmt, c.scope) ? staticFill(fmt.pc, { fields: c.scope, index: ci }) : s.color))
+      s.gradient = pointGradient(fmt.pc, s.color, { metadata: s.metadata, fields: s.split ? s.scope : undefined })
+      if (s.pointColors) {
+        const pg = s.pointColors.map((c, ci) => pointGradient(fmt.pc, c, { metadata: s.metadata, fields: reCats[ci]?.scope }))
+        if (pg.some(Boolean)) s.pointGradients = pg
+      }
       for (const prop of new Set(cfRules.map((r) => r.prop))) {
         const rule = cfRules.find((r) => r.prop === prop && r.rule.metadata === s.metadata) ?? cfRules.find((r) => r.prop === prop && !r.rule.metadata)
         const cf = rule ? cfValues.get(`${s.key}\u0000${rule.id}`) : undefined
@@ -460,7 +470,10 @@ export function buildCategorical(visualJson: any, ctx: VisualHostContext, opts: 
         const nums = all.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
         const range: [number, number] = nums.length ? [Math.min(...nums), Math.max(...nums)] : [0, 0]
         const colors = cf.map((v) => evalConditional(rule.rule, v, range, fmt.theme))
-        if (prop === 'dataPoint.fill') s.pointColors = colors.map((c, ci) => c ?? s.pointColors?.[ci] ?? s.color)
+        if (prop === 'dataPoint.fill') {
+          s.pointGradients = s.pointGradients?.map((g, ci) => (colors[ci] ? undefined : g))
+          s.pointColors = colors.map((c, ci) => c ?? s.pointColors?.[ci] ?? s.color)
+        }
         else (s.cfColors ??= {})[prop] = colors
       }
     }

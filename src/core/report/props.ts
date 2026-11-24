@@ -17,6 +17,7 @@ import type { Scalar } from '../model/data'
 import { decodeLiteral, encodeLiteral } from './literal'
 import { themeDataColor, type ResolvedTheme } from './theme'
 import { writeEntryProp } from './entries'
+import { findFill, readFills, type FillEntry, type FillLocation, type GradientFill } from './gradientFill'
 
 export interface Selector {
   /** queryRef of a series/measure (`metadata` selector) */
@@ -40,6 +41,8 @@ export interface PropContext {
   objects?: ObjectsBag
   containerObjects?: ObjectsBag
   theme: ResolvedTheme
+  /** Lumen-only gradient fills of the owner (gradientFill.ts `Lumen_Fill` annotation) */
+  fills?: FillEntry[]
 }
 
 /** Is this a data-bound expression that needs evaluation by the visual (conditional formatting)? */
@@ -158,7 +161,8 @@ export function makePropContext(visualJson: any, theme: ResolvedTheme): PropCont
     visualType: v.visualType ?? (visualJson?.visualGroup ? 'group' : 'unknown'),
     objects: v.objects,
     containerObjects: v.visualContainerObjects,
-    theme
+    theme,
+    fills: readFills(visualJson)
   }
 }
 
@@ -176,4 +180,27 @@ export function setObjectProp(visualJson: any, object: string, prop: string, val
   v[key] ??= {}
   // the entry readers use for this selector (`{ id: 'default' }` ≡ no selector; entries.ts)
   writeEntryProp(v[key], object, prop, value === undefined ? undefined : literalProp(value), opts.selector)
+}
+
+function fallbackMatches(raw: any, fallback: string, ctx: PropContext): boolean {
+  const v = decodeValue(raw, ctx.theme)
+  return typeof v === 'string' && v.toUpperCase().slice(0, 7) === fallback.slice(0, 7)
+}
+
+/**
+ * The gradient fill of a color property when one applies (gradientFill.ts): a stored entry for the location whose
+ * fallback is still the property's resolved color.
+ */
+export function gradientOf(ctx: PropContext, loc: FillLocation): GradientFill | undefined {
+  const f = findFill(ctx.fills, loc)
+  if (!f) return undefined
+  const bag = loc.container ? ctx.containerObjects : ctx.objects
+  const raw = rawProp({ ...ctx, objects: bag, containerObjects: undefined }, loc.object, loc.prop, loc.selector)
+  return fallbackMatches(raw, f.fallback, ctx) ? f.gradient : undefined
+}
+
+/** gradientOf for a raw property value the caller already looked up (e.g. a per-series dataPoint entry). */
+export function gradientForRaw(ctx: PropContext, loc: FillLocation, raw: any): GradientFill | undefined {
+  const f = findFill(ctx.fills, loc)
+  return f && fallbackMatches(raw, f.fallback, ctx) ? f.gradient : undefined
 }

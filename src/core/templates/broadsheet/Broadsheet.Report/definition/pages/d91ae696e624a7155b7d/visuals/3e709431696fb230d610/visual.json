@@ -11,92 +11,6 @@
   },
   "visual": {
     "visualType": "tableEx",
-    "query": {
-      "queryState": {
-        "Values": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Ridership"
-                    }
-                  },
-                  "Property": "Line"
-                }
-              },
-              "queryRef": "Ridership.Line",
-              "nativeQueryRef": "Line",
-              "displayName": "Line"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Desk"
-                    }
-                  },
-                  "Property": "Weekday Riders (k)"
-                }
-              },
-              "queryRef": "_Desk.Weekday Riders (k)",
-              "nativeQueryRef": "Weekday Riders (k)",
-              "displayName": "Riders (k)"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Desk"
-                    }
-                  },
-                  "Property": "On-Time %"
-                }
-              },
-              "queryRef": "_Desk.On-Time %",
-              "nativeQueryRef": "On-Time %",
-              "displayName": "On time"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Desk"
-                    }
-                  },
-                  "Property": "Complaints"
-                }
-              },
-              "queryRef": "_Desk.Complaints",
-              "nativeQueryRef": "Complaints",
-              "displayName": "Complaints"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Desk"
-                  }
-                },
-                "Property": "Weekday Riders (k)"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "grid": [
         {
@@ -365,5 +279,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Ridership\"}},\"Property\":\"Line\"}},\"queryRef\":\"Ridership.Line\",\"nativeQueryRef\":\"Line\",\"displayName\":\"Line\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Desk\"}},\"Property\":\"Weekday Riders (k)\"}},\"queryRef\":\"_Desk.Weekday Riders (k)\",\"nativeQueryRef\":\"Weekday Riders (k)\",\"displayName\":\"Riders (k)\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Desk\"}},\"Property\":\"On-Time %\"}},\"queryRef\":\"_Desk.On-Time %\",\"nativeQueryRef\":\"On-Time %\",\"displayName\":\"On time\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Desk\"}},\"Property\":\"Complaints\"}},\"queryRef\":\"_Desk.Complaints\",\"nativeQueryRef\":\"Complaints\",\"displayName\":\"Complaints\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Desk\"}},\"Property\":\"Weekday Riders (k)\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

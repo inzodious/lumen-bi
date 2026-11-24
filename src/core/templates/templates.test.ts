@@ -5,6 +5,9 @@ import { REPORT_TEMPLATES, projectFromTemplate } from './index'
 import { refreshProject } from '../data/refresh'
 import type { RefreshHost } from '../data/fetcher'
 import { createEngine } from '../engine/engine'
+import type { QueryEngine } from '../engine/api'
+import { parseSampleDataset, sampleDatasetModel, SAMPLE_DATA_FILE } from '../sample/dataset'
+import { referencedEntities, reportSampleDataOn, visualSampleSpec } from '../sample/spec'
 
 function readTemplate(id: string): Record<string, Uint8Array> {
   const root = join(__dirname, id)
@@ -18,6 +21,17 @@ function readTemplate(id: string): Record<string, Uint8Array> {
   }
   walk(root)
   return out
+}
+
+function runSampleQuery(engine: QueryEngine, query: any) {
+  const groupBy: any[] = []
+  const values: any[] = []
+  for (const role of Object.values<any>(query.queryState))
+    for (const p of role.projections) {
+      if (p.field.Measure) values.push({ id: p.queryRef, expr: { kind: 'sq', expr: p.field } })
+      else groupBy.push({ kind: 'sq', expr: p.field })
+    }
+  return engine.summarize({ groupBy, values })
 }
 
 const offline: RefreshHost = {
@@ -103,43 +117,49 @@ describe('gallery templates', () => {
 
   for (const tpl of gallery) {
     describe(tpl.name, () => {
-      it('loads without diagnostics and refreshes its sample data offline; every measure evaluates', async () => {
+      it('a template, not a dataset: only the two default measure tables, refreshed offline, and sample data on', async () => {
         const p = projectFromTemplate(tpl, readTemplate(tpl.id))
         expect(p.diagnostics).toEqual([])
         expect(p.source.kind).toBe('new')
         const r = await refreshProject(p, offline)
         expect(r.tables.filter((t) => !t.ok)).toEqual([])
-        for (const t of p.model.tables) if (!t.name.startsWith('_')) expect(p.data.tables.get(t.name)?.rowCount ?? 0).toBeGreaterThan(0)
-        const engine = createEngine(p.model, p.data)
-        for (const t of p.model.tables)
-          for (const ms of t.measures ?? []) {
-            const v = engine.evaluateScalar(`[${ms.name}]`)
-            expect(v.value, `${tpl.name} [${ms.name}]`).not.toBeNull()
-          }
+        expect(p.model.tables.map((t) => t.name)).toEqual(['_measures_kpi', '_measures_format'])
+        expect(p.model.tables.map((t) => t.measures.map((m) => m.name))).toEqual([['kpi_blank'], ['fmt_blank']])
+        expect(p.model.tables.every((t) => t.columns.every((c) => c.isHidden))).toBe(true)
+        expect(p.model.relationships).toEqual([])
+        expect(reportSampleDataOn(p.report!.report)).toBe(true)
       })
 
-      it('every visual field resolves in the model and every picture is in the report', () => {
+      it('every visual is empty; its sample resolves in the sample dataset and returns data', () => {
         const p = projectFromTemplate(tpl, readTemplate(tpl.id))
-        const fields = new Set<string>()
-        for (const t of p.model.tables) {
-          for (const c of t.columns) fields.add(`${t.name}.${c.name}`)
-          for (const ms of t.measures ?? []) fields.add(`${t.name}.${ms.name}`)
-        }
+        const ds = parseSampleDataset(p.model.sidecarFiles?.[SAMPLE_DATA_FILE])
+        expect(ds, 'sampleData.lumen.json').toBeDefined()
+        const { model, data } = sampleDatasetModel(ds!)
+        const engine = createEngine(model, data)
+        for (const t of model.tables)
+          for (const ms of t.measures) expect(engine.evaluateScalar(`[${ms.name}]`).value, `${tpl.name} [${ms.name}]`).not.toBeNull()
+        const tables = new Set(model.tables.map((t) => t.name))
         const files = readTemplate(tpl.id)
         const res = Object.keys(files).filter((k) => k.includes('/RegisteredResources/')).map((k) => k.split('/').pop())
+        let samples = 0
         for (const pg of p.report!.pages) {
           const pageImg = JSON.stringify(pg.json.objects ?? {}).match(/"ItemName":"([^"]+)"/g) ?? []
           for (const m of pageImg) expect(res).toContain(m.slice(12, -1))
           for (const v of pg.visuals) {
-            const q = v.json.visual?.query?.queryState ?? {}
-            for (const role of Object.values<any>(q))
-              for (const pr of role.projections) {
-                const f = pr.field.Column ?? pr.field.Measure
-                expect(fields, `${tpl.name}: ${pr.queryRef}`).toContain(`${f.Expression.SourceRef.Entity}.${f.Property}`)
-              }
+            expect(v.json.visual?.query, `${tpl.name}: ${v.name} has fields`).toBeUndefined()
+            expect(referencedEntities(v.json.visual).size, `${tpl.name}: ${v.name} names a field outside its sample`).toBe(0)
             for (const m of JSON.stringify(v.json.visual?.objects ?? {}).match(/"ItemName":"([^"]+)"/g) ?? []) expect(res).toContain(m.slice(12, -1))
+            const spec = visualSampleSpec(v.json)
+            if (!spec?.query) continue
+            samples++
+            for (const e of referencedEntities(spec)) expect(tables, `${tpl.name}: ${e}`).toContain(e)
+            for (const role of Object.values<any>(spec.query.queryState))
+              for (const pr of role.projections) expect(engine.describeField(pr.field), `${tpl.name}: ${pr.queryRef}`).toBeDefined()
+            const rows = runSampleQuery(engine, spec.query).rows
+            expect(rows.length, `${tpl.name}: ${v.name}`).toBeGreaterThan(0)
           }
         }
+        expect(samples).toBeGreaterThan(4)
       })
 
       it(tpl.compatibility === 'powerbi' ? 'uses no Lumen-only effects or fonts (Power BI compatible)' : 'uses Lumen-only effects', () => {

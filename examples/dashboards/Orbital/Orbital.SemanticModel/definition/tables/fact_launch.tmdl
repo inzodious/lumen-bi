@@ -1,0 +1,105 @@
+table fact_launch
+	lineageTag: 3df34651-78d0-42e8-a577-ae37eb8f335d
+
+	column launch_id
+		dataType: string
+		lineageTag: 59d35687-360e-4690-ab49-0f9c0865fa3c
+		summarizeBy: none
+		sourceColumn: launch_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column launch_date
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 5eb6917e-a473-484c-a63c-1ec1c3b632fc
+		summarizeBy: none
+		sourceColumn: launch_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column mission_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c7d16537-afea-443c-a098-50429729dc05
+		summarizeBy: none
+		sourceColumn: mission_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column vehicle
+		dataType: string
+		lineageTag: 91b5da8f-5d0a-45d3-ae68-6c1f3a4cb874
+		summarizeBy: none
+		sourceColumn: vehicle
+
+		annotation SummarizationSetBy = Automatic
+
+	column launch_site
+		dataType: string
+		lineageTag: 24cf201c-9975-4350-a8f4-8659f415a17f
+		summarizeBy: none
+		sourceColumn: launch_site
+
+		annotation SummarizationSetBy = Automatic
+
+	column satellites_planned
+		dataType: int64
+		formatString: 0
+		lineageTag: c8ccd1a4-22cb-4ba4-a487-26a45dcc2e79
+		summarizeBy: sum
+		sourceColumn: satellites_planned
+
+		annotation SummarizationSetBy = Automatic
+
+	column satellites_deployed
+		dataType: int64
+		formatString: 0
+		lineageTag: a0bae637-692d-4ada-afe6-dd8ece56f994
+		summarizeBy: sum
+		sourceColumn: satellites_deployed
+
+		annotation SummarizationSetBy = Automatic
+
+	column payload_kg
+		dataType: double
+		formatString: #,0
+		lineageTag: 9ad02e43-538d-4d28-a97c-cb083db7f948
+		summarizeBy: sum
+		sourceColumn: payload_kg
+
+		annotation SummarizationSetBy = Automatic
+
+	column cost_musd
+		dataType: double
+		formatString: "\$#,0.0""M"""
+		lineageTag: b0d6bc2b-29c6-4091-a312-d575f0940523
+		summarizeBy: sum
+		sourceColumn: cost_musd
+
+		annotation SummarizationSetBy = Automatic
+
+	column outcome
+		dataType: string
+		lineageTag: 017ac3e8-a1f0-49e1-a29b-d47ac0c8c6ad
+		summarizeBy: none
+		sourceColumn: outcome
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_launch = m
+		mode: import
+		queryGroup: Fact
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("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", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [launch_id = _t, launch_date = _t, mission_key = _t, vehicle = _t, launch_site = _t, satellites_planned = _t, satellites_deployed = _t, payload_kg = _t, cost_musd = _t, outcome = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"launch_id", type text}, {"launch_date", type date}, {"mission_key", Int64.Type}, {"vehicle", type text}, {"launch_site", type text}, {"satellites_planned", Int64.Type}, {"satellites_deployed", Int64.Type}, {"payload_kg", type number}, {"cost_musd", type number}, {"outcome", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

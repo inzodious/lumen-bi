@@ -1,7 +1,6 @@
 /** Node implementation of FileSystem (tests, Electron main process). */
 import { promises as fsp } from 'node:fs'
-import { join } from 'node:path'
-import type { DirEntry, FileSystem } from './fs'
+import { basename, type DirEntry, type FileSystem } from './fs'
 
 export const nodeFs: FileSystem = {
   async readFile(path) {
@@ -21,7 +20,7 @@ export const nodeFs: FileSystem = {
     const entries = await fsp.readdir(dir, { withFileTypes: true })
     const out: DirEntry[] = []
     for (const e of entries) {
-      const p = join(dir, e.name)
+      const p = `${dir.replace(process.platform === 'win32' ? /[\\/]+$/ : /\/+$/, '')}/${e.name}`
       const st = await fsp.stat(p).catch(() => null)
       out.push({ name: e.name, path: p, isDirectory: e.isDirectory(), size: st?.size ?? 0, mtime: st?.mtimeMs ?? 0 })
     }
@@ -36,7 +35,7 @@ export const nodeFs: FileSystem = {
   async stat(path) {
     const st = await fsp.stat(path).catch(() => null)
     if (!st) return null
-    return { name: path.split('/').pop() ?? path, path, isDirectory: st.isDirectory(), size: st.size, mtime: st.mtimeMs }
+    return { name: basename(path) || path, path, isDirectory: st.isDirectory(), size: st.size, mtime: st.mtimeMs }
   },
   async mkdirp(dir) {
     await fsp.mkdir(dir, { recursive: true })

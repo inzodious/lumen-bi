@@ -1,0 +1,145 @@
+/**
+ * Format pane cards for Lumen's motion settings (core/report/motion.ts):
+ *  - page formatting ▸ Animations: this page's transition, and the report's switches (animate visuals, durations,
+ *    stagger, default page transition), with a preview;
+ *  - visual ▸ General ▸ Animation: the visual's entrance and delay.
+ * Power BI ignores all of it (the settings are PBIR annotations), which the cards say.
+ */
+import { PAGE_TRANSITIONS, MOTION_LIMITS, pageMotion, reportMotion, setPageMotion, setReportMotion, setVisualMotion, visualMotion, type PageTransition, type ReportMotion, type VisualEntrance } from '@core/report/motion'
+import type { PageDocument, VisualDocument } from '@core/report/types'
+import { useApp } from '../../state/store'
+import { findPage, findVisual } from '../../report/pbir'
+import { CollapsibleCard, Dropdown, Toggle } from '../../app/ui'
+import { SpinField } from './controls'
+import { matchesSearch } from './PropEditor'
+import { motionAllowed, replayMotion } from '../../report/motion/env'
+import { playPageTransition } from '../../report/motion/pageTransition'
+
+const TRANSITION_LABELS: Record<PageTransition, string> = { none: 'None', fade: 'Fade', slide: 'Slide', rise: 'Rise', zoom: 'Zoom' }
+const ENTRANCES: Array<{ value: VisualEntrance; label: string }> = [
+  { value: 'auto', label: 'Auto (by visual type)' },
+  { value: 'fade', label: 'Fade in' },
+  { value: 'rise', label: 'Rise' },
+  { value: 'zoom', label: 'Zoom' },
+  { value: 'none', label: 'None' }
+]
+
+const POWER_BI_NOTE = 'Lumen only: Power BI keeps these settings but ignores them. There, visuals animate the Power BI way and pages switch without a transition.'
+
+function Row({ label, children, inline }: { label: string; children: React.ReactNode; inline?: boolean }) {
+  return (
+    <div className={'wbi-fmt__row' + (inline ? ' is-inline' : '')}>
+      <div className="wbi-fmt__label">
+        <span title={label}>{label}</span>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function Note({ text }: { text: string }) {
+  return <div className="wbi-fmt__motion-note">{text}</div>
+}
+
+/** Play the open page's transition and every visual's entrance once. */
+export function previewMotion(transition: PageTransition, duration: number): void {
+  if (!motionAllowed()) return
+  const page = document.querySelector<HTMLElement>('.wbi-report .wbi-page-shadow') ?? document.querySelector<HTMLElement>('.wbi-report .wbi-page-outer')
+  if (page && transition !== 'none') playPageTransition(page, transition, 1, duration)
+  replayMotion()
+}
+
+export const MOTION_SEARCH = ['Animations', 'Page transition', 'Animate visuals', 'Duration', 'Stagger', 'Default page transition', 'Transition duration', 'Animation', 'Entrance', 'Delay']
+
+export function PageMotionCard({ page, search }: { page: PageDocument; search: string }) {
+  const mutate = useApp((s) => s.mutateReport)
+  const reportJson = useApp((s) => s.project?.report?.report)
+  if (!matchesSearch(search, ...MOTION_SEARCH)) return null
+  const rm = reportMotion(reportJson)
+  const own = pageMotion(page.json).transition
+  const setReport = (label: string, patch: Partial<ReportMotion>) =>
+    mutate(label, (r) => {
+      r.report ??= {}
+      setReportMotion(r.report, patch)
+    })
+  const pageValue: PageTransition | 'default' = own ?? 'default'
+  const allowed = motionAllowed()
+  return (
+    <CollapsibleCard key={search ? 'q' : 'n'} title="Animations" defaultOpen={!!search}>
+      <Row label="Page transition">
+        <Dropdown
+          size="small"
+          title="Page transition"
+          value={pageValue}
+          options={[{ value: 'default' as const, label: `Report default (${TRANSITION_LABELS[rm.transition]})` }, ...PAGE_TRANSITIONS.map((t) => ({ value: t, label: TRANSITION_LABELS[t] }))]}
+          onChange={(v) =>
+            mutate('Page transition', (r) => {
+              const p = findPage(r, page.name)
+              if (p) setPageMotion(p.json, { transition: v === 'default' ? undefined : (v as PageTransition) })
+            })
+          }
+        />
+      </Row>
+      <CollapsibleCard title="Report" level={2} defaultOpen>
+        <Row label="Animate visuals" inline>
+          <Toggle size="small" on={rm.animate} onChange={(on) => setReport('Animate visuals', { animate: on })} />
+        </Row>
+        <Row label="Duration (ms)">
+          <SpinField label="Duration (ms)" integer step={50} value={rm.duration} min={MOTION_LIMITS.duration[0]} max={MOTION_LIMITS.duration[1]} onChange={(v) => v !== undefined && setReport('Animation duration', { duration: v })} />
+        </Row>
+        <Row label="Stagger (ms)">
+          <SpinField label="Stagger (ms)" integer step={10} value={rm.stagger} min={MOTION_LIMITS.stagger[0]} max={MOTION_LIMITS.stagger[1]} onChange={(v) => v !== undefined && setReport('Animation stagger', { stagger: v })} />
+        </Row>
+        <Row label="Default page transition">
+          <Dropdown
+            size="small"
+            title="Default page transition"
+            value={rm.transition}
+            options={PAGE_TRANSITIONS.map((t) => ({ value: t, label: TRANSITION_LABELS[t] }))}
+            onChange={(v) => setReport('Page transition', { transition: v as PageTransition })}
+          />
+        </Row>
+        <Row label="Transition duration (ms)">
+          <SpinField label="Transition duration (ms)" integer step={50} value={rm.transitionDuration} min={MOTION_LIMITS.transitionDuration[0]} max={MOTION_LIMITS.transitionDuration[1]} onChange={(v) => v !== undefined && setReport('Transition duration', { transitionDuration: v })} />
+        </Row>
+      </CollapsibleCard>
+      <div className="wbi-fmt__row">
+        <button type="button" className="wbi-link" disabled={!allowed} onClick={() => previewMotion(own ?? rm.transition, rm.transitionDuration)}>
+          Preview
+        </button>
+      </div>
+      {!allowed ? <Note text="Your system asks for reduced motion, so Lumen doesn't play animations or transitions in this window." /> : null}
+      <Note text={POWER_BI_NOTE} />
+    </CollapsibleCard>
+  )
+}
+
+export function VisualMotionCard({ page, visual, search }: { page: PageDocument; visual: VisualDocument; search: string }) {
+  const mutate = useApp((s) => s.mutateReport)
+  const reportJson = useApp((s) => s.project?.report?.report)
+  if (!matchesSearch(search, 'Animation', 'Entrance', 'Delay')) return null
+  const m = visualMotion(visual.json)
+  const rm = reportMotion(reportJson)
+  const set = (label: string, patch: Parameters<typeof setVisualMotion>[1]) =>
+    mutate(label, (r) => {
+      const v = findVisual(findPage(r, page.name), visual.name)
+      if (v) setVisualMotion(v.json, patch)
+    })
+  return (
+    <CollapsibleCard key={search ? 'q' : 'n'} title="Animation" defaultOpen={!!search}>
+      <Row label="Entrance">
+        <Dropdown size="small" title="Entrance" value={m.entrance ?? 'auto'} options={ENTRANCES} onChange={(v) => set('Visual animation', { entrance: v as VisualEntrance })} />
+      </Row>
+      <Row label="Delay (ms)">
+        <SpinField label="Delay (ms)" integer step={50} value={m.delay ?? 0} min={MOTION_LIMITS.delay[0]} max={MOTION_LIMITS.delay[1]} onChange={(v) => v !== undefined && set('Visual animation delay', { delay: v })} />
+      </Row>
+      <div className="wbi-fmt__row">
+        <button type="button" className="wbi-link" disabled={!motionAllowed() || !rm.animate} onClick={() => replayMotion(visual.name)}>
+          Preview
+        </button>
+      </div>
+      {!rm.animate ? <Note text="Animate visuals is off for this report (page formatting ▸ Animations)." /> : null}
+      <Note text={POWER_BI_NOTE} />
+    </CollapsibleCard>
+  )
+}

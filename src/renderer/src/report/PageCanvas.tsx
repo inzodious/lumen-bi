@@ -4,17 +4,21 @@
  * gridlines), focus mode / show-as-table, and readiness tracking. Used by the report view, report-page
  * tooltips, and the print layout.
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from 'react'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import type { PageDocument, ReportDocument, VisualDocument } from '@core/report/types'
 import type { DataPointIdentity, SQFilter } from '@core/report/sq'
-import { decodeValue, rawProp } from '@core/report/props'
+import { decodeValue, gradientOf, rawProp } from '@core/report/props'
+import { gradientCss, readFills } from '@core/report/gradientFill'
 import { withTransparency } from '@core/report/theme'
 import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
 import { getVisual } from '../visuals/registry'
-import { CanvasEnvContext, type CanvasEnv } from './canvasEnv'
-import { resolveChrome, resolveGroupChrome } from './chrome'
+import { CanvasEnvContext, type CanvasEnv, type CanvasMotion } from './canvasEnv'
+import { pageTransition, readingOrder, reportMotion } from '@core/report/motion'
+import { motionAllowed, useMotionAllowed } from './motion/env'
+import { notePageShown, playPageTransition } from './motion/pageTransition'
+import { borderCss, gradientBorderLayer, resolveChrome, resolveGroupChrome } from './chrome'
 import { setAbsoluteRects, topLevelOf } from './editOps'
 import { HANDLES, boundsOf, lassoHits, rectFromPoints, resizeRect, snapMove, snapResize, type Guide, type Handle, type SizeMatch, type SpacingGuide } from './geometry'
 import { usePageFilters } from './pageFilters'
@@ -67,12 +71,15 @@ export interface CanvasReadyResult {
 // ---------------------------------------------------------------------------------------------
 
 export function pageBackgroundStyle(report: ReportDocument, page: PageDocument, theme = useApp.getState().theme, object = 'background'): CSSProperties {
-  const ctx = { visualType: 'page', objects: page.json?.objects, theme }
+  const ctx = { visualType: 'page', objects: page.json?.objects, theme, fills: readFills(page.json) }
   const color = decodeValue(rawProp(ctx, object, 'color'), theme)
   const transparency = Number(decodeValue(rawProp(ctx, object, 'transparency'), theme) ?? 0)
   const img = rawProp(ctx, object, 'image')
   const style: CSSProperties = {}
+  // Lumen gradient fill (core/report/gradientFill.ts): `--wbi-bg-gradient`, the solid fallback stays in backgroundColor
+  const gradient = typeof color === 'string' ? gradientOf(ctx, { object, prop: 'color' }) : undefined
   if (typeof color === 'string') style.backgroundColor = withTransparency(color, transparency)
+  if (gradient) (style as any)['--wbi-bg-gradient'] = gradientCss(gradient, transparency)
   const imageProps = img?.image ?? img
   if (imageProps?.url) {
     const ref = decodeValue(imageProps.url, theme)
@@ -88,16 +95,23 @@ export function pageBackgroundStyle(report: ReportDocument, page: PageDocument, 
   return { ...style, ['--wbi-bg-opacity' as any]: String(1 - Math.max(0, Math.min(100, transparency)) / 100) }
 }
 
+/** pageBackgroundStyle as one plain CSS layer stack (image over the gradient fill), without the custom properties. */
+export function flatBackgroundStyle(st: CSSProperties): CSSProperties {
+  const { ['--wbi-bg-opacity' as any]: _o, ['--wbi-bg-gradient' as any]: gradient, ...rest } = st as any
+  if (!gradient) return rest
+  return { ...rest, backgroundImage: rest.backgroundImage ? `${rest.backgroundImage}, ${gradient}` : gradient }
+}
+
 /** Page background layer: color + image with PBI transparency applied to the whole layer (image included). */
 function PageBackground({ report, page }: { report: ReportDocument; page: PageDocument }) {
   const theme = useApp((s) => s.theme)
   const st = useMemo(() => pageBackgroundStyle(report, page, theme), [report, page, theme])
   const opacity = Number((st as any)['--wbi-bg-opacity'] ?? 1)
-  const { backgroundColor, ...rest } = st
+  const { backgroundColor, ['--wbi-bg-gradient' as any]: gradient, ...rest } = st as any
   // color already carries alpha via withTransparency; image layer gets the opacity
   return (
     <>
-      {backgroundColor ? <div className="wbi-page-bg" style={{ backgroundColor }} /> : null}
+      {gradient ? <div className="wbi-page-bg" style={{ background: gradient }} /> : backgroundColor ? <div className="wbi-page-bg" style={{ backgroundColor }} /> : null}
       {rest.backgroundImage ? <div className="wbi-page-bg" style={{ ...rest, opacity }} /> : null}
     </>
   )
@@ -148,11 +162,12 @@ const VisualTree = memo(function VisualTree({ page, parent, filters, preview }: 
                 height: r.height,
                 zIndex: z,
                 background: gc.background,
-                border: gc.border ? `${gc.border.width}px solid ${gc.border.color}` : undefined,
+                border: borderCss(gc.border),
                 borderRadius: gc.radius || undefined,
                 boxShadow: gc.shadow?.css
               }}
             >
+              {gc.border?.gradient && <div className="wbi-group-border" aria-hidden style={gradientBorderLayer(gc.border, gc.radius, -gc.border.width)} />}
               <VisualTree page={page} parent={v.name} filters={filters} preview={preview} />
             </div>
           )
@@ -472,6 +487,27 @@ export function PageCanvas(props: PageCanvasProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, page.name])
 
+  // ---- motion (Lumen: visual animations and page transitions, report/motion) ----------------------
+  const motionOn = useMotionAllowed()
+  const reportJson = report.report
+  const motion: CanvasMotion | undefined = useMemo(() => {
+    const rm = reportMotion(reportJson)
+    if (!motionOn || !interactive || !rm.animate) return undefined
+    return { report: rm, order: readingOrder(page.visuals.map((v) => ({ name: v.name, ...absoluteRect(page, v) }))) }
+  }, [motionOn, interactive, reportJson, page])
+  const outerRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!interactive || focus) return
+    const order = report.pagesMeta?.pageOrder?.length ? report.pagesMeta.pageOrder : report.pages.map((p) => p.name)
+    const direction = notePageShown(order, page.name)
+    // the page transition plays in reading view only (and in published dashboards); never while editing
+    if (!direction || editing || mode !== 'view' || !motionAllowed()) return
+    const el = outerRef.current
+    const target = el?.parentElement?.classList.contains('wbi-page-shadow') ? el.parentElement : el
+    if (target) playPageTransition(target, pageTransition(reportJson, page.json), direction, reportMotion(reportJson).transitionDuration)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ---- env --------------------------------------------------------------------------------------
   const env: CanvasEnv = useMemo(
     () => ({
@@ -486,9 +522,10 @@ export function PageCanvas(props: PageCanvasProps) {
       spotlight,
       reportDone,
       headerLayer,
-      onContainerPointerDown
+      onContainerPointerDown,
+      motion
     }),
-    [report, page, mode, interactive, editing, scale, spotlight, reportDone, headerLayer, onContainerPointerDown]
+    [report, page, mode, interactive, editing, scale, spotlight, reportDone, headerLayer, onContainerPointerDown, motion]
   )
 
   // ---- focus mode / show as table ---------------------------------------------------------------
@@ -515,7 +552,7 @@ export function PageCanvas(props: PageCanvasProps) {
 
   return (
     <CanvasEnvContext.Provider value={env}>
-      <div className={'wbi-page-outer' + (editing ? ' editing' : '') + (editing && painting ? ' painting' : '')} style={outer}>
+      <div ref={outerRef} className={'wbi-page-outer' + (editing ? ' editing' : '') + (editing && painting ? ' painting' : '')} style={outer}>
         <div
           ref={pageRef}
           className="wbi-page"

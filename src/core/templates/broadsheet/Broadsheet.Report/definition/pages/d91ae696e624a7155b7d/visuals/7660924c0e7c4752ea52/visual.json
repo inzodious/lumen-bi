@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "clusteredColumnChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Ridership"
-                    }
-                  },
-                  "Property": "District"
-                }
-              },
-              "queryRef": "Ridership.District",
-              "nativeQueryRef": "District"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Desk"
-                    }
-                  },
-                  "Property": "Fare Revenue"
-                }
-              },
-              "queryRef": "_Desk.Fare Revenue",
-              "nativeQueryRef": "Fare Revenue"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Desk"
-                  }
-                },
-                "Property": "Fare Revenue"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -323,5 +265,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Ridership\"}},\"Property\":\"District\"}},\"queryRef\":\"Ridership.District\",\"nativeQueryRef\":\"District\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Desk\"}},\"Property\":\"Fare Revenue\"}},\"queryRef\":\"_Desk.Fare Revenue\",\"nativeQueryRef\":\"Fare Revenue\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Desk\"}},\"Property\":\"Fare Revenue\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

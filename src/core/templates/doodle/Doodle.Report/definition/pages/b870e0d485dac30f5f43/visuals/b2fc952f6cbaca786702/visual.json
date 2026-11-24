@@ -11,92 +11,6 @@
   },
   "visual": {
     "visualType": "tableEx",
-    "query": {
-      "queryState": {
-        "Values": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Scoops"
-                    }
-                  },
-                  "Property": "Flavor"
-                }
-              },
-              "queryRef": "Scoops.Flavor",
-              "nativeQueryRef": "Flavor",
-              "displayName": "Flavor"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Treats"
-                    }
-                  },
-                  "Property": "Scoops Sold"
-                }
-              },
-              "queryRef": "_Treats.Scoops Sold",
-              "nativeQueryRef": "Scoops Sold",
-              "displayName": "Scoops"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Treats"
-                    }
-                  },
-                  "Property": "Avg Rating"
-                }
-              },
-              "queryRef": "_Treats.Avg Rating",
-              "nativeQueryRef": "Avg Rating",
-              "displayName": "Rating"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Treats"
-                    }
-                  },
-                  "Property": "Sales"
-                }
-              },
-              "queryRef": "_Treats.Sales",
-              "nativeQueryRef": "Sales",
-              "displayName": "Sales"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Treats"
-                  }
-                },
-                "Property": "Scoops Sold"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "grid": [
         {
@@ -508,5 +422,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Scoops\"}},\"Property\":\"Flavor\"}},\"queryRef\":\"Scoops.Flavor\",\"nativeQueryRef\":\"Flavor\",\"displayName\":\"Flavor\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Treats\"}},\"Property\":\"Scoops Sold\"}},\"queryRef\":\"_Treats.Scoops Sold\",\"nativeQueryRef\":\"Scoops Sold\",\"displayName\":\"Scoops\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Treats\"}},\"Property\":\"Avg Rating\"}},\"queryRef\":\"_Treats.Avg Rating\",\"nativeQueryRef\":\"Avg Rating\",\"displayName\":\"Rating\"},{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Treats\"}},\"Property\":\"Sales\"}},\"queryRef\":\"_Treats.Sales\",\"nativeQueryRef\":\"Sales\",\"displayName\":\"Sales\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Treats\"}},\"Property\":\"Scoops Sold\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
+    }
+  ]
 }

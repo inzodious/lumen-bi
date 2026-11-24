@@ -1,0 +1,70 @@
+table dim_trail
+	lineageTag: ab4ad18a-771c-4c2b-aca2-544ab5484814
+
+	column trail_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4c80e023-44b3-432d-ada9-f6e61e237bee
+		summarizeBy: none
+		sourceColumn: trail_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column park_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 2487bb48-b685-4be5-a6ba-7bb376c68407
+		summarizeBy: none
+		sourceColumn: park_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column trail
+		dataType: string
+		lineageTag: cdfaae16-de73-4562-a6ba-f3d708227ab6
+		summarizeBy: none
+		sourceColumn: trail
+
+		annotation SummarizationSetBy = Automatic
+
+	column difficulty
+		dataType: string
+		lineageTag: 98b96ba9-1cc1-4081-a032-9b76a1b0fef2
+		summarizeBy: none
+		sourceColumn: difficulty
+
+		annotation SummarizationSetBy = Automatic
+
+	column length_km
+		dataType: double
+		formatString: #,0.0
+		lineageTag: de8a4c50-c892-4788-a827-fa77e2e7667d
+		summarizeBy: sum
+		sourceColumn: length_km
+
+		annotation SummarizationSetBy = Automatic
+
+	column elevation_gain_m
+		dataType: int64
+		formatString: #,0
+		lineageTag: 49c8cf23-36d1-4f6c-af7c-7db2c2af7ca2
+		summarizeBy: none
+		sourceColumn: elevation_gain_m
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_trail = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("XZJBawIxEIX/SphzCCa7bvVqaWtBqdRCD9JDatIajBnJZiv99yXZWap7CGTJ92bnvZndDiTwcrbd6eQSWyGe81eKNnTYtflVCgUcZvUEPvgOFAlWOu4P7C3qHxtbCxzWaGzUKV9nogYOtewVFSlenfm2bHvu4ugPU5Gfp6rHa8LXVhu8sHftj8DhQbe/wKEqvTQ9OQVe2lmi93hh99HaK7QWTW6lRxtCX7xha+c92+h0+GeVmOXiPXtH7KON4VPvj0MoVwbvRDE17wVFCxyeog4uWbZN2sV2ZLIRuW5DkjlJFrp1gb260219qUQ2V1H3ckL4m44hZ+78LT8vCVYTwvNHjnF7wGi9C3awQHbnxS4NVCqiV4hH7BLboAvptn5dBqpooLIixQJ1OmDX2lGcUmR/A10PtMsb89x6Hcz1RMsYic33fBa++/piD+Z7tFnTUlkNrTeEb1ywF0TD7l3cdy79l2/KwlDqsoygbzyay81mqWKRuBlxSxsxsIV3wYwsViXxbPHjDw==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [trail_key = _t, park_key = _t, trail = _t, difficulty = _t, length_km = _t, elevation_gain_m = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"trail_key", Int64.Type}, {"park_key", Int64.Type}, {"trail", type text}, {"difficulty", type text}, {"length_km", type number}, {"elevation_gain_m", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

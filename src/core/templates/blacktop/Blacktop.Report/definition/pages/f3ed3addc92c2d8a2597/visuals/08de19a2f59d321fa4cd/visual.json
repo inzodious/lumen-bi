@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "clusteredBarChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Games"
-                    }
-                  },
-                  "Property": "Player"
-                }
-              },
-              "queryRef": "Games.Player",
-              "nativeQueryRef": "Player"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Stats"
-                    }
-                  },
-                  "Property": "Points"
-                }
-              },
-              "queryRef": "_Stats.Points",
-              "nativeQueryRef": "Points"
-            }
-          ]
-        }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Stats"
-                  }
-                },
-                "Property": "Points"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
-        "isDefaultSort": true
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -471,6 +413,10 @@
     {
       "name": "Lumen_Style",
       "value": "{\"rotate\":-1.2}"
+    },
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Games\"}},\"Property\":\"Player\"}},\"queryRef\":\"Games.Player\",\"nativeQueryRef\":\"Player\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Points\"}},\"queryRef\":\"_Stats.Points\",\"nativeQueryRef\":\"Points\"}]}},\"sortDefinition\":{\"sort\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Stats\"}},\"Property\":\"Points\"}},\"direction\":\"Descending\"}],\"isDefaultSort\":true}}}"
     }
   ]
 }

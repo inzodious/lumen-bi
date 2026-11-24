@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux · typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  windows:
+    name: Windows · typecheck, test, package
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build installer and portable exe
+        run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Smoke test the packaged app
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'lumen-smoke.png'
+          $env:WBI_CAPTURE = $out
+          $env:WBI_ROUTE = '#/?sample=1'
+          $env:WBI_TIMEOUT = '60000'
+          $p = Start-Process -FilePath 'dist\win-unpacked\Lumen.exe' -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'Lumen did not exit within 2 minutes' }
+          if (-not (Test-Path $out)) { throw 'No screenshot written' }
+          Get-Content "$out.log" | Select-Object -First 40
+          if (Select-String -Path "$out.log" -Pattern 'timed out waiting' -Quiet) { throw 'Renderer never reported ready' }
+          Copy-Item $out dist\smoke.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lumen-windows-x64
+          path: |
+            dist/Lumen-Setup-*.exe
+            dist/Lumen-*-portable.exe
+            dist/smoke.png
+          if-no-files-found: error
+          retention-days: 30

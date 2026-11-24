@@ -11,46 +11,6 @@
   },
   "visual": {
     "visualType": "donutChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Scoops"
-                    }
-                  },
-                  "Property": "Serving"
-                }
-              },
-              "queryRef": "Scoops.Serving",
-              "nativeQueryRef": "Serving"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Treats"
-                    }
-                  },
-                  "Property": "Scoops Sold"
-                }
-              },
-              "queryRef": "_Treats.Scoops Sold",
-              "nativeQueryRef": "Scoops Sold"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "legend": [
         {
@@ -159,131 +119,6 @@
                 }
               }
             }
-          }
-        }
-      ],
-      "dataPoint": [
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FF7AB6'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Scoops"
-                          }
-                        },
-                        "Property": "Serving"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Cone'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#5CC3FF'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Scoops"
-                          }
-                        },
-                        "Property": "Serving"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Cup'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "properties": {
-            "fill": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#FFD23F'"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "selector": {
-            "data": [
-              {
-                "scopeId": {
-                  "Comparison": {
-                    "ComparisonKind": 0,
-                    "Left": {
-                      "Column": {
-                        "Expression": {
-                          "SourceRef": {
-                            "Entity": "Scoops"
-                          }
-                        },
-                        "Property": "Serving"
-                      }
-                    },
-                    "Right": {
-                      "Literal": {
-                        "Value": "'Shake'"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
           }
         }
       ]
@@ -518,5 +353,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Scoops\"}},\"Property\":\"Serving\"}},\"queryRef\":\"Scoops.Serving\",\"nativeQueryRef\":\"Serving\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Treats\"}},\"Property\":\"Scoops Sold\"}},\"queryRef\":\"_Treats.Scoops Sold\",\"nativeQueryRef\":\"Scoops Sold\"}]}}},\"objects\":{\"dataPoint\":[{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FF7AB6'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Scoops\"}},\"Property\":\"Serving\"}},\"Right\":{\"Literal\":{\"Value\":\"'Cone'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#5CC3FF'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Scoops\"}},\"Property\":\"Serving\"}},\"Right\":{\"Literal\":{\"Value\":\"'Cup'\"}}}}}]}},{\"properties\":{\"fill\":{\"solid\":{\"color\":{\"expr\":{\"Literal\":{\"Value\":\"'#FFD23F'\"}}}}}},\"selector\":{\"data\":[{\"scopeId\":{\"Comparison\":{\"ComparisonKind\":0,\"Left\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Scoops\"}},\"Property\":\"Serving\"}},\"Right\":{\"Literal\":{\"Value\":\"'Shake'\"}}}}}]}}]}}"
+    }
+  ]
 }

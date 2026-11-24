@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "cardVisual",
-    "query": {
-      "queryState": {
-        "Data": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Trail"
-                    }
-                  },
-                  "Property": "Sightings Note"
-                }
-              },
-              "queryRef": "_Trail.Sightings Note",
-              "nativeQueryRef": "Sightings Note"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "fillCustom": [
         {
@@ -226,5 +204,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Trail\"}},\"Property\":\"Sightings Note\"}},\"queryRef\":\"_Trail.Sightings Note\",\"nativeQueryRef\":\"Sightings Note\"}]}}}}"
+    }
+  ]
 }

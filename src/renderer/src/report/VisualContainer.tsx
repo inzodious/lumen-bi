@@ -23,8 +23,13 @@ import { getVisual } from '../visuals/registry'
 import { customVisualDisplayName, customVisualLabel } from '../visuals/custom/customVisualInfo'
 import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
-import { resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
+import { borderCss, gradientBorderLayer, resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
 import { lumenStyleCss, lumenStyleOf } from '@core/report/lumenStyle'
+import { entranceDelay, motionFamily, visualMotion } from '@core/report/motion'
+import { VisualAnimator, type AnimatorOptions } from './motion/animator'
+import { onReplayMotion } from './motion/env'
+import { activeGradients, GradientPainter } from './gradientPaint'
+import { resolveBoundColors } from './boundColors'
 import { useCanvasEnv } from './canvasEnv'
 import { lastMenuRequest, registerLiveContext, useVisualHost } from './host'
 import { PerfMark, useVisualPerf } from './perf'
@@ -37,6 +42,7 @@ import { isSlicerType, visualFields, visualTypeOf, type Rect } from './pbir'
 import { applyBookmark, drillthrough, goBack, navigatePage, openUrl, clearAllSlicers, setDrill } from './runtime'
 import { describeFilters } from './filterSummary'
 import { VisualReadyContext, type VisualReadiness } from '../visuals/common/readiness'
+import { sampleContext, sampleDatasetText, sampleDrawFor } from './sampleData'
 
 // ---------------------------------------------------------------------------------------------
 // Error boundary
@@ -272,13 +278,21 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   const type = visualTypeOf(visual)
   const def = getVisual(type)
   const isSlicer = def?.isSlicer ?? isSlicerType(type)
-  const ctx = useVisualHost(env, visual.name, props.filters, props.highlightFilters, isSlicer)
+  const hostCtx = useVisualHost(env, visual.name, props.filters, props.highlightFilters, isSlicer)
+  // an empty visual of a report with sample data on draws a sample (sampleData.ts); `drawn` is what it draws
+  const reportJson = env.report.report
+  const sampleText = useApp((s) => sampleDatasetText(s.project?.model.sidecarFiles))
+  const sample = useMemo(() => sampleDrawFor(visual.json, def, reportJson, sampleText), [visual.json, def, reportJson, sampleText])
+  const drawn: VisualDocument = useMemo(() => (sample ? { ...visual, json: sample.json } : visual), [sample, visual])
+  const ctx = useMemo(() => (sample && hostCtx ? sampleContext(hostCtx, sample.engine) : hostCtx), [sample, hostCtx])
   const baseChrome: ChromeSpec = useMemo(
     () => resolveChrome(visual.json, theme, def ? { titleOnByDefault: def.category === 'chart' || def.category === 'map' ? undefined : false, element: def.category === 'element' } : {}),
     [visual.json, theme, def]
   )
   // fx on container colors (title / background / border …) evaluated in the visual's filter context
   const chrome: ChromeSpec = useMemo(() => applyBoundContainerColors(baseChrome, visual.json, ctx), [baseChrome, visual.json, ctx])
+  // fx on the visual's other colors that have one value for the whole visual (boundColors.ts)
+  const rendered = useMemo(() => resolveBoundColors(drawn, ctx), [drawn, ctx])
   useEffect(() => (env.interactive ? registerLiveContext(env.pageName, visual.name, ctx) : undefined), [env.interactive, env.pageName, visual.name, ctx])
   const [hover, setHoverState] = useState(false)
   // the header can sit outside the container (above it, in the canvas header layer): leaving the container towards the
@@ -293,6 +307,15 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   useEffect(() => () => void (hideTimer.current && clearTimeout(hideTimer.current)), [])
   const outerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  // Lumen gradient fills on whatever the visual draws with a gradient property's fallback color (gradientPaint.ts)
+  const paints = useMemo(() => activeGradients(visual.json, theme), [visual.json, theme])
+  useLayoutEffect(() => {
+    const el = outerRef.current
+    if (!el || !paints.size) return
+    const painter = new GradientPainter(el, paints)
+    painter.start()
+    return () => painter.stop()
+  }, [paints])
   const [size, setSize] = useState<{ w: number; h: number } | null>(null)
 
   useLayoutEffect(() => {
@@ -308,6 +331,49 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  // Lumen visual animations (report/motion/animator.ts): entrance once mounted, morph after data changes
+  const engineNow = useApp((s) => s.engine)
+  const animOpts: AnimatorOptions | null = useMemo(() => {
+    const m = env.motion
+    if (!m) return null
+    const family = motionFamily(type)
+    const own = visualMotion(visual.json)
+    if (family === 'still' && !own.entrance) return null
+    if (own.entrance === 'none') return null
+    return { duration: m.report.duration, family: family === 'marks' ? 'marks' : 'fade', entrance: own.entrance ?? 'auto', delay: entranceDelay(m.report, own, m.order.get(visual.name) ?? 0) }
+  }, [env.motion, type, visual.json, visual.name])
+  const animator = useRef<VisualAnimator | null>(null)
+  const animated = !!animOpts
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el || !animOpts) return
+    const a = new VisualAnimator(el, animOpts)
+    animator.current = a
+    a.arm('enter')
+    return () => {
+      a.dispose()
+      animator.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animated])
+  useEffect(() => {
+    if (animOpts) animator.current?.setOptions(animOpts)
+  }, [animOpts])
+  useEffect(() => onReplayMotion((v) => (!v || v === visual.name ? animator.current?.replay() : undefined)), [visual.name])
+  const dataSeen = useRef(false)
+  useLayoutEffect(() => {
+    if (!dataSeen.current) {
+      dataSeen.current = true
+      return
+    }
+    animator.current?.arm('update')
+  }, [props.filters, props.highlightFilters, visual.json?.visual?.query, engineNow])
+  const lastSize = useRef<{ w: number; h: number } | null>(null)
+  useLayoutEffect(() => {
+    if (lastSize.current && size && (lastSize.current.w !== size.w || lastSize.current.h !== size.h)) animator.current?.pause()
+    lastSize.current = size
+  }, [size])
 
   // readiness: first render with a measured size (or a terminal state) counts as done
   const reported = useRef(false)
@@ -359,12 +425,12 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
   // Performance analyzer (report/perf.ts): one entry per (re)load of this visual while recording
   useVisualPerf(ctx, env.interactive && canRenderVisual, visual.json?.visual, () => ({
     visual: visual.name,
-    title: (chrome.title.text ?? autoTitle(visual.json, ctx)) || def?.displayName || type,
+    title: (chrome.title.text ?? autoTitle(drawn.json, ctx)) || def?.displayName || type,
     type,
     page: env.pageName
   }))
 
-  const titleText = chrome.title.show ? (chrome.title.boundExpr ? evalBoundText(chrome.title.boundExpr, ctx) : (chrome.title.text ?? generatedTitle(visual.json, ctx))) : undefined
+  const titleText = chrome.title.show ? (chrome.title.boundExpr ? evalBoundText(chrome.title.boundExpr, ctx) : (chrome.title.text ?? generatedTitle(drawn.json, ctx))) : undefined
   const subText = chrome.subTitle.show ? (chrome.subTitle.boundExpr ? evalBoundText(chrome.subTitle.boundExpr, ctx) : chrome.subTitle.text) : undefined
   const engineError = useApp((s) => s.engineError)
   // fields that no longer resolve against the model → PBI's field error state
@@ -393,7 +459,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     backdropFilter: fx?.backdropFilter,
     transform: fx?.transform,
     borderRadius: chrome.radius || undefined,
-    border: chrome.border ? `${chrome.border.width}px solid ${chrome.border.color}` : undefined,
+    border: borderCss(chrome.border),
     boxShadow: shadows || undefined,
     padding: `${chrome.padding.top}px ${chrome.padding.right}px ${chrome.padding.bottom}px ${chrome.padding.left}px`,
     display: 'flex',
@@ -402,6 +468,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     opacity: spotDim ? 0.15 : 1,
     transition: 'opacity 120ms'
   }
+  const borderLayer = gradientBorderLayer(chrome.border, chrome.radius, 0, { transform: fx?.transform, opacity: box.opacity, transition: box.transition })
 
   const link = chrome.link
   const linkActive = !!link && (env.mode === 'view' || !env.editing)
@@ -437,6 +504,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
       className="wbi-vc"
       data-visual={visual.name}
       data-type={type}
+      data-sample={sample?.source}
       style={outer}
       aria-label={chrome.altText ?? titleText ?? type}
       title={linkActive && link?.tooltip ? link.tooltip : undefined}
@@ -486,13 +554,19 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
             <VisualErrorBoundary visualType={type} resetKey={visual.json}>
               <PerfMark ctx={ctx} edge="start" />
               <VisualReadyContext.Provider value={readiness}>
-                <VisualContent def={def} visual={visual} pageName={env.pageName} width={size!.w} height={size!.h} ctx={ctx} />
+                <VisualContent def={def} visual={rendered} pageName={env.pageName} width={size!.w} height={size!.h} ctx={ctx} />
               </VisualReadyContext.Provider>
               <PerfMark ctx={ctx} edge="end" />
             </VisualErrorBoundary>
           ) : null}
         </div>
+        {sample && env.editing && hover && (
+          <div className="wbi-vc-sample" title="Sample data: this visual has no fields yet. Drop fields in to show real data, or turn sample data off on the View tab.">
+            Sample data
+          </div>
+        )}
       </div>
+      {borderLayer && <div className="wbi-vc-border" aria-hidden style={borderLayer} />}
       {env.headers && hover && chrome.header.show && def && ctx && (
         <PlacedHeader layer={env.headerLayer} anchor={outerRef} scale={env.scale} rect={rect} onHover={setHover}>
           <VisualHeader visual={visual} def={def} ctx={ctx} chrome={chrome} />

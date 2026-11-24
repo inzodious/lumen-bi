@@ -6,11 +6,15 @@ model Model
 		legacyRedirects
 		returnErrorValuesAsNull
 
-annotation PBI_QueryOrder = ["_Stats","Games"]
+queryGroup Measures
+
+	annotation PBI_QueryGroupOrder = 0
+
+annotation PBI_QueryOrder = ["_measures_kpi","_measures_format"]
 
 annotation __PBI_TimeIntelligenceEnabled = 0
 
 annotation Lumen_Template = blacktop
 
-ref table _Stats
-ref table Games
+ref table _measures_kpi
+ref table _measures_format

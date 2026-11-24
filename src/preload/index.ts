@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { WbiHost } from '../shared/host'
 import { BLOCK_CACHE_GLOBAL, blockCacheFromArgv } from '../shared/cacheGuard'
+import { STILL_ARG, STILL_GLOBAL } from '../shared/still'
 
 const invoke = (ch: string, ...args: unknown[]) => ipcRenderer.invoke(ch, ...args)
 
@@ -70,6 +71,20 @@ const host: WbiHost = {
       resolve: (p) => invoke('shares:resolve', p)
     }
   },
+  publish: {
+    status: () => invoke('publish:status'),
+    toFolder: (r) => invoke('publish:folder', r),
+    toZip: (r) => invoke('publish:zip', r),
+    destinations: {
+      list: () => invoke('publish:dest:list'),
+      set: (i) => invoke('publish:dest:set', i),
+      remove: (id) => invoke('publish:dest:remove', id),
+      test: (id, site) => invoke('publish:dest:test', id, site)
+    },
+    connectLumenServer: (url) => invoke('publish:lumen:connect', url),
+    deploy: (r) => invoke('publish:deploy', r),
+    onProgress: (cb) => on('publish:progress', cb)
+  },
   exporter: {
     printToPDF: (o) => invoke('export:printToPDF', o),
     capturePng: (r) => invoke('export:capturePng', r)
@@ -80,3 +95,5 @@ contextBridge.exposeInMainWorld('wbi', host)
 // WBI_BLOCK_CACHE=1 (main passes --wbi-block-cache): never decode PBIP .pbi/cache.abf (see src/core/io/open.ts).
 // Exposed before any page script runs; the exposed property is read-only in the page.
 if (blockCacheFromArgv(process.argv)) contextBridge.exposeInMainWorld(BLOCK_CACHE_GLOBAL, true)
+// capture / sweep / e2e (main passes --lumen-still): no visual animations or page transitions (report/motion/env.ts)
+if (process.argv.includes(STILL_ARG)) contextBridge.exposeInMainWorld(STILL_GLOBAL, true)

@@ -14,7 +14,8 @@ follow them without your own data. Where Lumen behaves differently from Power BI
 |---|---|---|
 | [Report view overview](report-view-overview.md) | Overview | The parts of the window, the panes and the ribbon tabs |
 | [Tutorial: design a dashboard page](tutorial-design-a-dashboard-page.md) | Tutorial | Build a page with KPI cards, icons, slicers, a combo chart and a matrix, apply a theme and export it to PDF |
-| [Start from a report template](start-from-a-template.md) | How-to | The gallery's designed templates, which are Power BI compatible, and how to swap in your own data |
+| [Start from a report template](start-from-a-template.md) | How-to | The gallery's designed templates, which are Power BI compatible, and how to put in your own data |
+| [Sample data on empty visuals](sample-data-on-empty-visuals.md) | How-to | Mock up a report fast: empty visuals draw realistic sample data until you drop fields in |
 
 ## Build pages and visuals
 
@@ -57,12 +58,14 @@ follow them without your own data. Where Lumen behaves differently from Power BI
 | [Bookmarks](bookmarks.md) | How-to | Capture and apply the state of a page |
 | [Buttons and page navigation](buttons-and-page-navigation.md) | How-to | Buttons, actions, the page navigator |
 | [Mobile layout](mobile-layout.md) | How-to | Lay out a page for phones |
+| [Animations and page transitions](animations-and-page-transitions.md) | How-to | How visuals animate, page transitions, turning motion off, what Power BI does with it |
 
 ## Export and check
 
 | Article | Type | What you learn |
 |---|---|---|
 | [Export a report](export-a-report.md) | How-to | PDF, PowerPoint, images and HTML; choosing pages; Power BI project |
+| [Publish a dashboard](publish-a-dashboard.md) | How-to | An interactive web version of a report: a folder, a zip, GitHub Pages, Netlify, Cloudflare Pages or S3; what data it carries |
 | [Export data from a visual](export-data-from-a-visual.md) | How-to | Save the data behind a visual as `.xlsx` or `.csv` |
 | [Performance analyzer](performance-analyzer.md) | How-to | Time the queries and rendering of each visual |
 | [Keyboard shortcuts and context menus](keyboard-and-context-menus.md) | Concept | Canvas shortcuts and the visual context menu |

@@ -1,0 +1,13 @@
+services:
+  lumen-server:
+    build: .
+    container_name: lumen-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      LUMEN_SERVER_TOKEN: ${LUMEN_SERVER_TOKEN:?set LUMEN_SERVER_TOKEN in .env}
+      LUMEN_SERVER_TITLE: Dashboards
+      LUMEN_SERVER_LISTING: "on"
+    volumes:
+      - ./data:/data

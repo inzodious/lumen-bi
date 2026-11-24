@@ -1,0 +1,86 @@
+table dim_mission
+	lineageTag: 6f17f807-df06-4b7b-a694-5cbf80e956b3
+
+	column mission_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 1a628dcd-32c0-4706-a9a7-cd2965ac6583
+		summarizeBy: none
+		sourceColumn: mission_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column mission
+		dataType: string
+		lineageTag: fe8d045a-25de-4a59-a316-e819177dbc72
+		summarizeBy: none
+		sourceColumn: mission
+
+		annotation SummarizationSetBy = Automatic
+
+	column orbit
+		dataType: string
+		lineageTag: b86021b1-42fb-4a8f-a78c-e42ebfbd4fd9
+		summarizeBy: none
+		sourceColumn: orbit
+
+		annotation SummarizationSetBy = Automatic
+
+	column purpose
+		dataType: string
+		lineageTag: ffcaba72-2e99-41ad-ad76-38336c65b92f
+		summarizeBy: none
+		sourceColumn: purpose
+
+		annotation SummarizationSetBy = Automatic
+
+	column bus
+		dataType: string
+		lineageTag: 0847db30-c4a0-4fd3-aa6d-a9cb72c2f7f8
+		summarizeBy: none
+		sourceColumn: bus
+
+		annotation SummarizationSetBy = Automatic
+
+	column fleet_size
+		dataType: int64
+		formatString: 0
+		lineageTag: fd87d974-0476-4c32-a9b8-a861b2e7241a
+		summarizeBy: sum
+		sourceColumn: fleet_size
+
+		annotation SummarizationSetBy = Automatic
+
+	column commissioned
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 93be3336-5d29-4191-af3a-f27107ae0962
+		summarizeBy: none
+		sourceColumn: commissioned
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column status
+		dataType: string
+		lineageTag: 35328211-a678-434b-a8d4-ce9cae457021
+		summarizeBy: none
+		sourceColumn: status
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_mission = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("jZHRSsMwFIZfRc51Dpyk7dZdigwH1k1QVCi9yGrYAm0iSVfw7SXpWod24E0uDofv/7+TsgQODDaq0dYDg2K9AwZr6brjjd175XrZaWuAwa3vlENBBAxEGh4SHClFLoDB7lO5uCkbqFgJYfagfOdUM1HvbNuejK7jnv+FTPMBKZBWSMkMMsyKLyeBwWPkbWWvD2O9jXLWYBZZsZEgQUgCeT7DCv23ut2fQo37SHtTsjsqN6HeC2AxUxBfIS0xoRlQFr1crz+AwZNtpPvH+fhi6JcgJSj4DDYsvErT/cj+Od6lcD7yOEea812ODSbdK7xoPfwuz5Ey5OkMLkS8KGcunJ9rrUytJlMei51FM6QFkjjHau+1NdocoKq+AQ==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [mission_key = _t, mission = _t, orbit = _t, purpose = _t, bus = _t, fleet_size = _t, commissioned = _t, status = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"mission_key", Int64.Type}, {"mission", type text}, {"orbit", type text}, {"purpose", type text}, {"bus", type text}, {"fleet_size", Int64.Type}, {"commissioned", type date}, {"status", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

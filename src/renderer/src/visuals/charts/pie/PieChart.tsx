@@ -19,6 +19,8 @@ import { FormatReader, PBI } from '../../common/fmtProps'
 import { Legend, measureLegend, readLegendStyle, type LegendItem } from '../../common/Legend'
 import { ellipsize, fontAttrs, lineHeight, measureText, ptToPx, fontWeightOf } from '../../common/text'
 import { contrastText, rgba } from '../../common/color'
+import { colorAt, type GradientFill } from '@core/report/gradientFill'
+import { SvgGradientDefs, svgPaintRef } from '../../common/svgPaint'
 import { formatWithUnits, resolveDisplayUnit, formatFixed, formatScalar } from '../../common/units'
 import { makeInteractions } from '../../common/interaction'
 import { pointTooltip } from '../../common/tooltip'
@@ -26,6 +28,7 @@ import { EmptyVisual, NoData, VisualError, useVisualQuery } from '../../common/V
 import { arcPath, composeLabel, labelParts, layoutOutsideLabels, polar, sliceAngles, splitLabel } from './pieLayout'
 import type { DataPointIdentity } from '@core/report/sq'
 import { SmallMultiples } from '../cartesian/SmallMultiples'
+import { sweepMark } from '../../common/motionMarks'
 
 /** Pie / donut data labels are on by default (also shown by the Format pane). */
 export const PIE_LABELS_SHOWN = true
@@ -42,6 +45,8 @@ export interface Slice {
   detail?: string
   value: number
   color: string
+  /** Lumen gradient fill drawn instead of `color` (the solid fallback) */
+  gradient?: GradientFill
   labelColor?: string
   highlight?: number | null
   identity: DataPointIdentity
@@ -70,6 +75,7 @@ export function slicesOf(d: CategoricalData): Slice[] {
           detail: split.length ? s.name : undefined,
           value: v,
           color: s.pointColors?.[ci] ?? s.color,
+          gradient: s.pointColors?.[ci] !== undefined ? s.pointGradients?.[ci] : s.gradient,
           labelColor: s.cfColors?.['labels.color']?.[ci],
           highlight: s.highlights?.[ci],
           identity: pointIdentity(c, split.length ? s : undefined),
@@ -84,7 +90,7 @@ export function slicesOf(d: CategoricalData): Slice[] {
     d.series.forEach((s, si) => {
       const v = s.values[0]
       if (v === null || v === undefined || !Number.isFinite(v) || v <= 0) return
-      out.push({ key: s.key, label: s.name, value: v, color: s.color, labelColor: s.cfColors?.['labels.color']?.[0], highlight: s.highlights?.[0], identity: { fields: s.scope }, legendKey: s.key, ci: 0, si, format: s.formats[0] ?? s.measure.formatString })
+      out.push({ key: s.key, label: s.name, value: v, color: s.color, gradient: s.gradient, labelColor: s.cfColors?.['labels.color']?.[0], highlight: s.highlights?.[0], identity: { fields: s.scope }, legendKey: s.key, ci: 0, si, format: s.formats[0] ?? s.measure.formatString })
     })
   }
   return out
@@ -129,7 +135,7 @@ export function PieChart({ visual, width, height, ctx, donut, icon, panel }: Vis
   for (const s of slices) {
     if (legendMap.has(s.legendKey)) continue
     const identity = d.levels.length ? pointIdentity(d.categories[s.ci], undefined) : s.identity
-    legendMap.set(s.legendKey, { key: s.legendKey, label: s.label, color: s.color, identity, dimmed: inter.hasSelection && !inter.isSelected(identity) })
+    legendMap.set(s.legendKey, { key: s.legendKey, label: s.label, color: s.color, gradient: s.gradient, identity, dimmed: inter.hasSelection && !inter.isSelected(identity) })
   }
   const items = [...legendMap.values()]
   const lg = measureLegend(legendStyle, items, width, height)
@@ -221,7 +227,7 @@ export function PieChart({ visual, width, height, ctx, donut, icon, panel }: Vis
     const arcLen = (a.end - a.start) * rm
     const room = Math.max(arcLen, donut ? r - inner : r)
     if (!force && !overflow && (tw > room * 1.1 || lh > arcLen)) return false
-    const fill = s.labelColor ?? lcolor ?? contrastText(s.color)
+    const fill = s.labelColor ?? lcolor ?? contrastText(s.gradient ? colorAt(s.gradient, 0.5) : s.color)
     labelNodes.push(
       <g key={`li${i}`} pointerEvents="none" opacity={inter.opacityFor(s.identity)}>
         {bgMode === 'on' ? <rect x={x - tw / 2 - 2} y={y - lh / 2} width={tw + 4} height={lh} fill="#FFFFFF" fillOpacity={0.8} /> : null}
@@ -278,8 +284,10 @@ export function PieChart({ visual, width, height, ctx, donut, icon, panel }: Vis
   const sep = (i: number) => (slices.length > 1 ? (slices[i].detail && slices[i + 1]?.legendKey === slices[i].legendKey ? 0.5 : 1) : 0)
   return (
     <svg width={width} height={height} style={{ display: 'block', userSelect: 'none' }} onClick={(e) => inter.onBackgroundClick(e)} onContextMenu={(e) => inter.onContextMenu(undefined, e)}>
+      <SvgGradientDefs paints={slices.map((s) => (s.gradient ? { gradient: s.gradient } : undefined))} />
       {slices.map((s, i) => {
         const a = angles[i]
+        const fill = s.gradient ? svgPaintRef({ gradient: s.gradient }) : s.color
         const op = inter.opacityFor(s.identity)
         const path = arcPath(cx, cy, inner, r, a.start, a.end)
         if (hl) {
@@ -287,12 +295,12 @@ export function PieChart({ visual, width, height, ctx, donut, icon, panel }: Vis
           const rh = donut ? inner + (r - inner) * frac : r * Math.sqrt(frac)
           return (
             <g key={s.key} {...onSlice(s)} style={{ cursor: 'pointer' }}>
-              <path d={path} fill={rgba(s.color, 0.4)} stroke="#FFFFFF" strokeWidth={1} />
-              {frac > 0 ? <path d={arcPath(cx, cy, inner, rh, a.start, a.end)} fill={s.color} stroke="#FFFFFF" strokeWidth={1} /> : null}
+              <path d={path} fill={rgba(s.color, 0.4)} stroke="#FFFFFF" strokeWidth={1} {...sweepMark(cx, cy)} />
+              {frac > 0 ? <path d={arcPath(cx, cy, inner, rh, a.start, a.end)} fill={fill} stroke="#FFFFFF" strokeWidth={1} {...sweepMark(cx, cy)} /> : null}
             </g>
           )
         }
-        return <path key={s.key} d={path} fill={s.color} opacity={op} stroke="#FFFFFF" strokeWidth={sep(i)} style={{ cursor: 'pointer' }} {...onSlice(s)} />
+        return <path key={s.key} d={path} fill={fill} opacity={op} stroke="#FFFFFF" strokeWidth={sep(i)} style={{ cursor: 'pointer' }} {...sweepMark(cx, cy)} {...onSlice(s)} />
       })}
       {labelNodes}
       {lg.size ? (

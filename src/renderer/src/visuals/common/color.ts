@@ -10,6 +10,7 @@ import type { Scalar } from '@core/model/data'
 import { decodeLiteral } from '@core/report/literal'
 import { decodeValue, objectEntries, type ObjectEntry, type PropContext } from '@core/report/props'
 import { fieldKey } from '@core/report/sq'
+import type { GradientFill } from '@core/report/gradientFill'
 import { parseHex, seriesColor, themeDataColor, toHex, type ResolvedTheme } from '@core/report/theme'
 
 export interface ScopeField {
@@ -87,6 +88,31 @@ export function staticFill(pc: PropContext, opts: { metadata?: string; fields?: 
     if (typeof v === 'string') return v
   }
   return seriesColor(pc.theme, opts.index)
+}
+
+/**
+ * The Lumen gradient fill (core/report/gradientFill.ts) of a series or data point drawn with `color`: a stored
+ * `dataPoint.fill` / `defaultColor` gradient whose selector applies here and whose solid fallback is the color the
+ * point resolved to (so a color changed elsewhere since drops the gradient).
+ */
+export function pointGradient(pc: PropContext, color: string | undefined, opts: { metadata?: string; fields?: ScopeField[] }): GradientFill | undefined {
+  if (!color || !pc.fills?.length) return undefined
+  const c = color.toUpperCase().slice(0, 7)
+  let best: { g: GradientFill; rank: number } | undefined
+  for (const f of pc.fills) {
+    if (f.container || f.object !== 'dataPoint' || (f.prop !== 'fill' && f.prop !== 'defaultColor') || f.fallback.slice(0, 7) !== c) continue
+    const sel = f.selector
+    let rank = 1
+    if (sel?.data && !isWildcardSelector(sel)) {
+      if (!opts.fields?.length || !dataSelectorMatches(sel.data, opts.fields)) continue
+      rank = 3
+    } else if (sel?.metadata) {
+      if (sel.metadata !== opts.metadata) continue
+      rank = 2
+    }
+    if (!best || rank > best.rank) best = { g: f.gradient, rank }
+  }
+  return best?.g
 }
 
 /** The dataPoint default color (`defaultColor` or a wildcard/no-selector `fill`) if set. */

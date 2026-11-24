@@ -11,28 +11,6 @@
   },
   "visual": {
     "visualType": "slicer",
-    "query": {
-      "queryState": {
-        "Values": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Region"
-                }
-              },
-              "queryRef": "Finance.Region",
-              "nativeQueryRef": "Region"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "data": [
         {
@@ -215,5 +193,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Region\"}},\"queryRef\":\"Finance.Region\",\"nativeQueryRef\":\"Region\"}]}}}}"
+    }
+  ]
 }

@@ -11,64 +11,6 @@
   },
   "visual": {
     "visualType": "hundredPercentStackedBarChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Segment"
-                }
-              },
-              "queryRef": "Finance.Segment",
-              "nativeQueryRef": "Segment"
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Revenue FY"
-                }
-              },
-              "queryRef": "_Measures.Revenue FY",
-              "nativeQueryRef": "Revenue FY"
-            }
-          ]
-        },
-        "Series": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Finance"
-                    }
-                  },
-                  "Property": "Region"
-                }
-              },
-              "queryRef": "Finance.Region",
-              "nativeQueryRef": "Region"
-            }
-          ]
-        }
-      }
-    },
     "objects": {
       "categoryAxis": [
         {
@@ -299,5 +241,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_SampleData",
+      "value": "{\"query\":{\"queryState\":{\"Category\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Segment\"}},\"queryRef\":\"Finance.Segment\",\"nativeQueryRef\":\"Segment\"}]},\"Y\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Measures\"}},\"Property\":\"Revenue FY\"}},\"queryRef\":\"_Measures.Revenue FY\",\"nativeQueryRef\":\"Revenue FY\"}]},\"Series\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Finance\"}},\"Property\":\"Region\"}},\"queryRef\":\"Finance.Region\",\"nativeQueryRef\":\"Region\"}]}}}}"
+    }
+  ]
 }

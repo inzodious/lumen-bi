@@ -29,7 +29,10 @@ import { readSeriesLabels, spreadLabels } from './seriesLabels'
 import { lineLabelSides, type LinePlacement } from './lineLabelPosition'
 import { readErrorBars, errorBounds, errorSpecFor, errorTooltip, type ErrorBarSpec } from './errorBars'
 import { decodeValue } from '@core/report/props'
+import { colorAt, type GradientFill } from '@core/report/gradientFill'
+import { SvgGradientDefs, svgPaintRef, type SvgPaint } from '../../common/svgPaint'
 import { detectAnomalies } from './anomaly'
+import { barMark, LABEL_MARK, POP_MARK, REVEAL_MARK } from '../../common/motionMarks'
 import { forecastSeries, readForecastSpecs, FORECAST_DEFAULT_COLOR, type SeriesForecast } from './forecast'
 
 /**
@@ -156,7 +159,14 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
   }
 
   const hl = data.hasHighlights
-  // bars
+  // bars (Lumen gradient fills: one definition per distinct gradient, see common/svgPaint.tsx)
+  const barPaints = new Map<string, SvgPaint>()
+  const barPaint = (gradient: GradientFill): string => {
+    const p = { gradient }
+    const ref = svgPaintRef(p)
+    barPaints.set(ref, p)
+    return ref
+  }
   const viewLo = (vertical ? L.plot.x : L.plot.y) - L.catStep * 2
   const viewHi = (vertical ? L.plot.x + L.plot.w : L.plot.y + L.plot.h) + L.catStep * 2
   for (const b of L.bars) {
@@ -168,7 +178,8 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
     const s = data.series[b.si]
     const cat = data.categories[b.ci]
     const id = pointIdentity(cat, s.split ? s : undefined)
-    const color = s.pointColors?.[b.ci] ?? s.color
+    const grad = s.pointColors?.[b.ci] !== undefined ? s.pointGradients?.[b.ci] : s.gradient
+    const color = grad ? barPaint(grad) : (s.pointColors?.[b.ci] ?? s.color)
     const [x0, y0] = xy(b.c0, b.v0)
     const [x1, y1] = xy(b.c1, b.v1)
     const r = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) }
@@ -184,12 +195,12 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
       const [hx1, hy1] = xy(b.c1, b.hv1)
       elems.push(
         <g key={`b${b.si}-${b.ci}`} {...handlers} style={{ cursor: 'pointer' }}>
-          <rect x={r.x} y={r.y} width={Math.max(0, r.w)} height={Math.max(0, r.h)} fill={color} opacity={PBI.highlightBackOpacity} />
-          <rect x={Math.min(hx0, hx1)} y={Math.min(hy0, hy1)} width={Math.abs(hx1 - hx0)} height={Math.abs(hy1 - hy0)} fill={color} />
+          <rect x={r.x} y={r.y} width={Math.max(0, r.w)} height={Math.max(0, r.h)} fill={color} opacity={PBI.highlightBackOpacity} {...barMark(vertical, b.value < 0)} />
+          <rect x={Math.min(hx0, hx1)} y={Math.min(hy0, hy1)} width={Math.abs(hx1 - hx0)} height={Math.abs(hy1 - hy0)} fill={color} {...barMark(vertical, b.value < 0)} />
         </g>
       )
     } else {
-      elems.push(<rect key={`b${b.si}-${b.ci}`} x={r.x} y={r.y} width={Math.max(0, r.w)} height={Math.max(0, r.h)} fill={color} opacity={hl ? PBI.highlightBackOpacity : op} style={{ cursor: 'pointer' }} {...handlers} />)
+      elems.push(<rect key={`b${b.si}-${b.ci}`} x={r.x} y={r.y} width={Math.max(0, r.w)} height={Math.max(0, r.h)} fill={color} opacity={hl ? PBI.highlightBackOpacity : op} style={{ cursor: 'pointer' }} {...barMark(vertical, b.value < 0)} {...handlers} />)
     }
     // data label
     const ls = L.labelStyleFor(s)
@@ -237,11 +248,11 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
       const box = { x: lx - tw / 2 - 1, y: ly - th / 2, w: tw + 2, h: th }
       const visible = vertical ? lx > L.plot.x - 1 && lx < L.plot.x + L.plot.w + 1 : ly > L.plot.y - 1 && ly < L.plot.y + L.plot.h + 1
       if (fits && visible && tryPlace(box)) {
-        const fill = s.cfColors?.['labels.color']?.[b.ci] ?? ls.color ?? (inside ? contrastText(color) : PBI.dataLabelColor)
+        const fill = s.cfColors?.['labels.color']?.[b.ci] ?? ls.color ?? (inside ? contrastText(grad ? colorAt(grad, 0.5) : color) : PBI.dataLabelColor)
         labelNodes.push(
           <g key={`l${b.si}-${b.ci}`} pointerEvents="none" opacity={hl ? 1 : op}>
-            {ls.background ? <rect x={box.x - 2} y={box.y} width={box.w + 4} height={box.h} fill={ls.background} /> : null}
-            <text x={lx} y={ly} dy="0.35em" textAnchor="middle" {...fontAttrs(ls.font)} fill={fill}>
+            {ls.background ? <rect x={box.x - 2} y={box.y} width={box.w + 4} height={box.h} fill={ls.background} {...LABEL_MARK} /> : null}
+            <text x={lx} y={ly} dy="0.35em" textAnchor="middle" {...fontAttrs(ls.font)} fill={fill} {...LABEL_MARK}>
               {text}
             </text>
           </g>
@@ -249,6 +260,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
       }
     }
   }
+  if (barPaints.size) elems.unshift(<SvgGradientDefs key="gdefs" paints={[...barPaints.values()]} />)
 
   // ribbons
   for (const rb of L.ribbons) {
@@ -283,7 +295,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
         .y1((p) => p![1])
         .y0((_p, i) => base[i])
         .curve(curve)
-      lineNodes.push(<path key={`a${ln.si}`} d={gen(pts) ?? ''} fill={rgba(ln.areaColor ?? s.color, ln.areaOpacity)} pointerEvents="none" />)
+      lineNodes.push(<path key={`a${ln.si}`} d={gen(pts) ?? ''} fill={rgba(ln.areaColor ?? s.color, ln.areaOpacity)} pointerEvents="none" {...REVEAL_MARK} />)
     }
     const gen = d3line<[number, number] | null>()
       .defined((p) => p !== null)
@@ -303,6 +315,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
           strokeLinejoin={ln.lineJoin as 'round' | 'miter' | 'bevel'}
           strokeLinecap={ln.dash ? (ln.dashCap === 'none' ? 'butt' : (ln.dashCap as 'round' | 'square' | 'butt')) : 'round'}
           pointerEvents="none"
+          {...REVEAL_MARK}
         />
       )
     // markers
@@ -316,7 +329,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
       const single = ln.points.filter(Boolean).length === 1
       if (ln.marker || sel || isHover || single) {
         const r = Math.max(ln.markerSize, isHover || sel ? 4 : 3)
-        lineNodes.push(<Marker key={`m${ln.si}-${ci}`} shape={ln.markerShape} x={x} y={y} r={r} fill={s.pointColors?.[ci] ?? ln.markerColor ?? s.color} />)
+        lineNodes.push(<Marker key={`m${ln.si}-${ci}`} shape={ln.markerShape} x={x} y={y} r={r} fill={s.pointColors?.[ci] ?? ln.markerColor ?? s.color} mark={ln.marker && !isHover && !sel} />)
       }
       const ls = L.labelStyleFor(s)
       if (ls.show && ci % ln.labelEvery === 0) {
@@ -337,8 +350,8 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
         if (ok)
           labelNodes.push(
             <g key={`ll${ln.si}-${ci}`} pointerEvents="none">
-              {ls.background ? <rect x={box.x - 2} y={box.y} width={box.w + 4} height={box.h} fill={ls.background} /> : null}
-              <text x={x} y={ly} dy="0.35em" textAnchor="middle" {...fontAttrs(ls.font)} fill={s.cfColors?.['labels.color']?.[ci] ?? ls.color ?? PBI.dataLabelColor}>
+              {ls.background ? <rect x={box.x - 2} y={box.y} width={box.w + 4} height={box.h} fill={ls.background} {...LABEL_MARK} /> : null}
+              <text x={x} y={ly} dy="0.35em" textAnchor="middle" {...fontAttrs(ls.font)} fill={s.cfColors?.['labels.color']?.[ci] ?? ls.color ?? PBI.dataLabelColor} {...LABEL_MARK}>
                 {text}
               </text>
             </g>
@@ -356,7 +369,7 @@ export function CartesianChart({ visual, width, height, ctx, config, panel }: Vi
     const ly = vertical ? (t.neg ? y + th / 2 + 2 : y - th / 2 - 2) : y
     if (tryPlace({ x: lx - tw / 2, y: ly - th / 2, w: tw, h: th }))
       labelNodes.push(
-        <text key={`t${t.ci}`} x={lx} y={ly} dy="0.35em" textAnchor="middle" {...fontAttrs(t.font)} fill={t.color} pointerEvents="none">
+        <text key={`t${t.ci}`} x={lx} y={ly} dy="0.35em" textAnchor="middle" {...fontAttrs(t.font)} fill={t.color} pointerEvents="none" {...LABEL_MARK}>
           {t.text}
         </text>
       )
@@ -923,26 +936,27 @@ function hasRole(json: any, roles: string[]): boolean {
   return roles.some((r) => (qs[r]?.projections ?? []).length > 0)
 }
 
-function Marker({ shape, x, y, r, fill }: { shape: string; x: number; y: number; r: number; fill: string }) {
+function Marker({ shape, x, y, r, fill, mark }: { shape: string; x: number; y: number; r: number; fill: string; mark?: boolean }) {
+  const m = mark ? POP_MARK : undefined
   switch (shape) {
     case 'square':
-      return <rect x={x - r} y={y - r} width={r * 2} height={r * 2} fill={fill} pointerEvents="none" />
+      return <rect x={x - r} y={y - r} width={r * 2} height={r * 2} fill={fill} pointerEvents="none" {...m} />
     case 'diamond':
-      return <path d={`M${x},${y - r * 1.2}L${x + r * 1.2},${y}L${x},${y + r * 1.2}L${x - r * 1.2},${y}Z`} fill={fill} pointerEvents="none" />
+      return <path d={`M${x},${y - r * 1.2}L${x + r * 1.2},${y}L${x},${y + r * 1.2}L${x - r * 1.2},${y}Z`} fill={fill} pointerEvents="none" {...m} />
     case 'triangle':
-      return <path d={`M${x},${y - r * 1.2}L${x + r * 1.1},${y + r * 0.9}L${x - r * 1.1},${y + r * 0.9}Z`} fill={fill} pointerEvents="none" />
+      return <path d={`M${x},${y - r * 1.2}L${x + r * 1.1},${y + r * 0.9}L${x - r * 1.1},${y + r * 0.9}Z`} fill={fill} pointerEvents="none" {...m} />
     case 'x':
-      return <path d={`M${x - r},${y - r}L${x + r},${y + r}M${x + r},${y - r}L${x - r},${y + r}`} stroke={fill} strokeWidth={2} pointerEvents="none" />
+      return <path d={`M${x - r},${y - r}L${x + r},${y + r}M${x + r},${y - r}L${x - r},${y + r}`} stroke={fill} strokeWidth={2} pointerEvents="none" {...m} />
     case 'vdash':
-      return <rect x={x - 1} y={y - r} width={2} height={r * 2} fill={fill} pointerEvents="none" />
+      return <rect x={x - 1} y={y - r} width={2} height={r * 2} fill={fill} pointerEvents="none" {...m} />
     case 'plus':
-      return <path d={`M${x - r},${y}L${x + r},${y}M${x},${y - r}L${x},${y + r}`} stroke={fill} strokeWidth={2} pointerEvents="none" />
+      return <path d={`M${x - r},${y}L${x + r},${y}M${x},${y - r}L${x},${y + r}`} stroke={fill} strokeWidth={2} pointerEvents="none" {...m} />
     case 'shortDash':
-      return <rect x={x - r} y={y - 1} width={r * 2} height={2} fill={fill} pointerEvents="none" />
+      return <rect x={x - r} y={y - 1} width={r * 2} height={2} fill={fill} pointerEvents="none" {...m} />
     case 'longDash':
-      return <rect x={x - r * 1.8} y={y - 1} width={r * 3.6} height={2} fill={fill} pointerEvents="none" />
+      return <rect x={x - r * 1.8} y={y - 1} width={r * 3.6} height={2} fill={fill} pointerEvents="none" {...m} />
     default:
-      return <circle cx={x} cy={y} r={r} fill={fill} stroke="#FFFFFF" strokeWidth={r > 3 ? 1 : 0} pointerEvents="none" />
+      return <circle cx={x} cy={y} r={r} fill={fill} stroke="#FFFFFF" strokeWidth={r > 3 ? 1 : 0} pointerEvents="none" {...m} />
   }
 }
 
@@ -1130,7 +1144,7 @@ function computeLayout(data: CategoricalData, fmt: FormatReader, cfg: CartesianC
   if (!data.seriesField) legendStyle.showTitle = legendStyle.showTitle && !!fmt.optStr('legend', 'titleText')
   if (tiny || panel?.hideLegend || !multi) legendStyle.show = false
   const markerRendering = fmt.str('legend', 'legendMarkerRendering', 'markerCircleDefault')
-  const legendItems: LegendItem[] = series.map((s, i) => ({ key: s.key, label: s.name, color: s.color, shape: legendShapeFor(kinds[i], markerRendering) }))
+  const legendItems: LegendItem[] = series.map((s, i) => ({ key: s.key, label: s.name, color: s.color, shape: legendShapeFor(kinds[i], markerRendering), gradient: kinds[i] === 'bar' ? s.gradient : undefined }))
   const lg = measureLegend(legendStyle, legendItems, W, H)
   let area: Rect = { x: 0, y: 0, w: W, h: H }
   let legendRect: Rect = { x: 0, y: 0, w: 0, h: 0 }

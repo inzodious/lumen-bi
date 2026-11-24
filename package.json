@@ -11,31 +11,17 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "dev": "env -u ELECTRON_RUN_AS_NODE electron-vite dev",
-    "build": "electron-vite build",
-    "start": "env -u ELECTRON_RUN_AS_NODE electron-vite preview",
+    "dev": "node scripts/electron-vite.mjs dev",
+    "build": "electron-vite build && npm run build:viewer",
+    "build:viewer": "vite build -c viewer.vite.config.ts --logLevel warn",
+    "start": "node scripts/electron-vite.mjs preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dist": "electron-vite build && electron-builder --linux AppImage deb"
+    "dist": "npm run build && electron-builder --linux AppImage deb",
+    "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never"
   },
   "devDependencies": {
-    "@types/node": "^26.6.6",
-    "@types/pg": "^8.23.1",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.3.0",
-    "electron": "^45.3.4",
-    "electron-builder": "^26.18.0",
-    "electron-vite": "^6.0.0",
-    "playwright-core": "^1.65.1",
-    "typescript": "5.9",
-    "vite": "^8.3.8",
-    "vitest": "^5.1.0"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1171.0",
-    "@azure/identity": "^4.14.1",
     "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-css": "^6.3.1",
@@ -54,35 +40,51 @@
     "@tanstack/react-virtual": "^3.14.26",
     "@types/d3": "^7.4.3",
     "@types/dompurify": "^3.0.5",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@types/sql.js": "^1.4.11",
     "@types/topojson-client": "^3.1.5",
+    "@vitejs/plugin-react": "^6.3.0",
     "@xyflow/react": "^13.0.2",
     "codemirror": "^6.0.2",
     "d3": "^7.9.2",
     "dompurify": "^3.4.18",
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
     "exceljs": "^4.4.0",
     "fflate": "^0.8.3",
-    "google-auth-library": "^11.3.4",
     "hyparquet": "^1.33.1",
     "hyparquet-writer": "^0.18.0",
     "immer": "^11.2.10",
-    "mysql2": "^3.24.6",
     "nanoid": "^6.0.2",
-    "pg": "^8.23.1",
+    "playwright-core": "^1.65.1",
     "pptxgenjs": "^4.0.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-icons": "^5.7.0",
-    "sql.js": "^1.16.0",
     "sucrase": "^3.35.1",
-    "tedious": "^20.3.9",
     "topojson-client": "^3.1.0",
+    "typescript": "5.9",
     "us-atlas": "^3.0.1",
     "vega": "^6.4.0",
     "vega-embed": "^7.3.0",
     "vega-lite": "^6.5.0",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0",
     "world-atlas": "^2.0.2",
     "zustand": "^5.1.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1171.0",
+    "@azure/identity": "^4.14.1",
+    "google-auth-library": "^11.3.4",
+    "mysql2": "^3.24.6",
+    "pg": "^8.23.1",
+    "sql.js": "^1.16.0",
+    "tedious": "^20.3.9"
   },
   "build": {
     "appId": "dev.lumen.app",
@@ -131,7 +133,9 @@
       "executableName": "lumen",
       "synopsis": "Power BI reports and semantic models on Linux",
       "desktop": {
-        "StartupWMClass": "Lumen"
+        "entry": {
+          "StartupWMClass": "Lumen"
+        }
       }
     },
     "deb": {
@@ -139,6 +143,25 @@
         "libnss3",
         "libgtk-3-0"
       ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "resources/icon.png",
+      "executableName": "Lumen"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Lumen",
+      "artifactName": "Lumen-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Lumen-${version}-portable.${ext}"
     },
     "asarUnpack": [
       "**/*.wasm"

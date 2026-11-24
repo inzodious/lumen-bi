@@ -15,7 +15,8 @@ import type { ExportVisualDataRequest } from '../state/store'
 import { useApp } from '../state/store'
 import { toast } from '../app/ui/Notify'
 import { capturePagesPng, printPagesPdf, type IncompleteExportPage } from './capture'
-import { buildHtml, buildPptx, type ExportedPage } from './builders'
+import { buildHtml, buildPptx, type ExportedPage, type ExportMeta } from './builders'
+import { pageTransition, reportMotion } from '@core/report/motion'
 import { buildXlsx, toCsv, type TabularData } from './data'
 import type { PageExportOptions } from './pageSelection'
 
@@ -132,7 +133,7 @@ export async function exportReportWithResult(format: ReportExportFormat, opts: R
   exporting = true
   const incomplete: IncompleteExportPage[] = []
   try {
-    const meta = { reportName, exportedAt: new Date() }
+    const meta: ExportMeta = { reportName, exportedAt: new Date(), ...htmlTransitions(project.report) }
     const run = { pages: opts.pages, incomplete, jobTimeoutMs: opts.jobTimeoutMs }
     if (format === 'pdf') {
       const bytes = await printPagesPdf(run)
@@ -219,3 +220,14 @@ export async function writeVisualData(req: ExportVisualDataRequest, format: 'xls
 
 /** Alias kept for callers that registered the placeholder name. */
 export const exportVisualDataHandler = exportVisualData
+
+/** The report's page transitions for the HTML viewer (Lumen_Motion; visual animations can't play on page images). */
+function htmlTransitions(report: NonNullable<ReturnType<typeof useApp.getState>['project']>['report']): Pick<ExportMeta, 'transitions' | 'transitionDuration'> {
+  if (!report) return {}
+  const transitions: Record<string, string> = {}
+  for (const p of report.pages) {
+    const t = pageTransition(report.report, p.json)
+    if (t !== 'none') transitions[p.name] = t
+  }
+  return Object.keys(transitions).length ? { transitions, transitionDuration: reportMotion(report.report).transitionDuration } : {}
+}

@@ -86,13 +86,20 @@ export function backdrop({ rock = true } = {}) {
       stars(W, H, 260, 'regolith-stars', { color: '#E6E9F0', max: 1.3 }) +
       `<rect width="${W}" height="${H}" fill="url(#vein)"/><rect width="${W}" height="${H}" fill="url(#melt)"/>` +
       (rock ? asteroid(1150, 690, 230) : '') +
-      `<rect width="${RAIL}" height="${H}" fill="url(#rail)"/><rect x="${RAIL}" width="1.5" height="${H}" fill="url(#edge)"/>` +
-      `<rect x="${X0}" y="66" width="${X1 - X0}" height="1.2" fill="url(#rule)"/>` +
-      `<path d="M24 92H184" stroke="${T.grid}" stroke-width="1"/><path d="M24 404H184" stroke="${T.grid}" stroke-width="1"/>` +
-      corners(16, 14, 176, 60),
+      `<rect x="${X0}" y="66" width="${X1 - X0}" height="1.2" fill="url(#rule)"/>`,
     defs
   )
 }
+
+/** The navigation rail, an image of its own so it can stay fixed (pinned) while pages transition. */
+export const rail = svg(
+  RAIL + 2,
+  H,
+  `<rect width="${RAIL}" height="${H}" fill="url(#rail)"/><rect x="${RAIL}" width="1.5" height="${H}" fill="url(#edge)"/>` +
+    `<path d="M24 92H184" stroke="${T.grid}" stroke-width="1"/><path d="M24 404H184" stroke="${T.grid}" stroke-width="1"/>` +
+    corners(16, 14, 176, 60),
+  defs
+)
 
 export const logo = svg(
   64,
@@ -136,19 +143,23 @@ export function tile(k, name, x, y, w, label, value, note, accent, motion) {
  */
 export function chrome(k, { title, kicker, filters = [], period, extra = [], navH = 226 }) {
   return [
-    k.img({ name: 'logo', x: 24, y: 22, w: 44, h: 44, src: 'regolith-logo.svg', motion: { entrance: 'none' } }),
-    k.text({ name: 'brand', x: 76, y: 22, w: 124, h: 26, runs: [{ text: 'REGOLITH', font: 'Barlow Black', size: 15, color: T.ink }] }),
-    k.text({ name: 'brand-k', x: 77, y: 46, w: 124, h: 18, runs: [{ text: 'MINING OPERATIONS', font: 'Roboto Condensed', size: 7, color: T.copper }] }),
-    k.text({ name: 'nav-h', x: 24, y: 100, w: 160, h: 18, runs: [{ text: '/// MODULES', font: 'Roboto Condensed', size: 7.5, color: T.muted }] }),
-    k.pageNav({ name: 'nav', x: 16, y: 120, w: 176, h: navH, gap: 6, radius: 8, font: 'Barlow', size: 10, color: T.muted, selColor: T.ink, hoverColor: T.ink, selFill: '#1C222B', hoverFill: '#161B22', selLine: T.copper, margin: 16, motion: { entrance: 'none' } }),
-    k.text({ name: 'filters-h', x: 24, y: 412, w: 160, h: 18, runs: [{ text: '/// FILTERS', font: 'Roboto Condensed', size: 7.5, color: T.muted }] }),
+    k.img({ name: 'rail', x: 0, y: 0, w: RAIL + 2, h: H, src: 'regolith-rail.svg', motion: PIN }),
+    k.img({ name: 'logo', x: 24, y: 22, w: 44, h: 44, src: 'regolith-logo.svg', motion: PIN }),
+    k.text({ name: 'brand', x: 76, y: 22, w: 124, h: 26, runs: [{ text: 'REGOLITH', font: 'Barlow Black', size: 15, color: T.ink }], motion: PIN }),
+    k.text({ name: 'brand-k', x: 77, y: 46, w: 124, h: 18, runs: [{ text: 'MINING OPERATIONS', font: 'Roboto Condensed', size: 7, color: T.copper }], motion: PIN }),
+    k.text({ name: 'nav-h', x: 24, y: 100, w: 160, h: 18, runs: [{ text: '/// MODULES', font: 'Roboto Condensed', size: 7.5, color: T.muted }], motion: PIN }),
+    k.pageNav({ name: 'nav', x: 16, y: 120, w: 176, h: navH, gap: 6, radius: 8, font: 'Barlow', size: 10, color: T.muted, selColor: T.ink, hoverColor: T.ink, selFill: '#1C222B', hoverFill: '#161B22', selLine: T.copper, margin: 16, motion: PIN }),
+    k.text({ name: 'filters-h', x: 24, y: 412, w: 160, h: 18, runs: [{ text: '/// FILTERS', font: 'Roboto Condensed', size: 7.5, color: T.muted }], motion: PIN }),
     ...filters,
-    period ? k.card({ name: 'period', x: 20, y: 668, w: 172, h: 22, field: period, size: 7.5, font: 'Roboto Condensed', color: T.muted, motion: { entrance: 'none' } }) : null,
+    period ? k.card({ name: 'period', x: 20, y: 668, w: 172, h: 22, field: period, size: 7.5, font: 'Roboto Condensed', color: T.muted, motion: PIN }) : null,
     k.text({ name: 'page-t', x: X0, y: 14, w: 560, h: 34, runs: [{ text: title, font: 'Barlow Black', size: 20, color: T.ink }] }),
     k.text({ name: 'page-k', x: X0 + 2, y: 42, w: 560, h: 18, runs: [{ text: kicker, font: 'Roboto Condensed', size: 8, color: T.copper }] }),
     ...extra
   ]
 }
+
+/** The rail stays fixed while pages transition (Lumen visual motion `pinned`). */
+export const PIN = { pinned: true }
 
 /** Slicer look for the rail. */
 export const railSlicer = { color: T.ink, itemBg: '#151A21', outline: 'Frame', outlineColor: '#2E3642', font: 'Barlow', size: 9, headColor: T.muted, headFont: 'Roboto Condensed', headSize: 7.5 }
@@ -223,7 +234,7 @@ export default {
       rows
     }
   ],
-  resources: { 'regolith-bg.svg': backdrop(), 'regolith-logo.svg': logo },
+  resources: { 'regolith-bg.svg': backdrop(), 'regolith-rail.svg': rail, 'regolith-logo.svg': logo },
   pages: [
     {
       name: 'Command',
@@ -238,7 +249,7 @@ export default {
             title: 'Command',
             kicker: 'FLEET-WIDE EXTRACTION  //  FY SUMMARY',
             period: F('Period'),
-            filters: [k.slicer({ name: 'body', x: 20, y: 434, w: 172, h: 60, field: D('Body'), header: 'CELESTIAL BODY', ...railSlicer })]
+            filters: [k.slicer({ name: 'body', x: 20, y: 434, w: 172, h: 60, field: D('Body'), header: 'CELESTIAL BODY', ...railSlicer, motion: PIN })]
           }),
           ...tile(k, 't1', xs[0], 80, w, 'ORE EXTRACTED', F('Ore Extracted'), F('Ore Note'), T.copper),
           ...tile(k, 't2', xs[1], 80, w, 'AVAILABILITY', F('Availability'), F('Availability Note'), T.teal),

@@ -4,10 +4,10 @@
   "position": {
     "x": 20,
     "y": 434,
-    "z": 7000,
+    "z": 8000,
     "height": 60,
     "width": 172,
-    "tabOrder": 7000
+    "tabOrder": 8000
   },
   "visual": {
     "visualType": "slicer",
@@ -195,6 +195,10 @@
     "drillFilterOtherVisuals": true
   },
   "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"pinned\":true}"
+    },
     {
       "name": "Lumen_SampleData",
       "value": "{\"query\":{\"queryState\":{\"Values\":{\"projections\":[{\"field\":{\"Column\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"Sites\"}},\"Property\":\"Body\"}},\"queryRef\":\"Sites.Body\",\"nativeQueryRef\":\"Body\"}]}}}}"

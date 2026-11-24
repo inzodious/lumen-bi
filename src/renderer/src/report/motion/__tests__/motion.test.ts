@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { countFrom, easeOut, formatCountText, parseCountText } from '../countText'
 import { samePathShape } from '../animator'
-import { boxTransform, flyTransform, notePageShown, resetPageHistory, transitionFrames, twoPageFrames } from '../pageTransition'
+import { boxTransform, flyTransform, notePageShown, resetPageHistory, samePin, transitionFrames, twoPageFrames } from '../pageTransition'
 
 describe('count-up text', () => {
   it('parses formatted numbers', () => {
@@ -94,5 +94,15 @@ describe('page transitions', () => {
     expect(boxTransform(a, b, 2)).toBe('translate(-50px, -100px) scale(0.5, 0.5)')
     expect(flyTransform(a, b, 1)).toBe('translate(100px, 200px) scale(2, 2)')
     expect(flyTransform(a, b, 0)).toBe('translate(0px, 0px) scale(1, 1)')
+  })
+})
+
+describe('pinned items', () => {
+  const box = (left: number, top: number, width = 200, height = 600) => ({ left, top, width, height })
+  it('are the same when kind and place match within 2 px', () => {
+    expect(samePin({ kind: 'group', box: box(10, 20) }, { kind: 'group', box: box(11.5, 18.5) })).toBe(true)
+    expect(samePin({ kind: 'group', box: box(10, 20) }, { kind: 'group', box: box(14, 20) })).toBe(false)
+    expect(samePin({ kind: 'group', box: box(10, 20) }, { kind: 'slicer', box: box(10, 20) })).toBe(false)
+    expect(samePin({ kind: 'slicer', box: box(10, 20, 200, 600) }, { kind: 'slicer', box: box(10, 20, 200, 640) })).toBe(false)
   })
 })

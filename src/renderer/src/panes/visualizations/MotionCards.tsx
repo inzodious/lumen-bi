@@ -2,7 +2,8 @@
  * Format pane cards for Lumen's motion settings (core/report/motion.ts):
  *  - page formatting ▸ Animations: this page's transition, and the report's switches (animate visuals, durations,
  *    stagger, default page transition), with a preview;
- *  - visual ▸ General ▸ Animation: the visual's entrance and delay.
+ *  - visual ▸ General ▸ Animation: the visual's entrance and delay, and whether it stays fixed during page transitions
+ *    (on a group, only that switch).
  * Power BI ignores all of it (the settings are PBIR annotations), which the cards say.
  */
 import { PAGE_TRANSITIONS, MOTION_LIMITS, pageMotion, reportMotion, setPageMotion, setReportMotion, setVisualMotion, visualMotion, type BookmarkMotion, type DrillthroughMotion, type PageTransition, type ReportMotion, type VisualEntrance } from '@core/report/motion'
@@ -139,10 +140,10 @@ export function PageMotionCard({ page, search }: { page: PageDocument; search: s
   )
 }
 
-export function VisualMotionCard({ page, visual, search }: { page: PageDocument; visual: VisualDocument; search: string }) {
+export function VisualMotionCard({ page, visual, search, group }: { page: PageDocument; visual: VisualDocument; search: string; group?: boolean }) {
   const mutate = useApp((s) => s.mutateReport)
   const reportJson = useApp((s) => s.project?.report?.report)
-  if (!matchesSearch(search, 'Animation', 'Entrance', 'Delay')) return null
+  if (!matchesSearch(search, 'Animation', 'Entrance', 'Delay', 'Stay fixed', 'Pinned')) return null
   const m = visualMotion(visual.json)
   const rm = reportMotion(reportJson)
   const set = (label: string, patch: Parameters<typeof setVisualMotion>[1]) =>
@@ -152,19 +153,30 @@ export function VisualMotionCard({ page, visual, search }: { page: PageDocument;
     })
   return (
     <CollapsibleCard key={search ? 'q' : 'n'} title="Animation" defaultOpen={!!search}>
-      <Row label="Entrance">
-        <Dropdown size="small" title="Entrance" value={m.entrance ?? 'auto'} options={ENTRANCES} onChange={(v) => set('Visual animation', { entrance: v as VisualEntrance })} />
+      <Row label="Stay fixed during page transitions" inline>
+        <Toggle size="small" on={!!m.pinned} onChange={(on) => set('Stay fixed during page transitions', { pinned: on })} />
       </Row>
-      <Row label="Delay (ms)">
-        <SpinField label="Delay (ms)" integer step={50} value={m.delay ?? 0} min={MOTION_LIMITS.delay[0]} max={MOTION_LIMITS.delay[1]} onChange={(v) => v !== undefined && set('Visual animation delay', { delay: v })} />
-      </Row>
-      <div className="wbi-fmt__row">
-        <button type="button" className="wbi-link" disabled={!motionAllowed() || !rm.animate} onClick={() => replayMotion(visual.name)}>
-          Preview
-        </button>
-      </div>
-      {!rm.animate ? <Note text="Animate visuals is off for this report (page formatting ▸ Animations)." /> : null}
-      <Note text={POWER_BI_NOTE} />
+      {!group && !m.pinned ? (
+        <>
+          <Row label="Entrance">
+            <Dropdown size="small" title="Entrance" value={m.entrance ?? 'auto'} options={ENTRANCES} onChange={(v) => set('Visual animation', { entrance: v as VisualEntrance })} />
+          </Row>
+          <Row label="Delay (ms)">
+            <SpinField label="Delay (ms)" integer step={50} value={m.delay ?? 0} min={MOTION_LIMITS.delay[0]} max={MOTION_LIMITS.delay[1]} onChange={(v) => v !== undefined && set('Visual animation delay', { delay: v })} />
+          </Row>
+          <div className="wbi-fmt__row">
+            <button type="button" className="wbi-link" disabled={!motionAllowed() || !rm.animate} onClick={() => replayMotion(visual.name)}>
+              Preview
+            </button>
+          </div>
+          {!rm.animate ? <Note text="Animate visuals is off for this report (page formatting ▸ Animations)." /> : null}
+        </>
+      ) : null}
+      <Note text={m.pinned ? PINNED_NOTE : group ? GROUP_NOTE : POWER_BI_NOTE} />
     </CollapsibleCard>
   )
 }
+
+const PINNED_NOTE =
+  'Holds still while the rest of the page moves, when the page you came from has the same kind of visual or group in the same place (a sidebar copied to every page). It has no entrance animation. Lumen only: Power BI ignores this setting.'
+const GROUP_NOTE = 'Turn this on to keep the group and everything in it still during page transitions, like a sidebar. Lumen only: Power BI ignores this setting.'

@@ -16,7 +16,10 @@
  *                  "bookmarks": "none" }      // morph (default): applying a bookmark fades and moves the visuals that change
  *   page.json    { "transition": "slide" }    // this page's transition, overriding the report default
  *   visual.json  { "entrance": "rise",        // auto | fade | rise | zoom | none (default auto: by visual type)
- *                  "delay": 200 }             // ms before the visual enters (added to the report's stagger)
+ *                  "delay": 200,              // ms before the visual enters (added to the report's stagger)
+ *                  "pinned": true }           // stays fixed during page transitions (a sidebar, a header): when the
+ *                                             // page left has a pinned visual or group in the same place, it holds
+ *                                             // still while the rest of the page moves; also on groups (pins children)
  *
  * In Power BI Desktop (PBIP or a PBIX built from it) the annotations are kept and do nothing: visuals animate the way
  * Power BI animates them, and pages switch without a transition.
@@ -61,6 +64,8 @@ export interface PageMotion {
 export interface VisualMotion {
   entrance?: VisualEntrance
   delay?: number
+  /** stays fixed during page transitions (no entrance either) */
+  pinned?: boolean
 }
 
 export const DEFAULT_REPORT_MOTION: Readonly<ReportMotion> = Object.freeze({ animate: true, duration: 500, stagger: 0, transition: 'none', transitionDuration: 350, drillthrough: 'zoom', bookmarks: 'morph' })
@@ -178,6 +183,7 @@ export function visualMotion(visualJson: any): VisualMotion {
   if (e && e !== 'auto') out.entrance = e
   const d = clamp(o.delay, MOTION_LIMITS.delay)
   if (d) out.delay = d
+  if (o.pinned === true) out.pinned = true
   return out
 }
 
@@ -185,12 +191,26 @@ export function setVisualMotion(visualJson: any, patch: VisualMotion): void {
   const known = readRaw(visualJson) ?? {}
   const merged = { ...visualMotion(visualJson), ...patch }
   const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(known)) if (k !== 'entrance' && k !== 'delay') out[k] = v
+  for (const [k, v] of Object.entries(known)) if (k !== 'entrance' && k !== 'delay' && k !== 'pinned') out[k] = v
   const e = oneOf(merged.entrance, VISUAL_ENTRANCES)
   if (e && e !== 'auto') out.entrance = e
   const d = clamp(merged.delay, MOTION_LIMITS.delay)
   if (d) out.delay = d
+  if (merged.pinned === true) out.pinned = true
   writeRaw(visualJson, out)
+}
+
+/** A visual is pinned when it, or a group it sits in, is pinned. */
+export function isPinned(visuals: Array<{ name: string; json?: any }>, name: string): boolean {
+  const byName = new Map(visuals.map((v) => [v.name, v]))
+  const seen = new Set<string>()
+  let v = byName.get(name)
+  while (v && !seen.has(v.name)) {
+    if (visualMotion(v.json).pinned) return true
+    seen.add(v.name)
+    v = byName.get(v.json?.parentGroupName)
+  }
+  return false
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -233,9 +253,11 @@ export function visualMatchKey(visualJson: any): string | undefined {
 
 /** Pairs of visuals (old page name -> new page name) that glide in a morph: keys found exactly once on each page. */
 export function morphPairs(from: Array<{ name: string; json?: any }>, to: Array<{ name: string; json?: any }>): Map<string, string> {
+  // pinned visuals hold still instead of gliding
   const index = (list: Array<{ name: string; json?: any }>) => {
     const m = new Map<string, string | null>()
     for (const v of list) {
+      if (isPinned(list, v.name)) continue
       const k = visualMatchKey(v.json)
       if (k) m.set(k, m.has(k) ? null : v.name)
     }

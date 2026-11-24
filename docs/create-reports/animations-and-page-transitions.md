@@ -57,6 +57,23 @@ around the report stays quick. Visual animations play in both.
    - **None** turns animation off for this visual.
 4. Set **Delay (ms)** to bring the visual in later than the others (0 to 3000). It adds to the report's stagger.
 
+## Keep a sidebar still during page transitions
+
+Turn on **Stay fixed during page transitions** in **Format visual ▸ General ▸ Animation** for each part of a sidebar,
+header or navigation rail. To pin a whole group, select it and turn on the same switch under **Animation**. Everything
+in the group then stays fixed.
+
+When you switch pages, a pinned visual or group holds still while the rest of the page moves, as long as the page you
+came from has a pinned visual of the same type (or a pinned group) in the same place. This is the case when the sidebar
+is copied to every page. It works with every transition, and with drill-through zoom and Back. A pinned visual has no
+entrance animation.
+
+During the transition, Lumen shows a still picture of the old page's sidebar. When the transition ends, the new page's
+own sidebar takes over with a short cross-fade, so a page navigator moves its highlight to the new page at that point.
+A pinned visual with no match on the old page moves with its page.
+
+The HTML export plays transitions on whole-page pictures, so pinned visuals move with the page there.
+
 ## When nothing moves
 
 Lumen plays no animation or transition when:

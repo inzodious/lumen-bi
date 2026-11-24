@@ -69,6 +69,11 @@
           "type": "Image"
         },
         {
+          "name": "regolith-rail.svg",
+          "path": "regolith-rail.svg",
+          "type": "Image"
+        },
+        {
           "name": "regolith-logo.svg",
           "path": "regolith-logo.svg",
           "type": "Image"

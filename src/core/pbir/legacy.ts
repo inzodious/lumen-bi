@@ -36,15 +36,15 @@ export interface LegacyConversion {
   diagnostics: string[]
 }
 
-const HOW_CREATED = ['Auto', 'User', 'Drill', 'Include', 'Exclude', 'Drillthrough']
-const DISPLAY_OPTION = ['DeprecatedDynamic', 'FitToPage', 'FitToWidth', 'ActualSize', 'ActualSizeTopLeft']
-const INTERACTION = ['Default', 'DataFilter', 'HighlightFilter', 'NoFilter']
-const EXPORT_DATA_MODE = ['None', 'AllowSummarized', 'AllowSummarizedAndUnderlying']
-const QUERY_LIMIT = ['None', 'Shared', 'Premium', 'SQLServerAS', 'AzureAS', 'Custom', 'Auto']
-const PAGES_POSITION = ['PagesPane', 'Bottom']
-const FILTER_SORT = ['Custom', 'Ascending', 'Descending', 'Custom']
-const PACKAGE_TYPE: Record<number, string> = { 0: 'CustomVisual', 1: 'RegisteredResources', 2: 'SharedResources', 3: 'OrganizationalStoreCustomVisual' }
-const ITEM_TYPE: Record<number, string> = {
+export const HOW_CREATED = ['Auto', 'User', 'Drill', 'Include', 'Exclude', 'Drillthrough']
+export const DISPLAY_OPTION = ['DeprecatedDynamic', 'FitToPage', 'FitToWidth', 'ActualSize', 'ActualSizeTopLeft']
+export const INTERACTION = ['Default', 'DataFilter', 'HighlightFilter', 'NoFilter']
+export const EXPORT_DATA_MODE = ['None', 'AllowSummarized', 'AllowSummarizedAndUnderlying']
+export const QUERY_LIMIT = ['None', 'Shared', 'Premium', 'SQLServerAS', 'AzureAS', 'Custom', 'Auto']
+export const PAGES_POSITION = ['PagesPane', 'Bottom']
+export const FILTER_SORT = ['Custom', 'Ascending', 'Descending', 'Custom']
+export const PACKAGE_TYPE: Record<number, string> = { 0: 'CustomVisual', 1: 'RegisteredResources', 2: 'SharedResources', 3: 'OrganizationalStoreCustomVisual' }
+export const ITEM_TYPE: Record<number, string> = {
   0: 'CustomVisualJavascript',
   1: 'CustomVisualsCss',
   2: 'CustomVisualScreenshot',
@@ -57,7 +57,7 @@ const ITEM_TYPE: Record<number, string> = {
   202: 'BaseTheme'
 }
 /** Power BI primitive type ids used in legacy `modelExtensions` measures. */
-const PRIMITIVE_TYPE: Record<number, string> = {
+export const PRIMITIVE_TYPE: Record<number, string> = {
   0: 'Null',
   1: 'Text',
   2: 'Decimal',
@@ -73,7 +73,7 @@ const PRIMITIVE_TYPE: Record<number, string> = {
   12: 'None',
   13: 'Variant'
 }
-const SETTINGS_KEYS = new Set([
+export const SETTINGS_KEYS = new Set([
   'isPersistentUserStateDisabled',
   'hideVisualContainerHeader',
   'useStylableVisualContainerHeader',
@@ -101,7 +101,7 @@ const SETTINGS_KEYS = new Set([
   'locale',
   'defaultDisplayUnitsToNone'
 ])
-const HANDLED_SINGLE_VISUAL_KEYS = new Set([
+export const HANDLED_SINGLE_VISUAL_KEYS = new Set([
   'visualType',
   'autoSelectVisualType',
   'projections',
@@ -149,7 +149,7 @@ function stripUndefined<T extends J>(o: T): T {
 }
 
 /** "5.16" (legacy layout version) -> PBIR reportVersionAtImport (approximation of Desktop's mapping). */
-function themeVersion(v: unknown): J {
+export function themeVersion(v: unknown): J {
   if (v && typeof v === 'object') return { visual: (v as J).visual, report: (v as J).report, page: (v as J).page }
   const m = typeof v === 'string' ? /^5\.(\d+)$/.exec(v) : null
   const n = m ? Number(m[1]) + 36 : 0

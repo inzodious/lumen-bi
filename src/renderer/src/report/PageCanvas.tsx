@@ -18,7 +18,7 @@ import { CanvasEnvContext, type CanvasEnv, type CanvasMotion } from './canvasEnv
 import { pageTransition, readingOrder, reportMotion } from '@core/report/motion'
 import { motionAllowed, useMotionAllowed } from './motion/env'
 import { notePageShown, playPageEnter, settleBookmarkMorph } from './motion/pageTransition'
-import { resolveChrome, resolveGroupChrome } from './chrome'
+import { borderCss, gradientBorderLayer, resolveChrome, resolveGroupChrome } from './chrome'
 import { setAbsoluteRects, topLevelOf } from './editOps'
 import { HANDLES, boundsOf, lassoHits, rectFromPoints, resizeRect, snapMove, snapResize, type Guide, type Handle, type SizeMatch, type SpacingGuide } from './geometry'
 import { usePageFilters } from './pageFilters'
@@ -162,11 +162,12 @@ const VisualTree = memo(function VisualTree({ page, parent, filters, preview }: 
                 height: r.height,
                 zIndex: z,
                 background: gc.background,
-                border: gc.border ? `${gc.border.width}px solid ${gc.border.color}` : undefined,
+                border: borderCss(gc.border),
                 borderRadius: gc.radius || undefined,
                 boxShadow: gc.shadow?.css
               }}
             >
+              {gc.border?.gradient && <div className="wbi-group-border" aria-hidden style={gradientBorderLayer(gc.border, gc.radius, -gc.border.width)} />}
               <VisualTree page={page} parent={v.name} filters={filters} preview={preview} />
             </div>
           )

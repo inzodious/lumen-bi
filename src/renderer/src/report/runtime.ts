@@ -4,6 +4,8 @@
  * Exported for the shell (Bookmarks pane, Selection pane, ribbon) through ./index.ts.
  */
 import { useApp } from '../state/store'
+import { isCodeVisual, readDrillText, writeDrillText } from '@core/codevisual/model'
+import { serializeDrill } from '@core/codevisual/drill'
 import { useInteraction } from '../state/interaction'
 import type { DataPointIdentity, SQFilter } from '@core/report/sq'
 import type { PageDocument, ReportDocument } from '@core/report/types'
@@ -142,6 +144,24 @@ export function selectDataPoints(pageName: string, visualName: string, ids: Data
 
 export function setDrill(pageName: string, visualName: string, state: DrillState): void {
   useInteraction.getState().setDrill(pageName, visualName, state.level === 0 && !state.path.length && !state.expandedLevel && !state.drillMode ? undefined : state)
+  persistCodeVisualDrill(pageName, visualName, state)
+}
+
+/**
+ * A code visual also saves its drill state in its visual.json (`lumenCode.drill`, core/codevisual/drill.ts), so it is
+ * kept on save / reopen and undo covers it. Native visuals keep drill state at runtime only.
+ */
+function persistCodeVisualDrill(pageName: string, visualName: string, state: DrillState): void {
+  const app = useApp.getState()
+  const v = findVisual(findPage(app.project?.report, pageName), visualName)
+  if (!v || !isCodeVisual(v.json)) return
+  const text = serializeDrill(state) ?? ''
+  const cur = readDrillText(v.json)
+  if (text === cur) return
+  app.mutateReport(text.length >= cur.length ? 'Drill down' : 'Drill up', (r) => {
+    const d = findVisual(findPage(r, pageName), visualName)
+    if (d) writeDrillText(d.json, text || undefined)
+  })
 }
 
 // ---------------------------------------------------------------------------------------------

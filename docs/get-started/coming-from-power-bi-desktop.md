@@ -80,6 +80,11 @@ The [visual support reference](../reference/visual-support.md) gives a status to
 
 ## What Lumen adds
 
+- **The code visual**: a visual you design in HTML, CSS and optionally JSX that **cross-filters the page when you
+  click a row, follows other visuals' selections, and drills down and up through a hierarchy** like a native visual,
+  something no Power BI custom visual of this kind offers. Measures reach your CSS as variables, and the visual sizes
+  itself with container queries. Power BI Desktop is not expected to display it (not verified). See
+  [Code visual](../visuals/code-visual.md).
 - **Sample data** for reports whose sources you cannot reach, with privacy defaults for names and identifiers.
   See [Reports without data and sample data](../files-and-compatibility/reports-without-data-and-sample-data.md).
 - **A gallery of designed report templates** with sample data, some Power BI compatible and some using Lumen-only

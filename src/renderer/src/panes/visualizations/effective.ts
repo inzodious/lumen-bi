@@ -176,7 +176,7 @@ const TRUE = { expr: { Literal: { Value: 'true' } } }
 export function withSwitchesOn(visualJson: any, def: VisualDefinition): any {
   const v = visualJson?.visual ?? {}
   const objects: Record<string, any[]> = { ...(v.objects ?? {}) }
-  for (const card of def.formatCards) {
+  for (const card of def.formatCardsFor ? def.formatCardsFor(visualJson) : def.formatCards) {
     if (card.container || card.tab === 'general') continue
     const switches = [...new Set([...(card.toggle ? [card.toggle] : []), ...card.properties.filter((p) => p.type === 'bool').map((p) => p.name)])]
     if (!switches.length) continue

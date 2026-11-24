@@ -9,13 +9,13 @@ against the open and save code in `src/core/io/`.
 
 | Format | What it is | Open | Save | Data |
 |---|---|---|---|---|
-| `.pbix` | Power BI Desktop file: report, model and data in one zip container | Yes | No | Read from the file |
-| `.pbit` | Power BI template: report and model, no data | Yes | No | None (refresh or sample data) |
+| `.pbix` | Power BI Desktop file: report, model and data in one zip container | Yes | Experimental, see [Writing .pbix and .pbit](#writing-pbix-and-pbit) | Read from the file |
+| `.pbit` | Power BI template: report and model, no data | Yes | Experimental | None (refresh or sample data) |
 | `.pbip` | Power BI project file that points at a `*.Report` folder | Yes | Yes | Usually none; a `.pbi/cache.abf` copy when present |
 | `*.Report` folder | A report in the PBIR format (or the older PBIR-legacy layout) | Yes | Yes, as PBIP | None |
 | `*.SemanticModel` folder | A semantic model as TMDL files (`definition/*.tmdl`) or as `model.bim` | Yes | Yes | None |
 | Project folder | A folder that contains a `.pbip` file, or exactly one `*.Report` or `*.SemanticModel` folder | Yes | Yes, as PBIP | None |
-| `model.bim` | A tabular model in the TMSL JSON format (also called BIM) | Yes, model only | No (only inside a `*.SemanticModel` folder) | None |
+| `model.bim` | A tabular model in the TMSL JSON format (also called BIM) | Yes, model only | Yes, back to the same file | None |
 | `.wbi` | Lumen bundle: a PBIP project plus the data that was loaded | Yes | Yes | Read from the bundle |
 
 "Save as PBIP" means Lumen writes `<Name>.pbip`, `<Name>.Report` and `<Name>.SemanticModel` (the last only when there
@@ -42,6 +42,24 @@ A `.pbix` file is a zip container. Lumen reads these parts:
 | `Report/LinguisticSchema` | Q&A linguistic schema | Not read |
 
 See [How Lumen reads PBIX files](how-lumen-reads-pbix.md) for the details.
+
+### Writing .pbix and .pbit
+
+Lumen writes Power BI packages in the shape of the files Power BI Desktop saves. It writes UTF-16LE text parts,
+`[Content_Types].xml` in Desktop's form, and the parts in Desktop's order, with `DataModel` stored uncompressed in
+the zip. **These writers are experimental: no file written by Lumen has been opened in Power BI Desktop yet.**
+
+| Part | `.pbit` | `.pbix` |
+|---|---|---|
+| `Version`, `[Content_Types].xml` | Written | Copied from the original file; `[Content_Types].xml` is adjusted when the part list changed |
+| `DataModelSchema` | The model as TMSL JSON | Not written |
+| `DataModel` | Not written | The original's bytes, or the original with measure edits written into it |
+| `Report/Layout` | The report in the classic layout form | Rewritten from the edited report; unchanged objects keep their original form |
+| `Report/StaticResources/**`, `Report/CustomVisuals/**` | Written | Written (unchanged files keep their original bytes) |
+| `DiagramLayout` | From the model's diagram layout | Copied, or rewritten when the diagram changed |
+| `Settings`, `Metadata` | Copied from the `.pbix` the report came from, or Desktop's default shape | Copied |
+| `DataMashup`, `Connections`, `Report/LinguisticSchema`, `DAXQueries/**`, others | Not written | Copied |
+| `SecurityBindings` | Not written | Not written (Power BI Desktop asks to confirm data source permissions) |
 
 ### PBIP projects
 
@@ -84,7 +102,9 @@ reports; open one of the *.Report folders".
 
 ## Considerations and limitations
 
-- Lumen does not write `.pbix`, `.pbit` or a standalone `model.bim`.
+- Writing `.pbix` and `.pbit` is experimental and not verified in Power BI Desktop. Lumen writes a `.pbix` only for a
+  report opened from a `.pbix` whose data and model, apart from measures, are unchanged; see
+  [Save your work and file types](../get-started/save-and-file-types.md#what-a-pbix-save-keeps).
 - Reports connected live to a model in the Power BI service, Analysis Services or Microsoft Fabric open without data.
   Lumen does not connect to those models.
 - Custom visuals packaged in a report (`.pbiviz` content) are not executed. Lumen draws its own implementations of

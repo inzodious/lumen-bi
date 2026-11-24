@@ -126,12 +126,25 @@ export function reportFiles(report: ReportDocument, displayName: string, modelRe
   return files
 }
 
-export function pbipJson(existing: unknown, reportFolder: string | undefined): string {
+/**
+ * `.pbip` JSON pointing at `reportFolder`. An existing file keeps its other artifacts (a `.pbip` can list several
+ * reports): the entry for `previousFolder` (or `reportFolder`) is replaced in place, else the report is added.
+ */
+export function pbipJson(existing: unknown, reportFolder: string | undefined, previousFolder?: string): string {
   const obj: any =
     existing && typeof existing === 'object'
       ? cloneDeep(existing)
       : { $schema: SCHEMA.pbip, version: '1.0', artifacts: [], settings: { enableAutoRecovery: true } }
-  obj.artifacts = reportFolder ? [{ report: { path: reportFolder } }] : []
+  const list: any[] = Array.isArray(obj.artifacts) ? obj.artifacts : []
+  const norm = (p: unknown): string => String(p ?? '').replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '').toLowerCase()
+  const targets = new Set([reportFolder, previousFolder].filter((x): x is string => !!x).map(norm))
+  const at = list.findIndex((a) => a?.report?.path !== undefined && targets.has(norm(a.report.path)))
+  if (!reportFolder) obj.artifacts = list.filter((a) => !a?.report)
+  else if (at >= 0) {
+    // keep Desktop's own spelling of an unchanged path
+    if (norm(list[at].report.path) !== norm(reportFolder)) list[at] = { ...list[at], report: { ...list[at].report, path: reportFolder } }
+    obj.artifacts = list
+  } else obj.artifacts = [...list.filter((a) => a?.report), { report: { path: reportFolder } }, ...list.filter((a) => !a?.report)].filter((a, i, arr) => arr.indexOf(a) === i)
   return JSON.stringify(obj, null, 2)
 }
 

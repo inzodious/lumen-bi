@@ -115,4 +115,5 @@
 /* Format pane in View ▸ Mobile layout: mobile-only formatting notice */
 .wbi-fmt__mobile { display: flex; flex-direction: column; gap: 4px; margin: 6px 12px 2px; padding: 6px 8px; background: #F3F2F1; border-left: 3px solid #F2C811; font-size: 12px; color: #252423; }
 .wbi-fmt__mobile .wbi-link { align-self: flex-start; font-size: 12px; }
+.wbi-viz__codeactions { display: flex; gap: 6px; margin: 2px 0 10px; }
 .wbi-fmt__motion-note { margin: 4px 12px 6px; font-size: 11px; line-height: 1.4; color: #605E5C; }

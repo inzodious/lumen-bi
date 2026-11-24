@@ -1,0 +1,51 @@
+table dim_material
+	lineageTag: fd7ab627-7219-4e2c-af79-b80a27897a62
+
+	column material_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: d834664a-6ced-42fa-afc6-be7a40787e2c
+		summarizeBy: none
+		sourceColumn: material_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column material
+		dataType: string
+		lineageTag: 9a5a7276-b983-4833-a855-d5324c8711c2
+		summarizeBy: none
+		sourceColumn: material
+
+		annotation SummarizationSetBy = Automatic
+
+	column category
+		dataType: string
+		lineageTag: c1a33775-1e1f-4c9d-a420-51ec0cedba57
+		summarizeBy: none
+		sourceColumn: category
+
+		annotation SummarizationSetBy = Automatic
+
+	column value_per_ton
+		dataType: double
+		formatString: \$#,0
+		lineageTag: 561a8f9c-eb93-43ce-aa13-c1cedd7fd358
+		summarizeBy: none
+		sourceColumn: value_per_ton
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_material = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("fZDBasMwDIZfxei0gQtOsqy7l8ByyDY22A6lB80RVFS2h+NAH38oPbQ5bDeBvk/6pf0eGucqsPCFhbLpPYGFzyRYWGgCC3XrnIODXcAaLDyT8Bw2DVjop1TSz4JVil1B7b7pkDgHLTN5TvNkBiooyjfOrYQHpVAER/7DqNu10WqAnOLmhf2JxLxmjb5LIaR4tdpb5REsvGMm02EuR9MJBYplMncDn2m8BwvdORX2Km5X5hYsfLCwx7Kc28dxnkpmFDNwpHxZVt0qT5oG83eK6Ekv2R1THDP/O+Dy7MMv", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [material_key = _t, material = _t, category = _t, value_per_ton = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"material_key", Int64.Type}, {"material", type text}, {"category", type text}, {"value_per_ton", type number}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

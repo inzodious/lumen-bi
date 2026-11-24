@@ -105,14 +105,14 @@ describe('gallery templates', () => {
   const gallery = REPORT_TEMPLATES.filter((t) => t.id !== 'first-edition')
   const LUMEN_FONTS = /barlow|roboto condensed|open sans/gi
 
-  it('ten designs, each with a style, a compatibility flag and Lumen-only features listed when they have any', () => {
-    expect(gallery.length).toBe(10)
-    expect(new Set(gallery.map((t) => t.style)).size).toBe(10)
+  it('eleven designs, each with a style, a compatibility flag and Lumen-only features listed when they have any', () => {
+    expect(gallery.length).toBe(11)
+    expect(new Set(gallery.map((t) => t.style)).size).toBe(11)
     for (const t of gallery) {
       expect(t.compatibility === 'powerbi' || t.compatibility === 'lumen').toBe(true)
       expect((t.lumenFeatures?.length ?? 0) > 0).toBe(t.compatibility === 'lumen')
     }
-    expect(gallery.filter((t) => t.compatibility === 'lumen').map((t) => t.id)).toEqual(['orbital', 'blacktop', 'aurora'])
+    expect(gallery.filter((t) => t.compatibility === 'lumen').map((t) => t.id)).toEqual(['orbital', 'blacktop', 'aurora', 'regolith'])
   })
 
   for (const tpl of gallery) {

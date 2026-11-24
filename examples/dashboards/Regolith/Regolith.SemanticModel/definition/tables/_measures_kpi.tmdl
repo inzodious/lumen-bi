@@ -1,0 +1,215 @@
+table _measures_kpi
+	lineageTag: 27784a0d-ab71-4cb9-a9ca-07da3e851bb2
+
+	measure kpi_ore_t = SUM(fact_extraction[tons])
+		formatString: "#,0"" t"""
+		displayFolder: Extraction
+		lineageTag: d68e20fd-b041-4833-a0b7-4c4143e85665
+
+	measure kpi_ore_t_py =
+			CALCULATE(
+				[kpi_ore_t],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: "#,0"" t"""
+		displayFolder: Extraction
+		lineageTag: bb274e39-3e36-41af-abb2-3648acce5c1a
+
+	measure kpi_ore_t_yoy_pct = DIVIDE([kpi_ore_t] - [kpi_ore_t_py], [kpi_ore_t_py])
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Extraction
+		lineageTag: 1a3b462e-4b93-4aec-afa6-07225617a1c2
+
+	measure kpi_operating_h = SUM(fact_extraction[operating_hours])
+		formatString: "#,0"" h"""
+		displayFolder: Extraction
+		lineageTag: 016c0d78-c6d5-4240-a35d-3942c6c159a4
+
+	measure kpi_downtime_h = SUM(fact_extraction[downtime_hours])
+		formatString: "#,0"" h"""
+		displayFolder: Extraction
+		lineageTag: a1ec5727-bc70-42fb-a916-31e13f48827f
+
+	measure kpi_availability_pct = DIVIDE([kpi_operating_h], [kpi_operating_h] + [kpi_downtime_h])
+		formatString: 0.0%
+		displayFolder: Extraction
+		lineageTag: c54ac662-1eb7-4722-a484-15c9afe489c7
+
+	measure kpi_availability_pct_py =
+			CALCULATE(
+				[kpi_availability_pct],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: 0.0%
+		displayFolder: Extraction
+		lineageTag: 47cfc074-d3ef-4a33-aae3-f5e8a03b00ff
+
+	measure kpi_asset_days = SUM(fact_extraction[asset_days])
+		formatString: #,0
+		displayFolder: Extraction
+		lineageTag: 8023f1a8-ed71-4345-a615-292abfae0c5f
+
+	measure kpi_t_per_asset_day = DIVIDE([kpi_ore_t], [kpi_asset_days])
+		formatString: "#,0.0"" t"""
+		displayFolder: Extraction
+		lineageTag: f5f5dc6b-9cfa-41c7-a80f-258d84a797b5
+
+	measure kpi_active_sites = DISTINCTCOUNT(fact_extraction[location_key])
+		formatString: 0
+		displayFolder: Extraction
+		lineageTag: 40ddfa20-17a2-44ae-a761-8cf96c4b23c8
+
+	measure kpi_events = SUM(fact_downtime[events])
+		formatString: #,0
+		displayFolder: Reliability
+		lineageTag: fe84d68c-6727-4dd7-a8ab-2a37489b0d1e
+
+	measure kpi_events_py =
+			CALCULATE(
+				[kpi_events],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: #,0
+		displayFolder: Reliability
+		lineageTag: 23296d79-bd5e-4c68-a373-eb520744cc54
+
+	measure kpi_events_yoy_pct = DIVIDE([kpi_events] - [kpi_events_py], [kpi_events_py])
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Reliability
+		lineageTag: 6f3bf4d2-bd0f-4bdf-ac60-6e0f92e58edf
+
+	measure kpi_event_downtime_h = SUM(fact_downtime[downtime_hours])
+		formatString: "#,0"" h"""
+		displayFolder: Reliability
+		lineageTag: 4a12bf51-093f-4b27-a2ba-762e45506117
+
+	measure kpi_h_per_event = DIVIDE([kpi_event_downtime_h], [kpi_events])
+		formatString: "0.0"" h"""
+		displayFolder: Reliability
+		lineageTag: 7574c12f-c671-4ef0-a9d0-28be2aeeac48
+
+	measure kpi_high_severity_events =
+			CALCULATE(
+				[kpi_events],
+				KEEPFILTERS(dim_event_type[severity] = "High")
+			) + 0
+		formatString: #,0
+		displayFolder: Reliability
+		lineageTag: c4c11d07-2207-4eaf-acb6-e50a02368276
+
+	measure kpi_shipped_t = SUM(fact_shipment[tons_shipped])
+		formatString: "#,0"" t"""
+		displayFolder: Logistics
+		lineageTag: 7dd13a4e-952f-4f0e-abe3-153d25c11d34
+
+	measure kpi_shipped_t_py =
+			CALCULATE(
+				[kpi_shipped_t],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: "#,0"" t"""
+		displayFolder: Logistics
+		lineageTag: 6b18e155-3f20-4394-a26b-ed6667cde602
+
+	measure kpi_shipped_t_yoy_pct = DIVIDE([kpi_shipped_t] - [kpi_shipped_t_py], [kpi_shipped_t_py])
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Logistics
+		lineageTag: aaded2d9-e9bc-4ac9-aa60-56719acbcd0a
+
+	measure kpi_trips = SUM(fact_shipment[trips])
+		formatString: #,0
+		displayFolder: Logistics
+		lineageTag: 0b6d224b-e862-467d-ae01-320e041d5459
+
+	measure kpi_ship_cost_musd = DIVIDE(SUM(fact_shipment[shipping_cost]), 1000000)
+		formatString: "\$#,0.0""M"""
+		displayFolder: Logistics
+		lineageTag: 48bc122c-c2fe-42ea-acfd-5b5801ba7c96
+
+	measure kpi_cost_per_t = DIVIDE(SUM(fact_shipment[shipping_cost]), [kpi_shipped_t])
+		formatString: \$#,0
+		displayFolder: Logistics
+		lineageTag: 43de4583-c23e-4a52-ab76-29cbf010db92
+
+	measure kpi_transit_days = DIVIDE(SUM(fact_shipment[transit_days]), [kpi_trips])
+		formatString: "0.0"" d"""
+		displayFolder: Logistics
+		lineageTag: 7943f84c-765d-4d2a-a1ae-97e0b594b039
+
+	measure kpi_on_hand_t =
+			VAR _last = MAX(fact_inventory[month_start])
+			RETURN
+				CALCULATE(
+					SUM(fact_inventory[on_hand_tons]),
+					KEEPFILTERS(fact_inventory[month_start] = _last)
+				)
+		formatString: "#,0"" t"""
+		displayFolder: Logistics
+		lineageTag: a73c2688-c08b-44b1-a7ec-071ab6a4f0de
+
+	measure kpi_revenue_t = DIVIDE(SUM(fact_sales[revenue]), 1000000000000)
+		formatString: "\$#,0.00""T"""
+		displayFolder: Markets
+		lineageTag: f8041c54-2014-4abc-aa0d-280532412454
+
+	measure kpi_revenue_t_py =
+			CALCULATE(
+				[kpi_revenue_t],
+				SAMEPERIODLASTYEAR(dim_calendar[date])
+			)
+		formatString: "\$#,0.00""T"""
+		displayFolder: Markets
+		lineageTag: 69fe59a5-6c1a-44b1-aa2e-65d675e62f67
+
+	measure kpi_revenue_t_yoy_pct = DIVIDE([kpi_revenue_t] - [kpi_revenue_t_py], [kpi_revenue_t_py])
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Markets
+		lineageTag: 8ac6cd4f-a85a-4829-af5b-3d5af360390b
+
+	measure kpi_on_hand_mt = DIVIDE([kpi_on_hand_t], 1000000)
+		formatString: "#,0.0""M t"""
+		displayFolder: Logistics
+		lineageTag: 44022d27-c718-4245-a6a4-2032fa93d80c
+
+	measure kpi_revenue_b = DIVIDE(SUM(fact_sales[revenue]), 1000000000)
+		formatString: "\$#,0""B"""
+		displayFolder: Markets
+		lineageTag: 2619b239-b025-4291-a1cd-7e7bc81d1233
+
+	measure kpi_tons_sold = SUM(fact_sales[tons_sold])
+		formatString: "#,0"" t"""
+		displayFolder: Markets
+		lineageTag: bd710750-2e77-4ef7-af8d-aadaa2572022
+
+	measure kpi_value_per_t_musd = DIVIDE(SUM(fact_sales[revenue]), [kpi_tons_sold]) / 1000000
+		formatString: "\$#,0.0""M"""
+		displayFolder: Markets
+		lineageTag: 0d10e2ac-097c-4842-a3c0-2b8ca87cddf2
+
+	measure kpi_customers = DISTINCTCOUNT(fact_sales[customer_key])
+		formatString: 0
+		displayFolder: Markets
+		lineageTag: e6f708e7-6baf-490a-a80d-f50fcf4818b5
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: cf5c228e-e378-4561-a4c6-839031aa5856
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_kpi = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

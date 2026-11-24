@@ -17,6 +17,7 @@ import { ContextMenuLayer, TooltipLayer } from './Overlays'
 import { handleCanvasKey } from './commands'
 import { findPage, orderedPages, pageInfo } from './pbir'
 import { navigatePage } from './runtime'
+import { installPageSnapshots } from './motion/pageTransition'
 import { canSignalReady } from '../app/readiness'
 import { LayoutSwitcher, MobileLayoutView, isMobileLayoutOn, useMobileLayout, useMobileRouteParam } from './mobile'
 
@@ -66,6 +67,7 @@ export interface ReportViewProps {
 }
 
 export function ReportView({ showTabs = true }: ReportViewProps = {}) {
+  useEffect(installPageSnapshots, [])
   const project = useApp((s) => s.project)
   const report = project?.report
   const activePage = useApp((s) => s.activePage)

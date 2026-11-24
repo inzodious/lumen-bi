@@ -1,0 +1,94 @@
+table _measures_format
+	lineageTag: 60696092-81a8-4639-ab11-4e28aa0cdecd
+
+	measure fmt_period =
+			VAR _first = MIN(dim_calendar[date])
+			VAR _last = MAX(dim_calendar[date])
+			RETURN
+				UPPER(FORMAT(_first, "MMM") & " – " & FORMAT(_last, "MMM yyyy"))
+		lineageTag: 26cb7504-c76e-4628-a325-9268c924f0ff
+
+	measure fmt_ore_note = FORMAT([kpi_ore_t_yoy_pct], "+0.0%;-0.0%;0.0%") & " vs last year"
+		lineageTag: 0743bae1-4263-424b-ab53-280b930a70cd
+
+	measure fmt_availability_note = FORMAT([kpi_downtime_h], "#,0") & " h of downtime"
+		lineageTag: 89ce23a2-f406-4cdf-aa35-839d2a50aa2d
+
+	measure fmt_sites_note = FORMAT([kpi_asset_days], "#,0") & " asset-days"
+		lineageTag: f98823ae-dc51-4826-a6ef-592657497c57
+
+	measure fmt_rate_note = FORMAT([kpi_operating_h], "#,0") & " operating hours"
+		lineageTag: 8c6b4c78-2dcd-40b5-a94f-720019c05df1
+
+	measure fmt_shipped_note = FORMAT([kpi_shipped_t_yoy_pct], "+0.0%;-0.0%;0.0%") & " vs last year"
+		lineageTag: c393f8da-c698-4612-a4ad-84c91f699df9
+
+	measure fmt_trips_note = FORMAT([kpi_ship_cost_musd], "$#,0.0") & "M haul cost"
+		lineageTag: f2982fa9-7f32-4c8f-a814-a7749184745f
+
+	measure fmt_transit_note = "origin to customer, per trip"
+		lineageTag: 0259e7a0-4f3a-4d2b-ac8e-e4ce8ceabc1d
+
+	measure fmt_stock_note = "closing balance, month end"
+		lineageTag: af38a71a-1b9d-4b97-ad92-064b467df202
+
+	measure fmt_revenue_note = FORMAT([kpi_revenue_t_yoy_pct], "+0.0%;-0.0%;0.0%") & " vs last year"
+		lineageTag: bbc8feff-ef29-4f60-a19e-3aeff705cc29
+
+	measure fmt_customers_note = "buying in the period"
+		lineageTag: 03aa1056-e58f-41e9-af6a-17ea658999bb
+
+	measure fmt_events_note = FORMAT([kpi_events_yoy_pct], "+0.0%;-0.0%;0.0%") & " vs last year"
+		lineageTag: 0450c661-59ad-41e6-af9e-63c1d71d9e0c
+
+	measure fmt_event_hours_note = FORMAT([kpi_h_per_event], "0.0") & " h per event"
+		lineageTag: 4964860d-2ae9-4356-a6e6-13792dc76488
+
+	measure fmt_severity_note = FORMAT(DIVIDE([kpi_high_severity_events], [kpi_events]), "0%") & " of all events"
+		lineageTag: f21f3565-ad0b-4641-a4ca-40186b2dd539
+
+	measure fmt_site_title =
+			VAR _site = SELECTEDVALUE(dim_location[site], "All sites")
+			VAR _body = SELECTEDVALUE(dim_location[celestial_body])
+			RETURN
+				_site & IF(NOT ISBLANK(_body), "  ·  " & UPPER(_body), "")
+		lineageTag: dd147829-4ed5-46e5-ac59-037e4a89d5f0
+
+	measure fmt_site_kicker =
+			VAR _type = UPPER(SELECTEDVALUE(dim_location[site_type], "Mining site"))
+			VAR _region = UPPER(SELECTEDVALUE(dim_location[region]))
+			RETURN
+				_type & IF(_region <> "", "  //  " & _region, "")
+		lineageTag: c9ca85d1-1eee-418d-afb6-6b3daa1c7655
+
+	measure fmt_availability_color =
+			SWITCH(
+				TRUE(),
+				[kpi_availability_pct] < 0.94, "#FF5C7A",
+				[kpi_availability_pct] < 0.95, "#FFC24B",
+				"#2FD6C3"
+			)
+		lineageTag: fa3fed9d-f401-4066-a3a0-00a62326b547
+
+	column Column1
+		dataType: string
+		isHidden
+		lineageTag: 380f095a-2459-463e-ab73-8b9dd708b186
+		summarizeBy: none
+		sourceColumn: Column1
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _measures_format = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

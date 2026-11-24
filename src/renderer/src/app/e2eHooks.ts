@@ -15,6 +15,7 @@ import { exportReport, exportReportWithResult } from '../export'
 import { isBusy } from './readiness'
 import { setVisualIcon } from '../icons/actions'
 import { setMotionOverride } from '../report/motion/env'
+import { beforeBookmark, noteNavigation } from '../report/motion/pageTransition'
 
 export interface LumenE2EHooks {
   useApp: typeof useApp
@@ -29,6 +30,8 @@ export interface LumenE2EHooks {
   setVisualIcon: typeof setVisualIcon
   /** e2e runs render without motion (--lumen-still); 'on' turns visual animations and page transitions back on */
   setMotion: typeof setMotionOverride
+  /** what runtime.drillthrough / goBack / applyBookmark tell the page transitions (motion journeys set them up directly) */
+  motionNav: { noteNavigation: typeof noteNavigation; beforeBookmark: typeof beforeBookmark }
   /** console errors / uncaught errors seen by the renderer since the hooks were installed */
   errors: string[]
 }
@@ -57,5 +60,5 @@ export function installE2EHooks(): void {
     errors.push(`[uncaught] ${e.message}${err && typeof err === 'object' ? ` ${err.name ?? ''}: ${err.message ?? ''}\n${err.stack ?? ''}` : ''}`.slice(0, 2000))
   })
   window.addEventListener('unhandledrejection', (e) => errors.push(`[unhandledrejection] ${String((e as PromiseRejectionEvent).reason)}`))
-  window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, exportReportWithResult, isBusy, setVisualIcon, setMotion: setMotionOverride, errors }
+  window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, exportReportWithResult, isBusy, setVisualIcon, setMotion: setMotionOverride, motionNav: { noteNavigation, beforeBookmark }, errors }
 }

@@ -16,6 +16,12 @@ export function write(path, content) {
   writeFileSync(path, content)
 }
 
+/** The PBIR name of a design's page (page navigation buttons and bookmarks refer to it). */
+export const pageId = (seed, pageName) => hex(`${seed}/page/${pageName}`)
+
+/** The PBIR name of a design's bookmark. */
+export const bookmarkId = (seed, bookmarkName) => hex(`${seed}/bookmark/${bookmarkName}`)
+
 export function pageJson(id, page, name) {
   const bg = {}
   if (page.background?.color) bg.color = c(page.background.color)
@@ -40,7 +46,16 @@ export function pageJson(id, page, name) {
     objects: o
   }
   if (page.filters) out.filterConfig = { filters: page.filters }
+  // a drill-through page: { entity, prop } of the column the page is filtered on (PBIR pageBinding + filter card)
+  if (page.drillthrough) {
+    const field = { Column: { Expression: { SourceRef: { Entity: page.drillthrough.entity } }, Property: page.drillthrough.prop } }
+    const card = hex(`${id}/page/${page.name}/drillthrough`)
+    out.filterConfig = { filters: [...(out.filterConfig?.filters ?? []), { name: card, field, type: 'Categorical', howCreated: 'Drillthrough' }] }
+    out.pageBinding = { name: hex(`${id}/page/${page.name}/binding`), type: 'Drillthrough', referenceScope: 'Default', parameters: [{ name: hex(`${id}/page/${page.name}/parameter`), boundFilter: card, fieldExpr: field }] }
+  }
   if (page.hidden) out.visibility = 'HiddenInViewMode'
+  // Lumen-only page transition (src/core/report/motion.ts), e.g. { transition: 'circle' }
+  if (page.motion) out.annotations = [{ name: 'Lumen_Motion', value: JSON.stringify(page.motion) }]
   return out
 }
 
@@ -92,7 +107,7 @@ export function writeReport(design, rp, { sampleData = false, motion } = {}) {
 
   const order = []
   design.pages.forEach((page, i) => {
-    const pid = hex(`${seed}/page/${page.name}`)
+    const pid = pageId(seed, page.name)
     order.push(pid)
     write(join(rp, 'definition', 'pages', pid, 'page.json'), json(pageJson(design.id, page, pid)))
     const vs = page.visuals(`${seed}/${page.name}`)
@@ -108,5 +123,27 @@ export function writeReport(design, rp, { sampleData = false, motion } = {}) {
       write(join(rp, 'definition', 'pages', pid, 'visuals', v.name, 'visual.json'), json(v))
     }
   })
+  // display-only bookmarks: { name, page, show: [visual names], hide: [visual names] } (visual names as built)
+  if (design.bookmarks?.length) {
+    const items = []
+    for (const b of design.bookmarks) {
+      const bid = bookmarkId(seed, b.name)
+      items.push({ name: bid })
+      const containers = {}
+      for (const v of b.show) containers[v] = { singleVisual: { visualType: b.types?.[v] ?? 'unknown' } }
+      for (const v of b.hide) containers[v] = { singleVisual: { visualType: b.types?.[v] ?? 'unknown', display: { mode: 'hidden' } } }
+      write(
+        join(rp, 'definition', 'bookmarks', `${bid}.bookmark.json`),
+        json({
+          $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmark/1.4.0/schema.json',
+          displayName: b.name,
+          name: bid,
+          options: { targetVisualNames: [...b.show, ...b.hide], applyOnlyToTargetVisuals: true, suppressData: true, suppressActiveSection: true },
+          explorationState: { version: '1.3', activeSection: pageId(seed, b.page), sections: { [pageId(seed, b.page)]: { visualContainers: containers } } }
+        })
+      )
+    }
+    write(join(rp, 'definition', 'bookmarks', 'bookmarks.json'), json({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmarksMetadata/1.0.0/schema.json', items }))
+  }
   write(join(rp, 'definition', 'pages', 'pages.json'), json({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.1.0/schema.json', pageOrder: order, activePageName: order[0] }))
 }

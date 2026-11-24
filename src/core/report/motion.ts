@@ -9,8 +9,11 @@
  *   report.json  { "animate": false,          // visual animations on load and on data changes (default on)
  *                  "duration": 500,           // ms, visual animations (default 500)
  *                  "stagger": 60,             // ms between visuals entering a page, in reading order (default 0)
- *                  "transition": "fade",      // default page transition: none | fade | slide | rise | zoom (default none)
- *                  "transitionDuration": 350 }// ms, page transitions (default 350)
+ *                  "transition": "fade",      // default page transition (default none), one of PAGE_TRANSITIONS
+ *                  "transitionDuration": 350, // ms, page transitions (default 350)
+ *                  "drillthrough": "page",    // zoom (default): drill-through grows the page out of the clicked visual and
+ *                                             // Back shrinks it into it again; page: use the target page's transition
+ *                  "bookmarks": "none" }      // morph (default): applying a bookmark fades and moves the visuals that change
  *   page.json    { "transition": "slide" }    // this page's transition, overriding the report default
  *   visual.json  { "entrance": "rise",        // auto | fade | rise | zoom | none (default auto: by visual type)
  *                  "delay": 200 }             // ms before the visual enters (added to the report's stagger)
@@ -21,8 +24,22 @@
 
 export const MOTION_ANNOTATION = 'Lumen_Motion'
 
-export const PAGE_TRANSITIONS = ['none', 'fade', 'slide', 'rise', 'zoom'] as const
+/**
+ * fade, slide, rise and zoom bring the new page in; push, depth, wipe, circle and morph also move the page that leaves
+ * (a still copy of it, taken the moment the page changes). morph glides the visuals two pages share (same type, fields
+ * and title) from their old place to the new one and cross-fades the rest.
+ */
+export const PAGE_TRANSITIONS = ['none', 'fade', 'slide', 'push', 'rise', 'zoom', 'depth', 'wipe', 'circle', 'morph'] as const
 export type PageTransition = (typeof PAGE_TRANSITIONS)[number]
+
+/** Transitions that animate the page that leaves as well as the one that enters. */
+export const TWO_PAGE_TRANSITIONS: ReadonlySet<PageTransition> = new Set(['push', 'depth', 'wipe', 'circle', 'morph'])
+
+export const DRILLTHROUGH_MOTIONS = ['zoom', 'page'] as const
+export type DrillthroughMotion = (typeof DRILLTHROUGH_MOTIONS)[number]
+
+export const BOOKMARK_MOTIONS = ['morph', 'none'] as const
+export type BookmarkMotion = (typeof BOOKMARK_MOTIONS)[number]
 
 export const VISUAL_ENTRANCES = ['auto', 'fade', 'rise', 'zoom', 'none'] as const
 export type VisualEntrance = (typeof VISUAL_ENTRANCES)[number]
@@ -33,6 +50,8 @@ export interface ReportMotion {
   stagger: number
   transition: PageTransition
   transitionDuration: number
+  drillthrough: DrillthroughMotion
+  bookmarks: BookmarkMotion
 }
 
 export interface PageMotion {
@@ -44,7 +63,7 @@ export interface VisualMotion {
   delay?: number
 }
 
-export const DEFAULT_REPORT_MOTION: Readonly<ReportMotion> = Object.freeze({ animate: true, duration: 500, stagger: 0, transition: 'none', transitionDuration: 350 })
+export const DEFAULT_REPORT_MOTION: Readonly<ReportMotion> = Object.freeze({ animate: true, duration: 500, stagger: 0, transition: 'none', transitionDuration: 350, drillthrough: 'zoom', bookmarks: 'morph' })
 
 export const MOTION_LIMITS = {
   duration: [100, 2000],
@@ -106,7 +125,9 @@ export function reportMotion(reportJson: any): ReportMotion {
     duration: clamp(o.duration, MOTION_LIMITS.duration) ?? d.duration,
     stagger: clamp(o.stagger, MOTION_LIMITS.stagger) ?? d.stagger,
     transition: oneOf(o.transition, PAGE_TRANSITIONS) ?? d.transition,
-    transitionDuration: clamp(o.transitionDuration, MOTION_LIMITS.transitionDuration) ?? d.transitionDuration
+    transitionDuration: clamp(o.transitionDuration, MOTION_LIMITS.transitionDuration) ?? d.transitionDuration,
+    drillthrough: oneOf(o.drillthrough, DRILLTHROUGH_MOTIONS) ?? d.drillthrough,
+    bookmarks: oneOf(o.bookmarks, BOOKMARK_MOTIONS) ?? d.bookmarks
   }
 }
 
@@ -195,6 +216,41 @@ export function entranceDelay(motion: ReportMotion, own: VisualMotion, order: nu
   return Math.max(0, (own.delay ?? 0) + motion.stagger * Math.max(0, order))
 }
 
+/**
+ * What makes two visuals on different pages "the same" for the morph transition: type, bound fields and title.
+ * Undefined for visuals that carry neither fields nor a title (shapes, plain images), which never glide.
+ */
+export function visualMatchKey(visualJson: any): string | undefined {
+  const v = visualJson?.visual
+  if (!v) return undefined
+  const refs: string[] = []
+  for (const [role, st] of Object.entries<any>(v.query?.queryState ?? {}))
+    for (const p of st?.projections ?? []) refs.push(`${role}=${p?.queryRef ?? JSON.stringify(p?.field ?? null)}`)
+  const title = v.visualContainerObjects?.title?.[0]?.properties?.text?.expr?.Literal?.Value
+  if (!refs.length && !title) return undefined
+  return [v.visualType ?? '', refs.sort().join('|'), title ?? ''].join('#')
+}
+
+/** Pairs of visuals (old page name -> new page name) that glide in a morph: keys found exactly once on each page. */
+export function morphPairs(from: Array<{ name: string; json?: any }>, to: Array<{ name: string; json?: any }>): Map<string, string> {
+  const index = (list: Array<{ name: string; json?: any }>) => {
+    const m = new Map<string, string | null>()
+    for (const v of list) {
+      const k = visualMatchKey(v.json)
+      if (k) m.set(k, m.has(k) ? null : v.name)
+    }
+    return m
+  }
+  const a = index(from)
+  const b = index(to)
+  const out = new Map<string, string>()
+  for (const [k, n] of a) {
+    const m = b.get(k)
+    if (n && m) out.set(n, m)
+  }
+  return out
+}
+
 /** Reading order of visuals (top to bottom, then left to right, in rows of `band` px). */
 export function readingOrder(rects: Array<{ name: string; x: number; y: number }>, band = 40): Map<string, number> {
   const sorted = [...rects].sort((a, b) => Math.floor(a.y / band) - Math.floor(b.y / band) || a.x - b.x || a.y - b.y)
@@ -226,7 +282,7 @@ export function motionSummary(report: { report?: any; pages: Array<{ json?: any 
 export function stripMotion(report: { report?: any; pages: Array<{ json?: any; visuals: Array<{ json?: any }> }> }): void {
   if (report.report) {
     writeRaw(report.report, undefined)
-    setReportMotion(report.report, { animate: false })
+    setReportMotion(report.report, { animate: false, drillthrough: 'page', bookmarks: 'none' })
   }
   for (const p of report.pages) {
     writeRaw(p.json, undefined)

@@ -1,0 +1,50 @@
+table dim_event_type
+	lineageTag: accfaac6-c288-44c2-acaf-9c08e42a004d
+
+	column event_type_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 2becb79f-1d4b-46d7-a214-8d297eeeb253
+		summarizeBy: none
+		sourceColumn: event_type_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column event
+		dataType: string
+		lineageTag: 19ce9824-ce81-4a80-a2d6-834fa7fdc644
+		summarizeBy: none
+		sourceColumn: event
+
+		annotation SummarizationSetBy = Automatic
+
+	column event_category
+		dataType: string
+		lineageTag: 4ae921ca-13d5-42fb-ac31-9950c8b1aa2c
+		summarizeBy: none
+		sourceColumn: event_category
+
+		annotation SummarizationSetBy = Automatic
+
+	column severity
+		dataType: string
+		lineageTag: f7361e22-f313-4028-a7f1-522e1ee004e9
+		summarizeBy: none
+		sourceColumn: severity
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_event_type = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("hZDNagMxDIRfxejsQ/qTtNe2JO0hC6XpLeSgykpXxJaDV+6Sty9eCJRA6FnzzWhmu4X5bHYDHjbUc6iRg+tQ1FhRicHDe0RVDuBhnUfY+Qm4BQ+dUMmJjXPJEtzGihwasNQfKVkTq2EED2/y3Z+5uxZ0GoyT6zDuq5JJVvDwydSr0AR0HKSmM3LfkByxuFXE8l/AHDy8FB7dE5EEVmv3mlDdCslyuZAvJvO9jVjYvUYx6i+e+VP6oXlnHWrCr8jug4d6PMbTtY0eJ3lKtVm1mu45Ih1ytSt9d78=", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [event_type_key = _t, event = _t, event_category = _t, severity = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"event_type_key", Int64.Type}, {"event", type text}, {"event_category", type text}, {"severity", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

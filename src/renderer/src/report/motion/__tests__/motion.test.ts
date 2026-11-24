@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { countFrom, easeOut, formatCountText, parseCountText } from '../countText'
 import { samePathShape } from '../animator'
-import { notePageShown, resetPageHistory, transitionFrames } from '../pageTransition'
+import { boxTransform, flyTransform, notePageShown, resetPageHistory, transitionFrames, twoPageFrames } from '../pageTransition'
 
 describe('count-up text', () => {
   it('parses formatted numbers', () => {
@@ -65,5 +65,34 @@ describe('page transitions', () => {
     expect(transitionFrames('fade', 1, 1000)).toEqual([{ opacity: 0 }, { opacity: 1 }])
     expect(transitionFrames('slide', -1, 1000)![0]).toEqual({ opacity: 0, transform: 'translateX(-120px)' })
     expect(transitionFrames('slide', 1, 4000)![0]).toEqual({ opacity: 0, transform: 'translateX(160px)' })
+    // without an old page to move, the two-page kinds fall back to an entrance
+    expect(transitionFrames('push', 1, 1000)).toEqual(transitionFrames('slide', 1, 1000))
+    expect(transitionFrames('wipe', -1, 1000)![0]).toEqual({ clipPath: 'inset(0 0 0 100%)' })
+    expect(transitionFrames('morph', 1, 1000)).toEqual([{ opacity: 0 }, { opacity: 1 }])
+  })
+
+  it('moves both pages for push, depth, wipe, circle and morph', () => {
+    const size = { width: 1000, height: 600 }
+    const push = twoPageFrames('push', 1, size)!
+    expect(push.enter[0]).toEqual({ opacity: 0, transform: 'translateX(120px)' })
+    expect(push.leave[1]).toEqual({ opacity: 0, transform: 'translateX(-120px)' })
+    expect(twoPageFrames('push', -1, size)!.leave[1]).toEqual({ opacity: 0, transform: 'translateX(120px)' })
+    expect(twoPageFrames('depth', 1, size)!.leave[1]).toEqual({ opacity: 0, transform: 'scale(0.92)' })
+    expect(twoPageFrames('wipe', 1, size)!.enter[0]).toEqual({ clipPath: 'inset(0 100% 0 0)' })
+    // the circle opens from the point clicked and reaches the farthest corner
+    expect(twoPageFrames('circle', 1, size, { x: 0, y: 0 })!.enter).toEqual([{ clipPath: 'circle(0px at 0px 0px)' }, { clipPath: 'circle(1167px at 0px 0px)' }])
+    expect(twoPageFrames('circle', 1, size)!.enter[1]).toEqual({ clipPath: 'circle(584px at 500px 300px)' })
+    expect(twoPageFrames('morph', 1, size)!.ghostAbove).toBe(true)
+    expect(twoPageFrames('fade', 1, size)).toBeNull()
+  })
+
+  it('maps one box onto another', () => {
+    const a = { left: 10, top: 20, width: 100, height: 50 }
+    const b = { left: 110, top: 220, width: 200, height: 100 }
+    expect(boxTransform(a, a)).toBe('none')
+    expect(boxTransform(a, b)).toBe('translate(-100px, -200px) scale(0.5, 0.5)')
+    expect(boxTransform(a, b, 2)).toBe('translate(-50px, -100px) scale(0.5, 0.5)')
+    expect(flyTransform(a, b, 1)).toBe('translate(100px, 200px) scale(2, 2)')
+    expect(flyTransform(a, b, 0)).toBe('translate(0px, 0px) scale(1, 1)')
   })
 })

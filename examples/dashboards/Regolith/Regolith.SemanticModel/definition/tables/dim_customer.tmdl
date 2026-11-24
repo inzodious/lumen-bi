@@ -1,0 +1,50 @@
+table dim_customer
+	lineageTag: 42901e92-d0cb-41b1-a546-d60d723ded8d
+
+	column customer_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 6b4c2084-d0dc-4603-afdf-00587b82d49c
+		summarizeBy: none
+		sourceColumn: customer_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer
+		dataType: string
+		lineageTag: 6c801515-600c-4f07-aa37-d746dcb086df
+		summarizeBy: none
+		sourceColumn: customer
+
+		annotation SummarizationSetBy = Automatic
+
+	column sector
+		dataType: string
+		lineageTag: 30fe4cf0-7aa0-465a-a47c-6b084342bc57
+		summarizeBy: none
+		sourceColumn: sector
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_location
+		dataType: string
+		lineageTag: f04254f3-44f9-4b8b-afac-1906f5f51de9
+		summarizeBy: none
+		sourceColumn: customer_location
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_customer = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("lVfLbtswEPwVgWcdxKesY5s6AYoGKZDcghxYhbUF2KRBUQX894UNS1xRJK1cbQ53d2Z2l3p/R6yqMCrRm7JWFq9n/dm10ilUou+dcardoxI9KKv64rexDn2UVwS5/GrPpvhx1vLYtT0q0TdlTX+S7QW7ldbtx8MUlehx6DujizfV7rU5mF2nshCGSvTq1OEgbfFo7O56QCu7O4cnOSrRi/3TOXkonqUe/srWDbbTO1SiJ/NPWX1U2oUo4VMCFYT4X4OWI6K+VGz6Y9fmEM/S9iNiM7EKAOmUmltAW2y1U/Zku/7KkZfh53DqnLLFq5OuM/oGxBXgag6F9IJaME6EejC6d3Zor7cn45EJDd0SYGE4mpEoQzlmUVvOGITH+ejJ8M6ocbAAWaUYB3JiYIDAxbOMFr2CN95rsI6U93GT1DPgGKJIBcoZOyZpNoJ9MSFbqbwIARFyDABNCGj9SQUYIG4xApQ3h+Hyz1wXGCIp+8IGsBjhCRjZWuV+Uk+phfcH+IURyCYi0cL/25fxeBP3TYprWvmS5raJ+p/6IQA5XhQVVkHJ2oHrS6FwAmSGBmg3erHAkzzI1l3ruVWwSiPKITawaqaHqIgINIVOxKqjmyTVRHQDmntt59FmtPhc1xAfz5BVcfT9NmQY8ghdMpHiNWZ+Layti8WmQ7hHfADmT4/izBacP8lhJ9zuzWxqJkaGoDejXcNqSElCcJBJ9A1wx1KsyYIWHcmrL+zXeEiOv/q64WTFMEsEo+D5cSsqNdQ4S7oKKOuz4pn2SjqLi2SQWV4wUA2tm2tK6B6+iRgzuaR5E3lkpyemmPo888gG1Ao8uR50dvoZJzL7f9VYFnS9OJAHwZZ+ufcoFnzC5FP1LhAiszUy30JiNhLiH1BQps3sebe2niaxQZPuqavo6zk+p+r4F2B0BNZkzWZe0FTTWN2RRVKzhI8z06jma7x/CfHxHw==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [customer_key = _t, customer = _t, sector = _t, customer_location = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"customer_key", Int64.Type}, {"customer", type text}, {"sector", type text}, {"customer_location", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

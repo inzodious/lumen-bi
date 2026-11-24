@@ -1,0 +1,59 @@
+relationship fcf93fb0-7bcc-48fd-af67-ba133cb945f7
+	fromColumn: fact_extraction.month_start
+	toColumn: dim_calendar.date
+
+relationship 26ccc0ec-c9cc-4764-a893-2945f7a1a348
+	fromColumn: fact_downtime.month_start
+	toColumn: dim_calendar.date
+
+relationship d1fa3275-f91b-40c6-a36a-dd2246dbd329
+	fromColumn: fact_shipment.month_start
+	toColumn: dim_calendar.date
+
+relationship 00b20697-ecd9-41d7-af4a-6b88cfcfdc7c
+	fromColumn: fact_sales.month_start
+	toColumn: dim_calendar.date
+
+relationship c4d1db88-e3f4-44bb-ab7f-bdce1099f5e2
+	fromColumn: fact_inventory.month_start
+	toColumn: dim_calendar.date
+
+relationship d3efb78e-6a64-47d0-a70e-b7535b01daef
+	fromColumn: fact_extraction.location_key
+	toColumn: dim_location.location_key
+
+relationship 9ad62d1a-5645-457d-a283-b1bfcfabcfca
+	fromColumn: fact_downtime.location_key
+	toColumn: dim_location.location_key
+
+relationship 21af4658-34d4-469e-a7ff-01ae25e722b3
+	fromColumn: fact_shipment.location_key
+	toColumn: dim_location.location_key
+
+relationship d8f45bad-9dd8-4426-ae01-205f6aa9c39b
+	fromColumn: fact_inventory.location_key
+	toColumn: dim_location.location_key
+
+relationship 88607a6a-02c4-448e-ae55-d908f9ccd7c1
+	fromColumn: fact_extraction.material_key
+	toColumn: dim_material.material_key
+
+relationship 6e93cb12-4cd9-4e56-ace9-243213f2d072
+	fromColumn: fact_shipment.material_key
+	toColumn: dim_material.material_key
+
+relationship a592a3ec-94bf-4b4a-a3e1-7bd04738078d
+	fromColumn: fact_sales.material_key
+	toColumn: dim_material.material_key
+
+relationship f2e0363b-d0d8-47d3-ab6d-73cda77db308
+	fromColumn: fact_inventory.material_key
+	toColumn: dim_material.material_key
+
+relationship 5dcf00f6-6426-4f64-ab0c-557755ccaf38
+	fromColumn: fact_downtime.event_type_key
+	toColumn: dim_event_type.event_type_key
+
+relationship 437ea06e-8f7e-4c2f-a415-72425439db65
+	fromColumn: fact_sales.customer_key
+	toColumn: dim_customer.customer_key

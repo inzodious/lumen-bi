@@ -1,0 +1,58 @@
+table dim_location
+	lineageTag: 026e416c-b5e4-40e5-ab3f-e9375c539b95
+
+	column location_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: ab237f73-3498-4057-acb2-2b05552a7875
+		summarizeBy: none
+		sourceColumn: location_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column celestial_body
+		dataType: string
+		lineageTag: d0fd3101-ee93-4ce8-a51e-05b91bd367f6
+		summarizeBy: none
+		sourceColumn: celestial_body
+
+		annotation SummarizationSetBy = Automatic
+
+	column site
+		dataType: string
+		lineageTag: 0931df40-28a6-4b4e-a248-363fd3d72309
+		summarizeBy: none
+		sourceColumn: site
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: bcb2e251-58e6-4425-ace0-15094f05bd23
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_type
+		dataType: string
+		lineageTag: 7f1e2a84-ac31-40bf-a066-50a0e1bb3482
+		summarizeBy: none
+		sourceColumn: site_type
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_location = m
+		mode: import
+		queryGroup: Dimension
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("pVbLbtswEPwVgWcREN/UsQmCuoe2aVL0EuTA2KxDQJZcigLqvy9EVEZALWPJOXEtmIPdmdldPj0hWlUElei+P21f7TnAhNTjj64xvrg1xzH23db2vWv3xWZ4Qc9lvEtRie7arW3MbujfxpgxhUr0rfPh1fq22NiD64+v1tssFkMl+uld6NpzgCUd83jsBgDlcXjpB//bbG1x9zd4sw2ua4v7zrVhguSoRJvT3llzDrCsx4Lv/gwmdN6Zpnhwu/2I92Vrix+D8f40XRdjIi6Ydjoxq/P5fD/aFt+7UHx1rZ0gJESurOAMFlSkZinJakzp1ptgfXFjeteCtWhUol+2D2Y6MY3JJRdhaaIZTNOY/hxgGi2yhEdSZV1CqwwIRCYZhfts2tPB7uybEDPNErfOc8g7VXEy5+HTELqDCXZXPNjGnIrHYEYxJjQGGSt+hR0/z2e05sNp2A/TiaWgWW+BshCR51WSVT4l0QrW2346sdBqHYQCOOEU4PayzYmGDCcXGy7+0Xf9/wNTzrPSXM6GVkBlStOPQJKZ/FrJjwBSADDvp/ftTVnCH6GZiXUBhwMyEiWWrBYqMs2u4ii7micJaCk4vcalFHQ8y2+ImVGpzhRJ4pJaOEvijkzz0Jwtn6ysypEt2JwZEIEkltGRB7iC913DKFAO1WRFOQzwXa3ZwnXHOPASITTdMZcNwuKAHnx3NOcAS0EW7GsmgRK0Fld2dHyMgUZT6gPdxHSiOhMClgkmOr5cTNO4PnRvQqwXj3peJRmomiY6QQ6JKz/1WB3bcaHH4siAGKWivlKk2LHJm4DRtW+TuOpAqXm1lFSRNrOUK5iRGVU5W9HDXKXCyqt51bPHDZFq2VzjNTAL6lwh7+chKgCLE7Fmrjz/Aw==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [location_key = _t, celestial_body = _t, site = _t, region = _t, site_type = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"location_key", Int64.Type}, {"celestial_body", type text}, {"site", type text}, {"region", type text}, {"site_type", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table

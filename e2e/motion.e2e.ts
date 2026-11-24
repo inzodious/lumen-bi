@@ -119,4 +119,100 @@ describe('motion', () => {
       l.useApp.getState().setEditMode(true)
     })
   })
+
+  it('moves both pages for the two-page transitions, zooms a drill-through and morphs a bookmark', async () => {
+    const { page } = lumen()
+    const setReportMotion = (motion: Record<string, unknown> | null) =>
+      lumenEval(
+        page,
+        (l, m) =>
+          l.useApp.getState().mutateReport('Motion', (r) => {
+            r.report ??= {}
+            const list = (r.report.annotations ?? []).filter((a: any) => a.name !== 'Lumen_Motion')
+            if (m) list.push({ name: 'Lumen_Motion', value: JSON.stringify(m) })
+            r.report.annotations = list
+            // pages follow the report default
+            for (const p of r.pages) if (p.json?.annotations) p.json.annotations = p.json.annotations.filter((a: any) => a.name !== 'Lumen_Motion')
+          }),
+        motion
+      )
+    const ghosts = () => page.evaluate(() => document.querySelectorAll('.wbi-viewport > .wbi-transition-ghost').length)
+    /** watch for ghosts (still copies of the page that leaves) from now on */
+    const watchGhosts = () =>
+      page.evaluate(() => {
+        const w = window as unknown as { __ghosts: Array<{ z: string; fly: boolean }>; __ghostObserver?: MutationObserver }
+        w.__ghosts = []
+        w.__ghostObserver?.disconnect()
+        w.__ghostObserver = new MutationObserver((ms) => {
+          for (const m of ms) for (const n of m.addedNodes) if (n instanceof HTMLElement && n.classList.contains('wbi-transition-ghost')) w.__ghosts.push({ z: n.style.zIndex, fly: n.classList.contains('wbi-transition-fly') })
+        })
+        w.__ghostObserver.observe(document.body, { childList: true, subtree: true })
+      })
+    const seenGhosts = () => page.evaluate(() => (window as unknown as { __ghosts: Array<{ z: string; fly: boolean }> }).__ghosts)
+    await lumenEval(page, (l) => {
+      l.setMotion('on')
+      l.useApp.getState().setEditMode(false)
+    })
+    await goToPage(page, 'Products')
+    await settle(page)
+    for (const kind of ['push', 'depth', 'wipe', 'circle', 'morph']) {
+      await setReportMotion({ transition: kind })
+      await watchGhosts()
+      await recordAnimations(page)
+      await goToPage(page, kind === 'push' || kind === 'wipe' || kind === 'morph' ? 'Overview' : 'Products')
+      await expect.poll(seenGhosts).toSatisfy((g: Array<{ z: string; fly: boolean }>) => g.filter((x) => !x.fly).length === 1 && g.find((x) => !x.fly)!.z === (kind === 'morph' ? '2' : '-1'))
+      await expect.poll(() => recorded(page)).toSatisfy((a: Record<string, number>) => (a.page ?? 0) >= 1)
+      // the ghost goes away when the transition ends
+      await expect.poll(ghosts, { timeout: 5000 }).toBe(0)
+    }
+    // drill-through zoom: the page grows out of the visual clicked, Back shrinks it into that visual again
+    await setReportMotion({ transition: 'none' })
+    await goToPage(page, 'Overview')
+    await settle(page)
+    const chart = await visualByTitle(page, 'Sales by year and channel')
+    const title = page.locator(`.wbi-page [data-visual="${chart}"] .wbi-vc-titles`)
+    await title.dispatchEvent('pointerdown', { bubbles: true })
+    await watchGhosts()
+    await lumenEval(page, (l) => {
+      l.motionNav.noteNavigation('drill')
+      l.useApp.getState().setActivePage(l.useApp.getState().project!.report!.pages.find((p) => p.json?.displayName === 'Products')!.name)
+    })
+    await expect.poll(seenGhosts).toSatisfy((g: Array<{ z: string }>) => g.length === 1 && g[0].z === '-1')
+    await expect.poll(ghosts, { timeout: 5000 }).toBe(0)
+    await watchGhosts()
+    await lumenEval(page, (l) => {
+      l.motionNav.noteNavigation('back')
+      l.useApp.getState().setActivePage(l.useApp.getState().project!.report!.pages.find((p) => p.json?.displayName === 'Overview')!.name)
+    })
+    await expect.poll(seenGhosts).toSatisfy((g: Array<{ z: string }>) => g.length === 1 && g[0].z === '2')
+    await expect.poll(ghosts, { timeout: 5000 }).toBe(0)
+    // bookmark morph: a visual the bookmark hides fades out (a still copy of it), and comes back with a fade in
+    await settle(page)
+    const hide = (hidden: boolean) =>
+      lumenEval(
+        page,
+        (l, a) => {
+          const s = l.useApp.getState()
+          l.motionNav.beforeBookmark(s.activePage)
+          s.patchReport((r) => {
+            const v = r.pages.flatMap((p) => p.visuals).find((x) => x.name === a.name)!
+            if (a.hidden) v.json.isHidden = true
+            else delete v.json.isHidden
+          }, 'Apply bookmark')
+        },
+        { name: chart, hidden }
+      )
+    await hide(true)
+    await expect.poll(() => page.locator(`.wbi-page > .wbi-vc[data-visual="${chart}"][inert]`).count()).toBe(1)
+    await expect.poll(() => page.locator(`.wbi-page > .wbi-vc[data-visual="${chart}"]`).count(), { timeout: 5000 }).toBe(0)
+    await recordAnimations(page)
+    await hide(false)
+    await expect.poll(() => recorded(page)).toSatisfy((a: Record<string, number>) => (a.content ?? 0) >= 1)
+    await expect.poll(() => animations(page), { timeout: 5000 }).toEqual({})
+    await setReportMotion(null)
+    await lumenEval(page, (l) => {
+      l.setMotion(null)
+      l.useApp.getState().setEditMode(true)
+    })
+  })
 })

@@ -17,7 +17,7 @@ import { getVisual } from '../visuals/registry'
 import { CanvasEnvContext, type CanvasEnv, type CanvasMotion } from './canvasEnv'
 import { pageTransition, readingOrder, reportMotion } from '@core/report/motion'
 import { motionAllowed, useMotionAllowed } from './motion/env'
-import { notePageShown, playPageTransition } from './motion/pageTransition'
+import { notePageShown, playPageEnter, settleBookmarkMorph } from './motion/pageTransition'
 import { resolveChrome, resolveGroupChrome } from './chrome'
 import { setAbsoluteRects, topLevelOf } from './editOps'
 import { HANDLES, boundsOf, lassoHits, rectFromPoints, resizeRect, snapMove, snapResize, type Guide, type Handle, type SizeMatch, type SpacingGuide } from './geometry'
@@ -503,9 +503,13 @@ export function PageCanvas(props: PageCanvasProps) {
     if (!direction || editing || mode !== 'view' || !motionAllowed()) return
     const el = outerRef.current
     const target = el?.parentElement?.classList.contains('wbi-page-shadow') ? el.parentElement : el
-    if (target) playPageTransition(target, pageTransition(reportJson, page.json), direction, reportMotion(reportJson).transitionDuration)
+    if (target) playPageEnter({ el: target, page: page.name, visuals: page.visuals, kind: pageTransition(reportJson, page.json), direction, motion: reportMotion(reportJson) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // bookmark morph: after a bookmark changes what the page shows (runtime.applyBookmark captured the page before)
+  useLayoutEffect(() => {
+    if (interactive && !editing && !focus) settleBookmarkMorph(pageRef.current, page.name, reportMotion(reportJson).transitionDuration)
+  })
 
   // ---- env --------------------------------------------------------------------------------------
   const env: CanvasEnv = useMemo(

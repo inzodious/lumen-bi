@@ -5,6 +5,8 @@ import {
   entranceDelay,
   motionFamily,
   motionSummary,
+  morphPairs,
+  visualMatchKey,
   pageMotion,
   pageTransition,
   readingOrder,
@@ -21,17 +23,20 @@ const annotated = (value: unknown) => ({ annotations: [{ name: MOTION_ANNOTATION
 describe('report motion', () => {
   it('defaults to animated visuals and no page transition', () => {
     expect(reportMotion(undefined)).toEqual(DEFAULT_REPORT_MOTION)
-    expect(reportMotion({})).toEqual({ animate: true, duration: 500, stagger: 0, transition: 'none', transitionDuration: 350 })
+    expect(reportMotion({})).toEqual({ animate: true, duration: 500, stagger: 0, transition: 'none', transitionDuration: 350, drillthrough: 'zoom', bookmarks: 'morph' })
   })
 
   it('reads, clamps and ignores invalid values', () => {
-    expect(reportMotion(annotated({ animate: false, duration: 99999, stagger: -5, transition: 'spin', transitionDuration: 420.4 }))).toEqual({
+    expect(reportMotion(annotated({ animate: false, duration: 99999, stagger: -5, transition: 'spin', transitionDuration: 420.4, drillthrough: 'fly', bookmarks: 'none' }))).toEqual({
       animate: false,
       duration: 2000,
       stagger: 0,
       transition: 'none',
-      transitionDuration: 420
+      transitionDuration: 420,
+      drillthrough: 'zoom',
+      bookmarks: 'none'
     })
+    expect(reportMotion(annotated({ transition: 'circle', drillthrough: 'page' }))).toMatchObject({ transition: 'circle', drillthrough: 'page' })
     expect(reportMotion({ annotations: [{ name: MOTION_ANNOTATION, value: '{not json' }] })).toEqual(DEFAULT_REPORT_MOTION)
   })
 
@@ -125,8 +130,36 @@ describe('publishing', () => {
   it('strips every setting and turns animations off', () => {
     const r: any = report()
     stripMotion(r)
-    expect(reportMotion(r.report).animate).toBe(false)
+    expect(reportMotion(r.report)).toMatchObject({ animate: false, drillthrough: 'page', bookmarks: 'none' })
     expect(motionSummary(r)).toEqual({ animate: false, transitions: [] })
     expect(r.pages.every((p: any) => !p.json.annotations && p.visuals.every((v: any) => !v.json.annotations))).toBe(true)
   })
 })
+
+describe('morph pairs', () => {
+  const visual = (name: string, type: string, refs: string[], title?: string) => ({
+    name,
+    json: {
+      visual: {
+        visualType: type,
+        query: { queryState: { Values: { projections: refs.map((queryRef) => ({ queryRef })) } } },
+        ...(title ? { visualContainerObjects: { title: [{ properties: { text: { expr: { Literal: { Value: `'${title}'` } } } } }] } } : {})
+      }
+    }
+  })
+
+  it('matches visuals by type, fields and title', () => {
+    expect(visualMatchKey(visual('a', 'card', ['m.Sales']).json)).toBe(visualMatchKey(visual('b', 'card', ['m.Sales']).json))
+    expect(visualMatchKey(visual('a', 'card', ['m.Sales']).json)).not.toBe(visualMatchKey(visual('b', 'card', ['m.Cost']).json))
+    expect(visualMatchKey(visual('a', 'card', ['m.Sales'], 'Sales').json)).not.toBe(visualMatchKey(visual('b', 'card', ['m.Sales']).json))
+    expect(visualMatchKey({ visual: { visualType: 'shape' } })).toBeUndefined()
+    expect(visualMatchKey(undefined)).toBeUndefined()
+  })
+
+  it('pairs keys found once on each page', () => {
+    const from = [visual('k1', 'card', ['m.Sales']), visual('k2', 'card', ['m.Cost']), visual('d1', 'card', ['m.Units']), visual('d2', 'card', ['m.Units'])]
+    const to = [visual('n1', 'card', ['m.Sales']), visual('n2', 'lineChart', ['m.Cost']), visual('n3', 'card', ['m.Units'])]
+    expect([...morphPairs(from, to)]).toEqual([['k1', 'n1']])
+  })
+})
+

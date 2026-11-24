@@ -5,7 +5,7 @@
  *  - visual ▸ General ▸ Animation: the visual's entrance and delay.
  * Power BI ignores all of it (the settings are PBIR annotations), which the cards say.
  */
-import { PAGE_TRANSITIONS, MOTION_LIMITS, pageMotion, reportMotion, setPageMotion, setReportMotion, setVisualMotion, visualMotion, type PageTransition, type ReportMotion, type VisualEntrance } from '@core/report/motion'
+import { PAGE_TRANSITIONS, MOTION_LIMITS, pageMotion, reportMotion, setPageMotion, setReportMotion, setVisualMotion, visualMotion, type BookmarkMotion, type DrillthroughMotion, type PageTransition, type ReportMotion, type VisualEntrance } from '@core/report/motion'
 import type { PageDocument, VisualDocument } from '@core/report/types'
 import { useApp } from '../../state/store'
 import { findPage, findVisual } from '../../report/pbir'
@@ -13,9 +13,28 @@ import { CollapsibleCard, Dropdown, Toggle } from '../../app/ui'
 import { SpinField } from './controls'
 import { matchesSearch } from './PropEditor'
 import { motionAllowed, replayMotion } from '../../report/motion/env'
-import { playPageTransition } from '../../report/motion/pageTransition'
+import { previewPageTransition } from '../../report/motion/pageTransition'
 
-const TRANSITION_LABELS: Record<PageTransition, string> = { none: 'None', fade: 'Fade', slide: 'Slide', rise: 'Rise', zoom: 'Zoom' }
+const TRANSITION_LABELS: Record<PageTransition, string> = {
+  none: 'None',
+  fade: 'Fade',
+  slide: 'Slide',
+  push: 'Push',
+  rise: 'Rise',
+  zoom: 'Zoom',
+  depth: 'Depth',
+  wipe: 'Wipe',
+  circle: 'Circle reveal',
+  morph: 'Morph (shared visuals glide)'
+}
+const DRILL_OPTIONS: Array<{ value: DrillthroughMotion; label: string }> = [
+  { value: 'zoom', label: 'Zoom from the visual' },
+  { value: 'page', label: 'Page transition' }
+]
+const BOOKMARK_OPTIONS: Array<{ value: BookmarkMotion; label: string }> = [
+  { value: 'morph', label: 'Morph' },
+  { value: 'none', label: 'None' }
+]
 const ENTRANCES: Array<{ value: VisualEntrance; label: string }> = [
   { value: 'auto', label: 'Auto (by visual type)' },
   { value: 'fade', label: 'Fade in' },
@@ -45,11 +64,11 @@ function Note({ text }: { text: string }) {
 export function previewMotion(transition: PageTransition, duration: number): void {
   if (!motionAllowed()) return
   const page = document.querySelector<HTMLElement>('.wbi-report .wbi-page-shadow') ?? document.querySelector<HTMLElement>('.wbi-report .wbi-page-outer')
-  if (page && transition !== 'none') playPageTransition(page, transition, 1, duration)
+  if (page && transition !== 'none') previewPageTransition(page, transition, duration)
   replayMotion()
 }
 
-export const MOTION_SEARCH = ['Animations', 'Page transition', 'Animate visuals', 'Duration', 'Stagger', 'Default page transition', 'Transition duration', 'Animation', 'Entrance', 'Delay']
+export const MOTION_SEARCH = ['Animations', 'Page transition', 'Animate visuals', 'Duration', 'Stagger', 'Default page transition', 'Transition duration', 'Drill-through', 'Bookmarks', 'Animation', 'Entrance', 'Delay']
 
 export function PageMotionCard({ page, search }: { page: PageDocument; search: string }) {
   const mutate = useApp((s) => s.mutateReport)
@@ -101,6 +120,12 @@ export function PageMotionCard({ page, search }: { page: PageDocument; search: s
         </Row>
         <Row label="Transition duration (ms)">
           <SpinField label="Transition duration (ms)" integer step={50} value={rm.transitionDuration} min={MOTION_LIMITS.transitionDuration[0]} max={MOTION_LIMITS.transitionDuration[1]} onChange={(v) => v !== undefined && setReport('Transition duration', { transitionDuration: v })} />
+        </Row>
+        <Row label="Drill-through">
+          <Dropdown size="small" title="Drill-through" value={rm.drillthrough} options={DRILL_OPTIONS} onChange={(v) => setReport('Drill-through transition', { drillthrough: v as DrillthroughMotion })} />
+        </Row>
+        <Row label="Bookmarks">
+          <Dropdown size="small" title="Bookmarks" value={rm.bookmarks} options={BOOKMARK_OPTIONS} onChange={(v) => setReport('Bookmark transition', { bookmarks: v as BookmarkMotion })} />
         </Row>
       </CollapsibleCard>
       <div className="wbi-fmt__row">

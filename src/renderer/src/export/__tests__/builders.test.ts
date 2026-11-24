@@ -74,6 +74,11 @@ describe('html', () => {
     expect(html).not.toContain('data-t="bogus"')
     expect(html).toContain('duration:420')
     expect(html).toContain('prefers-reduced-motion')
+    const two = buildHtml(pages, { reportName: 'R', transitions: { p1: 'circle', p2: 'push' } })
+    expect(two).toContain('data-t="circle"')
+    expect(two).toContain('data-t="push"')
+    // the page that leaves stays on screen while it moves out
+    expect(two).toContain(".pg.out{z-index:1")
   })
 })
 

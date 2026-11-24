@@ -11,8 +11,20 @@ new one. Pages can also enter with a transition when you move between them, whic
 
 1. Click an empty spot of the canvas so that no visual is selected.
 2. In the **Visualizations** pane, select **Format page** and open **Animations**.
-3. Set **Page transition** for this page: **Report default**, **None**, **Fade**, **Slide**, **Rise** or **Zoom**.
-   **Slide** comes in from the right when you move forward through the pages and from the left when you go back.
+3. Set **Page transition** for this page (or keep **Report default**):
+
+| Transition | What you see |
+|---|---|
+| **None** | The page switches at once, as in Power BI. |
+| **Fade** | The new page fades in. |
+| **Slide** | The new page slides in: from the right when you move forward through the pages, from the left when you go back. |
+| **Push** | The old page slides out while the new one slides in, in the same directions as **Slide**. |
+| **Rise** | The new page rises into place. |
+| **Zoom** | The new page grows into place. |
+| **Depth** | The old page sinks back and fades while the new one rises to the front. |
+| **Wipe** | A straight edge uncovers the new page, left to right going forward and right to left going back. |
+| **Circle reveal** | A circle that opens from the tab or button you clicked uncovers the new page. |
+| **Morph (shared visuals glide)** | Visuals the two pages share glide from their old place to the new one, and the rest cross-fade. Visuals count as shared when they have the same type, the same fields and the same title, and appear once on each page. |
 4. Under **Report**, set what applies to every page:
 
 | Setting | Default | What it does |
@@ -22,8 +34,14 @@ new one. Pages can also enter with a transition when you move between them, whic
 | **Stagger (ms)** | 0 | A delay between visuals entering a page, top to bottom, then left to right (0 to 400). |
 | **Default page transition** | None | The transition of every page that keeps **Report default**. |
 | **Transition duration (ms)** | 350 | How long a page transition takes (100 to 1500). |
+| **Drill-through** | Zoom from the visual | **Zoom from the visual** grows the drill-through page out of the visual you drilled from, and **Back** shrinks it into that visual again. **Page transition** uses the target page's transition instead. |
+| **Bookmarks** | Morph | **Morph** fades in the visuals a bookmark shows, fades out the ones it hides and moves the ones it moves. **None** switches at once, as in Power BI. |
 
-**Preview** plays the page's transition and every visual's entrance once.
+**Preview** plays the page's transition and every visual's entrance once. For the transitions that move the old page
+too, the open page stands in for it.
+
+Transitions only move a still copy of the page that leaves and the page that enters, so they stay smooth on large
+pages: nothing is drawn again while they play.
 
 Page transitions play in the reading view and in published dashboards. While you edit, pages switch at once, so moving
 around the report stays quick. Visual animations play in both.
@@ -57,12 +75,13 @@ same settings from the report. Clear **Keep visual animations and page transitio
 a dashboard that doesn't move. The page pictures Lumen saves for Lumen Server's gallery are taken without motion.
 
 [Export to HTML](export-a-report.md) embeds pictures of the pages, so visuals can't animate there, but the page
-transitions play when you switch pages.
+transitions play when you switch pages. **Morph** plays as a cross-fade there, because a page picture has no visuals to
+glide.
 
 ## In Power BI
 
 The settings are stored as Lumen annotations (`Lumen_Motion`) on the report, its pages and its visuals. Power BI
 Desktop keeps them when it opens and saves the project, and ignores them: visuals animate the way Power BI animates them,
-and pages switch without a transition. Nothing else about the report changes, so a report with animations opens in
+pages switch without a transition, drill-through and Back switch at once, and bookmarks apply without a morph. Nothing else about the report changes, so a report with animations opens in
 Power BI like any other. [Working with PBIP projects](../files-and-compatibility/working-with-pbip-projects.md) lists
 every extension Lumen writes.

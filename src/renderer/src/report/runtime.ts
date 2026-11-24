@@ -10,6 +10,7 @@ import type { PageDocument, ReportDocument } from '@core/report/types'
 import type { DrillState } from '../visuals/contract'
 import { addBookmark, captureBookmark, deleteBookmark, planBookmarkApply, updateBookmark, type CaptureOptions, type RuntimeSnapshot } from './bookmarks'
 import { buildDrillthrough, includeExcludeCard } from './filters'
+import { beforeBookmark, noteNavigation } from './motion/pageTransition'
 import {
   drillthroughFields,
   findPage,
@@ -162,7 +163,9 @@ export function navigatePage(pageName: string, opts: { pushBack?: boolean } = {}
 
 export function goBack(): void {
   const prev = useInteraction.getState().popBack()
-  if (prev) navigatePage(prev, { pushBack: false })
+  if (!prev) return
+  noteNavigation('back')
+  navigatePage(prev, { pushBack: false })
 }
 
 /** Drill-through targets available for a data point (pages whose drill-through fields match). */
@@ -185,6 +188,7 @@ export function drillthrough(sourcePage: string, targetPage: string, identity: D
   const dt = buildDrillthrough(drillthroughFields(target), identity, sourceFilters, keepsAllFilters(target))
   if (!dt) return
   useInteraction.getState().setDrillthrough(targetPage, { ...dt, fromPage: sourcePage })
+  noteNavigation('drill')
   navigatePage(targetPage)
 }
 
@@ -257,6 +261,7 @@ export function applyBookmark(name: string): void {
   const bm = r?.bookmarks.find((b) => b.name === name || b.json?.displayName === name)
   if (!r || !bm) return
   const plan = planBookmarkApply(r, bm)
+  if (!plan.activePage || plan.activePage === app.activePage) beforeBookmark(app.activePage)
   app.patchReport(plan.mutate, 'Apply bookmark')
   const it = useInteraction.getState()
   for (const s of plan.slicers) it.setSlicer(s.page, s.visual, s.filter)

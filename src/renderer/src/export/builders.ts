@@ -89,7 +89,7 @@ export async function buildPptx(pages: ExportedPage[], meta: ExportMeta): Promis
  * Pages are embedded as images, so buttons drawn inside a page (page navigators, bookmarks, drillthrough) are
  * inert: one pointing at a page left out of the export cannot lead anywhere broken.
  */
-const TRANSITIONS = new Set(['fade', 'slide', 'rise', 'zoom'])
+const TRANSITIONS = new Set(['fade', 'slide', 'push', 'rise', 'zoom', 'depth', 'wipe', 'circle', 'morph'])
 
 function transitionAttr(t: string | undefined): string {
   return t && TRANSITIONS.has(t) ? ` data-t="${t}"` : ''
@@ -121,7 +121,9 @@ header h1{font-size:14px;font-weight:600;margin:0;flex:1;white-space:nowrap;over
 header span{color:#605E5C;font-size:12px}
 main{flex:1;min-height:0;position:relative;overflow:hidden}
 .pg{display:none;position:absolute;left:50%;top:50%;transform-origin:center center;box-shadow:0 1.6px 3.6px rgba(0,0,0,.13),0 .3px .9px rgba(0,0,0,.11);background:#fff}
-.pg.on{display:block}
+.pg.on,.pg.out{display:block}
+.pg.on{z-index:2}
+.pg.out{z-index:1;pointer-events:none}
 .pg img{display:block}
 nav{display:flex;align-items:stretch;gap:0;height:36px;background:#fff;border-top:1px solid #E1DFDD;overflow-x:auto;padding:0 8px}
 nav .arrow{border:0;background:transparent;width:28px;font-size:14px;color:#605E5C;cursor:pointer}
@@ -147,10 +149,20 @@ ${sections}
   var stage=document.getElementById('stage');
   var cur=0;
   var still=!document.body.animate||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
-  function enter(p,dir){
+  function enter(p,dir,o){
     var t=p.dataset.t; if(still||!t) return;
-    var f=t==='slide'?[{opacity:0,translate:(dir*120)+'px 0'},{opacity:1,translate:'0 0'}]:t==='rise'?[{opacity:0,translate:'0 24px'},{opacity:1,translate:'0 0'}]:t==='zoom'?[{opacity:0,scale:'0.96'},{opacity:1,scale:'1'}]:[{opacity:0},{opacity:1}];
-    p.animate(f,{duration:${tms},easing:'cubic-bezier(0.22, 0.8, 0.3, 1)'});
+    var e='cubic-bezier(0.22, 0.8, 0.3, 1)', k={duration:${tms},easing:e};
+    var f, g=null;
+    if(t==='slide') f=[{opacity:0,translate:(dir*120)+'px 0'},{opacity:1,translate:'0 0'}];
+    else if(t==='push'){f=[{opacity:0,translate:(dir*120)+'px 0'},{opacity:1,translate:'0 0'}];g=[{opacity:1,translate:'0 0'},{opacity:0,translate:(-dir*120)+'px 0'}]}
+    else if(t==='rise') f=[{opacity:0,translate:'0 24px'},{opacity:1,translate:'0 0'}];
+    else if(t==='zoom') f=[{opacity:0,scale:'0.96'},{opacity:1,scale:'1'}];
+    else if(t==='depth'){f=[{opacity:0,translate:'0 16px',scale:'0.98'},{opacity:1,translate:'0 0',scale:'1'}];g=[{opacity:1,scale:'1'},{opacity:0,scale:'0.92'}]}
+    else if(t==='wipe'){f=[{clipPath:dir>0?'inset(0 100% 0 0)':'inset(0 0 0 100%)'},{clipPath:'inset(0 0 0 0)'}];g=[{opacity:1},{opacity:1}]}
+    else if(t==='circle'){f=[{clipPath:'circle(0% at 50% 50%)'},{clipPath:'circle(71% at 50% 50%)'}];g=[{opacity:1},{opacity:1}]}
+    else{f=[{opacity:0},{opacity:1}];if(t==='morph')g=[{opacity:1},{opacity:0}]}
+    p.animate(f,k);
+    if(g&&o){o.classList.add('out');o.animate(g,k).onfinish=function(){o.classList.remove('out')}}
   }
   function fit(){
     var p=pages[cur]; if(!p) return;
@@ -169,7 +181,7 @@ ${sections}
     document.getElementById('prev').disabled=cur===0;
     document.getElementById('next').disabled=cur===pages.length-1;
     fit();
-    if(from!==cur) enter(pages[cur],cur>from?1:-1);
+    if(from!==cur) enter(pages[cur],cur>from?1:-1,pages[from]);
   }
   tabs.forEach(function(t){t.addEventListener('click',function(){show(+t.dataset.i)})});
   document.getElementById('prev').addEventListener('click',function(){show(cur-1)});

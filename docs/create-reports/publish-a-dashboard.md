@@ -78,7 +78,7 @@ and the data are not sent in clear. `server/README.md` lists the server's settin
 |---|---|
 | `index.html`, `assets/` | The dashboard viewer: Lumen's report canvas and engines, built for the browser. |
 | `report.wbi` | The report and its model with the data, in the [`.wbi` bundle](../files-and-compatibility/the-wbi-bundle.md) format. |
-| `lumen-publish.json` | Title, publish time and the visible pages. |
+| `lumen-publish.json` | Title, publish time, the visible pages and what moves (`motion`: animations on or off and the page transitions in use). |
 
 Open the dashboard through a web server (`http://` or `https://`). Browsers don't run the viewer from a folder
 opened as a file. To try a published folder locally, run a static server in it, for example
@@ -97,6 +97,15 @@ Publish only data you are allowed to share, and put private dashboards behind a 
   whole table (`ALL(Sales)`, `COUNTROWS(Sales)`). The model keeps every column, so numbers don't change.
 - **Leave out Power Query queries** (on by default) replaces every M query and parameter with a placeholder, so
   server names, file paths and parameter values are not published. The published dashboard never refreshes.
+
+## Motion
+
+**Keep visual animations and page transitions** (on by default) publishes the report's
+[animations and page transitions](animations-and-page-transitions.md) with it: visuals animate when they appear and
+when a visitor filters, and pages enter with their transition. Clear it to publish a dashboard that doesn't move. The
+dialog says what the dashboard will play. Visitors whose system asks for reduced motion see none, and an embed can add
+`?motion=off` to the dashboard's address. A dashboard published before Lumen had animations gets them when it is
+published again.
 
 The dialog lists what it will publish and warns when:
 

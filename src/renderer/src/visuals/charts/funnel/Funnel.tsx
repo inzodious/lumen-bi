@@ -19,6 +19,7 @@ import { pointTooltip } from '../../common/tooltip'
 import { EmptyVisual, NoData, VisualError, useVisualQuery } from '../../common/VisualState'
 import { ICONS } from '../icons'
 import { conversionRate, formatPercent, funnelLabelText, normalizeFunnelLabelStyle, percentOfFirst, percentOfPrevious } from './funnelMath'
+import { WIDEN_MARK } from '../../common/motionMarks'
 
 /** Bar height as a fraction of the row (PBI leaves a small gap between stages). */
 const BAR_FILL = 0.85
@@ -98,11 +99,11 @@ export function Funnel({ visual, width, height, ctx }: VisualProps) {
       const hw = (h / max) * plot.w
       nodes.push(
         <g key={c.key} {...handlers} style={{ cursor: 'pointer' }}>
-          <rect x={cx - w / 2} y={y} width={w} height={barH} fill={rgba(color, PBI.highlightBackOpacity)} />
-          <rect x={cx - hw / 2} y={y} width={hw} height={barH} fill={paint} />
+          <rect x={cx - w / 2} y={y} width={w} height={barH} fill={rgba(color, PBI.highlightBackOpacity)} {...WIDEN_MARK} />
+          <rect x={cx - hw / 2} y={y} width={hw} height={barH} fill={paint} {...WIDEN_MARK} />
         </g>
       )
-    } else nodes.push(<rect key={c.key} x={cx - w / 2} y={y} width={Math.max(0, w)} height={barH} fill={paint} opacity={op} style={{ cursor: 'pointer' }} {...handlers} />)
+    } else nodes.push(<rect key={c.key} x={cx - w / 2} y={y} width={Math.max(0, w)} height={barH} fill={paint} opacity={op} style={{ cursor: 'pointer' }} {...WIDEN_MARK} {...handlers} />)
     if (catShow)
       nodes.push(
         <text key={`c${c.key}`} x={plot.x - 6} y={y + barH / 2} dy="0.35em" textAnchor="end" {...fontAttrs(catT.font)} fill={catT.color} pointerEvents="none" opacity={op}>

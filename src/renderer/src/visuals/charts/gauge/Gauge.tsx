@@ -25,6 +25,7 @@ import { ICONS } from '../icons'
 import { arcPath, polar } from '../pie/pieLayout'
 import { GAUGE_INNER_RADIUS_FACTOR, gaugeAngle, gaugeRange } from './gaugeMath'
 import { distanceText, kpiDirection, kpiDistance, kpiStatus, signedPercent, type KpiStatus } from './kpiMath'
+import { COUNT_MARK, REVEAL_MARK, sweepMark } from '../../common/motionMarks'
 
 interface GaugeData {
   value: number | null
@@ -143,11 +144,11 @@ export function Gauge({ visual, width, height, ctx }: VisualProps) {
         <path d={arcPath(cx, cy, inner, r, a0, a1)} fill={track} />
         {g.highlight !== undefined ? (
           <>
-            <path d={arcPath(cx, cy, inner, r, a0, av)} fill={rgba(fill, PBI.highlightBackOpacity)} />
-            <path d={arcPath(cx, cy, inner, r, a0, gaugeAngle(g.highlight ?? min, min, max))} fill={fill} />
+            <path d={arcPath(cx, cy, inner, r, a0, av)} fill={rgba(fill, PBI.highlightBackOpacity)} {...sweepMark(cx, cy)} />
+            <path d={arcPath(cx, cy, inner, r, a0, gaugeAngle(g.highlight ?? min, min, max))} fill={fill} {...sweepMark(cx, cy)} />
           </>
         ) : (
-          <path d={arcPath(cx, cy, inner, r, a0, av)} fill={fill} />
+          <path d={arcPath(cx, cy, inner, r, a0, av)} fill={fill} {...sweepMark(cx, cy)} />
         )}
         {target !== null
           ? (() => {
@@ -169,7 +170,7 @@ export function Gauge({ visual, width, height, ctx }: VisualProps) {
           : null}
       </g>
       {calloutShow ? (
-        <text x={cx} y={cy - 2} textAnchor="middle" {...fontAttrs(callFont)} fill={fmt.color('calloutValue', 'color', callDefault.color)} pointerEvents="none">
+        <text x={cx} y={cy - 2} textAnchor="middle" {...fontAttrs(callFont)} fill={fmt.color('calloutValue', 'color', callDefault.color)} pointerEvents="none" {...COUNT_MARK}>
           {callText}
         </text>
       ) : null}
@@ -354,8 +355,8 @@ export function Kpi({ visual, width, height, ctx }: VisualProps) {
     >
       {showTrend ? (
         <g pointerEvents="none">
-          <path d={areaPath ?? ''} fill={statusColor} fillOpacity={(1 - trendTransp / 100) * 0.45} />
-          <path d={linePath ?? ''} fill="none" stroke={statusColor} strokeWidth={1.5} strokeOpacity={1 - trendTransp / 100} />
+          <path d={areaPath ?? ''} fill={statusColor} fillOpacity={(1 - trendTransp / 100) * 0.45} {...REVEAL_MARK} />
+          <path d={linePath ?? ''} fill="none" stroke={statusColor} strokeWidth={1.5} strokeOpacity={1 - trendTransp / 100} {...REVEAL_MARK} />
         </g>
       ) : null}
       {lastDateShow ? (
@@ -363,7 +364,7 @@ export function Kpi({ visual, width, height, ctx }: VisualProps) {
           {k.trendLabels[k.trendLabels.length - 1]}
         </text>
       ) : null}
-      <text x={startX} y={valueY} dy="0.35em" {...fontAttrs(valFont)} fill={fmt.color('indicator', 'fontColor', fmt.color('indicator', 'color', callout.color))}>
+      <text x={startX} y={valueY} dy="0.35em" {...fontAttrs(valFont)} fill={fmt.color('indicator', 'fontColor', fmt.color('indicator', 'color', callout.color))} {...COUNT_MARK}>
         {valueText}
       </text>
       {showIcon ? <StatusIcon x={startX + tw + 6} y={valueY} size={iconW} status={status} color={statusColor} /> : null}

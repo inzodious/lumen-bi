@@ -75,7 +75,8 @@ export async function withPreviews(files: SiteFiles, onProgress?: (fraction: num
     const ses = session.fromPartition(`lumen-preview-${randomBytes(6).toString('hex')}`, { cache: false })
     win = new BrowserWindow({ show: false, width: 1600, height: 1000, paintWhenInitiallyHidden: true, webPreferences: { session: ses, sandbox: true, backgroundThrottling: false, offscreen: true } })
     win.webContents.setFrameRate(30)
-    await win.loadURL(host.url)
+    // previews are stills: no visual animations or page transitions (renderer/src/report/motion/env.ts)
+    await win.loadURL(`${host.url}?motion=off`)
     if (!(await win.webContents.executeJavaScript(READY))) return files
     const pages = (await win.webContents.executeJavaScript(
       `[...document.querySelectorAll('.wbi-tabs [role=tab]')].filter((t) => !t.classList.contains('hidden')).map((t) => ({ page: t.dataset.pageName || '', displayName: (t.getAttribute('title') || t.textContent || '').trim() }))`

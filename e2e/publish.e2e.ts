@@ -50,6 +50,7 @@ describe('publish dashboard', () => {
     const { page, app, tmp } = lumen()
     const dlg = await openPublish(page)
     await expect.poll(() => dlg.locator('.wbi-pub__summary').innerText()).toMatch(/tables?, [\d,]+ rows/)
+    await expect(dlg.locator('.wbi-pub__motion').innerText()).resolves.toMatch(/^Visuals animate on load and when filters change; pages switch without a transition/)
     await dlg.getByRole('textbox').first().fill('Sales dashboard')
     await dlg.getByRole('radio', { name: 'Folder' }).click()
     if (SHOTS) await page.screenshot({ path: join(SHOTS, 'publish-dialog.png') })
@@ -60,6 +61,8 @@ describe('publish dashboard', () => {
     const manifest = JSON.parse(readFileSync(join(site, 'lumen-publish.json'), 'utf8'))
     expect(manifest).toMatchObject({ format: 'lumen-publish', title: 'Sales dashboard', bundle: 'report.wbi' })
     expect(manifest.pages.length).toBeGreaterThan(0)
+    // the sample report keeps Lumen's default motion: visuals animate, no page transitions
+    expect(manifest.motion).toEqual({ animate: true, transitions: [] })
 
     const { url, server } = await serve(site)
     try {

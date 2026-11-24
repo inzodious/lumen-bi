@@ -33,19 +33,22 @@ export interface PublishPrefs {
   target: PublishTargetId
   trimData: boolean
   stripQueries: boolean
+  /** keep visual animations and page transitions */
+  motion: boolean
 }
 
 const PREFS_KEY = 'lumen.publish'
 
 function readPrefs(): PublishPrefs {
-  const fallback: PublishPrefs = { target: 'folder', trimData: true, stripQueries: true }
+  const fallback: PublishPrefs = { target: 'folder', trimData: true, stripQueries: true, motion: true }
   try {
     const raw = JSON.parse(localStorage.getItem(PREFS_KEY) ?? 'null') as Partial<PublishPrefs> | null
     if (!raw) return fallback
     return {
       target: typeof raw.target === 'string' && raw.target ? raw.target : fallback.target,
       trimData: raw.trimData !== false,
-      stripQueries: raw.stripQueries !== false
+      stripQueries: raw.stripQueries !== false,
+      motion: raw.motion !== false
     }
   } catch {
     return fallback
@@ -57,9 +60,9 @@ export const usePublishPrefs = create<PublishPrefs & { set(p: Partial<PublishPre
   ...readPrefs(),
   set: (p) => {
     set(p)
-    const { target, trimData, stripQueries } = get()
+    const { target, trimData, stripQueries, motion } = get()
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ target, trimData, stripQueries }))
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ target, trimData, stripQueries, motion }))
     } catch {
       /* ignore */
     }

@@ -58,11 +58,11 @@ function PublishBody() {
 
   const preview = useMemo(() => {
     try {
-      return { summary: publishPreview(project, { trimData: prefs.trimData, stripQueries: prefs.stripQueries }), error: null }
+      return { summary: publishPreview(project, { trimData: prefs.trimData, stripQueries: prefs.stripQueries, motion: prefs.motion }), error: null }
     } catch (e) {
       return { summary: null, error: e instanceof Error ? e.message : String(e) }
     }
-  }, [project, prefs.trimData, prefs.stripQueries])
+  }, [project, prefs.trimData, prefs.stripQueries, prefs.motion])
   const needsPassword = selected?.kind === 'lumen-server' && access === 'password' && !password
   const go = () => {
     if (!preview.summary || needsPassword) return
@@ -73,7 +73,7 @@ function PublishBody() {
     }
     close()
     const lumenAccess = selected?.kind === 'lumen-server' && access !== 'keep' ? { mode: access, ...(access === 'password' ? { password } : {}) } : undefined
-    void publishReport({ target, title, site: finalSite, access: lumenAccess, trimData: prefs.trimData, stripQueries: prefs.stripQueries })
+    void publishReport({ target, title, site: finalSite, access: lumenAccess, trimData: prefs.trimData, stripQueries: prefs.stripQueries, motion: prefs.motion })
   }
   const test = async () => {
     if (!selected) return
@@ -181,6 +181,11 @@ function PublishBody() {
             </div>
           ) : null}
         </div>
+        <div className="wbi-pub__section">
+          <div className="wbi-pub__label">Motion</div>
+          <Checkbox checked={prefs.motion} onChange={(v) => prefs.set({ motion: !!v })} label="Keep visual animations and page transitions" />
+          {s ? <div className="wbi-pub__motion">{motionText(s.motion)}</div> : null}
+        </div>
         <div className="wbi-pub__note">
           <InfoRegular fontSize={16} />
           <span>Anyone who can open the published site can read the data it carries, the way Publish to web works in Power BI. Publish only what you are allowed to share.</span>
@@ -194,4 +199,11 @@ function PublishBody() {
       </div>
     </Modal>
   )
+}
+
+function motionText(m: { animate: boolean; transitions: string[] }): string {
+  const parts: string[] = []
+  parts.push(m.animate ? 'Visuals animate on load and when filters change' : 'Visuals don\'t animate')
+  parts.push(m.transitions.length ? `pages switch with a ${m.transitions.join(' / ')} transition` : 'pages switch without a transition')
+  return `${parts.join('; ')}. Visitors who ask their system for reduced motion see none.`
 }

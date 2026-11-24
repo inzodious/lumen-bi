@@ -11,6 +11,7 @@ import type { ProjectDocument } from '../project'
 import { pbipProjectFiles } from '../io/pbip'
 import { writeWbi } from '../io/wbi'
 import { orderedPageList } from './pages'
+import { motionSummary, stripMotion, type MotionSummary } from '../report/motion'
 import { columnUsage, isColumnKept } from './usage'
 
 export const PUBLISH_MANIFEST = 'lumen-publish.json'
@@ -25,6 +26,11 @@ export interface PublishOptions {
   trimData?: boolean
   /** leave out Power Query (M) queries and parameters, which hold server names and paths (default true) */
   stripQueries?: boolean
+  /**
+   * keep the report's visual animations and page transitions (Lumen_Motion, core/report/motion.ts) in the published
+   * dashboard (default true); false publishes it still: animations off, transitions removed
+   */
+  motion?: boolean
   /** title shown in the browser tab and the viewer header (default: the project name) */
   title?: string
   /** clock for the manifest (tests) */
@@ -43,6 +49,8 @@ export interface PublishManifest {
   /** visible pages in report order (hidden, tooltip and drillthrough-only pages are not listed) */
   pages: Array<{ name: string; displayName: string }>
   bytes: number
+  /** what moves in the dashboard (the viewer reads the settings from the report itself) */
+  motion: MotionSummary
 }
 
 export interface PublishSummary {
@@ -52,6 +60,8 @@ export interface PublishSummary {
   /** columns whose data was left out */
   columnsLeftOut: number
   queriesRemoved: number
+  /** visual animations and page transitions the dashboard will play */
+  motion: MotionSummary
   /** things the publisher should know before the site goes out (shown in the Publish dialog) */
   warnings: string[]
 }
@@ -129,7 +139,8 @@ function prepare(project: ProjectDocument, opts: PublishOptions): { model: Seman
   model.sidecarFiles = Object.fromEntries(Object.entries(model.sidecarFiles ?? {}).filter(([k]) => keepSidecars.includes(k)))
   const usage = columnUsage(project.model, project.report)
   const { data, leftOut, columns, rows } = trimmedData(project.model, project.data, trim, usage)
-  return { model, data, summary: { tables: data.tables.size, rows, columns, columnsLeftOut: leftOut, queriesRemoved, warnings: warningsFor(project, project.model) } }
+  const motion: MotionSummary = opts.motion === false ? { animate: false, transitions: [] } : motionSummary(project.report)
+  return { model, data, summary: { tables: data.tables.size, rows, columns, columnsLeftOut: leftOut, queriesRemoved, motion, warnings: warningsFor(project, project.model) } }
 }
 
 /** What publishing with `opts` would include, without building the bundle (the Publish dialog). Throws like buildPublishBundle. */
@@ -141,7 +152,12 @@ export function publishPreview(project: ProjectDocument, opts: PublishOptions = 
 export function buildPublishBundle(project: ProjectDocument, opts: PublishOptions = {}): PublishBundle {
   const { model, data, summary } = prepare(project, opts)
   const name = project.name || 'Report'
-  const { files: projectFiles } = pbipProjectFiles(name, model, project.report)
+  let report = project.report!
+  if (opts.motion === false) {
+    report = cloneDeep(report)
+    stripMotion(report)
+  }
+  const { files: projectFiles } = pbipProjectFiles(name, model, report)
   const wbi = writeWbi(name, projectFiles, data, { kind: 'publish' })
   const manifest: PublishManifest = {
     format: 'lumen-publish',
@@ -152,7 +168,8 @@ export function buildPublishBundle(project: ProjectDocument, opts: PublishOption
     generator: 'Lumen',
     bundle: PUBLISH_BUNDLE,
     pages: orderedPageList(project.report!),
-    bytes: wbi.byteLength
+    bytes: wbi.byteLength,
+    motion: summary.motion
   }
   return { files: { [PUBLISH_BUNDLE]: wbi, [PUBLISH_MANIFEST]: JSON.stringify(manifest, null, 2) }, manifest, summary }
 }

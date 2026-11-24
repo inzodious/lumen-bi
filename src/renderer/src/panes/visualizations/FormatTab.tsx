@@ -29,6 +29,7 @@ import { roleProjections, isValueProjection, nativeName } from './wells'
 import { CfDialogHost } from './cf/CfDialog'
 import { CellElementsCard } from './cf/FxControls'
 import { LevelSubtotalsCard, TableLayoutCard } from '../../visuals/tables/LayoutCard'
+import { PageMotionCard, VisualMotionCard } from './MotionCards'
 
 export function visualTarget(pageName: string, visual: VisualDocument, container: boolean, theme: ResolvedTheme): BagTarget {
   const pc = makePropContext(visual.json, theme)
@@ -155,6 +156,7 @@ function VisualFormat({ page, visual, theme, mobile = false }: { page: PageDocum
             {/* size / position on the phone are edited on the phone canvas */}
             {!mobile && <PropertiesCard page={page} visual={visual} vt={vt} ct={ct} search={search} extra={extraGeneral.filter((c) => !c.container && c.object === 'general')} />}
             <GroupedCards cards={CONTAINER_CARDS} target={ct} search={search} />
+            {!mobile && !isGroup && <VisualMotionCard page={page} visual={visual} search={search} />}
             {extraGeneral
               .filter((c) => !(c.object === 'general' && !c.container))
               .map((c) => (
@@ -480,6 +482,7 @@ function PageFormat({ page, theme }: { page: PageDocument; theme: ResolvedTheme 
         {PAGE_CARDS.map((c) => (
           <FormatCardView key={c.object} card={c} target={target} search={search} />
         ))}
+        <PageMotionCard page={page} search={search} />
         {matchesSearch(search, 'Filter cards', ...FILTER_CARD_PROPS.map((p) => p.displayName)) && (
           <CollapsibleCard title="Filter cards" defaultOpen={!!search}>
             <div className="wbi-fmt__row">

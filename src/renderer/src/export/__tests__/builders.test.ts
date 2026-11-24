@@ -65,6 +65,15 @@ describe('html', () => {
     expect(html).toContain(`data:image/png;base64,${bytesToBase64(PNG)}`)
     expect(html).toContain('Details &lt;&amp;&gt;')
     expect(html).toContain('<title>R &amp; D</title>')
+    expect(html).not.toContain('data-t=')
+  })
+
+  it('carries page transitions into the HTML viewer', () => {
+    const html = buildHtml(pages, { reportName: 'R', transitions: { p2: 'slide', p1: 'bogus' }, transitionDuration: 420 })
+    expect(html.match(/data-t="slide"/g)?.length).toBe(1)
+    expect(html).not.toContain('data-t="bogus"')
+    expect(html).toContain('duration:420')
+    expect(html).toContain('prefers-reduced-motion')
   })
 })
 

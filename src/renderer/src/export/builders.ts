@@ -1,7 +1,8 @@
 /**
  * Pure builders for report exports from captured page images:
  *   buildPptx  → PowerPoint (pptxgenjs): title slide + one full-bleed slide per page, notes with filters
- *   buildHtml  → single self-contained HTML viewer (base64 PNGs, PBI-like page tabs, ←/→ keys)
+ *   buildHtml  → single self-contained HTML viewer (base64 PNGs, PBI-like page tabs, ←/→ keys, the report's page
+ *                transitions; visual animations can't play on page images)
  */
 import { APP_NAME } from '../app/brand'
 
@@ -19,6 +20,9 @@ export interface ExportedPage {
 export interface ExportMeta {
   reportName: string
   exportedAt?: Date
+  /** Lumen page transitions (core/report/motion.ts) by page name, for the HTML viewer; absent = none */
+  transitions?: Record<string, string>
+  transitionDuration?: number
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {
@@ -85,15 +89,22 @@ export async function buildPptx(pages: ExportedPage[], meta: ExportMeta): Promis
  * Pages are embedded as images, so buttons drawn inside a page (page navigators, bookmarks, drillthrough) are
  * inert: one pointing at a page left out of the export cannot lead anywhere broken.
  */
+const TRANSITIONS = new Set(['fade', 'slide', 'rise', 'zoom'])
+
+function transitionAttr(t: string | undefined): string {
+  return t && TRANSITIONS.has(t) ? ` data-t="${t}"` : ''
+}
+
 export function buildHtml(pages: ExportedPage[], meta: ExportMeta): string {
   const when = meta.exportedAt ?? new Date()
   const sections = pages
     .map(
       (p, i) =>
-        `<section class="pg${i === 0 ? ' on' : ''}" data-i="${i}" data-w="${p.width}" data-h="${p.height}" aria-label="${escapeHtml(p.displayName)}"><img alt="${escapeHtml(p.displayName)}" src="${pngDataUrl(p.png)}" width="${p.width}" height="${p.height}"></section>`
+        `<section class="pg${i === 0 ? ' on' : ''}" data-i="${i}" data-w="${p.width}" data-h="${p.height}"${transitionAttr(meta.transitions?.[p.name])} aria-label="${escapeHtml(p.displayName)}"><img alt="${escapeHtml(p.displayName)}" src="${pngDataUrl(p.png)}" width="${p.width}" height="${p.height}"></section>`
     )
     .join('\n')
   const tabs = pages.map((p, i) => `<button type="button" class="tab${i === 0 ? ' on' : ''}" data-i="${i}">${escapeHtml(p.displayName)}</button>`).join('')
+  const tms = Math.max(100, Math.min(1500, Math.round(meta.transitionDuration ?? 350)))
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -135,6 +146,12 @@ ${sections}
   var tabs=[].slice.call(document.querySelectorAll('.tab'));
   var stage=document.getElementById('stage');
   var cur=0;
+  var still=!document.body.animate||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function enter(p,dir){
+    var t=p.dataset.t; if(still||!t) return;
+    var f=t==='slide'?[{opacity:0,translate:(dir*120)+'px 0'},{opacity:1,translate:'0 0'}]:t==='rise'?[{opacity:0,translate:'0 24px'},{opacity:1,translate:'0 0'}]:t==='zoom'?[{opacity:0,scale:'0.96'},{opacity:1,scale:'1'}]:[{opacity:0},{opacity:1}];
+    p.animate(f,{duration:${tms},easing:'cubic-bezier(0.22, 0.8, 0.3, 1)'});
+  }
   function fit(){
     var p=pages[cur]; if(!p) return;
     var w=+p.dataset.w, h=+p.dataset.h;
@@ -143,6 +160,7 @@ ${sections}
   }
   function show(i){
     if(i<0||i>=pages.length) return;
+    var from=cur;
     pages[cur].classList.remove('on'); tabs[cur].classList.remove('on');
     cur=i;
     pages[cur].classList.add('on'); tabs[cur].classList.add('on');
@@ -151,6 +169,7 @@ ${sections}
     document.getElementById('prev').disabled=cur===0;
     document.getElementById('next').disabled=cur===pages.length-1;
     fit();
+    if(from!==cur) enter(pages[cur],cur>from?1:-1);
   }
   tabs.forEach(function(t){t.addEventListener('click',function(){show(+t.dataset.i)})});
   document.getElementById('prev').addEventListener('click',function(){show(cur-1)});

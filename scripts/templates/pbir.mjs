@@ -47,8 +47,9 @@ export function pageJson(id, page, name) {
 /**
  * The report half of a PBIP project: definition.pbir, report.json, theme and images, pages and visuals.
  * sampleData: the report draws samples on empty visuals (templates); off for the live dashboards.
+ * motion: the report's Lumen_Motion settings (src/core/report/motion.ts), e.g. { transition: 'slide', stagger: 40 }.
  */
-export function writeReport(design, rp, { sampleData = false } = {}) {
+export function writeReport(design, rp, { sampleData = false, motion } = {}) {
   const seed = design.id
   write(join(rp, 'definition.pbir'), json({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definitionProperties/2.0.0/schema.json', version: '4.0', datasetReference: { byPath: { path: `../${design.name}.SemanticModel` } } }))
   write(join(rp, 'definition', 'version.json'), json({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json', version: '2.0.0' }))
@@ -72,7 +73,9 @@ export function writeReport(design, rp, { sampleData = false } = {}) {
       },
       { name: 'SharedResources', type: 'SharedResources', items: [{ name: 'CY24SU10', path: 'BaseThemes/CY24SU10.json', type: 'BaseTheme' }] }
     ],
-    ...(sampleData ? { annotations: [{ name: 'Lumen_SampleData', value: 'on' }] } : {}),
+    ...(sampleData || motion
+      ? { annotations: [...(sampleData ? [{ name: 'Lumen_SampleData', value: 'on' }] : []), ...(motion ? [{ name: 'Lumen_Motion', value: JSON.stringify(motion) }] : [])] }
+      : {}),
     settings: {
       useStylableVisualContainerHeader: true,
       exportDataMode: 'AllowSummarized',

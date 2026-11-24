@@ -23,6 +23,7 @@ import { readReferenceLines } from '../scatter/referenceLines'
 import { refLineNodes } from '../scatter/RefLineLayer'
 import { axisTitleWithUnits } from '../scatter/scatterModel'
 import type { DataPointIdentity } from '@core/report/sq'
+import { barMark } from '../../common/motionMarks'
 
 /** Default data-label position (also shown by the Format pane). */
 export const WATERFALL_LABEL_POSITION = 'Auto'
@@ -203,6 +204,7 @@ export function Waterfall({ visual, width, height, ctx }: VisualProps) {
         fill={colors[s.kind]}
         opacity={op}
         style={{ cursor: 'pointer' }}
+        {...barMark(true, s.value < 0)}
         onClick={(e: ReactMouseEvent) => (id.fields.length ? inter.onPointClick(id, e, { categoryOnly: pointIdentity(s.ci !== undefined ? d.categories[s.ci] : undefined, undefined) }) : e.stopPropagation())}
         onContextMenu={(e) => inter.onContextMenu(id, e)}
         onMouseMove={(e) => inter.showTooltip(e, tips, id)}

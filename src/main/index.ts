@@ -9,6 +9,7 @@ import { registerConnectorIpc } from './ipc/connectors'
 import { registerPublishIpc } from './ipc/publish'
 import { buildMenu } from './menu'
 import { blockCacheArgs } from '../shared/cacheGuard'
+import { STILL_ARG } from '../shared/still'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -86,7 +87,8 @@ function createWindow(): void {
       nodeIntegration: false,
       webSecurity: true,
       // WBI_BLOCK_CACHE=1: the preload sets __LUMEN_BLOCK_CACHE_ABF__ so PBIP .pbi/cache.abf is never decoded
-      additionalArguments: blockCacheArgs(process.env),
+      // capture / sweep / e2e: --lumen-still turns visual animations and page transitions off (shared/still.ts)
+      additionalArguments: [...blockCacheArgs(process.env), ...(capturePath || sweepMode || e2eMode ? [STILL_ARG] : [])],
       // capture / sweep: keep rendering/painting while hidden (else capturePage returns a stale frame)
       ...(capturePath || sweepMode || e2eMode ? { backgroundThrottling: false } : {})
     }

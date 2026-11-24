@@ -55,6 +55,7 @@ follow them without your own data. Where Lumen behaves differently from Power BI
 | [Bookmarks](bookmarks.md) | How-to | Capture and apply the state of a page |
 | [Buttons and page navigation](buttons-and-page-navigation.md) | How-to | Buttons, actions, the page navigator |
 | [Mobile layout](mobile-layout.md) | How-to | Lay out a page for phones |
+| [Animations and page transitions](animations-and-page-transitions.md) | How-to | How visuals animate, page transitions, turning motion off, what Power BI does with it |
 
 ## Export and check
 

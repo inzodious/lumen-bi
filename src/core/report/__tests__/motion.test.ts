@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_REPORT_MOTION,
   MOTION_ANNOTATION,
+  clearSequence,
   entranceDelay,
+  entranceSchedule,
+  hoverOrigin,
+  hoverStyle,
+  pageTransitionTiming,
+  sequenceOrder,
+  setSequence,
   isPinned,
   motionFamily,
   motionSummary,
@@ -24,7 +31,7 @@ const annotated = (value: unknown) => ({ annotations: [{ name: MOTION_ANNOTATION
 describe('report motion', () => {
   it('defaults to animated visuals and no page transition', () => {
     expect(reportMotion(undefined)).toEqual(DEFAULT_REPORT_MOTION)
-    expect(reportMotion({})).toEqual({ animate: true, duration: 500, stagger: 0, transition: 'none', transitionDuration: 350, drillthrough: 'zoom', bookmarks: 'morph' })
+    expect(reportMotion({})).toEqual({ animate: true, duration: 500, stagger: 0, easing: 'smooth', updateDuration: 0, transition: 'none', transitionDuration: 350, transitionEasing: 'smooth', drillthrough: 'zoom', bookmarks: 'morph' })
   })
 
   it('reads, clamps and ignores invalid values', () => {
@@ -32,8 +39,11 @@ describe('report motion', () => {
       animate: false,
       duration: 2000,
       stagger: 0,
+      easing: 'smooth',
+      updateDuration: 0,
       transition: 'none',
       transitionDuration: 420,
+      transitionEasing: 'smooth',
       drillthrough: 'zoom',
       bookmarks: 'none'
     })
@@ -70,6 +80,8 @@ describe('page motion', () => {
     setPageMotion(page, { transition: 'none' })
     expect(pageTransition(report, page)).toBe('none')
     setPageMotion(page, {})
+    expect(pageTransition(report, page)).toBe('none')
+    setPageMotion(page, { transition: undefined })
     expect(page.annotations).toBeUndefined()
     expect(pageTransition(report, page)).toBe('slide')
   })
@@ -91,6 +103,92 @@ describe('visual motion', () => {
     const m = { ...DEFAULT_REPORT_MOTION, stagger: 50 }
     expect(entranceDelay(m, {}, 0)).toBe(0)
     expect(entranceDelay(m, { delay: 100 }, 3)).toBe(250)
+  })
+
+  it('stores sequence order, start, duration, easing and update', () => {
+    const v: any = {}
+    setVisualMotion(v, { order: 2, start: 'after', duration: 900, easing: 'linear', update: 'none' })
+    expect(visualMotion(v)).toEqual({ order: 2, start: 'after', duration: 900, easing: 'linear', update: 'none' })
+    setVisualMotion(v, { start: 'with', update: 'animate', duration: 50 })
+    expect(visualMotion(v)).toEqual({ order: 2, duration: 100, easing: 'linear' })
+    setVisualMotion(v, { order: undefined, duration: undefined, easing: 'bounce' as any })
+    expect(v.annotations).toBeUndefined()
+  })
+
+  it('stores a hover effect and its strength', () => {
+    const v: any = {}
+    setVisualMotion(v, { hover: 'enlarge', hoverAmount: 10 })
+    expect(visualMotion(v)).toEqual({ hover: 'enlarge' })
+    expect(hoverStyle(visualMotion(v))).toEqual({ transform: 'scale(1.1)' })
+    setVisualMotion(v, { hover: 'darken', hoverAmount: 99 })
+    expect(visualMotion(v)).toEqual({ hover: 'darken', hoverAmount: 50 })
+    expect(hoverStyle(visualMotion(v))).toEqual({ filter: 'brightness(0.5)' })
+    expect(hoverStyle({ hover: 'brighten', hoverAmount: 20 })).toEqual({ filter: 'brightness(1.2)' })
+    expect(hoverStyle({ hover: 'lift' })).toEqual({ transform: 'translateY(-4px)', boxShadow: '0 8px 16px rgba(0, 0, 0, 0.28)' })
+    setVisualMotion(v, { hover: 'none' })
+    expect(v.annotations).toBeUndefined()
+    expect(hoverStyle({})).toBeUndefined()
+  })
+
+  it('grows an enlarged visual away from the canvas edges', () => {
+    const page = { width: 1000, height: 600 }
+    expect(hoverOrigin({ x: 400, y: 200, width: 200, height: 100 }, page, 1.1)).toBe('50% 50%')
+    expect(hoverOrigin({ x: 0, y: 200, width: 200, height: 100 }, page, 1.1)).toBe('0% 50%')
+    expect(hoverOrigin({ x: 800, y: 500, width: 200, height: 100 }, page, 1.1)).toBe('100% 100%')
+    expect(hoverOrigin({ x: 5, y: 200, width: 200, height: 100 }, page, 1.1)).toBe('25% 50%')
+  })
+
+  it('stores page timing over the report default', () => {
+    const p: any = {}
+    setPageMotion(p, { transition: 'push', transitionDuration: 800, transitionEasing: 'overshoot', stagger: 40 })
+    expect(pageMotion(p)).toEqual({ transition: 'push', transitionDuration: 800, transitionEasing: 'overshoot', stagger: 40 })
+    const r = annotated({ transition: 'fade', transitionDuration: 500 })
+    expect(pageTransitionTiming(r, p)).toEqual({ kind: 'push', duration: 800, easing: 'overshoot' })
+    setPageMotion(p, { transition: undefined, transitionDuration: undefined, transitionEasing: undefined })
+    expect(pageMotion(p)).toEqual({ stagger: 40 })
+    expect(pageTransitionTiming(r, p)).toEqual({ kind: 'fade', duration: 500, easing: 'smooth' })
+  })
+
+  it('reads the report easing and update duration', () => {
+    const r: any = {}
+    setReportMotion(r, { easing: 'ease-out', updateDuration: 40, transitionEasing: 'linear' })
+    expect(reportMotion(r)).toMatchObject({ easing: 'ease-out', updateDuration: 100, transitionEasing: 'linear' })
+    setReportMotion(r, { easing: 'smooth', updateDuration: 0, transitionEasing: 'smooth' })
+    expect(r.annotations).toBeUndefined()
+  })
+
+  describe('sequence', () => {
+    const vis = (name: string, type: string, reading: number, m?: Record<string, unknown>) => ({ name, type, reading, json: m ? annotated(m) : {} })
+    const page = () => [vis('a', 'clusteredColumnChart', 0), vis('b', 'tableEx', 1), vis('s', 'slicer', 2), vis('c', 'cardVisual', 3), vis('t', 'textbox', 4, { entrance: 'rise' })]
+
+    it('keeps reading order and leaves out what never moves', () => {
+      expect(sequenceOrder(page()).map((v) => v.name)).toEqual(['a', 'b', 'c', 't'])
+      const pinned = page()
+      pinned[0].json = annotated({ pinned: true })
+      expect(sequenceOrder(pinned).map((v) => v.name)).toEqual(['b', 'c', 't'])
+    })
+
+    it('matches the old stagger when nothing is set', () => {
+      const m = { ...DEFAULT_REPORT_MOTION, stagger: 50 }
+      const s = entranceSchedule(m, {}, page())
+      expect([...s.values()].map((x) => x.start)).toEqual([0, 50, 100, 150])
+      expect(s.get('a')!.end).toBe(700)
+      expect(s.get('b')!.end).toBe(550)
+    })
+
+    it('puts ordered visuals first and starts after the previous ones finish', () => {
+      const list = page()
+      setSequence(list, ['c', 'a'])
+      list[1].json = annotated({ start: 'after', delay: 100, duration: 300, easing: 'linear' })
+      const s = entranceSchedule({ ...DEFAULT_REPORT_MOTION, stagger: 20 }, { stagger: 0 }, list)
+      expect([...s.keys()]).toEqual(['c', 'a', 'b', 't'])
+      expect(s.get('c')).toMatchObject({ index: 0, start: 0, end: 700 })
+      expect(s.get('a')).toMatchObject({ index: 1, start: 0, end: 700 })
+      expect(s.get('b')).toMatchObject({ index: 2, start: 800, duration: 300, end: 1100, easing: 'linear', mode: 'after' })
+      expect(s.get('t')).toMatchObject({ start: 700, end: 1200 })
+      clearSequence(list)
+      expect(sequenceOrder(list).map((v) => v.name)).toEqual(['a', 'b', 'c', 't'])
+    })
   })
 
   it('orders visuals by rows, then left to right', () => {

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "a7431ddbb960bcc4709a",
+  "position": {
+    "x": 1060,
+    "y": 80,
+    "z": 23000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 23000
+  },
+  "visualGroup": {
+    "displayName": "ACTIVE SITES",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

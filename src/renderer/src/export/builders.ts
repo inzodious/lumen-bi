@@ -23,6 +23,8 @@ export interface ExportMeta {
   /** Lumen page transitions (core/report/motion.ts) by page name, for the HTML viewer; absent = none */
   transitions?: Record<string, string>
   transitionDuration?: number
+  /** a page's own transition duration (ms) and CSS easing, over `transitionDuration` and Lumen's curve */
+  transitionTiming?: Record<string, { duration?: number; easing?: string }>
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {
@@ -91,8 +93,13 @@ export async function buildPptx(pages: ExportedPage[], meta: ExportMeta): Promis
  */
 const TRANSITIONS = new Set(['fade', 'slide', 'push', 'rise', 'zoom', 'depth', 'wipe', 'circle', 'morph'])
 
-function transitionAttr(t: string | undefined): string {
-  return t && TRANSITIONS.has(t) ? ` data-t="${t}"` : ''
+const CSS_EASING = /^(linear|cubic-bezier\(-?[\d.]+, ?-?[\d.]+, ?-?[\d.]+, ?-?[\d.]+\))$/
+
+function transitionAttr(t: string | undefined, timing?: { duration?: number; easing?: string }): string {
+  if (!t || !TRANSITIONS.has(t)) return ''
+  const d = timing?.duration !== undefined && Number.isFinite(timing.duration) ? ` data-d="${Math.max(100, Math.min(1500, Math.round(timing.duration)))}"` : ''
+  const e = timing?.easing && CSS_EASING.test(timing.easing) ? ` data-e="${timing.easing}"` : ''
+  return ` data-t="${t}"${d}${e}`
 }
 
 export function buildHtml(pages: ExportedPage[], meta: ExportMeta): string {
@@ -100,7 +107,7 @@ export function buildHtml(pages: ExportedPage[], meta: ExportMeta): string {
   const sections = pages
     .map(
       (p, i) =>
-        `<section class="pg${i === 0 ? ' on' : ''}" data-i="${i}" data-w="${p.width}" data-h="${p.height}"${transitionAttr(meta.transitions?.[p.name])} aria-label="${escapeHtml(p.displayName)}"><img alt="${escapeHtml(p.displayName)}" src="${pngDataUrl(p.png)}" width="${p.width}" height="${p.height}"></section>`
+        `<section class="pg${i === 0 ? ' on' : ''}" data-i="${i}" data-w="${p.width}" data-h="${p.height}"${transitionAttr(meta.transitions?.[p.name], meta.transitionTiming?.[p.name])} aria-label="${escapeHtml(p.displayName)}"><img alt="${escapeHtml(p.displayName)}" src="${pngDataUrl(p.png)}" width="${p.width}" height="${p.height}"></section>`
     )
     .join('\n')
   const tabs = pages.map((p, i) => `<button type="button" class="tab${i === 0 ? ' on' : ''}" data-i="${i}">${escapeHtml(p.displayName)}</button>`).join('')
@@ -151,7 +158,7 @@ ${sections}
   var still=!document.body.animate||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
   function enter(p,dir,o){
     var t=p.dataset.t; if(still||!t) return;
-    var e='cubic-bezier(0.22, 0.8, 0.3, 1)', k={duration:${tms},easing:e};
+    var e=p.dataset.e||'cubic-bezier(0.22, 0.8, 0.3, 1)', k={duration:p.dataset.d?+p.dataset.d:${tms},easing:e};
     var f, g=null;
     if(t==='slide') f=[{opacity:0,translate:(dir*120)+'px 0'},{opacity:1,translate:'0 0'}];
     else if(t==='push'){f=[{opacity:0,translate:(dir*120)+'px 0'},{opacity:1,translate:'0 0'}];g=[{opacity:1,translate:'0 0'},{opacity:0,translate:(-dir*120)+'px 0'}]}
@@ -161,9 +168,19 @@ ${sections}
     else if(t==='wipe'){f=[{clipPath:dir>0?'inset(0 100% 0 0)':'inset(0 0 0 100%)'},{clipPath:'inset(0 0 0 0)'}];g=[{opacity:1},{opacity:1}]}
     else if(t==='circle'){f=[{clipPath:'circle(0% at 50% 50%)'},{clipPath:'circle(71% at 50% 50%)'}];g=[{opacity:1},{opacity:1}]}
     else{f=[{opacity:0},{opacity:1}];if(t==='morph')g=[{opacity:1},{opacity:0}]}
-    p.animate(f,k);
+    clip(p);
+    var a=p.animate(f,k);
+    a.onfinish=a.oncancel=unclip;
     if(g&&o){o.classList.add('out');o.animate(g,k).onfinish=function(){o.classList.remove('out')}}
   }
+  // nothing a transition moves shows outside the page: the stage is clipped to the entering page while it plays
+  var clips=0;
+  function clip(p){
+    var s=stage.getBoundingClientRect(), r=p.getBoundingClientRect();
+    clips++;
+    stage.style.clipPath='inset('+(r.top-s.top)+'px '+(s.right-r.right)+'px '+(s.bottom-r.bottom)+'px '+(r.left-s.left)+'px)';
+  }
+  function unclip(){if(--clips<=0){clips=0;stage.style.clipPath=''}}
   function fit(){
     var p=pages[cur]; if(!p) return;
     var w=+p.dataset.w, h=+p.dataset.h;

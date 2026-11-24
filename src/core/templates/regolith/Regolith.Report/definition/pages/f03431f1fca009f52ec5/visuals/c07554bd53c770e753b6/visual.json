@@ -2,12 +2,12 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "c07554bd53c770e753b6",
   "position": {
-    "x": 644,
-    "y": 80,
-    "z": 16000,
+    "x": 0,
+    "y": 0,
+    "z": 0,
     "height": 96,
     "width": 196,
-    "tabOrder": 16000
+    "tabOrder": 0
   },
   "visual": {
     "visualType": "cardVisual",
@@ -323,5 +323,6 @@
       "name": "Lumen_SampleData",
       "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Ops\"}},\"Property\":\"Downtime Hours\"}},\"queryRef\":\"_Ops.Downtime Hours\",\"nativeQueryRef\":\"Downtime Hours\"}]}}}}"
     }
-  ]
+  ],
+  "parentGroupName": "5f1a8a967af2a8ed5042"
 }

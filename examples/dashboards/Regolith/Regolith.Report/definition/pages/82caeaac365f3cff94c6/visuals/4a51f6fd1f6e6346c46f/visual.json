@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "4a51f6fd1f6e6346c46f",
+  "position": {
+    "x": 852,
+    "y": 80,
+    "z": 26000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 26000
+  },
+  "visualGroup": {
+    "displayName": "DOWNTIME EVENTS",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

@@ -9,7 +9,7 @@ import {
   ClipboardPasteRegular, CutRegular, CopyRegular, PaintBrushRegular, DatabaseArrowRightRegular, DocumentTableRegular, DatabaseRegular, TableAddRegular,
   ArrowSyncRegular, DataBarVerticalAddRegular, TextFieldRegular, CalculatorRegular, CalculatorArrowClockwiseRegular, ShareRegular, SlideAddRegular, ImageRegular, IconsRegular,
   ShapesRegular, ButtonRegular, OrganizationRegular, BranchRegular, OptionsRegular, PersonSquareRegular, ColorRegular, PageFitRegular, ArrowAutofitWidthRegular,
-  RatioOneToOneRegular, FilterRegular, BookmarkRegular, LayerRegular, TimerRegular, QuestionCircleRegular, InfoRegular, LightbulbRegular, PeopleCommunityRegular,
+  RatioOneToOneRegular, FilterRegular, BookmarkRegular, LayerRegular, SlideTransitionRegular, TimerRegular, QuestionCircleRegular, InfoRegular, LightbulbRegular, PeopleCommunityRegular,
   BookOpenRegular, ArrowUpRegular, ArrowDownRegular, AlignLeftRegular, GroupRegular, ArrowForwardRegular, PauseRegular, PlayRegular, DataTrendingRegular,
   SparkleRegular, MathFormulaRegular, TableSearchRegular, ArrowStepInRegular, ArrowStepOutRegular, ArrowStepInRightRegular, ChevronDoubleDownRegular,
   TableSimpleRegular, FullScreenMaximizeRegular, DocumentArrowRightRegular, GlobeRegular, FolderRegular, DocumentTextRegular, TableEditRegular, ShieldPersonRegular,
@@ -406,6 +406,7 @@ function ViewTab() {
         <PaneToggle id="filters" label="Filters" icon={L(FilterRegular)} />
         <PaneToggle id="bookmarks" label="Bookmarks" icon={L(BookmarkRegular)} />
         <PaneToggle id="selection" label="Selection" icon={L(LayerRegular)} />
+        <PaneToggle id="animation" label="Animation" icon={L(SlideTransitionRegular)} />
         <PaneToggle id="performance" label="Performance analyzer" icon={L(TimerRegular)} />
         <PaneToggle id="syncSlicers" label="Sync slicers" icon={L(ArrowSyncCircleRegular)} />
       </RibbonGroup>

@@ -4,10 +4,10 @@
   "position": {
     "x": 860,
     "y": 190,
-    "z": 28000,
+    "z": 33000,
     "height": 230,
     "width": 396,
-    "tabOrder": 28000
+    "tabOrder": 33000
   },
   "visual": {
     "visualType": "donutChart",
@@ -512,6 +512,10 @@
     {
       "name": "Lumen_Style",
       "value": "{\"gradient\":{\"angle\":160,\"stops\":[\"#1A1F27F2\",\"#10141AF2\"]},\"glow\":{\"color\":\"#FF5C7A\",\"size\":18,\"opacity\":0.16}}"
+    },
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"lift\",\"hoverAmount\":6}"
     }
   ]
 }

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "9ec5490fbab9f4e23bd8",
+  "position": {
+    "x": 228,
+    "y": 80,
+    "z": 17000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 17000
+  },
+  "visualGroup": {
+    "displayName": "ORE EXTRACTED",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

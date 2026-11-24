@@ -6,9 +6,10 @@
  *    (on a group, only that switch).
  * Power BI ignores all of it (the settings are PBIR annotations), which the cards say.
  */
-import { PAGE_TRANSITIONS, MOTION_LIMITS, pageMotion, reportMotion, setPageMotion, setReportMotion, setVisualMotion, visualMotion, type BookmarkMotion, type DrillthroughMotion, type PageTransition, type ReportMotion, type VisualEntrance } from '@core/report/motion'
+import { DEFAULT_HOVER_AMOUNT, HOVER_EFFECTS, PAGE_TRANSITIONS, MOTION_LIMITS, pageTransitionTiming, type HoverEffect, type VisualMotion, pageMotion, reportMotion, setPageMotion, setReportMotion, setVisualMotion, visualMotion, type BookmarkMotion, type DrillthroughMotion, type MotionEasing, type PageTransition, type ReportMotion, type VisualEntrance } from '@core/report/motion'
 import type { PageDocument, VisualDocument } from '@core/report/types'
 import { useApp } from '../../state/store'
+import { useShell } from '../../app/shellState'
 import { findPage, findVisual } from '../../report/pbir'
 import { CollapsibleCard, Dropdown, Toggle } from '../../app/ui'
 import { SpinField } from './controls'
@@ -16,7 +17,7 @@ import { matchesSearch } from './PropEditor'
 import { motionAllowed, replayMotion } from '../../report/motion/env'
 import { previewPageTransition } from '../../report/motion/pageTransition'
 
-const TRANSITION_LABELS: Record<PageTransition, string> = {
+export const TRANSITION_LABELS: Record<PageTransition, string> = {
   none: 'None',
   fade: 'Fade',
   slide: 'Slide',
@@ -28,15 +29,15 @@ const TRANSITION_LABELS: Record<PageTransition, string> = {
   circle: 'Circle reveal',
   morph: 'Morph (shared visuals glide)'
 }
-const DRILL_OPTIONS: Array<{ value: DrillthroughMotion; label: string }> = [
+export const DRILL_OPTIONS: Array<{ value: DrillthroughMotion; label: string }> = [
   { value: 'zoom', label: 'Zoom from the visual' },
   { value: 'page', label: 'Page transition' }
 ]
-const BOOKMARK_OPTIONS: Array<{ value: BookmarkMotion; label: string }> = [
+export const BOOKMARK_OPTIONS: Array<{ value: BookmarkMotion; label: string }> = [
   { value: 'morph', label: 'Morph' },
   { value: 'none', label: 'None' }
 ]
-const ENTRANCES: Array<{ value: VisualEntrance; label: string }> = [
+export const ENTRANCES: Array<{ value: VisualEntrance; label: string }> = [
   { value: 'auto', label: 'Auto (by visual type)' },
   { value: 'fade', label: 'Fade in' },
   { value: 'rise', label: 'Rise' },
@@ -44,9 +45,9 @@ const ENTRANCES: Array<{ value: VisualEntrance; label: string }> = [
   { value: 'none', label: 'None' }
 ]
 
-const POWER_BI_NOTE = 'Lumen only: Power BI keeps these settings but ignores them. There, visuals animate the Power BI way and pages switch without a transition.'
+export const POWER_BI_NOTE = 'Lumen only: Power BI keeps these settings but ignores them. There, visuals animate the Power BI way and pages switch without a transition.'
 
-function Row({ label, children, inline }: { label: string; children: React.ReactNode; inline?: boolean }) {
+export function Row({ label, children, inline }: { label: string; children: React.ReactNode; inline?: boolean }) {
   return (
     <div className={'wbi-fmt__row' + (inline ? ' is-inline' : '')}>
       <div className="wbi-fmt__label">
@@ -57,15 +58,15 @@ function Row({ label, children, inline }: { label: string; children: React.React
   )
 }
 
-function Note({ text }: { text: string }) {
+export function Note({ text }: { text: string }) {
   return <div className="wbi-fmt__motion-note">{text}</div>
 }
 
 /** Play the open page's transition and every visual's entrance once. */
-export function previewMotion(transition: PageTransition, duration: number): void {
+export function previewMotion(transition: PageTransition, duration: number, easing?: MotionEasing): void {
   if (!motionAllowed()) return
   const page = document.querySelector<HTMLElement>('.wbi-report .wbi-page-shadow') ?? document.querySelector<HTMLElement>('.wbi-report .wbi-page-outer')
-  if (page && transition !== 'none') previewPageTransition(page, transition, duration)
+  if (page && transition !== 'none') previewPageTransition(page, transition, duration, easing)
   replayMotion()
 }
 
@@ -130,7 +131,10 @@ export function PageMotionCard({ page, search }: { page: PageDocument; search: s
         </Row>
       </CollapsibleCard>
       <div className="wbi-fmt__row">
-        <button type="button" className="wbi-link" disabled={!allowed} onClick={() => previewMotion(own ?? rm.transition, rm.transitionDuration)}>
+        <button type="button" className="wbi-link" disabled={!allowed} onClick={() => {
+          const t = pageTransitionTiming(reportJson, page.json)
+          previewMotion(t.kind, t.duration, t.easing)
+        }}>
           Preview
         </button>
       </div>
@@ -143,7 +147,7 @@ export function PageMotionCard({ page, search }: { page: PageDocument; search: s
 export function VisualMotionCard({ page, visual, search, group }: { page: PageDocument; visual: VisualDocument; search: string; group?: boolean }) {
   const mutate = useApp((s) => s.mutateReport)
   const reportJson = useApp((s) => s.project?.report?.report)
-  if (!matchesSearch(search, 'Animation', 'Entrance', 'Delay', 'Stay fixed', 'Pinned')) return null
+  if (!matchesSearch(search, 'Animation', 'Entrance', 'Delay', 'Stay fixed', 'Pinned', 'Hover')) return null
   const m = visualMotion(visual.json)
   const rm = reportMotion(reportJson)
   const set = (label: string, patch: Parameters<typeof setVisualMotion>[1]) =>
@@ -172,6 +176,12 @@ export function VisualMotionCard({ page, visual, search, group }: { page: PageDo
           {!rm.animate ? <Note text="Animate visuals is off for this report (page formatting ▸ Animations)." /> : null}
         </>
       ) : null}
+      <HoverRows motion={m} onChange={(label, patch) => set(label, patch)} />
+      <div className="wbi-fmt__row">
+        <button type="button" className="wbi-link" onClick={() => useShell.getState().setPane('animation', { open: true })}>
+          Sequence, timing and curves: Animation pane
+        </button>
+      </div>
       <Note text={m.pinned ? PINNED_NOTE : group ? GROUP_NOTE : POWER_BI_NOTE} />
     </CollapsibleCard>
   )
@@ -180,3 +190,28 @@ export function VisualMotionCard({ page, visual, search, group }: { page: PageDo
 const PINNED_NOTE =
   'Holds still while the rest of the page moves, when the page you came from has the same kind of visual or group in the same place (a sidebar copied to every page). It has no entrance animation. Lumen only: Power BI ignores this setting.'
 const GROUP_NOTE = 'Turn this on to keep the group and everything in it still during page transitions, like a sidebar. Lumen only: Power BI ignores this setting.'
+
+export const HOVER_LABELS: Record<HoverEffect, string> = {
+  none: 'None',
+  brighten: 'Brighten',
+  darken: 'Darken',
+  enlarge: 'Enlarge',
+  lift: 'Lift (shadow)'
+}
+
+/** Hover effect and its strength (also in the Format pane's General ▸ Animation card). */
+export function HoverRows({ motion, onChange }: { motion: VisualMotion; onChange(label: string, patch: VisualMotion): void }) {
+  return (
+    <>
+      <Row label="Hover effect">
+        <Dropdown size="small" title="Hover effect" value={motion.hover ?? 'none'} options={HOVER_EFFECTS.map((h) => ({ value: h, label: HOVER_LABELS[h] }))} onChange={(v) => onChange('Hover effect', { hover: v === 'none' ? undefined : (v as HoverEffect) })} />
+      </Row>
+      {motion.hover ? (
+        <Row label="Hover strength (%)">
+          <SpinField label="Hover strength (%)" integer step={1} value={motion.hoverAmount ?? DEFAULT_HOVER_AMOUNT} min={MOTION_LIMITS.hoverAmount[0]} max={MOTION_LIMITS.hoverAmount[1]} onChange={(v) => onChange('Hover strength', { hoverAmount: v })} />
+        </Row>
+      ) : null}
+      {motion.hover ? <Note text="Plays in reading view and in published dashboards, and never reaches past the canvas." /> : null}
+    </>
+  )
+}

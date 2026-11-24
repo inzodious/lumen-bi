@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "07afaf7a90a05cc0856e",
+  "position": {
+    "x": 852,
+    "y": 80,
+    "z": 22000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 22000
+  },
+  "visualGroup": {
+    "displayName": "DAYS IN TRANSIT",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

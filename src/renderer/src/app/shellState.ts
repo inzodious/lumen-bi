@@ -35,9 +35,9 @@ export interface PerfEntry {
 
 let nextPerfId = 1
 
-export type PaneId = 'filters' | 'visualizations' | 'data' | 'selection' | 'bookmarks' | 'syncSlicers' | 'performance'
+export type PaneId = 'filters' | 'visualizations' | 'data' | 'selection' | 'bookmarks' | 'syncSlicers' | 'performance' | 'animation'
 
-export const PANE_ORDER: PaneId[] = ['filters', 'visualizations', 'data', 'bookmarks', 'selection', 'syncSlicers', 'performance']
+export const PANE_ORDER: PaneId[] = ['filters', 'visualizations', 'data', 'bookmarks', 'selection', 'animation', 'syncSlicers', 'performance']
 
 export interface PaneState {
   open: boolean
@@ -122,7 +122,8 @@ function loadPanes(): Record<PaneId, PaneState> {
     selection: { open: false, collapsed: false, width: 240 },
     bookmarks: { open: false, collapsed: false, width: 240 },
     syncSlicers: { open: false, collapsed: false, width: 240 },
-    performance: { open: false, collapsed: false, width: 320 }
+    performance: { open: false, collapsed: false, width: 320 },
+    animation: { open: false, collapsed: false, width: 300 }
   }
   try {
     const saved = JSON.parse(localStorage.getItem('lumen.panes') ?? 'null')

@@ -125,17 +125,24 @@ export const sub = (text) => ({ show: true, text, fontFamily: 'Roboto Condensed'
 /** A visual in its own titled panel. */
 export function framed(spec, title, subtitle, accent) {
   const p = panel(accent)
-  return { ...spec, style: p.style, box: { ...p.box, title: head(title), ...(subtitle ? { subTitle: sub(subtitle) } : {}) } }
+  return { ...spec, style: p.style, box: { ...p.box, title: head(title), ...(subtitle ? { subTitle: sub(subtitle) } : {}) }, motion: { ...PANEL_HOVER, ...spec.motion } }
 }
 
 /** KPI tile: the value card is the panel (its title is the label); the note card sits inside it. */
 export function tile(k, name, x, y, w, label, value, note, accent, motion) {
   const p = panel(accent)
-  return [
+  // one group per tile, so the hover effect grows the card and its note together
+  return k.group({ name: `${name}-tile`, displayName: label, motion: TILE_HOVER }, [
     k.card({ name: `${name}-v`, x, y, w, h: 96, field: value, size: 24, font: 'Barlow Semibold', color: T.ink, vAlign: 'top', style: p.style, box: { ...p.box, padding: { top: 10, left: 14, right: 10, bottom: 10 }, title: { show: true, text: label, fontFamily: 'Roboto Condensed', fontSize: 8.5, fontColor: c(accent) } }, motion }),
     note ? k.card({ name: `${name}-n`, x: x + 10, y: y + 66, w: w - 16, h: 24, field: note, size: 8, font: 'Barlow', color: T.muted, motion }) : null
-  ]
+  ])
 }
+
+/** Lumen hover effect of the KPI tiles (core/report/motion.ts): they grow a little under the pointer. */
+export const TILE_HOVER = { hover: 'enlarge', hoverAmount: 6 }
+
+/** Chart panels rise a little with a shadow under the pointer. */
+export const PANEL_HOVER = { hover: 'lift', hoverAmount: 6 }
 
 /**
  * The rail and header every page carries. pages: the navigator lists the report's pages itself; `filters` are slicer

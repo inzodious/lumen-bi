@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "21b3e91f850cbeb8ed86",
+  "position": {
+    "x": 644,
+    "y": 80,
+    "z": 20000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 20000
+  },
+  "visualGroup": {
+    "displayName": "COST PER TONNE",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

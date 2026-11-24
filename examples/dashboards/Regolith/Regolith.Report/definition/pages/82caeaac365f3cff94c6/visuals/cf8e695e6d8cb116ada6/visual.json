@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "cf8e695e6d8cb116ada6",
+  "position": {
+    "x": 1060,
+    "y": 80,
+    "z": 29000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 29000
+  },
+  "visualGroup": {
+    "displayName": "TONNAGE SHIPPED",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

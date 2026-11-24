@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "1dc437c42ab0ce535957",
+  "position": {
+    "x": 436,
+    "y": 80,
+    "z": 17000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 17000
+  },
+  "visualGroup": {
+    "displayName": "HAUL TRIPS",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

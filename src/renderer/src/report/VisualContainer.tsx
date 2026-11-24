@@ -25,7 +25,8 @@ import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
 import { borderCss, gradientBorderLayer, resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
 import { lumenStyleCss, lumenStyleOf } from '@core/report/lumenStyle'
-import { entranceDelay, motionFamily, visualMotion } from '@core/report/motion'
+import { EASING_CSS, motionFamily, visualMotion } from '@core/report/motion'
+import { hoverProps } from './motion/hover'
 import { VisualAnimator, type AnimatorOptions } from './motion/animator'
 import { onReplayMotion } from './motion/env'
 import { activeGradients, GradientPainter } from './gradientPaint'
@@ -343,7 +344,17 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     const own = visualMotion(visual.json)
     if (family === 'still' && !own.entrance) return null
     if (own.entrance === 'none' || props.pinned) return null
-    return { duration: m.report.duration, family: family === 'marks' ? 'marks' : 'fade', entrance: own.entrance ?? 'auto', delay: entranceDelay(m.report, own, m.order.get(visual.name) ?? 0) }
+    // the page's sequence (Animation pane); a visual missing from it (hidden, inside a tooltip page) enters at once
+    const at = m.schedule.get(visual.name)
+    return {
+      duration: at?.duration ?? own.duration ?? m.report.duration,
+      family: family === 'marks' ? 'marks' : 'fade',
+      entrance: own.entrance ?? 'auto',
+      delay: at?.start ?? own.delay ?? 0,
+      easing: EASING_CSS[at?.easing ?? own.easing ?? m.report.easing],
+      updateDuration: m.report.updateDuration || undefined,
+      update: own.update !== 'none'
+    }
   }, [env.motion, type, visual.json, visual.name, props.pinned])
   const animator = useRef<VisualAnimator | null>(null)
   const animated = !!animOpts
@@ -500,6 +511,9 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     }
   }
 
+  // Lumen hover effect (Animation pane / General ▸ Animation): reading view and published dashboards only
+  const hoverFx = useMemo(() => (!env.editing && env.interactive ? hoverProps(env.page, visual) : undefined), [env.editing, env.interactive, env.page, visual])
+
   return (
     <div
       ref={outerRef}
@@ -507,8 +521,9 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
       data-visual={visual.name}
       data-type={type}
       data-pinned={props.pinned || undefined}
+      data-hover={hoverFx?.effect}
       data-sample={sample?.source}
-      style={outer}
+      style={hoverFx ? { ...outer, ...hoverFx.style } : outer}
       aria-label={chrome.altText ?? titleText ?? type}
       title={linkActive && link?.tooltip ? link.tooltip : undefined}
       onPointerEnter={() => setHover(true)}

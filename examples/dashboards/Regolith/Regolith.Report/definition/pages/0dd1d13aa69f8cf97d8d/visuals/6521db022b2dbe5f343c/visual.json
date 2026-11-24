@@ -4,10 +4,10 @@
   "position": {
     "x": 740,
     "y": 432,
-    "z": 25000,
+    "z": 30000,
     "height": 268,
     "width": 516,
-    "tabOrder": 25000
+    "tabOrder": 30000
   },
   "visual": {
     "visualType": "tableEx",
@@ -631,6 +631,10 @@
     {
       "name": "Lumen_Style",
       "value": "{\"gradient\":{\"angle\":160,\"stops\":[\"#1A1F27F2\",\"#10141AF2\"]},\"glow\":{\"color\":\"#FFC24B\",\"size\":18,\"opacity\":0.16}}"
+    },
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"lift\",\"hoverAmount\":6}"
     }
   ]
 }

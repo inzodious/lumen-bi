@@ -7,6 +7,47 @@ bars grow from the axis, lines and areas draw from left to right, pie and donut 
 values count up. When a filter, slicer or cross-highlight changes the data, each mark moves from its old value to its
 new one. Pages can also enter with a transition when you move between them, which Power BI doesn't offer.
 
+## Use the Animation pane
+
+The **Animation** pane puts everything that moves on the open page in one place. Open it from the pane switcher on
+the right, from **View ▸ Show panes ▸ Animation**, or by searching for *Animation pane*.
+
+- **Play** runs the page's transition and every visual's entrance on the canvas, with a playhead over the timeline.
+  The time next to it is when the last visual has finished entering.
+- **Page** sets this page's transition, its duration and curve, and the stagger between visuals entering it. Fields
+  left empty use the report's defaults.
+- **Sequence** lists the visuals that enter, in the order they enter, each with a bar on a shared timeline. Drag a
+  visual up or down to change when it enters. Visuals you haven't placed follow, top to bottom and left to right.
+  **Reset order** goes back to that reading order. **Doesn't move** lists the pinned visuals and the ones without an
+  entrance (slicers, text boxes, shapes, images and buttons on **Auto**, or any visual set to **None**).
+- Select a visual on the canvas or in the sequence to set its timing:
+
+| Setting | What it does |
+|---|---|
+| **Start** | **With previous** starts the stagger after the previous visual starts. **After previous** waits until every visual before it has finished. |
+| **Delay (ms)** | Waits this long after its start (0 to 3000). |
+| **Duration (ms)** | How long its entrance and data changes take (100 to 3000). Empty uses the report's duration. |
+| **Curve** | **Smooth**, **Linear**, **Ease in** (speeds up), **Ease out** (slows down), **Ease in and out** or **Overshoot** (passes the end a little and comes back). |
+| **Animate data changes** | Off: filters, slicers and cross-highlights change the visual at once. |
+| **Hover effect** | See [Hover effects](#hover-effects). |
+
+- **Report defaults** holds the settings every page and visual starts from, including the curve, the duration of
+  data-change animations (empty: the same as **Duration**) and the curve of page transitions.
+
+Card values always count up on their own easing curve. Charts that animate their marks one after another (bars,
+points) spread them over up to 40% of the duration, at most 400 ms, on top of it; the timeline counts that time.
+
+## Hover effects
+
+A visual or a group can react when the pointer is over it, in reading view and in published dashboards:
+**Brighten**, **Darken**, **Enlarge** (a card grows by the strength, 10% by default) or **Lift** (rises a little with a
+shadow). Set it in the Animation pane, or in **Format visual ▸ General ▸ Animation**. **Hover strength (%)** sets how
+much (1 to 50).
+
+Set the effect on a group to move everything in it together, such as a KPI tile made of a card and its note. Nothing
+grows past the canvas: a visual at the edge grows away from that edge, and the page cuts off anything that would
+still reach past it. The HTML export shows page pictures, so it has no hover effects.
+
 ## Set animations for the report and a page
 
 1. Click an empty spot of the canvas so that no visual is selected.
@@ -57,6 +98,9 @@ around the report stays quick. Visual animations play in both.
    - **Fade in**, **Rise** or **Zoom** brings in the whole visual that way.
    - **None** turns animation off for this visual.
 4. Set **Delay (ms)** to bring the visual in later than the others (0 to 3000). It adds to the report's stagger.
+
+The Animation pane has the rest of a visual's timing: its place in the sequence, start, duration, curve and hover
+effect.
 
 ## Keep a sidebar still during page transitions
 

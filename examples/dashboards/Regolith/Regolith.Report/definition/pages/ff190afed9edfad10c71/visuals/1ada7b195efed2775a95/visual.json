@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "1ada7b195efed2775a95",
+  "position": {
+    "x": 1060,
+    "y": 188,
+    "z": 22000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 22000
+  },
+  "visualGroup": {
+    "displayName": "AVAILABILITY",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 /**
  * Right-hand pane area: the open panes side by side (PBI order: Filters, Visualizations, Data,
- * then Bookmarks / Selection / Sync slicers / Performance analyzer) plus the pane switcher strip
+ * then Bookmarks / Selection / Animation (Lumen) / Sync slicers / Performance analyzer) plus the pane switcher strip
  * on the far right. Which panes exist depends on the view (Table / Model views show only Data).
  */
 import type { ReactElement } from 'react'
-import { Filter20Regular, DataBarVerticalAdd20Regular, Database20Regular, Bookmark20Regular, Layer20Regular, ArrowSync20Regular, Timer20Regular } from '@fluentui/react-icons'
+import { Filter20Regular, DataBarVerticalAdd20Regular, Database20Regular, Bookmark20Regular, Layer20Regular, ArrowSync20Regular, Timer20Regular, SlideTransition20Regular } from '@fluentui/react-icons'
 import { useApp } from '../state/store'
 import { useShell, type PaneId } from '../app/shellState'
 import { Tip } from '../app/ui/Tooltip'
@@ -16,6 +16,7 @@ import { SelectionPane } from './selection/SelectionPane'
 import { BookmarksPane } from './bookmarks/BookmarksPane'
 import { SyncSlicersPane } from './syncslicers/SyncSlicersPane'
 import { PerformancePane } from './performance/PerformancePane'
+import { AnimationPane } from './animation/AnimationPane'
 // names the user action of each Performance analyzer entry; recording can run while the pane is closed
 import './performance/tracking'
 
@@ -25,6 +26,7 @@ const SWITCHER: Array<{ id: PaneId; label: string; icon: ReactElement }> = [
   { id: 'data', label: 'Data', icon: <Database20Regular /> },
   { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark20Regular /> },
   { id: 'selection', label: 'Selection', icon: <Layer20Regular /> },
+  { id: 'animation', label: 'Animation', icon: <SlideTransition20Regular /> },
   { id: 'syncSlicers', label: 'Sync slicers', icon: <ArrowSync20Regular /> },
   { id: 'performance', label: 'Performance analyzer', icon: <Timer20Regular /> }
 ]
@@ -36,11 +38,12 @@ const PANES: Record<PaneId, () => ReactElement | null> = {
   bookmarks: BookmarksPane,
   selection: SelectionPane,
   syncSlicers: SyncSlicersPane,
-  performance: PerformancePane
+  performance: PerformancePane,
+  animation: AnimationPane
 }
 
 /** Panes in display order (left → right). Secondary panes sit left of Filters like PBI. */
-const DISPLAY_ORDER: PaneId[] = ['bookmarks', 'selection', 'syncSlicers', 'performance', 'filters', 'visualizations', 'data']
+const DISPLAY_ORDER: PaneId[] = ['bookmarks', 'selection', 'animation', 'syncSlicers', 'performance', 'filters', 'visualizations', 'data']
 
 export function PaneHost() {
   const view = useApp((s) => s.view)

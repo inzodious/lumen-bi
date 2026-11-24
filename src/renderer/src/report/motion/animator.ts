@@ -14,11 +14,11 @@
  * visual rendered, and a cancelled animation simply shows the final state. Count-up is the one exception: it rewrites a
  * text node's characters while it runs and always ends on the visual's own text.
  */
-import type { VisualEntrance } from '@core/report/motion'
+import { EASING_CSS, type VisualEntrance } from '@core/report/motion'
 import { countFrom, easeOut, formatCountText, parseCountText } from './countText'
 
 export const MOTION_ANIMATION_ID = 'wbi-motion'
-export const EASING = 'cubic-bezier(0.22, 0.8, 0.3, 1)'
+export const EASING = EASING_CSS.smooth
 
 const GEOMETRY = ['x', 'y', 'width', 'height', 'd', 'cx', 'cy', 'r']
 const MAX_MARKS = 1500
@@ -33,6 +33,12 @@ export interface AnimatorOptions {
   entrance: Exclude<VisualEntrance, 'none'>
   /** ms before the entrance starts */
   delay: number
+  /** CSS easing of every animation (EASING_CSS of the visual's curve) */
+  easing?: string
+  /** ms for data-change animations (default: duration) */
+  updateDuration?: number
+  /** false: data changes don't animate */
+  update?: boolean
 }
 
 interface Tween {
@@ -81,6 +87,7 @@ export class VisualAnimator {
   arm(kind: 'enter' | 'update', windowMs = 2500): void {
     if (this.disposed) return
     if (kind === 'enter' && this.entered) return
+    if (kind === 'update' && this.opts.update === false) return
     this.mode = kind
     this.until = now() + windowMs
     if (kind === 'enter' && this.root.childElementCount > 0) this.enterExisting()
@@ -177,7 +184,7 @@ export class VisualAnimator {
         if (kind === 'count') {
           const text = textChild(el)
           if (text) this.count(text, null, delay)
-        } else enterMark(el, kind as MarkKind, d, delay)
+        } else enterMark(el, kind as MarkKind, d, delay, this.easing)
       })
     }
   }
@@ -198,23 +205,27 @@ export class VisualAnimator {
             added.push(...n.querySelectorAll('[data-wbi-mark]'))
           } else if (n instanceof Text && markOf(n.parentElement) === 'count') {
             const removed = [...r.removedNodes].find((x) => x instanceof Text) as Text | undefined
-            this.count(n, removed?.data ?? null, 0)
+            this.count(n, removed?.data ?? null, 0, this.opts.updateDuration || this.opts.duration)
           }
         }
       } else if (r.type === 'characterData' && r.target instanceof Text && markOf(r.target.parentElement) === 'count') {
         const tw = this.tweens.get(r.target)
-        this.count(r.target, tw ? tw.shown : r.oldValue, 0)
+        this.count(r.target, tw ? tw.shown : r.oldValue, 0, this.opts.updateDuration || this.opts.duration)
       }
     }
     if (old.size + added.length > MAX_MARKS) return
-    for (const [el, attrs] of old) morph(el, attrs, this.opts.duration)
+    const d = this.opts.updateDuration || this.opts.duration
+    for (const [el, attrs] of old) morph(el, attrs, d, this.easing)
     const fresh = added.filter((el) => el.isConnected && markOf(el) !== 'count')
-    const d = this.opts.duration
-    for (const el of fresh) enterMark(el, markOf(el) as MarkKind, d, 0)
+    for (const el of fresh) enterMark(el, markOf(el) as MarkKind, d, 0, this.easing)
     for (const el of added) if (markOf(el) === 'count') {
       const t = textChild(el)
-      if (t) this.count(t, null, 0)
+      if (t) this.count(t, null, 0, d)
     }
+  }
+
+  private get easing(): string {
+    return this.opts.easing ?? EASING
   }
 
   private animateRoot(kind: VisualEntrance = this.opts.entrance): void {
@@ -225,7 +236,7 @@ export class VisualAnimator {
         : k === 'zoom'
           ? [{ opacity: 0, transform: 'scale(0.92)' }, { opacity: 1, transform: 'none' }]
           : [{ opacity: 0 }, { opacity: 1 }]
-    play(this.root, frames, this.opts.duration, this.opts.delay)
+    play(this.root, frames, this.opts.duration, this.opts.delay, this.easing)
     if (this.opts.family === 'fade') this.unobserve()
     for (const el of this.root.querySelectorAll('[data-wbi-mark="count"]')) {
       const t = textChild(el)
@@ -233,8 +244,8 @@ export class VisualAnimator {
     }
   }
 
-  /** Count a text node up from `from` (its old text) to its current text. */
-  private count(node: Text, from: string | null, delay: number): void {
+  /** Count a text node up from `from` (its old text) to its current text. The count always eases out (its own curve). */
+  private count(node: Text, from: string | null, delay: number, d = this.opts.duration): void {
     const prev = this.tweens.get(node)
     if (prev) {
       cancelAnimationFrame(prev.raf)
@@ -248,7 +259,6 @@ export class VisualAnimator {
     // "2,454 TB" → "655 TB": frames above 999 keep the old text's thousands separator
     const old = from ? parseCountText(from) : null
     const print = old?.grouped && !shape.grouped ? { ...shape, grouped: true, group: old.group } : shape
-    const d = this.opts.duration
     const t0 = now() + delay
     const tw: Tween = { node, raf: 0, shown: final }
     const write = (text: string) => {
@@ -291,9 +301,9 @@ function textChild(el: Element): Text | null {
   return null
 }
 
-function play(el: Element, frames: Keyframe[], duration: number, delay: number): Animation | null {
+function play(el: Element, frames: Keyframe[], duration: number, delay: number, easing = EASING): Animation | null {
   try {
-    const a = el.animate(frames, { duration, delay, easing: EASING, fill: 'backwards' })
+    const a = el.animate(frames, { duration, delay, easing, fill: 'backwards' })
     a.id = MOTION_ANIMATION_ID
     return a
   } catch {
@@ -306,7 +316,7 @@ function running(el: Element): Animation[] {
 }
 
 /** The entrance of one mark. */
-export function enterMark(el: Element, kind: MarkKind, duration: number, delay: number): void {
+export function enterMark(el: Element, kind: MarkKind, duration: number, delay: number, easing = EASING): void {
   for (const a of running(el)) a.cancel()
   const hasTransform = el.hasAttribute('transform')
   const box = { transformBox: 'fill-box' } as Keyframe
@@ -316,21 +326,21 @@ export function enterMark(el: Element, kind: MarkKind, duration: number, delay: 
     case 'grow-left':
     case 'grow-right':
     case 'grow-center': {
-      if (hasTransform) return void play(el, [{ opacity: 0 }, { opacity: 1 }], duration, delay)
+      if (hasTransform) return void play(el, [{ opacity: 0 }, { opacity: 1 }], duration, delay, easing)
       const vertical = kind === 'grow-up' || kind === 'grow-down'
       const origin = kind === 'grow-up' ? '50% 100%' : kind === 'grow-down' ? '50% 0%' : kind === 'grow-right' ? '0% 50%' : kind === 'grow-left' ? '100% 50%' : '50% 50%'
       const from = vertical ? 'scaleY(0)' : 'scaleX(0)'
-      play(el, [{ ...box, transformOrigin: origin, transform: from }, { ...box, transformOrigin: origin, transform: 'none' }], duration, delay)
+      play(el, [{ ...box, transformOrigin: origin, transform: from }, { ...box, transformOrigin: origin, transform: 'none' }], duration, delay, easing)
       return
     }
     case 'label':
-      play(el, [{ opacity: 0 }, { opacity: 1 }], duration * 0.5, delay + duration * 0.6)
+      play(el, [{ opacity: 0 }, { opacity: 1 }], duration * 0.5, delay + duration * 0.6, easing)
       return
     case 'reveal':
-      play(el, [{ clipPath: 'inset(-50% 100% -50% -1%)' }, { clipPath: 'inset(-50% -1% -50% -1%)' }], duration * 1.2, delay)
+      play(el, [{ clipPath: 'inset(-50% 100% -50% -1%)' }, { clipPath: 'inset(-50% -1% -50% -1%)' }], duration * 1.2, delay, easing)
       return
     case 'sweep': {
-      if (hasTransform) return void play(el, [{ opacity: 0 }, { opacity: 1 }], duration, delay)
+      if (hasTransform) return void play(el, [{ opacity: 0 }, { opacity: 1 }], duration, delay, easing)
       const cx = Number(el.getAttribute('data-wbi-cx'))
       const cy = Number(el.getAttribute('data-wbi-cy'))
       let origin = '50% 50%'
@@ -342,23 +352,23 @@ export function enterMark(el: Element, kind: MarkKind, duration: number, delay: 
           /* not rendered */
         }
       }
-      play(el, [{ ...box, transformOrigin: origin, transform: 'rotate(-60deg) scale(0.55)', opacity: 0 }, { ...box, transformOrigin: origin, transform: 'none', opacity: 1 }], duration * 1.1, delay)
+      play(el, [{ ...box, transformOrigin: origin, transform: 'rotate(-60deg) scale(0.55)', opacity: 0 }, { ...box, transformOrigin: origin, transform: 'none', opacity: 1 }], duration * 1.1, delay, easing)
       return
     }
     case 'pop':
-      if (hasTransform) return void play(el, [{ opacity: 0 }, { opacity: 1 }], duration, delay)
-      play(el, [{ ...box, transformOrigin: '50% 50%', transform: 'scale(0)', opacity: 0 }, { ...box, transformOrigin: '50% 50%', transform: 'none', opacity: 1 }], duration * 0.8, delay + duration * 0.3)
+      if (hasTransform) return void play(el, [{ opacity: 0 }, { opacity: 1 }], duration, delay, easing)
+      play(el, [{ ...box, transformOrigin: '50% 50%', transform: 'scale(0)', opacity: 0 }, { ...box, transformOrigin: '50% 50%', transform: 'none', opacity: 1 }], duration * 0.8, delay + duration * 0.3, easing)
       return
     default:
-      play(el, [{ opacity: 0 }, { opacity: 1 }], duration, delay)
+      play(el, [{ opacity: 0 }, { opacity: 1 }], duration, delay, easing)
   }
 }
 
 /** Morph one mark from its old geometry attributes to its current ones. */
-export function morph(el: Element, old: Map<string, string | null>, duration: number): void {
+export function morph(el: Element, old: Map<string, string | null>, duration: number, easing = EASING): void {
   if (markOf(el) === 'label') {
     // text has no animatable x / y: a moved label fades in where it lands, once its mark has arrived
-    if ([...old].some(([attr, prev]) => prev !== el.getAttribute(attr))) enterMark(el, 'label', duration, 0)
+    if ([...old].some(([attr, prev]) => prev !== el.getAttribute(attr))) enterMark(el, 'label', duration, 0, easing)
     return
   }
   const live = running(el)
@@ -383,7 +393,7 @@ export function morph(el: Element, old: Map<string, string | null>, duration: nu
   for (const a of live) a.cancel()
   if (!Object.keys(to).length) return
   try {
-    const a = el.animate([from, to], { duration, easing: EASING })
+    const a = el.animate([from, to], { duration, easing })
     a.id = MOTION_ANIMATION_ID
   } catch {
     /* property not animatable here */

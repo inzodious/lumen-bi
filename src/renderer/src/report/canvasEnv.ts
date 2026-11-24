@@ -1,13 +1,13 @@
 import { createContext, useContext, type PointerEvent as RPointerEvent } from 'react'
 import type { PageDocument } from '@core/report/types'
 import type { HostEnv } from './host'
-import type { ReportMotion } from '@core/report/motion'
+import type { ReportMotion, ScheduledEntrance } from '@core/report/motion'
 
 /** Visual animations on this canvas (absent: none, e.g. print, tooltips, headless runs, reduced motion, report switch off). */
 export interface CanvasMotion {
   report: ReportMotion
-  /** each visual's place in reading order (for the report's stagger) */
-  order: Map<string, number>
+  /** when each visual enters (the page's animation sequence); visuals missing from it don't enter */
+  schedule: Map<string, ScheduledEntrance>
 }
 
 /** Shared per-canvas environment (one PageCanvas instance = one env). */

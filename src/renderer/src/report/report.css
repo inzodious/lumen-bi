@@ -15,6 +15,10 @@
 
 /* visual container */
 .wbi-vc { box-sizing: border-box; }
+/* Lumen hover effects (core/report/motion.ts hoverStyle): the page clips its visuals, so nothing grows past the canvas */
+.wbi-vc[data-hover], .wbi-group[data-hover] { transition: transform 180ms cubic-bezier(0.22, 0.8, 0.3, 1), filter 180ms ease, box-shadow 180ms ease; transform-origin: var(--wbi-hover-origin, 50% 50%); }
+.wbi-vc[data-hover]:hover, .wbi-group[data-hover]:hover { filter: var(--wbi-hover-filter); transform: var(--wbi-hover-transform); box-shadow: var(--wbi-hover-shadow); z-index: 100000 !important; }
+@media (prefers-reduced-motion: reduce) { .wbi-vc[data-hover], .wbi-group[data-hover] { transition: none; } }
 .wbi-vc-box { box-sizing: border-box; }
 .wbi-vc-titles { flex: 0 0 auto; min-height: 0; }
 .wbi-vc-content { flex: 1 1 auto; position: relative; min-height: 0; min-width: 0; overflow: hidden; }

@@ -14,8 +14,10 @@ import { withTransparency } from '@core/report/theme'
 import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
 import { getVisual } from '../visuals/registry'
-import { CanvasEnvContext, type CanvasEnv, type CanvasMotion } from './canvasEnv'
-import { isPinned, pageTransition, readingOrder, reportMotion } from '@core/report/motion'
+import { CanvasEnvContext, useCanvasEnv, type CanvasEnv, type CanvasMotion } from './canvasEnv'
+import { isPinned, pageTransitionTiming, reportMotion } from '@core/report/motion'
+import { pageSchedule } from './motion/sequence'
+import { hoverProps } from './motion/hover'
 import { motionAllowed, useMotionAllowed } from './motion/env'
 import { notePageShown, playPageEnter, settleBookmarkMorph } from './motion/pageTransition'
 import { borderCss, gradientBorderLayer, resolveChrome, resolveGroupChrome } from './chrome'
@@ -130,6 +132,8 @@ interface TreeProps {
 
 const VisualTree = memo(function VisualTree({ page, parent, filters, preview }: TreeProps) {
   const theme = useApp((s) => s.theme)
+  const env = useCanvasEnv()
+  const hoverable = !env.editing && env.interactive
   const exists = (n: string | undefined) => !!n && page.visuals.some((v) => v.name === n)
   const level = page.visuals
     .filter((v) => (parent ? parentOf(v) === parent : !exists(parentOf(v))))
@@ -149,13 +153,16 @@ const VisualTree = memo(function VisualTree({ page, parent, filters, preview }: 
         const z = positionOf(v).z
         if (isGroup(v)) {
           const gc = resolveGroupChrome(v.json, theme)
+          const hover = hoverable ? hoverProps(page, v) : undefined
           return (
             <div
               key={v.name}
               className="wbi-group"
               data-group={v.name}
               data-pinned={isPinned(page.visuals, v.name) || undefined}
+              data-hover={hover?.effect}
               style={{
+                ...hover?.style,
                 position: 'absolute',
                 left: r.x,
                 top: r.y,
@@ -494,7 +501,7 @@ export function PageCanvas(props: PageCanvasProps) {
   const motion: CanvasMotion | undefined = useMemo(() => {
     const rm = reportMotion(reportJson)
     if (!motionOn || !interactive || !rm.animate) return undefined
-    return { report: rm, order: readingOrder(page.visuals.map((v) => ({ name: v.name, ...absoluteRect(page, v) }))) }
+    return { report: rm, schedule: pageSchedule(reportJson, page) }
   }, [motionOn, interactive, reportJson, page])
   const outerRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -505,7 +512,7 @@ export function PageCanvas(props: PageCanvasProps) {
     if (!direction || editing || mode !== 'view' || !motionAllowed()) return
     const el = outerRef.current
     const target = el?.parentElement?.classList.contains('wbi-page-shadow') ? el.parentElement : el
-    if (target) playPageEnter({ el: target, page: page.name, visuals: page.visuals, kind: pageTransition(reportJson, page.json), direction, motion: reportMotion(reportJson) })
+    if (target) playPageEnter({ el: target, page: page.name, visuals: page.visuals, ...pageTransitionTiming(reportJson, page.json), direction, motion: reportMotion(reportJson) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   // bookmark morph: after a bookmark changes what the page shows (runtime.applyBookmark captured the page before)

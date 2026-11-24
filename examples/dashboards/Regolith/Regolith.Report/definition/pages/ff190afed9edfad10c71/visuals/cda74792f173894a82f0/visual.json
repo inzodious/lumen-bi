@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "cda74792f173894a82f0",
+  "position": {
+    "x": 1060,
+    "y": 404,
+    "z": 28000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 28000
+  },
+  "visualGroup": {
+    "displayName": "TONNES PER ASSET-DAY",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

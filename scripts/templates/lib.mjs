@@ -191,6 +191,28 @@ export function visual(seed, spec) {
   return out
 }
 
+/**
+ * A group (PBIR visualGroup) around visuals placed in page coordinates: the children move inside it (positions relative
+ * to the group, stacked in the order given). spec: { name, displayName?, z?, motion? } (motion: Lumen_Motion, e.g. a
+ * hover effect that moves the whole group).
+ */
+export function group(seed, spec, children) {
+  const kids = children.filter(Boolean)
+  const x = Math.min(...kids.map((k) => k.position.x))
+  const y = Math.min(...kids.map((k) => k.position.y))
+  const w = Math.max(...kids.map((k) => k.position.x + k.position.width)) - x
+  const h = Math.max(...kids.map((k) => k.position.y + k.position.height)) - y
+  const z = spec.z ?? Math.max(...kids.map((k) => k.position.z))
+  const name = hex(`${seed}/group/${spec.name}`)
+  kids.forEach((k, i) => {
+    k.parentGroupName = name
+    k.position = { ...k.position, x: k.position.x - x, y: k.position.y - y, z: i * 1000, tabOrder: i * 1000 }
+  })
+  const out = { $schema: VC_SCHEMA, name, position: { x, y, z, height: h, width: w, tabOrder: z }, visualGroup: { displayName: spec.displayName ?? spec.name, groupMode: 'ScaleMode' } }
+  if (spec.motion) out.annotations = [{ name: 'Lumen_Motion', value: JSON.stringify(spec.motion) }]
+  return [out, ...kids]
+}
+
 /** The objects entries that name fields (data / metadata selectors, field expressions): kept with the sample query. */
 function splitFieldObjects(o) {
   const plain = {}

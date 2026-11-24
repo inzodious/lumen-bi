@@ -2,12 +2,12 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "645b0ca6e0e73a9016e2",
   "position": {
-    "x": 852,
-    "y": 80,
-    "z": 19000,
+    "x": 0,
+    "y": 0,
+    "z": 0,
     "height": 96,
     "width": 196,
-    "tabOrder": 19000
+    "tabOrder": 0
   },
   "visual": {
     "visualType": "cardVisual",
@@ -341,5 +341,6 @@
       "name": "Lumen_Style",
       "value": "{\"gradient\":{\"angle\":160,\"stops\":[\"#1A1F27F2\",\"#10141AF2\"]},\"glow\":{\"color\":\"#7FB8FF\",\"size\":18,\"opacity\":0.16}}"
     }
-  ]
+  ],
+  "parentGroupName": "07afaf7a90a05cc0856e"
 }

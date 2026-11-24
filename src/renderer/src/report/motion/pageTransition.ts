@@ -23,7 +23,7 @@
  *
  * The first page shown in a window, and pages opened while editing, appear without a transition.
  */
-import { morphPairs, pageTransition, reportMotion, TWO_PAGE_TRANSITIONS, type PageTransition, type ReportMotion } from '@core/report/motion'
+import { EASING_CSS, morphPairs, pageTransition, reportMotion, TWO_PAGE_TRANSITIONS, type MotionEasing, type PageTransition, type ReportMotion } from '@core/report/motion'
 import type { VisualDocument } from '@core/report/types'
 import { useApp } from '../../state/store'
 import { EASING, MOTION_ANIMATION_ID } from './animator'
@@ -291,9 +291,22 @@ function takeSnapshot(page: string): Snapshot | null {
 // Playing
 // ---------------------------------------------------------------------------------------------
 
+/** The curve of the transition being set up (playPageEnter / previewPageTransition set it while they run). */
+let curve = EASING
+
+function withCurve<T>(easing: string | undefined, fn: () => T): T {
+  const prev = curve
+  curve = easing ?? EASING
+  try {
+    return fn()
+  } finally {
+    curve = prev
+  }
+}
+
 function animate(el: Element, frames: Keyframe[], duration: number, opts: KeyframeAnimationOptions = {}): Animation | null {
   try {
-    const a = el.animate(frames, { duration, easing: EASING, fill: 'backwards', ...opts })
+    const a = el.animate(frames, { duration, easing: curve, fill: 'backwards', ...opts })
     a.id = MOTION_ANIMATION_ID
     return a
   } catch {
@@ -341,6 +354,9 @@ export interface PageEnter {
   page: string
   visuals: VisualDocument[]
   kind: PageTransition
+  /** ms and curve of this page's transition (pageTransitionTiming) */
+  duration: number
+  easing: MotionEasing
   direction: -1 | 1
   motion: ReportMotion
 }
@@ -352,7 +368,7 @@ export function playPageEnter(p: PageEnter): void {
   // measured before anything moves the new page
   const hold = snap && viewport ? holdPins(p.el, viewport, snap) : null
   const canvas = boxOf(p.el)
-  const anims = enter(p, snap, viewport)
+  const anims = withCurve(EASING_CSS[p.easing], () => enter(p, snap, viewport))
   if (viewport) clipToCanvas(viewport, canvas, anims)
   hold?.(anims)
 }
@@ -387,7 +403,7 @@ function clipToCanvas(viewport: HTMLElement, canvas: Box, anims: Array<Animation
 }
 
 function enter(p: PageEnter, snap: Snapshot | null, viewport: HTMLElement | null): Array<Animation | null> {
-  const duration = p.motion.transitionDuration
+  const duration = p.duration
   if (snap && viewport && p.motion.drillthrough === 'zoom') {
     if (snap.nav === 'drill') {
       const origin = drillOrigins.get(p.page)
@@ -453,7 +469,7 @@ function playTwoPage(p: PageEnter, snap: Snapshot, viewport: HTMLElement): Array
   const origin = snap.pointer && snap.pointer.x >= box.left && snap.pointer.x <= box.left + box.width && snap.pointer.y >= box.top && snap.pointer.y <= box.top + box.height ? { x: snap.pointer.x - box.left, y: snap.pointer.y - box.top } : snap.pointer ? nearestEdgePoint(snap.pointer, box) : undefined
   const frames = twoPageFrames(p.kind, p.direction, { width: box.width, height: box.height }, origin)
   if (!frames) return []
-  const duration = p.motion.transitionDuration
+  const duration = p.duration
   const shared = p.kind === 'morph' ? morphPairs(snap.fromVisuals, p.visuals) : new Map<string, string>()
   const anims: Array<Animation | null> = []
   const flights: HTMLElement[] = []
@@ -545,7 +561,11 @@ function drillOut(el: HTMLElement, viewport: HTMLElement, snap: Snapshot, to: Bo
 }
 
 /** Format pane ▸ Preview: play a transition on the open page, with the page itself standing in for the old one. */
-export function previewPageTransition(el: HTMLElement, kind: PageTransition, duration: number): void {
+export function previewPageTransition(el: HTMLElement, kind: PageTransition, duration: number, easing: MotionEasing = 'smooth'): void {
+  withCurve(EASING_CSS[easing], () => previewTransition(el, kind, duration))
+}
+
+function previewTransition(el: HTMLElement, kind: PageTransition, duration: number): void {
   const viewport = el.closest<HTMLElement>('.wbi-viewport')
   const box = boxOf(el)
   if (!viewport || !TWO_PAGE_TRANSITIONS.has(kind)) {

@@ -84,6 +84,7 @@ describe('templates draw their designed sample', () => {
       let report = 0
       for (const pg of p.report!.pages)
         for (const v of pg.visuals) {
+          if (v.json.visualGroup) continue
           const def = getVisual(v.json.visual?.visualType)
           const d = sampleDrawFor(v.json, def, p.report!.report, text)
           if (visualSampleSpec(v.json)?.query) {

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "fd0b86e0afa327f39717",
+  "position": {
+    "x": 852,
+    "y": 80,
+    "z": 23000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 23000
+  },
+  "visualGroup": {
+    "displayName": "REVENUE",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import type { FluentIcon } from '@fluentui/react-icons'
 import {
   DocumentAddRegular, FolderOpenRegular, SaveRegular, SaveEditRegular, ArrowSyncRegular, DatabaseArrowRightRegular, TableAddRegular, TableEditRegular,
   DataBarVerticalAddRegular, TextFieldRegular, SlideAddRegular, ImageRegular, IconsRegular, CalculatorRegular, MathFormulaRegular, TableSimpleRegular, OrganizationRegular,
-  DocumentPdfRegular, SlideTextRegular, ImageMultipleRegular, CodeRegular, PaintBrushRegular, FilterRegular, BookmarkRegular, LayerRegular, SettingsRegular,
+  DocumentPdfRegular, SlideTextRegular, ImageMultipleRegular, CodeRegular, PaintBrushRegular, FilterRegular, BookmarkRegular, LayerRegular, SlideTransitionRegular, SettingsRegular,
   InfoRegular, BeakerRegular, ArrowUndoRegular, ArrowRedoRegular, ColorRegular, EyeRegular, CloudArrowUpRegular
 } from '@fluentui/react-icons'
 import { useApp } from '../state/store'
@@ -63,6 +63,7 @@ function commands(): SearchableCommand[] {
     { id: 'filters', label: 'Filters pane', group: 'View', icon: ic(FilterRegular), run: () => shell.togglePane('filters') },
     { id: 'bookmarks', label: 'Bookmarks pane', group: 'View', icon: ic(BookmarkRegular), run: () => shell.togglePane('bookmarks') },
     { id: 'selection', label: 'Selection pane', group: 'View', keywords: 'layers', icon: ic(LayerRegular), run: () => shell.togglePane('selection') },
+    { id: 'animation', label: 'Animation pane', group: 'View', keywords: 'motion transition sequence timing hover', icon: ic(SlideTransitionRegular), run: () => shell.togglePane('animation') },
     { id: 'reading', label: 'Reading view', group: 'View', keywords: 'edit mode', icon: ic(EyeRegular), run: () => app.setEditMode(!app.editMode) },
     { id: 'options', label: 'Options and settings', group: 'File', keywords: 'preferences', icon: ic(SettingsRegular), run: () => shell.openDialog({ id: 'options' }) },
     { id: 'about', label: 'About', group: 'Help', icon: ic(InfoRegular), run: () => shell.openDialog({ id: 'about' }) },

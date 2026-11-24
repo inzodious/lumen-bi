@@ -72,13 +72,18 @@ describe('html', () => {
     const html = buildHtml(pages, { reportName: 'R', transitions: { p2: 'slide', p1: 'bogus' }, transitionDuration: 420 })
     expect(html.match(/data-t="slide"/g)?.length).toBe(1)
     expect(html).not.toContain('data-t="bogus"')
-    expect(html).toContain('duration:420')
+    expect(html).toContain('duration:p.dataset.d?+p.dataset.d:420')
     expect(html).toContain('prefers-reduced-motion')
     const two = buildHtml(pages, { reportName: 'R', transitions: { p1: 'circle', p2: 'push' } })
     expect(two).toContain('data-t="circle"')
     expect(two).toContain('data-t="push"')
     // the page that leaves stays on screen while it moves out
     expect(two).toContain(".pg.out{z-index:1")
+    // a page's own duration and curve, and the stage clipped to the page while it moves
+    const timed = buildHtml(pages, { reportName: 'R', transitions: { p2: 'push' }, transitionTiming: { p2: { duration: 9000, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }, p1: { easing: 'url(x)' } } })
+    expect(timed).toContain('data-t="push" data-d="1500" data-e="cubic-bezier(0.34, 1.56, 0.64, 1)"')
+    expect(timed).not.toContain('url(x)')
+    expect(timed).toContain("stage.style.clipPath='inset('")
   })
 })
 

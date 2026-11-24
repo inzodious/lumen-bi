@@ -2,12 +2,12 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "107f532bd205f9cf8668",
   "position": {
-    "x": 446,
-    "y": 146,
-    "z": 15000,
+    "x": 10,
+    "y": 66,
+    "z": 17000,
     "height": 24,
     "width": 180,
-    "tabOrder": 15000
+    "tabOrder": 17000
   },
   "visual": {
     "visualType": "cardVisual",
@@ -210,5 +210,6 @@
       "name": "Lumen_SampleData",
       "value": "{\"query\":{\"queryState\":{\"Data\":{\"projections\":[{\"field\":{\"Measure\":{\"Expression\":{\"SourceRef\":{\"Entity\":\"_Ops\"}},\"Property\":\"Availability Note\"}},\"queryRef\":\"_Ops.Availability Note\",\"nativeQueryRef\":\"Availability Note\"}]}}}}"
     }
-  ]
+  ],
+  "parentGroupName": "17f0f2b919ae56338e1e"
 }

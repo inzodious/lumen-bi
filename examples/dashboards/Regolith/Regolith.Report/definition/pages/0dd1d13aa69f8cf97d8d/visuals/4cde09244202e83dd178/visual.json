@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "4cde09244202e83dd178",
+  "position": {
+    "x": 644,
+    "y": 80,
+    "z": 19000,
+    "height": 96,
+    "width": 196,
+    "tabOrder": 19000
+  },
+  "visualGroup": {
+    "displayName": "VALUE PER TONNE",
+    "groupMode": "ScaleMode"
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"hover\":\"enlarge\",\"hoverAmount\":6}"
+    }
+  ]
+}

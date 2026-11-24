@@ -4,7 +4,7 @@
  *
  * tokens: { bg, ink, muted, grid, colors[], fontBody, fontHead, fontNum, tableHead?, tableRow? }
  */
-import { c, image, props, shape, textbox, visual } from './lib.mjs'
+import { c, group, image, props, shape, textbox, visual } from './lib.mjs'
 
 const sel = { $selector: { id: 'default' } }
 
@@ -84,6 +84,7 @@ export function kit(seed, t) {
     img: (spec) => image(seed, spec),
     shape: (spec) => shape(seed, spec),
     raw: (spec) => visual(seed, spec),
+    group: (spec, children) => group(seed, spec, children),
 
     /** Big number (new card visual), left / center / right aligned, optional label under it. */
     card: (spec) =>

@@ -18,15 +18,24 @@ Items the user has raised for after the initial build. "Discuss" = agree the des
   selections, hierarchy in dropdown, date presets), plus whatever else the user lists.
 - General improvements list (to be collected with the user).
 
-## Discuss: transitions and animations
-- **Visual animations** — animate a visual when its data changes (bars and columns grow, lines redraw, pies sweep,
-  cards count up), as Power BI does on load, filter and cross-highlight. Today visuals redraw without motion; only the
-  scatter chart's play axis animates (`charts/scatter/ScatterChart.tsx`).
-- **Page transitions** — an optional transition (fade, slide) when moving between pages, bookmarks and drillthrough
-  targets. Power BI Desktop has no page transitions, so this is a Lumen extension: store it in a Lumen sidecar and leave
-  the saved PBIR unchanged so files still open in Power BI.
-- Cross-cutting: a per-report on/off switch and duration, motion off under the OS reduced-motion setting, and none in
-  exports, captures and `wbiReady` waits so screenshots and e2e journeys stay deterministic.
+## Done: transitions and animations
+Built in `core/report/motion.ts`, `renderer/src/report/motion/*` and `visuals/common/motionMarks.ts`; settings in
+`Lumen_Motion` annotations (report, page, visual), Format pane ▸ Animations (page) and General ▸ Animation (visual);
+see ARCHITECTURE ▸ "Animations and page transitions" and docs/create-reports/animations-and-page-transitions.md.
+Journey: `e2e/motion.e2e.ts`.
+- Visual animations on load and on data change: columns/bars grow, lines and areas reveal, slices sweep, markers and
+  treemap tiles pop, card / gauge / KPI values count, data labels fade in; filters and cross-highlights morph marks
+  from their old geometry. Tables, matrices, maps and custom visuals fade in; slicers and elements stay still.
+- Page transitions (fade, slide by direction of travel, rise, zoom) in reading view and published dashboards.
+- Report switch, durations and stagger; per-visual entrance and delay; Preview.
+- Off under reduced motion, in exports / prints / captures / sweeps / e2e (`--lumen-still`), with `motion=off`.
+- Publish keeps them (or not), the HTML export plays page transitions, Power BI keeps and ignores them.
+
+Follow-ups worth considering:
+- Scatter (it has its own play-axis motion), ribbon, multi-row card, decomposition tree and maps animate only as a fade.
+- Stacked columns grow segment by segment rather than as one stack; pie slices morph by path interpolation, not by angle.
+- Page transitions are entrances: the old page isn't kept for a cross-fade or a push.
+- Bookmarks that stay on the same page and drill up / down don't arm a morph.
 
 ## Done: Model view (diagram) improvements
 Built in `src/renderer/src/views/model/` (geometry in `routing.ts`, `snapping.ts`, `groups.ts`, `diagramOps.ts`), stored per

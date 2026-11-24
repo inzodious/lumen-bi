@@ -25,6 +25,9 @@ import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
 import { resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
 import { lumenStyleCss, lumenStyleOf } from '@core/report/lumenStyle'
+import { entranceDelay, motionFamily, visualMotion } from '@core/report/motion'
+import { VisualAnimator, type AnimatorOptions } from './motion/animator'
+import { onReplayMotion } from './motion/env'
 import { activeGradients, GradientPainter } from './gradientPaint'
 import { resolveBoundColors } from './boundColors'
 import { useCanvasEnv } from './canvasEnv'
@@ -327,6 +330,49 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  // Lumen visual animations (report/motion/animator.ts): entrance once mounted, morph after data changes
+  const engineNow = useApp((s) => s.engine)
+  const animOpts: AnimatorOptions | null = useMemo(() => {
+    const m = env.motion
+    if (!m) return null
+    const family = motionFamily(type)
+    const own = visualMotion(visual.json)
+    if (family === 'still' && !own.entrance) return null
+    if (own.entrance === 'none') return null
+    return { duration: m.report.duration, family: family === 'marks' ? 'marks' : 'fade', entrance: own.entrance ?? 'auto', delay: entranceDelay(m.report, own, m.order.get(visual.name) ?? 0) }
+  }, [env.motion, type, visual.json, visual.name])
+  const animator = useRef<VisualAnimator | null>(null)
+  const animated = !!animOpts
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el || !animOpts) return
+    const a = new VisualAnimator(el, animOpts)
+    animator.current = a
+    a.arm('enter')
+    return () => {
+      a.dispose()
+      animator.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animated])
+  useEffect(() => {
+    if (animOpts) animator.current?.setOptions(animOpts)
+  }, [animOpts])
+  useEffect(() => onReplayMotion((v) => (!v || v === visual.name ? animator.current?.replay() : undefined)), [visual.name])
+  const dataSeen = useRef(false)
+  useLayoutEffect(() => {
+    if (!dataSeen.current) {
+      dataSeen.current = true
+      return
+    }
+    animator.current?.arm('update')
+  }, [props.filters, props.highlightFilters, visual.json?.visual?.query, engineNow])
+  const lastSize = useRef<{ w: number; h: number } | null>(null)
+  useLayoutEffect(() => {
+    if (lastSize.current && size && (lastSize.current.w !== size.w || lastSize.current.h !== size.h)) animator.current?.pause()
+    lastSize.current = size
+  }, [size])
 
   // readiness: first render with a measured size (or a terminal state) counts as done
   const reported = useRef(false)

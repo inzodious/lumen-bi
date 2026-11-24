@@ -19,6 +19,9 @@ const outRoot = join(here, '..', '..', 'examples', 'dashboards')
 
 setLiveQueries(true)
 
+// page transitions and a visual stagger for the published dashboards (Lumen only; Power BI ignores them)
+const MOTION = { orbital: { transition: 'slide', stagger: 40 }, contour: { transition: 'fade', stagger: 40 }, aurora: { transition: 'rise', stagger: 40 } }
+
 function build(design) {
   const dir = join(outRoot, design.name)
   rmSync(dir, { recursive: true, force: true })
@@ -30,7 +33,7 @@ function build(design) {
   )
   write(join(sm, 'definition.pbism'), json({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/definitionProperties/1.0.0/schema.json', version: '4.2', settings: {} }))
   for (const [p, text] of Object.entries(modelFiles(design))) write(join(sm, 'definition', p), text)
-  writeReport(design, rp)
+  writeReport(design, rp, { motion: MOTION[design.id] })
 }
 
 const designDir = join(here, 'designs')

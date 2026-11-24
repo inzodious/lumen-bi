@@ -14,6 +14,7 @@ import { openPath, saveAs } from './commands'
 import { exportReport, exportReportWithResult } from '../export'
 import { isBusy } from './readiness'
 import { setVisualIcon } from '../icons/actions'
+import { setMotionOverride } from '../report/motion/env'
 
 export interface LumenE2EHooks {
   useApp: typeof useApp
@@ -26,6 +27,8 @@ export interface LumenE2EHooks {
   isBusy: typeof isBusy
   /** bake a built-in icon into a visual's image slot (icons/actions.ts) */
   setVisualIcon: typeof setVisualIcon
+  /** e2e runs render without motion (--lumen-still); 'on' turns visual animations and page transitions back on */
+  setMotion: typeof setMotionOverride
   /** console errors / uncaught errors seen by the renderer since the hooks were installed */
   errors: string[]
 }
@@ -54,5 +57,5 @@ export function installE2EHooks(): void {
     errors.push(`[uncaught] ${e.message}${err && typeof err === 'object' ? ` ${err.name ?? ''}: ${err.message ?? ''}\n${err.stack ?? ''}` : ''}`.slice(0, 2000))
   })
   window.addEventListener('unhandledrejection', (e) => errors.push(`[unhandledrejection] ${String((e as PromiseRejectionEvent).reason)}`))
-  window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, exportReportWithResult, isBusy, setVisualIcon, errors }
+  window.__lumen = { useApp, useShell, useInteraction, openPath, saveAs, exportReport, exportReportWithResult, isBusy, setVisualIcon, setMotion: setMotionOverride, errors }
 }

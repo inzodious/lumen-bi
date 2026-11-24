@@ -28,6 +28,7 @@ import { EmptyVisual, NoData, VisualError, useVisualQuery } from '../../common/V
 import { arcPath, composeLabel, labelParts, layoutOutsideLabels, polar, sliceAngles, splitLabel } from './pieLayout'
 import type { DataPointIdentity } from '@core/report/sq'
 import { SmallMultiples } from '../cartesian/SmallMultiples'
+import { sweepMark } from '../../common/motionMarks'
 
 /** Pie / donut data labels are on by default (also shown by the Format pane). */
 export const PIE_LABELS_SHOWN = true
@@ -294,12 +295,12 @@ export function PieChart({ visual, width, height, ctx, donut, icon, panel }: Vis
           const rh = donut ? inner + (r - inner) * frac : r * Math.sqrt(frac)
           return (
             <g key={s.key} {...onSlice(s)} style={{ cursor: 'pointer' }}>
-              <path d={path} fill={rgba(s.color, 0.4)} stroke="#FFFFFF" strokeWidth={1} />
-              {frac > 0 ? <path d={arcPath(cx, cy, inner, rh, a.start, a.end)} fill={fill} stroke="#FFFFFF" strokeWidth={1} /> : null}
+              <path d={path} fill={rgba(s.color, 0.4)} stroke="#FFFFFF" strokeWidth={1} {...sweepMark(cx, cy)} />
+              {frac > 0 ? <path d={arcPath(cx, cy, inner, rh, a.start, a.end)} fill={fill} stroke="#FFFFFF" strokeWidth={1} {...sweepMark(cx, cy)} /> : null}
             </g>
           )
         }
-        return <path key={s.key} d={path} fill={fill} opacity={op} stroke="#FFFFFF" strokeWidth={sep(i)} style={{ cursor: 'pointer' }} {...onSlice(s)} />
+        return <path key={s.key} d={path} fill={fill} opacity={op} stroke="#FFFFFF" strokeWidth={sep(i)} style={{ cursor: 'pointer' }} {...sweepMark(cx, cy)} {...onSlice(s)} />
       })}
       {labelNodes}
       {lg.size ? (

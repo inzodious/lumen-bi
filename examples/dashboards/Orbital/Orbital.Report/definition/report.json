@@ -92,6 +92,12 @@
       ]
     }
   ],
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"transition\":\"slide\",\"stagger\":40}"
+    }
+  ],
   "settings": {
     "useStylableVisualContainerHeader": true,
     "exportDataMode": "AllowSummarized",

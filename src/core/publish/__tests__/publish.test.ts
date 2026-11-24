@@ -5,6 +5,7 @@ import { emptyReport, type ReportDocument } from '../../report/types'
 import { openWbi } from '../../io/open'
 import type { ProjectDocument } from '../../project'
 import { PUBLISH_BUNDLE, PUBLISH_MANIFEST, REMOVED_QUERY, buildPublishBundle, type PublishManifest } from '../bundle'
+import { reportMotion, setReportMotion, setVisualMotion, visualMotion } from '../../report/motion'
 import { bracketNames, columnUsage, isColumnKept, referencesWholeTable } from '../usage'
 
 function model(): SemanticModel {
@@ -146,6 +147,26 @@ describe('publish bundle', () => {
     expect(opened.report?.pages.map((pg) => pg.name)).toEqual(['ReportSection', 'tip'])
     // the source project is untouched
     expect(p.model.expressions[0].expression).toContain('sql.example.test')
+  })
+
+  it('carries the report motion settings, or publishes a still dashboard when asked', async () => {
+    const p = project()
+    setReportMotion(p.report!.report, { transition: 'slide', stagger: 40 })
+    setVisualMotion(p.report!.pages[0].visuals[0].json, { entrance: 'rise' })
+    const moving = buildPublishBundle(p)
+    expect(moving.manifest.motion).toEqual({ animate: true, transitions: ['slide'] })
+    const opened = await openWbi(moving.files[PUBLISH_BUNDLE] as Uint8Array, undefined)
+    expect(reportMotion(opened.report!.report)).toMatchObject({ transition: 'slide', stagger: 40 })
+    expect(visualMotion(opened.report!.pages[0].visuals[0].json)).toEqual({ entrance: 'rise' })
+
+    const still = buildPublishBundle(p, { motion: false })
+    expect(still.manifest.motion).toEqual({ animate: false, transitions: [] })
+    expect(still.summary.motion).toEqual({ animate: false, transitions: [] })
+    const stillOpened = await openWbi(still.files[PUBLISH_BUNDLE] as Uint8Array, undefined)
+    expect(reportMotion(stillOpened.report!.report)).toMatchObject({ animate: false, transition: 'none' })
+    expect(visualMotion(stillOpened.report!.pages[0].visuals[0].json)).toEqual({})
+    // the open report keeps its settings
+    expect(reportMotion(p.report!.report).transition).toBe('slide')
   })
 
   it('keeps all data and queries when asked', async () => {

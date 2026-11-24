@@ -24,6 +24,7 @@ import { EmptyVisual, NoData, VisualError, useVisualQuery } from '../../common/V
 import { ICONS } from '../icons'
 import type { DataPointIdentity } from '@core/report/sq'
 import { layoutTreemap } from './treemapLayout'
+import { POP_MARK } from '../../common/motionMarks'
 
 interface Leaf {
   key: string
@@ -136,7 +137,7 @@ export function Treemap({ visual, width, height, ctx }: VisualProps) {
       const y0 = gr.rect.y0 + box.y
       const w = gr.rect.x1 - gr.rect.x0
       const h = gr.rect.y1 - gr.rect.y0
-      nodes.push(<rect key={`g${g.key}`} x={x0} y={y0} width={Math.max(0, w)} height={Math.max(0, h)} fill={hl ? rgba(g.color, PBI.highlightBackOpacity) : g.color} opacity={op} />)
+      nodes.push(<rect key={`g${g.key}`} x={x0} y={y0} width={Math.max(0, w)} height={Math.max(0, h)} fill={hl ? rgba(g.color, PBI.highlightBackOpacity) : g.color} opacity={op} {...POP_MARK} />)
       if (gr.header && w > 24)
         texts.push(
           <text key={`gt${g.key}`} x={x0 + 5} y={y0 + gr.header / 2} dy="0.35em" {...fontAttrs(groupFont)} fill={catColor ?? contrastText(g.color)} opacity={op} pointerEvents="none">
@@ -163,11 +164,11 @@ export function Treemap({ visual, width, height, ctx }: VisualProps) {
       const frac = l.highlight && l.value ? Math.max(0, Math.min(1, l.highlight / l.value)) : 0
       nodes.push(
         <g key={l.key} {...handlers} style={{ cursor: 'pointer' }}>
-          <rect x={x0} y={y0} width={w} height={h} fill={rgba(l.color, PBI.highlightBackOpacity)} />
-          <rect x={x0} y={y0 + h * (1 - frac)} width={w} height={h * frac} fill={l.color} />
+          <rect x={x0} y={y0} width={w} height={h} fill={rgba(l.color, PBI.highlightBackOpacity)} {...POP_MARK} />
+          <rect x={x0} y={y0 + h * (1 - frac)} width={w} height={h * frac} fill={l.color} {...POP_MARK} />
         </g>
       )
-    } else nodes.push(<rect key={l.key} x={x0} y={y0} width={Math.max(0, w)} height={Math.max(0, h)} fill={l.color} opacity={op} stroke={hasDetails ? '#FFFFFF' : undefined} strokeWidth={hasDetails ? 0.5 : undefined} style={{ cursor: 'pointer' }} {...handlers} />)
+    } else nodes.push(<rect key={l.key} x={x0} y={y0} width={Math.max(0, w)} height={Math.max(0, h)} fill={l.color} opacity={op} stroke={hasDetails ? '#FFFFFF' : undefined} strokeWidth={hasDetails ? 0.5 : undefined} style={{ cursor: 'pointer' }} {...POP_MARK} {...handlers} />)
     const textColor = catColor ?? contrastText(l.color)
     let ty = y0 + 4
     if (catShow && h >= lh + 4 && w > 20) {

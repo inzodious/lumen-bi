@@ -102,7 +102,7 @@ export function applyBoundContainerColors(chrome: ChromeSpec, visualJson: any, c
   const bg = bound('background', 'color')
   if (bg && chrome.background !== undefined) out.background = withTransparency(bg, pct(defaultEntry(visualJson, 'background')?.transparency))
   const bc = bound('border', 'color')
-  if (bc && chrome.border) out.border = { ...chrome.border, color: bc }
+  if (bc && chrome.border) out.border = { ...chrome.border, color: bc, gradient: undefined }
   const dc = bound('divider', 'color')
   if (dc && chrome.divider) out.divider = { ...chrome.divider, color: dc }
   const hb = bound('visualHeader', 'background')

@@ -265,7 +265,7 @@ export function resolveChrome(visualJson: any, theme: ResolvedTheme, opts: Chrom
 
   const borderShow = getProp<boolean>(ctx, 'border', 'show', false) === true
   const radius = num(getProp(ctx, 'border', 'radius', 0), 0)
-  const border = borderShow
+  const border: ChromeSpec['border'] = borderShow
     ? { color: str(getProp(ctx, 'border', 'color', '#CCCCCC'), '#CCCCCC'), width: num(getProp(ctx, 'border', 'width', 1), 1), radius }
     : undefined
   const borderGradient = border && gradientOf(ctx, { object: 'border', prop: 'color', container: true })

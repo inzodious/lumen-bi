@@ -215,4 +215,59 @@ describe('motion', () => {
       l.useApp.getState().setEditMode(true)
     })
   })
+  it('keeps a pinned visual still while the page transitions around it, and sets it in General ▸ Animation', async () => {
+    const { page } = lumen()
+    const chart = await visualByTitle(page, 'Sales by year and channel')
+    // the UI switch
+    await page.locator(`.wbi-page [data-visual="${chart}"] .wbi-vc-titles`).click()
+    await page.getByRole('tab', { name: 'Format visual' }).click()
+    await page.locator('.wbi-fmt__pivot').getByRole('tab', { name: 'General' }).click()
+    const pinRow = page.locator('.wbi-fmt__row', { hasText: 'Stay fixed during page transitions' })
+    if (!(await pinRow.count())) await page.locator('.wbi-fmt__cards .wbi-card__header', { hasText: /^Animation$/ }).click()
+    await pinRow.locator('[role=switch], button, input').first().click()
+    await expect.poll(() => lumenEval(page, (l, name) => l.useApp.getState().project!.report!.pages.flatMap((p) => p.visuals).find((v) => v.name === name)!.json.annotations?.find((a: any) => a.name === 'Lumen_Motion')?.value, chart)).toBe('{"pinned":true}')
+    // the same visual, pinned, in the same place on Products: it holds still while the pages push
+    await lumenEval(page, (l, name) =>
+      l.useApp.getState().mutateReport('Pin', (r) => {
+        const src = r.pages.flatMap((p) => p.visuals).find((v) => v.name === name)!
+        const products = r.pages.find((p) => p.json?.displayName === 'Products')!
+        products.visuals = products.visuals.filter((v) => v.name !== 'pinned-copy')
+        products.visuals.push({ name: 'pinned-copy', json: { ...JSON.parse(JSON.stringify(src.json)), name: 'pinned-copy', position: { ...src.json.position, z: 99000, tabOrder: 99000 } } })
+        r.report ??= {}
+        r.report.annotations = [...(r.report.annotations ?? []).filter((a: any) => a.name !== 'Lumen_Motion'), { name: 'Lumen_Motion', value: JSON.stringify({ transition: 'push', transitionDuration: 900 }) }]
+        for (const p of r.pages) if (p.json?.annotations) p.json.annotations = p.json.annotations.filter((a: any) => a.name !== 'Lumen_Motion')
+      }), chart)
+    await lumenEval(page, (l) => {
+      l.setMotion('on')
+      l.useApp.getState().setEditMode(false)
+    })
+    await goToPage(page, 'Overview')
+    await settle(page)
+    await page.evaluate(() => {
+      const w = window as unknown as { __pins: number; __pinObserver?: MutationObserver }
+      w.__pins = 0
+      w.__pinObserver?.disconnect()
+      w.__pinObserver = new MutationObserver((ms) => {
+        for (const m of ms) for (const n of m.addedNodes) if (n instanceof HTMLElement && n.classList.contains('wbi-transition-pin')) w.__pins++
+      })
+      w.__pinObserver.observe(document.body, { childList: true, subtree: true })
+    })
+    await goToPage(page, 'Products')
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __pins: number }).__pins)).toBe(1)
+    // the new page's own copy is hidden under the still one until the transition ends, then takes over
+    const copy = page.locator('.wbi-page .wbi-vc[data-visual="pinned-copy"]')
+    await expect.poll(() => copy.getAttribute('data-pinned')).toBe('true')
+    await expect.poll(() => page.locator('.wbi-transition-pin').count(), { timeout: 5000 }).toBe(0)
+    await expect.poll(() => copy.evaluate((e) => (e as HTMLElement).style.visibility)).toBe('')
+    await lumenEval(page, (l) => {
+      l.useApp.getState().mutateReport('Unpin', (r) => {
+        const products = r.pages.find((p) => p.json?.displayName === 'Products')!
+        products.visuals = products.visuals.filter((v) => v.name !== 'pinned-copy')
+        r.report.annotations = (r.report.annotations ?? []).filter((a: any) => a.name !== 'Lumen_Motion')
+        for (const v of r.pages.flatMap((p) => p.visuals)) if (v.json?.annotations) v.json.annotations = v.json.annotations.filter((a: any) => a.name !== 'Lumen_Motion')
+      })
+      l.setMotion(null)
+      l.useApp.getState().setEditMode(true)
+    })
+  })
 })

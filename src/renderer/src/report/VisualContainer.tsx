@@ -269,6 +269,8 @@ export interface VisualContainerProps {
   highlightFilters: SQFilter[]
   /** fill the whole box (focus mode) */
   fill?: boolean
+  /** stays fixed during page transitions (core isPinned): no entrance animation */
+  pinned?: boolean
 }
 
 export const VisualContainer = memo(function VisualContainer(props: VisualContainerProps) {
@@ -340,9 +342,9 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     const family = motionFamily(type)
     const own = visualMotion(visual.json)
     if (family === 'still' && !own.entrance) return null
-    if (own.entrance === 'none') return null
+    if (own.entrance === 'none' || props.pinned) return null
     return { duration: m.report.duration, family: family === 'marks' ? 'marks' : 'fade', entrance: own.entrance ?? 'auto', delay: entranceDelay(m.report, own, m.order.get(visual.name) ?? 0) }
-  }, [env.motion, type, visual.json, visual.name])
+  }, [env.motion, type, visual.json, visual.name, props.pinned])
   const animator = useRef<VisualAnimator | null>(null)
   const animated = !!animOpts
   useLayoutEffect(() => {
@@ -504,6 +506,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
       className="wbi-vc"
       data-visual={visual.name}
       data-type={type}
+      data-pinned={props.pinned || undefined}
       data-sample={sample?.source}
       style={outer}
       aria-label={chrome.altText ?? titleText ?? type}

@@ -156,7 +156,7 @@ function VisualFormat({ page, visual, theme, mobile = false }: { page: PageDocum
             {/* size / position on the phone are edited on the phone canvas */}
             {!mobile && <PropertiesCard page={page} visual={visual} vt={vt} ct={ct} search={search} extra={extraGeneral.filter((c) => !c.container && c.object === 'general')} />}
             <GroupedCards cards={CONTAINER_CARDS} target={ct} search={search} />
-            {!mobile && !isGroup && <VisualMotionCard page={page} visual={visual} search={search} />}
+            {!mobile && <VisualMotionCard page={page} visual={visual} search={search} group={isGroup} />}
             {extraGeneral
               .filter((c) => !(c.object === 'general' && !c.container))
               .map((c) => (

@@ -4,10 +4,10 @@
   "position": {
     "x": 20,
     "y": 668,
-    "z": 10000,
+    "z": 11000,
     "height": 22,
     "width": 172,
-    "tabOrder": 10000
+    "tabOrder": 11000
   },
   "visual": {
     "visualType": "cardVisual",
@@ -230,7 +230,7 @@
   "annotations": [
     {
       "name": "Lumen_Motion",
-      "value": "{\"entrance\":\"none\"}"
+      "value": "{\"pinned\":true}"
     }
   ]
 }

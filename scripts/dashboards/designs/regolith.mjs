@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { kit, themeOf } from '../../templates/kit.mjs'
 import { as, c, col, hex } from '../../templates/lib.mjs'
 import { bookmarkId } from '../../templates/pbir.mjs'
-import { T, X0, X1, backdrop, chrome, framed, logo, railSlicer, tile } from '../../templates/designs/regolith.mjs'
+import { PIN, T, X0, X1, backdrop, chrome, framed, logo, rail, railSlicer, tile } from '../../templates/designs/regolith.mjs'
 import { cal, columnColor, fmt, growToFit, kpi, legend, yearSlicer } from '../kit.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -311,9 +311,9 @@ function page(k, title, kicker, extra = []) {
     kicker,
     period: fmt('fmt_period'),
     filters: [
-      yearSlicer(k, { x: 20, y: 434, w: 172, h: 34, year: YEAR, ...railSlicer, motion: { entrance: 'none' } }),
-      k.slicer({ name: 'body', x: 20, y: 478, w: 172, h: 58, field: L('celestial_body'), header: 'CELESTIAL BODY', syncGroup: 'body', ...railSlicer, motion: { entrance: 'none' } }),
-      k.slicer({ name: 'category', x: 20, y: 544, w: 172, h: 58, field: MAT('category'), header: 'MATERIAL CATEGORY', syncGroup: 'category', ...railSlicer, motion: { entrance: 'none' } })
+      yearSlicer(k, { x: 20, y: 434, w: 172, h: 34, year: YEAR, ...railSlicer, motion: PIN }),
+      k.slicer({ name: 'body', x: 20, y: 478, w: 172, h: 58, field: L('celestial_body'), header: 'CELESTIAL BODY', syncGroup: 'body', ...railSlicer, motion: PIN }),
+      k.slicer({ name: 'category', x: 20, y: 544, w: 172, h: 58, field: MAT('category'), header: 'MATERIAL CATEGORY', syncGroup: 'category', ...railSlicer, motion: PIN })
     ],
     extra
   })
@@ -501,7 +501,7 @@ export default {
   measures: { kpi: KPI, format: FMT },
   // the showcase's motion: a stagger down every page and a transition per page (Lumen only; Power BI ignores them)
   motion: { duration: 650, stagger: 45, transition: 'fade', transitionDuration: 560 },
-  resources: { 'regolith-bg.svg': backdrop(), 'regolith-bg-plain.svg': backdrop({ rock: false }), 'regolith-logo.svg': logo },
+  resources: { 'regolith-bg.svg': backdrop(), 'regolith-bg-plain.svg': backdrop({ rock: false }), 'regolith-rail.svg': rail, 'regolith-logo.svg': logo },
   bookmarks: [
     { name: 'By material', page: 'Extraction', show: [visualName('Extraction', 'view-material')], hide: [visualName('Extraction', 'view-site')], types: VIEW_TYPES },
     { name: 'By site', page: 'Extraction', show: [visualName('Extraction', 'view-site')], hide: [visualName('Extraction', 'view-material')], types: VIEW_TYPES }

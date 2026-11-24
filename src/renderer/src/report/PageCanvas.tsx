@@ -15,7 +15,7 @@ import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
 import { getVisual } from '../visuals/registry'
 import { CanvasEnvContext, type CanvasEnv, type CanvasMotion } from './canvasEnv'
-import { pageTransition, readingOrder, reportMotion } from '@core/report/motion'
+import { isPinned, pageTransition, readingOrder, reportMotion } from '@core/report/motion'
 import { motionAllowed, useMotionAllowed } from './motion/env'
 import { notePageShown, playPageEnter, settleBookmarkMorph } from './motion/pageTransition'
 import { borderCss, gradientBorderLayer, resolveChrome, resolveGroupChrome } from './chrome'
@@ -154,6 +154,7 @@ const VisualTree = memo(function VisualTree({ page, parent, filters, preview }: 
               key={v.name}
               className="wbi-group"
               data-group={v.name}
+              data-pinned={isPinned(page.visuals, v.name) || undefined}
               style={{
                 position: 'absolute',
                 left: r.x,
@@ -173,7 +174,7 @@ const VisualTree = memo(function VisualTree({ page, parent, filters, preview }: 
           )
         }
         const f = filters.get(v.name)
-        return <VisualContainer key={v.name} visual={v} rect={r} z={z} filters={f?.filters ?? EMPTY} highlightFilters={f?.highlightFilters ?? EMPTY} />
+        return <VisualContainer key={v.name} visual={v} rect={r} z={z} filters={f?.filters ?? EMPTY} highlightFilters={f?.highlightFilters ?? EMPTY} pinned={isPinned(page.visuals, v.name)} />
       })}
     </>
   )

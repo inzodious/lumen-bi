@@ -3,6 +3,7 @@ import {
   DEFAULT_REPORT_MOTION,
   MOTION_ANNOTATION,
   entranceDelay,
+  isPinned,
   motionFamily,
   motionSummary,
   morphPairs,
@@ -163,3 +164,30 @@ describe('morph pairs', () => {
   })
 })
 
+describe('pinned visuals', () => {
+  it('reads, sets and clears the pinned switch, keeping the other settings', () => {
+    const v: any = annotated({ entrance: 'rise', delay: 100 })
+    setVisualMotion(v, { pinned: true })
+    expect(visualMotion(v)).toEqual({ entrance: 'rise', delay: 100, pinned: true })
+    setVisualMotion(v, { pinned: false })
+    expect(visualMotion(v)).toEqual({ entrance: 'rise', delay: 100 })
+    expect(visualMotion(annotated({ pinned: 'yes' }))).toEqual({})
+  })
+
+  it('pins the children of a pinned group', () => {
+    const visuals = [
+      { name: 'rail', json: { visualGroup: {}, ...annotated({ pinned: true }) } },
+      { name: 'nav', json: { parentGroupName: 'rail', visual: {} } },
+      { name: 'chart', json: { visual: {} } },
+      { name: 'logo', json: { visual: {}, ...annotated({ pinned: true }) } }
+    ]
+    expect(visuals.map((v) => isPinned(visuals, v.name))).toEqual([true, true, false, true])
+    expect(isPinned(visuals, 'missing')).toBe(false)
+  })
+
+  it('leaves pinned visuals out of morph pairs (they hold still)', () => {
+    const card = (name: string, pinned = false) => ({ name, json: { visual: { visualType: 'card', query: { queryState: { Values: { projections: [{ queryRef: 'm.Sales' }] } } } }, ...(pinned ? annotated({ pinned: true }) : {}) } })
+    expect([...morphPairs([card('a')], [card('b')])]).toEqual([['a', 'b']])
+    expect([...morphPairs([card('a', true)], [card('b', true)])]).toEqual([])
+  })
+})

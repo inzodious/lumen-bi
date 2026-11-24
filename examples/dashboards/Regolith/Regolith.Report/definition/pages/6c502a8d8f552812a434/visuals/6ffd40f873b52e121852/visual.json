@@ -4,10 +4,10 @@
   "position": {
     "x": 20,
     "y": 544,
-    "z": 9000,
+    "z": 10000,
     "height": 58,
     "width": 172,
-    "tabOrder": 9000
+    "tabOrder": 10000
   },
   "visual": {
     "visualType": "slicer",
@@ -224,7 +224,7 @@
   "annotations": [
     {
       "name": "Lumen_Motion",
-      "value": "{\"entrance\":\"none\"}"
+      "value": "{\"pinned\":true}"
     }
   ]
 }

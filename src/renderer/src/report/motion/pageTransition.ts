@@ -17,6 +17,10 @@
  *  - bookmarks (report `bookmarks: morph`): applying a bookmark on the same page fades the visuals it shows or hides and
  *    moves the ones it moves
  *
+ * Pinned visuals and groups (visual `pinned`, e.g. a sidebar) hold still through every transition: when the page left
+ * had a pinned item of the same type in the same place, a still copy of it stays on top while both pages move, and the
+ * new page's own copy takes over (a short cross-fade) when the transition ends.
+ *
  * The first page shown in a window, and pages opened while editing, appear without a transition.
  */
 import { morphPairs, pageTransition, reportMotion, TWO_PAGE_TRANSITIONS, type PageTransition, type ReportMotion } from '@core/report/motion'
@@ -138,10 +142,22 @@ interface Snapshot {
   /** clone of the old page's shadow box */
   node: HTMLElement
   rect: Box
-  /** client boxes of the old page's visual containers */
-  visuals: Map<string, { box: Box; el: HTMLElement }>
+  /** client boxes of the old page's visual containers; local = their on-screen scale */
+  visuals: Map<string, { box: Box; el: HTMLElement; local: number }>
+  /** the old page's pinned visuals and groups (outermost only) */
+  pins: Pin[]
   fromVisuals: VisualDocument[]
   pointer?: { x: number; y: number }
+}
+
+interface Pin {
+  /** data-type of a visual, 'group' for a group */
+  kind: string
+  /** selector of the item inside the page (and inside the snapshot's clone) */
+  selector: string
+  box: Box
+  el: HTMLElement
+  local: number
 }
 
 let snapshot: Snapshot | null = null
@@ -190,13 +206,37 @@ export function stillCopy<T extends HTMLElement>(el: T): T {
   return copy
 }
 
+const localOf = (el: HTMLElement, box: Box) => (el.offsetWidth ? box.width / el.offsetWidth : 1)
+
+/** The outermost pinned visuals and groups inside `root`. */
+export function pinsOf(root: ParentNode): Pin[] {
+  const out: Pin[] = []
+  root.querySelectorAll<HTMLElement>('[data-pinned]').forEach((el) => {
+    if (el.parentElement?.closest('[data-pinned]') && root.contains(el.parentElement.closest('[data-pinned]'))) return
+    const group = el.dataset.group
+    const selector = group ? `.wbi-group[data-group="${CSS.escape(group)}"]` : `.wbi-vc[data-visual="${CSS.escape(el.dataset.visual ?? '')}"]`
+    const box = boxOf(el)
+    out.push({ kind: group ? 'group' : (el.dataset.type ?? ''), selector, box, el, local: localOf(el, box) })
+  })
+  return out
+}
+
+/** Two pinned items are the same when they have the same kind and stand in the same place (within 2 px). */
+export function samePin(a: { kind: string; box: Box }, b: { kind: string; box: Box }): boolean {
+  const near = (x: number, y: number) => Math.abs(x - y) <= 2
+  return a.kind === b.kind && near(a.box.left, b.box.left) && near(a.box.top, b.box.top) && near(a.box.width, b.box.width) && near(a.box.height, b.box.height)
+}
+
 function capture(from: string, to: string, nav: Nav, fromVisuals: VisualDocument[]): void {
   const shadow = shadowOf(from)
   if (!shadow) return
-  const visuals = new Map<string, { box: Box; el: HTMLElement }>()
-  shadow.querySelectorAll<HTMLElement>('.wbi-vc[data-visual]').forEach((el) => visuals.set(el.dataset.visual!, { box: boxOf(el), el }))
+  const visuals = new Map<string, { box: Box; el: HTMLElement; local: number }>()
+  shadow.querySelectorAll<HTMLElement>('.wbi-vc[data-visual]').forEach((el) => {
+    const box = boxOf(el)
+    visuals.set(el.dataset.visual!, { box, el, local: localOf(el, box) })
+  })
   const now = performance.now()
-  snapshot = { from, to, at: now, nav, node: stillCopy(shadow), rect: boxOf(shadow), visuals, fromVisuals, pointer: pointer && now - pointer.at < FRESH_MS ? { x: pointer.x, y: pointer.y } : undefined }
+  snapshot = { from, to, at: now, nav, node: stillCopy(shadow), rect: boxOf(shadow), visuals, pins: pinsOf(shadow), fromVisuals, pointer: pointer && now - pointer.at < FRESH_MS ? { x: pointer.x, y: pointer.y } : undefined }
 }
 
 let installed = false
@@ -235,7 +275,8 @@ export function installPageSnapshots(): void {
     const target = report.pages.find((p) => p.name === to)
     const kind = pageTransition(report.report, target?.json)
     const zooms = rm.drillthrough === 'zoom' && (nav === 'drill' ? drillOrigins.has(to) : nav === 'back' && drillOrigins.get(from)?.page === to)
-    if (!zooms && !TWO_PAGE_TRANSITIONS.has(kind)) return
+    const pins = kind !== 'none' && !!shadowOf(from)?.querySelector('[data-pinned]')
+    if (!zooms && !pins && !TWO_PAGE_TRANSITIONS.has(kind)) return
     capture(from, to, nav, report.pages.find((p) => p.name === from)?.visuals ?? [])
   })
 }
@@ -308,6 +349,13 @@ export interface PageEnter {
 export function playPageEnter(p: PageEnter): void {
   const snap = takeSnapshot(p.page)
   const viewport = p.el.closest<HTMLElement>('.wbi-viewport')
+  // measured before anything moves the new page
+  const hold = snap && viewport ? holdPins(p.el, viewport, snap) : null
+  const anims = enter(p, snap, viewport)
+  hold?.(anims)
+}
+
+function enter(p: PageEnter, snap: Snapshot | null, viewport: HTMLElement | null): Array<Animation | null> {
   const duration = p.motion.transitionDuration
   if (snap && viewport && p.motion.drillthrough === 'zoom') {
     if (snap.nav === 'drill') {
@@ -322,7 +370,45 @@ export function playPageEnter(p: PageEnter): void {
     }
   }
   if (snap && viewport && TWO_PAGE_TRANSITIONS.has(p.kind)) return playTwoPage(p, snap, viewport)
-  playPageTransition(p.el, p.kind, p.direction, duration)
+  return [playPageTransition(p.el, p.kind, p.direction, duration)]
+}
+
+/**
+ * Pinned items both pages share (same kind, same place): a still copy of the old one stays over everything while the
+ * pages move, the new one is hidden until the transition ends and then takes over. Returns the release, given the
+ * transition's animations.
+ */
+function holdPins(el: HTMLElement, viewport: HTMLElement, snap: Snapshot): ((anims: Array<Animation | null>) => void) | null {
+  if (!snap.pins.length) return null
+  const held: Array<{ el: HTMLElement; copy: HTMLElement }> = []
+  const free = [...snap.pins]
+  for (const n of pinsOf(el)) {
+    const i = free.findIndex((o) => samePin(o, n))
+    if (i < 0) continue
+    const [o] = free.splice(i, 1)
+    const inGhost = snap.node.querySelector<HTMLElement>(o.selector)
+    if (inGhost) inGhost.style.visibility = 'hidden'
+    // the old page's copy: the new page's visuals may still be drawing (queries, images); a page navigator shows the new
+    // page as selected when the new page's own copy takes over at the end
+    const copy = flyingCopy(viewport, o.el, o.box, o.local)
+    n.el.style.visibility = 'hidden'
+    copy.className = 'wbi-transition-pin'
+    copy.style.zIndex = '4'
+    held.push({ el: n.el, copy })
+  }
+  if (!held.length) return null
+  return (anims) => {
+    const release = () =>
+      held.forEach(({ el: n, copy }) => {
+        n.style.visibility = ''
+        const a = animate(copy, [{ opacity: 1 }, { opacity: 0 }], 140, { easing: 'linear', fill: 'forwards' })
+        if (a) void a.finished.then(() => copy.remove(), () => copy.remove())
+        else copy.remove()
+      })
+    const live = anims.filter((a): a is Animation => !!a)
+    if (!live.length) release()
+    else void Promise.allSettled(live.map((a) => a.finished)).then(release)
+  }
 }
 
 /** The new page's entrance alone (no old page to move). */
@@ -331,11 +417,11 @@ export function playPageTransition(el: HTMLElement, kind: PageTransition, direct
   return frames ? animate(el, frames, duration) : null
 }
 
-function playTwoPage(p: PageEnter, snap: Snapshot, viewport: HTMLElement): void {
+function playTwoPage(p: PageEnter, snap: Snapshot, viewport: HTMLElement): Array<Animation | null> {
   const box = boxOf(p.el)
   const origin = snap.pointer && snap.pointer.x >= box.left && snap.pointer.x <= box.left + box.width && snap.pointer.y >= box.top && snap.pointer.y <= box.top + box.height ? { x: snap.pointer.x - box.left, y: snap.pointer.y - box.top } : snap.pointer ? nearestEdgePoint(snap.pointer, box) : undefined
   const frames = twoPageFrames(p.kind, p.direction, { width: box.width, height: box.height }, origin)
-  if (!frames) return
+  if (!frames) return []
   const duration = p.motion.transitionDuration
   const shared = p.kind === 'morph' ? morphPairs(snap.fromVisuals, p.visuals) : new Map<string, string>()
   const anims: Array<Animation | null> = []
@@ -352,7 +438,7 @@ function playTwoPage(p: PageEnter, snap: Snapshot, viewport: HTMLElement): void 
     if (inGhost) inGhost.style.visibility = 'hidden'
     if (t === 'none') continue
     anims.push(animate(toEl, [{ transform: t, transformOrigin: '0 0' }, { transform: 'none', transformOrigin: '0 0' }], duration))
-    const fly = flyingCopy(viewport, from.el, from.box)
+    const fly = flyingCopy(viewport, from.el, from.box, from.local)
     flights.push(fly)
     anims.push(animate(fly, [{ transform: 'none' }, { transform: flyTransform(from.box, to, 1) }], duration, { fill: 'forwards' }))
     anims.push(animate(fly.firstElementChild!, [{ opacity: 1 }, { opacity: 1, offset: 0.45 }, { opacity: 0 }], duration, { easing: 'linear', fill: 'forwards' }))
@@ -362,6 +448,7 @@ function playTwoPage(p: PageEnter, snap: Snapshot, viewport: HTMLElement): void 
   anims.push(animate(p.el, frames.enter, duration))
   withGhost(viewport, ghost, anims)
   if (flights.length) void Promise.allSettled(anims.filter((a): a is Animation => !!a).map((a) => a.finished)).then(() => flights.forEach((f) => f.remove()))
+  return anims
 }
 
 /** Transform (origin 0 0) of a box placed at `from` that has travelled fraction `t` of the way to `to`. */
@@ -379,11 +466,10 @@ function nearestEdgePoint(pt: { x: number; y: number }, box: Box): { x: number; 
 }
 
 /** A still copy of a visual of the old page, laid over everything at its old client box. */
-function flyingCopy(viewport: HTMLElement, el: HTMLElement, box: Box): HTMLElement {
+function flyingCopy(viewport: HTMLElement, el: HTMLElement, box: Box, local: number): HTMLElement {
   const vp = viewport.getBoundingClientRect()
   const holder = document.createElement('div')
   holder.className = 'wbi-transition-ghost wbi-transition-fly'
-  const local = el.offsetWidth ? box.width / el.offsetWidth : 1
   Object.assign(holder.style, {
     position: 'absolute',
     left: `${box.left - vp.left + viewport.scrollLeft}px`,
@@ -402,7 +488,7 @@ function flyingCopy(viewport: HTMLElement, el: HTMLElement, box: Box): HTMLEleme
   return holder
 }
 
-function drillIn(el: HTMLElement, viewport: HTMLElement, snap: Snapshot, from: Box, duration: number): void {
+function drillIn(el: HTMLElement, viewport: HTMLElement, snap: Snapshot, from: Box, duration: number): Array<Animation | null> {
   const to = boxOf(el)
   const d = Math.round(duration * 1.25)
   const ghost = placeGhost(viewport, snap.node, snap.rect, false)
@@ -411,9 +497,10 @@ function drillIn(el: HTMLElement, viewport: HTMLElement, snap: Snapshot, from: B
     animate(el, [{ transform: boxTransform(from, to), transformOrigin: '0 0', opacity: 0 }, { opacity: 1, offset: 0.35 }, { transform: 'none', transformOrigin: '0 0', opacity: 1 }], d)
   ]
   withGhost(viewport, ghost, anims)
+  return anims
 }
 
-function drillOut(el: HTMLElement, viewport: HTMLElement, snap: Snapshot, to: Box, duration: number): void {
+function drillOut(el: HTMLElement, viewport: HTMLElement, snap: Snapshot, to: Box, duration: number): Array<Animation | null> {
   const d = Math.round(duration * 1.25)
   const ghost = placeGhost(viewport, snap.node, snap.rect, true)
   ghost.style.transformOrigin = '0 0'
@@ -423,6 +510,7 @@ function drillOut(el: HTMLElement, viewport: HTMLElement, snap: Snapshot, to: Bo
     animate(el, [{ opacity: 0.4 }, { opacity: 1 }], d)
   ]
   withGhost(viewport, ghost, anims)
+  return anims
 }
 
 /** Format pane ▸ Preview: play a transition on the open page, with the page itself standing in for the old one. */

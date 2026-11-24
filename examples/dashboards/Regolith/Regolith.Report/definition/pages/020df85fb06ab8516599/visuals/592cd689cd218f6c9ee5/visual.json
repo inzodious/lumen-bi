@@ -4,10 +4,10 @@
   "position": {
     "x": 77,
     "y": 46,
-    "z": 3000,
+    "z": 4000,
     "height": 18,
     "width": 124,
-    "tabOrder": 3000
+    "tabOrder": 4000
   },
   "visual": {
     "visualType": "textbox",
@@ -122,5 +122,11 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  }
+  },
+  "annotations": [
+    {
+      "name": "Lumen_Motion",
+      "value": "{\"pinned\":true}"
+    }
+  ]
 }

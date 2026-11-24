@@ -136,19 +136,19 @@ describe('motion', () => {
           }),
         motion
       )
-    const ghosts = () => page.evaluate(() => document.querySelectorAll('.wbi-viewport > .wbi-transition-ghost').length)
+    const ghosts = () => page.evaluate(() => document.querySelectorAll('.wbi-viewport .wbi-transition-ghost').length)
     /** watch for ghosts (still copies of the page that leaves) from now on */
     const watchGhosts = () =>
       page.evaluate(() => {
-        const w = window as unknown as { __ghosts: Array<{ z: string; fly: boolean }>; __ghostObserver?: MutationObserver }
+        const w = window as unknown as { __ghosts: Array<{ z: string; fly: boolean; clip: boolean }>; __ghostObserver?: MutationObserver }
         w.__ghosts = []
         w.__ghostObserver?.disconnect()
         w.__ghostObserver = new MutationObserver((ms) => {
-          for (const m of ms) for (const n of m.addedNodes) if (n instanceof HTMLElement && n.classList.contains('wbi-transition-ghost')) w.__ghosts.push({ z: n.style.zIndex, fly: n.classList.contains('wbi-transition-fly') })
+          for (const m of ms) for (const n of m.addedNodes) if (n instanceof HTMLElement && n.classList.contains('wbi-transition-ghost')) w.__ghosts.push({ z: n.style.zIndex, fly: n.classList.contains('wbi-transition-fly'), clip: !!(n.parentElement as HTMLElement).style.clipPath || !!document.querySelector<HTMLElement>('.wbi-canvas-center')?.style.clipPath })
         })
         w.__ghostObserver.observe(document.body, { childList: true, subtree: true })
       })
-    const seenGhosts = () => page.evaluate(() => (window as unknown as { __ghosts: Array<{ z: string; fly: boolean }> }).__ghosts)
+    const seenGhosts = () => page.evaluate(() => (window as unknown as { __ghosts: Array<{ z: string; fly: boolean; clip: boolean }> }).__ghosts)
     await lumenEval(page, (l) => {
       l.setMotion('on')
       l.useApp.getState().setEditMode(false)
@@ -162,8 +162,11 @@ describe('motion', () => {
       await goToPage(page, kind === 'push' || kind === 'wipe' || kind === 'morph' ? 'Overview' : 'Products')
       await expect.poll(seenGhosts).toSatisfy((g: Array<{ z: string; fly: boolean }>) => g.filter((x) => !x.fly).length === 1 && g.find((x) => !x.fly)!.z === (kind === 'morph' ? '2' : '-1'))
       await expect.poll(() => recorded(page)).toSatisfy((a: Record<string, number>) => (a.page ?? 0) >= 1)
-      // the ghost goes away when the transition ends
+      // nothing paints outside the canvas while it plays: the stage is clipped to the page box
+      expect((await seenGhosts()).every((g: { clip: boolean }) => g.clip)).toBe(true)
+      // the ghost goes away when the transition ends, and so does the clip
       await expect.poll(ghosts, { timeout: 5000 }).toBe(0)
+      await expect.poll(() => page.evaluate(() => document.querySelector<HTMLElement>('.wbi-canvas-center')?.style.clipPath ?? '')).toBe('')
     }
     // drill-through zoom: the page grows out of the visual clicked, Back shrinks it into that visual again
     await setReportMotion({ transition: 'none' })

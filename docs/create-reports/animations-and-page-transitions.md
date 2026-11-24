@@ -41,7 +41,8 @@ new one. Pages can also enter with a transition when you move between them, whic
 too, the open page stands in for it.
 
 Transitions only move a still copy of the page that leaves and the page that enters, so they stay smooth on large
-pages: nothing is drawn again while they play.
+pages: nothing is drawn again while they play. Everything they move stays inside the canvas: a page sliding in or out
+is cut off at the canvas edge and never paints over the gray area around it.
 
 Page transitions play in the reading view and in published dashboards. While you edit, pages switch at once, so moving
 around the report stays quick. Visual animations play in both.

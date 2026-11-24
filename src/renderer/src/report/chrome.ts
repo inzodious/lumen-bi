@@ -4,8 +4,9 @@
  * theme visualStyles, with Power BI's defaults. Pure — no React.
  */
 import { decodeValue, getProp, gradientOf, isDataBound, makePropContext, rawProp, type PropContext } from '@core/report/props'
-import { gradientCss } from '@core/report/gradientFill'
+import { gradientCss, LUMEN_FILL_ANNOTATION, readFills } from '@core/report/gradientFill'
 import { withTransparency, type ResolvedTheme } from '@core/report/theme'
+import type { CSSProperties } from 'react'
 import { fontWeightOf as sharedFontWeightOf, resolveFont } from '../visuals/common/text'
 import { parseFontSize } from '../visuals/common/textStyle'
 
@@ -92,7 +93,8 @@ export interface ChromeSpec {
   /** vertical gaps of the title area (px), see `titleAreaGaps` */
   spacing: SpacingSpec
   background?: string
-  border?: { color: string; width: number; radius: number }
+  /** `gradient`: the CSS gradient of a Lumen gradient fill on the border color (`color` stays the Power BI fallback) */
+  border?: { color: string; width: number; radius: number; gradient?: string }
   radius: number
   shadow?: ShadowSpec
   padding: { top: number; right: number; bottom: number; left: number }
@@ -263,9 +265,11 @@ export function resolveChrome(visualJson: any, theme: ResolvedTheme, opts: Chrom
 
   const borderShow = getProp<boolean>(ctx, 'border', 'show', false) === true
   const radius = num(getProp(ctx, 'border', 'radius', 0), 0)
-  const border = borderShow
+  const border: ChromeSpec['border'] = borderShow
     ? { color: str(getProp(ctx, 'border', 'color', '#CCCCCC'), '#CCCCCC'), width: num(getProp(ctx, 'border', 'width', 1), 1), radius }
     : undefined
+  const borderGradient = border && gradientOf(ctx, { object: 'border', prop: 'color', container: true })
+  if (border && borderGradient) border.gradient = gradientCss(borderGradient)
 
   let shadow: ShadowSpec | undefined
   if (getProp<boolean>(ctx, 'dropShadow', 'show', false) === true) {
@@ -372,6 +376,41 @@ function tooltipStyle(ctx: PropContext): Partial<ChromeSpec['tooltip']> {
 
 /** Group container chrome (visualGroup.objects: background / border / dropShadow …). */
 export function resolveGroupChrome(groupJson: any, theme: ResolvedTheme): { background?: string; border?: ChromeSpec['border']; shadow?: ShadowSpec; radius: number } {
-  const c = resolveChrome({ visual: { visualType: 'group', visualContainerObjects: groupJson?.visualGroup?.objects ?? {} } }, theme, { titleOnByDefault: false })
+  // the group's objects are read as container objects, so its gradient fills are too (whichever bag they were saved for)
+  const fills = readFills(groupJson).map((f) => ({ ...f, container: true }))
+  const annotations = fills.length ? [{ name: LUMEN_FILL_ANNOTATION, value: JSON.stringify(fills) }] : undefined
+  const c = resolveChrome({ visual: { visualType: 'group', visualContainerObjects: groupJson?.visualGroup?.objects ?? {} }, annotations }, theme, { titleOnByDefault: false })
   return { background: c.background, border: c.border, shadow: c.shadow, radius: c.radius }
+}
+
+/**
+ * A container border as CSS. A gradient border keeps its width as a transparent border (so the layout is unchanged) and
+ * is drawn by `gradientBorderLayer` on top: CSS `border-image` would drop rounded corners.
+ */
+export function borderCss(border: ChromeSpec['border']): string | undefined {
+  if (!border) return undefined
+  return `${border.width}px solid ${border.gradient ? 'transparent' : border.color}`
+}
+
+/**
+ * The layer that draws a gradient border: the gradient over the whole box, masked to the border ring (the box minus its
+ * content box), so rounded corners and a transparent background behave exactly like a solid border. `inset` places
+ * the layer on the bordered element's border box: 0 for a sibling with the same rect, `-width` for a child.
+ */
+export function gradientBorderLayer(border: ChromeSpec['border'], radius: number, inset = 0, extra?: CSSProperties): CSSProperties | undefined {
+  if (!border?.gradient || border.width <= 0) return undefined
+  const solid = 'linear-gradient(#000 0 0)'
+  return {
+    position: 'absolute',
+    inset,
+    boxSizing: 'border-box',
+    padding: border.width,
+    borderRadius: radius || undefined,
+    background: border.gradient,
+    WebkitMask: `${solid} content-box, ${solid}`,
+    WebkitMaskComposite: 'xor',
+    mask: `${solid} content-box exclude, ${solid}`,
+    pointerEvents: 'none',
+    ...extra
+  }
 }

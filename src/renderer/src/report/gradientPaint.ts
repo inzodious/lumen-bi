@@ -12,7 +12,8 @@
  *
  * The element's alpha (PBI transparency already applied to the color) carries over to every stop. A MutationObserver
  * re-applies the pass to what the visual re-renders and undoes it on elements whose color changed. Borders and
- * outlines of HTML elements stay solid (CSS borders have no gradient that keeps rounded corners).
+ * outlines of HTML elements inside a visual stay solid; the container border (visual and group) is drawn by a masked
+ * gradient layer instead (chrome.ts `gradientBorderLayer`).
  */
 import { gradientCss, gradientId, svgGradientGeometry, type GradientFill } from '@core/report/gradientFill'
 import { gradientOf, makePropContext } from '@core/report/props'

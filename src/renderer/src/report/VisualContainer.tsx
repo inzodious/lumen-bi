@@ -23,7 +23,7 @@ import { getVisual } from '../visuals/registry'
 import { customVisualDisplayName, customVisualLabel } from '../visuals/custom/customVisualInfo'
 import { useApp } from '../state/store'
 import { useInteraction } from '../state/interaction'
-import { resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
+import { borderCss, gradientBorderLayer, resolveChrome, titleAreaGaps, type ChromeSpec, type TextSpec } from './chrome'
 import { lumenStyleCss, lumenStyleOf } from '@core/report/lumenStyle'
 import { entranceDelay, motionFamily, visualMotion } from '@core/report/motion'
 import { VisualAnimator, type AnimatorOptions } from './motion/animator'
@@ -432,7 +432,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     backdropFilter: fx?.backdropFilter,
     transform: fx?.transform,
     borderRadius: chrome.radius || undefined,
-    border: chrome.border ? `${chrome.border.width}px solid ${chrome.border.color}` : undefined,
+    border: borderCss(chrome.border),
     boxShadow: shadows || undefined,
     padding: `${chrome.padding.top}px ${chrome.padding.right}px ${chrome.padding.bottom}px ${chrome.padding.left}px`,
     display: 'flex',
@@ -441,6 +441,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
     opacity: spotDim ? 0.15 : 1,
     transition: 'opacity 120ms'
   }
+  const borderLayer = gradientBorderLayer(chrome.border, chrome.radius, 0, { transform: fx?.transform, opacity: box.opacity, transition: box.transition })
 
   const link = chrome.link
   const linkActive = !!link && (env.mode === 'view' || !env.editing)
@@ -536,6 +537,7 @@ export const VisualContainer = memo(function VisualContainer(props: VisualContai
           </div>
         )}
       </div>
+      {borderLayer && <div className="wbi-vc-border" aria-hidden style={borderLayer} />}
       {env.headers && hover && chrome.header.show && def && ctx && (
         <PlacedHeader layer={env.headerLayer} anchor={outerRef} scale={env.scale} rect={rect} onHover={setHover}>
           <VisualHeader visual={visual} def={def} ctx={ctx} chrome={chrome} />

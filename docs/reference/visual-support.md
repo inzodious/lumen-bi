@@ -18,7 +18,7 @@ This reference lists every visual type Lumen knows: the types it renders, the on
 
 ## Visual types
 
-Lumen registers 47 visual types. The type ID is the `visualType` value stored in the report (PBIR `visual.json`).
+Lumen registers 48 visual types. The type ID is the `visualType` value stored in the report (PBIR `visual.json`).
 
 | Visual | Type ID | Category | Status |
 |---|---|---|---|
@@ -69,6 +69,7 @@ Lumen registers 47 visual types. The type ID is the `visualType` value stored in
 | HTML Content | `htmlContent443BE3AD55E043BF878BED274D3A6865`<br>`htmlContent` | Custom | Native |
 | Deneb | `deneb7E15AEF80B9E4D4F8E12924291ECE89A`<br>`deneb` | Custom | Native |
 | Power Automate for Power BI | `FlowVisual_C29F1DCC_81F5_4973_94AD_0517D44CC06A`<br>`powerAutomateVisual` | Custom | Approximate |
+| Code visual | `lumenCodeVisualC0DE5A1E7B3F4E2A9D6C8B1F0E4A7D3C`<br>`lumenCodeVisual` | Custom | Native |
 | Stacked bar chart | `stackedBarChart` | – | Placeholder |
 | R script visual | `scriptVisual` | – | Placeholder |
 | Python visual | `pythonVisual` | – | Placeholder |
@@ -117,6 +118,7 @@ Custom visuals carry a GUID suffix in their type ID; Lumen also matches a regist
 | HTML Content | Native | Re-implementation of the AppSource HTML Content visual; HTML is sanitized. |
 | Deneb | Native | Renders Vega and Vega-Lite specifications with the Vega library; no Deneb editor (edit the JSON in the Format pane). |
 | Power Automate for Power BI | Approximate | The button renders as formatted; flows cannot run outside the Power BI service. |
+| Code visual | Native | Lumen only: HTML templates, CSS and JSX in a sandbox, cross-filtering and drill-down like a native visual. Power BI Desktop cannot display it (designed to show its "can't display this visual" placeholder; not verified). Highlighted when it has Rows; filtered like a card with measures only. |
 | Stacked bar chart (`stackedBarChart`) | Placeholder | Defect: a first "Stacked bar chart" gallery tile inserts this unregistered type. Use the second tile (barChart). |
 | R script visual (`scriptVisual`) | Placeholder | R script visuals do not run. |
 | Python visual (`pythonVisual`) | Placeholder | Python visuals do not run. |
@@ -176,6 +178,7 @@ The wells each visual shows in **Visualizations > Build visual**, in order. "(ma
 | HTML Content | Values, Granularity |
 | Deneb | Values |
 | Power Automate for Power BI | Power Automate data |
+| Code visual | Rows, Values, Tooltips |
 | Stacked bar chart | Y-axis, X-axis, Legend (max 1), Tooltips |
 | R script visual | Values |
 | Python visual | Values |
@@ -239,6 +242,7 @@ The wells each visual shows in **Visualizations > Build visual**, in order. "(ma
 | HTML Content | Yes | – | – | Yes | – |
 | Deneb | Yes | – | – | Yes | – |
 | Power Automate for Power BI | Yes | – | – | Yes | – |
+| Code visual | Yes | Yes | Yes | Yes | – |
 
 ## Related content
 

@@ -4,7 +4,8 @@
  * 2024 Igor Cotruta, https://github.com/Hugoberry/pbixray); see ./THIRD_PARTY.md.
  *
  *  - uncompressed: the stream *is* the ABF (starts with `\xff\xfe` + UTF-16 "STREAM_STORAGE_SIGNATURE_)!@#$%^&*(").
- *  - single-threaded XPress9: 102-byte UTF-16 signature "This backup was created using XPress9 compression."
+ *  - single-threaded XPress9: 102-byte UTF-16 signature "This backup was created using XPress9 compression." (50
+ *    characters + one NUL)
  *    then repeated `[u32 uncompressedSize][u32 compressedSize][compressed bytes]` chunks forming ONE session.
  *  - multi-threaded XPress9: signature "This backup was created using multithreaded XPrs9." then five u64
  *    (mainChunksPerThread, prefixChunksPerThread, prefixThreadCount, mainThreadCount, chunkUncompressedSize);

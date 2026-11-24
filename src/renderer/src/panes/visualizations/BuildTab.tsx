@@ -19,6 +19,8 @@ import { CATALOG, catalogEntry, ICONS } from './catalog'
 import { AGG_MENU, addProjection, applyDateSlicerDefault, getShowAll, getShowValueAs, isValueProjection, moveProjection, nativeName, removeProjection, renameProjection, roleProjections, setAggregation, setShowAll, setShowValueAs, type ProjectionJson } from './wells'
 import { propagateSlicerFields } from '../syncslicers/sync'
 import { cloneDeep } from '@core/clone'
+import { CODE_VISUAL_TYPE } from '@core/codevisual/model'
+import { chooseTemplateFor, openCodeEditor } from '../../visuals/code/editorHost'
 
 const PROJ_MIME = 'application/x-lumen-projection'
 
@@ -129,6 +131,16 @@ function Wells({ page, visual, type }: { page: PageDocument; visual: VisualDocum
   if (!roles.length) return <div className="wbi-pane__empty">This visual has no data fields.</div>
   return (
     <div className="wbi-viz__wells">
+      {type === CODE_VISUAL_TYPE && (
+        <div className="wbi-viz__codeactions">
+          <button type="button" className="wbi-btn wbi-btn--default" onClick={() => openCodeEditor(visual.name, page.name)}>
+            Edit code
+          </button>
+          <button type="button" className="wbi-btn wbi-btn--subtle" onClick={() => void chooseTemplateFor(page.name, visual.name)}>
+            Templates
+          </button>
+        </div>
+      )}
       {roles.map((role) => (
         <Well key={role.name} role={role} roles={roles} page={page} visual={visual} type={type} />
       ))}

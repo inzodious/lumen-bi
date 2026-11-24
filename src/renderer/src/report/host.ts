@@ -243,8 +243,8 @@ export function useVisualHost(env: HostEnv, visualName: string, filters: SQFilte
       },
       actions,
       report: info,
-      updateVisual: (mutator) => {
-        useApp.getState().mutateReport('Edit visual', (draft) => {
+      updateVisual: (mutator, label) => {
+        useApp.getState().mutateReport(label ?? 'Edit visual', (draft) => {
           const v = findVisual(findPage(draft, pageName), visualName)
           if (v) mutator(v.json)
         })

@@ -387,11 +387,12 @@ export function readMetadata(db: MetadataDb, dbXml?: string): MetadataResult {
       if (pa) pd.annotations = pa
       if (type !== undefined && !PARTITION_SOURCE[type]) pd.extra = { partitionType: type }
       // Pre-2019 PBIX files bind import partitions as legacy query partitions
-      // (`SELECT * FROM [Query]` against the embedded mashup data source); the M itself lives in
-      // the PBIX `DataMashup` part (Section1.m). Record the query name so the PBIX reader can link it.
+      // (`SELECT * FROM [Query]`, or `SELECT [Query].* FROM [Query]` in 2017 files, against the embedded mashup data
+      // source); the M itself lives in the PBIX `DataMashup` part (Section1.m). Record the query name so the PBIX
+      // reader can link it.
       if (sourceType === 'query' && typeof p.QueryDefinition === 'string') {
-        const mq = /^\s*SELECT \* FROM \[(.+)\]\s*$/i.exec(p.QueryDefinition)
-        if (mq) pd.extra = { ...(pd.extra ?? {}), mashupQueryName: mq[1].replace(/\]\]/g, ']') }
+        const mq = /^\s*SELECT (?:\*|\[((?:[^\]]|\]\])+)\]\.\*) FROM \[((?:[^\]]|\]\])+)\]\s*$/i.exec(p.QueryDefinition)
+        if (mq && (mq[1] === undefined || mq[1] === mq[2])) pd.extra = { ...(pd.extra ?? {}), mashupQueryName: mq[2].replace(/\]\]/g, ']') }
       }
       td.partitions.push(pd)
     }

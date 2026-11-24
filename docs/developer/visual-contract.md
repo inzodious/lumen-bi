@@ -78,10 +78,12 @@ export interface VisualDefinition {
 | `icon` | A 20 x 20 SVG markup string for the gallery tile; it should draw with `currentColor`. `EmptyVisual` in `common/VisualState.tsx` also shows it faded when the wells are empty. |
 | `roles` | The field wells, in display order (see [Data roles](#data-roles)). |
 | `formatCards` | The Format pane cards (see [Format cards](#format-cards-and-properties)). |
+| `formatCardsFor(visualJson)` | Optional. Format cards that depend on the visual's JSON; when present, the Format pane uses it instead of `formatCards`. The code visual builds its **Parameters** card from the parameters its code declares. |
 | `component` | The React component that renders the content area. It receives `VisualProps`. |
 | `inGallery` | `false` hides the type from the gallery (internal or legacy aliases). |
 | `isSlicer` | The canvas treats the visual as a slicer: its selection becomes a filter on other visuals, and it receives `setSlicerFilter` / `slicerFilter`. |
 | `supportsHighlight` | The canvas sends cross-highlight selections from other visuals as `ctx.highlightFilters` instead of filtering this visual. |
+| `highlightsFor(visualJson)` | Optional per-visual answer to `supportsHighlight`, used wherever the visual's JSON is known (`report/filters.ts`, `report/pageFilters.ts`). The code visual highlights when it has **Rows** and is filtered like a card when it shows measures only. |
 | `supportsDrill` | Enables the drill buttons in the visual header for roles marked `drillable`. |
 | `getData` | The data behind the visual, used by the context menu entries **Show as a table**, **Show data point as a table**, **Export data** and (when the visual supplies no `selectionText`) **Copy selection**. Without it **Show as a table** and **Export data** are disabled and **Show data point as a table** is not offered. |
 | `defaultSize` | The size `insertVisual()` (`app/commands.ts`) uses; without it a new visual is 480 x 270. |
@@ -168,8 +170,10 @@ export interface VisualProps {
 | `showTooltip`, `showContextMenu` | Default tooltip and context menu. |
 | `actions` | Page navigation, bookmarks, back, drill-through, URLs, clear all slicers. |
 | `report` | Pages, bookmarks, `resolveImage()` for registered resources, and `pageVisuals` for page-summarizing visuals. |
-| `updateVisual(mutator)` | Persists a change to the visual JSON as an undoable edit (a header sort, a slicer search). |
+| `updateVisual(mutator, label?)` | Persists a change to the visual JSON as an undoable edit (a header sort, a slicer search); `label` names the undo step (default *Edit visual*). |
 | `setSlicerFilter`, `slicerFilter`, `slicerCleared` | Slicers only. |
+
+A visual that draws asynchronously can delay the moment the canvas counts it as rendered (which exports, captures and `wbiReady` wait for): call `useReadyHold(done)` from `visuals/common/readiness.ts` in its component, and the container's `VisualReadyContext` keeps the visual pending until `done` is true (or the canvas' own timeout). The code visual holds until its sandboxed frame has painted.
 
 A visual identifies data points with `DataPointIdentity` (`core/report/sq.ts`): a list of `{ expr, value }` pairs. The host turns a selection into an SQ `In` filter with `identitiesToFilter()`.
 
@@ -184,6 +188,6 @@ A visual identifies data points with `DataPointIdentity` (`core/report/sq.ts`): 
 - [Tutorial: add a visual](tutorial-add-a-visual.md)
 - [The visual query pipeline](visual-query-pipeline.md)
 - [Format pane internals](format-pane-internals.md)
-- [Container chrome and text](container-chrome-and-text.md)
 - [The report document model](the-report-document-model.md)
 - [Supported visuals (reference)](../reference/visual-support.md)
+- [Code visual internals](code-visual-internals.md)

@@ -32,8 +32,9 @@ Every format card and property the Format pane offers, per visual type, with its
 | [AI visuals](format-properties/ai-visuals.md) | Decomposition tree, Key influencers, Narrative, Q&A | 57 |
 | [Report elements](format-properties/elements.md) | Text box, Shape, Image, Button, Page navigator, Bookmark navigator | 186 |
 | [Custom visuals](format-properties/custom-visuals.md) | HTML Content, Deneb, Power Automate for Power BI | 24 |
+| [Code visual](format-properties/code-visual.md) | Code visual | 4 |
 
-In total the definitions describe 3203 visual-specific properties across 47 visual types, plus the shared General-tab cards.
+In total the definitions describe 3207 visual-specific properties across 48 visual types, plus the shared General-tab cards.
 
 ## What these pages do not cover
 

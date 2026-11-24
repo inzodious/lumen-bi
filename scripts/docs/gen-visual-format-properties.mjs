@@ -35,7 +35,8 @@ const FAMILIES = [
   ['maps', 'Maps', ['map', 'filledMap', 'shapeMap', 'azureMap']],
   ['ai-visuals', 'AI visuals', ['decompositionTreeVisual', 'keyDriversVisual', 'aiNarratives', 'qnaVisual']],
   ['elements', 'Report elements', ['textbox', 'shape', 'image', 'actionButton', 'pageNavigator', 'bookmarkNavigator']],
-  ['custom-visuals', 'Custom visuals', ['htmlContent443BE3AD55E043BF878BED274D3A6865', 'deneb7E15AEF80B9E4D4F8E12924291ECE89A', 'FlowVisual_C29F1DCC_81F5_4973_94AD_0517D44CC06A']]
+  ['custom-visuals', 'Custom visuals', ['htmlContent443BE3AD55E043BF878BED274D3A6865', 'deneb7E15AEF80B9E4D4F8E12924291ECE89A', 'FlowVisual_C29F1DCC_81F5_4973_94AD_0517D44CC06A']],
+  ['code-visual', 'Code visual', ['lumenCodeVisualC0DE5A1E7B3F4E2A9D6C8B1F0E4A7D3C']]
 ]
 
 const TYPE_LABEL = {

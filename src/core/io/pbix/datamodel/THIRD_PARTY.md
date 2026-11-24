@@ -13,6 +13,12 @@ projects. No upstream source files are copied verbatim; the ports re-implement t
 The on-disk formats themselves are described in Microsoft's open specification
 [MS-XLDM] (Spreadsheet Data Model File Format).
 
+The writers in `../write/vertipaq/` and `../write/fresh/` use the same format knowledge (pbixray's field names for
+`.dictionary` and `.idfmeta`). `../write/fresh/schema.ts` lists the table and column names of the `metadata.sqlitedb`
+catalog as Power BI Desktop creates it: these are the Tabular Object Model rowsets documented in Microsoft's open
+specification [MS-SSAS-T] plus the engine's storage tables, generated from the `CREATE TABLE` statements of a
+database file. The statements describe the engine's catalog only; no data or object of any model is copied.
+
 ## Test fixtures (`__fixtures__/`)
 
 | File | Origin | License |

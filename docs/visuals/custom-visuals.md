@@ -15,6 +15,10 @@ Power BI reports can contain custom visuals from AppSource or an organization, a
 
 The three re-implemented visuals are in the Visualizations pane gallery, so you can also add them to a new report.
 
+> [!TIP]
+> To write your own visual in HTML, CSS or JSX, one that cross-filters, drills and reads measures as CSS variables,
+> use Lumen's [code visual](code-visual.md) instead of HTML Content. It is a Lumen-only visual.
+
 ## HTML Content
 
 ![HTML Content visual listing the four product categories](../images/visuals/custom-visuals-html-content.png)

@@ -74,7 +74,7 @@ export function emptyReport(): ReportDocument {
     origin: 'new',
     report: {
       $schema: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/3.0.0/schema.json',
-      themeCollection: { baseTheme: { name: 'CY24SU10', type: 'SharedResources' } },
+      themeCollection: { baseTheme: { name: 'CY24SU10', reportVersionAtImport: { visual: '1.8.97', report: '2.0.97', page: '1.3.97' }, type: 'SharedResources' } },
       settings: { useStylableVisualContainerHeader: true, defaultDrillFilterOtherVisuals: true }
     },
     pagesMeta: { pageOrder: [pageName], activePageName: pageName },

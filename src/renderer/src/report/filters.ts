@@ -129,8 +129,8 @@ export interface FilterInputs {
   otherDrillPaths?: Record<string, DataPointIdentity[]>
   drillthrough?: DrillthroughContext | null
   extraFilters?: SQFilter[]
-  /** capability lookups (from the visual registry) */
-  supportsHighlight(visualType: string): boolean
+  /** capability lookups (from the visual registry); `visualJson` lets a type decide per visual (code visual) */
+  supportsHighlight(visualType: string, visualJson?: any): boolean
   isSlicer?(visualType: string): boolean
 }
 
@@ -201,7 +201,7 @@ export function computeVisualFilters(inp: FilterInputs): EffectiveFilters {
   const isSlicer = inp.isSlicer ?? isSlicerType
   const target = findVisual(page, visualName)
   const targetType = visualTypeOf(target)
-  const targetHighlights = inp.supportsHighlight(targetType)
+  const targetHighlights = inp.supportsHighlight(targetType, target?.json)
   const defaultIsFilter = report.report?.settings?.defaultFilterActionIsDataFilter === true
 
   const filters: SQFilter[] = pageScopeFilters(report, page, inp.drillthrough)

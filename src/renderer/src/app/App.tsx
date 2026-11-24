@@ -53,6 +53,7 @@ import { parseHash } from './Router'
 import type { AppView } from '../state/store'
 import { holdBusy, mirrorStoreBusy, releaseAfterPaint, setReady } from './readiness'
 import { installE2EHooks } from './e2eHooks'
+import { runScriptedPackageSave } from './savePackage'
 
 registerStandardTabs()
 mirrorStoreBusy()
@@ -134,6 +135,7 @@ function applyRouteOptions(params: URLSearchParams): void {
 async function runScriptedExport(params: URLSearchParams): Promise<void> {
   const fmt = params.get('export') as 'pdf' | 'pptx' | 'png' | 'html' | null
   const path = params.get('exportPath')
+  if (await runScriptedPackageSave(params)) return // export=pbix|pbit (savePackage.tsx)
   if (!fmt || !path || !useApp.getState().project?.report) return
   const release = holdBusy('scripted export')
   try {

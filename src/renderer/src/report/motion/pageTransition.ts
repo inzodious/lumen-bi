@@ -318,7 +318,7 @@ function placeGhost(viewport: HTMLElement, node: HTMLElement, box: Box, above: b
   })
   node.style.margin = '0'
   holder.appendChild(node)
-  viewport.appendChild(holder)
+  stageIn(viewport).appendChild(holder)
   return holder
 }
 
@@ -328,7 +328,7 @@ function withGhost(viewport: HTMLElement, ghost: HTMLElement, animations: Array<
   viewport.style.isolation = 'isolate'
   const done = () => {
     ghost.remove()
-    if (!viewport.querySelector(':scope > .wbi-transition-ghost')) viewport.style.isolation = isolation
+    if (!viewport.querySelector('.wbi-transition-ghost')) viewport.style.isolation = isolation
   }
   const live = animations.filter((a): a is Animation => !!a)
   if (!live.length) return done()
@@ -351,8 +351,39 @@ export function playPageEnter(p: PageEnter): void {
   const viewport = p.el.closest<HTMLElement>('.wbi-viewport')
   // measured before anything moves the new page
   const hold = snap && viewport ? holdPins(p.el, viewport, snap) : null
+  const canvas = boxOf(p.el)
   const anims = enter(p, snap, viewport)
+  if (viewport) clipToCanvas(viewport, canvas, anims)
   hold?.(anims)
+}
+
+/** The element that holds the page in the viewport (centering wrapper); ghosts and flying copies go in it too. */
+function stageIn(viewport: HTMLElement): HTMLElement {
+  return viewport.querySelector<HTMLElement>(':scope > .wbi-canvas-center') ?? viewport
+}
+
+const clipCount = new WeakMap<HTMLElement, number>()
+
+/**
+ * Nothing a transition moves may show outside the canvas: while the animations run, the stage (page, ghosts, flying
+ * copies) is clipped to the page's box, so a page sliding in or out never paints over the gray area around it.
+ */
+function clipToCanvas(viewport: HTMLElement, canvas: Box, anims: Array<Animation | null>): void {
+  const stage = stageIn(viewport)
+  const live = anims.filter((a): a is Animation => !!a)
+  if (stage === viewport || !live.length) return
+  const s = stage.getBoundingClientRect()
+  const top = canvas.top - s.top
+  const left = canvas.left - s.left
+  const right = s.right - (canvas.left + canvas.width)
+  const bottom = s.bottom - (canvas.top + canvas.height)
+  stage.style.clipPath = `inset(${round(top)}px ${round(right)}px ${round(bottom)}px ${round(left)}px)`
+  clipCount.set(stage, (clipCount.get(stage) ?? 0) + 1)
+  void Promise.allSettled(live.map((a) => a.finished)).then(() => {
+    const n = (clipCount.get(stage) ?? 1) - 1
+    clipCount.set(stage, n)
+    if (n <= 0) stage.style.clipPath = ''
+  })
 }
 
 function enter(p: PageEnter, snap: Snapshot | null, viewport: HTMLElement | null): Array<Animation | null> {
@@ -484,7 +515,7 @@ function flyingCopy(viewport: HTMLElement, el: HTMLElement, box: Box, local: num
   const copy = stillCopy(el)
   Object.assign(copy.style, { left: '0px', top: '0px', position: 'absolute', transform: `scale(${local})`, transformOrigin: '0 0' })
   holder.appendChild(copy)
-  viewport.appendChild(holder)
+  stageIn(viewport).appendChild(holder)
   return holder
 }
 
@@ -516,15 +547,18 @@ function drillOut(el: HTMLElement, viewport: HTMLElement, snap: Snapshot, to: Bo
 /** Format pane ▸ Preview: play a transition on the open page, with the page itself standing in for the old one. */
 export function previewPageTransition(el: HTMLElement, kind: PageTransition, duration: number): void {
   const viewport = el.closest<HTMLElement>('.wbi-viewport')
+  const box = boxOf(el)
   if (!viewport || !TWO_PAGE_TRANSITIONS.has(kind)) {
-    playPageTransition(el, kind, 1, duration)
+    const a = playPageTransition(el, kind, 1, duration)
+    if (viewport) clipToCanvas(viewport, box, [a])
     return
   }
-  const box = boxOf(el)
   const frames = twoPageFrames(kind, 1, { width: box.width, height: box.height })
   if (!frames) return
   const ghost = placeGhost(viewport, stillCopy(el), box, !!frames.ghostAbove)
-  withGhost(viewport, ghost, [animate(ghost, frames.leave, duration, { fill: 'forwards' }), animate(el, kind === 'morph' ? [{ opacity: 0 }, { opacity: 1 }] : frames.enter, duration)])
+  const anims = [animate(ghost, frames.leave, duration, { fill: 'forwards' }), animate(el, kind === 'morph' ? [{ opacity: 0 }, { opacity: 1 }] : frames.enter, duration)]
+  withGhost(viewport, ghost, anims)
+  clipToCanvas(viewport, box, anims)
 }
 
 // ---------------------------------------------------------------------------------------------
